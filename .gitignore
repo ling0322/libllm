@@ -1,0 +1,9 @@
+.vscode
+transformers
+/data
+/build
+/run
+
+__pycache__
+*.model
+*.bin
