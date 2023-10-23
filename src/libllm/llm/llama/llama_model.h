@@ -19,35 +19,36 @@
 
 #pragma once
 
-#include <string>
-#include "llyn/device.h"
+#include <memory>
+#include "llyn/nn/module.h"
+#include "llyn/nn/embedding.h"
+#include "llm/common/model_for_generation.h"
+#include "llm/llama/decoder_layer.h"
+#include "llm/llama/llama_config.h"
 
-namespace llyn {
+namespace libllm {
+namespace llama {
 
-// context for a module including operator set, device info and the namespace
-class Context {
+class LlamaModel : public llyn::nn::Module {
  public:
-  // default constructor (root context).
-  Context();
+  static constexpr char Llama[] = "llama";
+  static constexpr char RoPE[] = "rope";
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
+  static std::shared_ptr<LlamaModel> create(const llyn::Context &ctx, LlamaConfig config);
+  void initParameters(const llyn::StateMap &stateDict) override;
 
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
-
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
+  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const;
+  llyn::Tensor forwardHidden(llyn::Tensor hidden) const;
 
  private:
-  std::string _ns;
-  Device _device;
+  llyn::Context _ctx;
+  LlamaConfig _config;
+  std::shared_ptr<llyn::nn::Embedding> _embedding;
+  std::shared_ptr<DecodeLayer> _layer;
+  llyn::Tensor _wOutput;
+
+  LlamaModel() = default;
 };
 
-}  // namespace llyn
+}  // namespace llama
+}  // namespace libllm

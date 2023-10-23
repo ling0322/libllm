@@ -30,31 +30,38 @@ class StrFlagParser : public Flags::Parser {
   StrFlagParser(std::string *s, const std::string &description);
 
   void parse(const std::string &arg) override;
-  std::string getDescription() const override;
+  std::string getUsage() const override;
+  std::string getType() const override;
 
  private:
   std::string *_s;
-  std::string _description;
+  std::string _usage;
 };
 
-StrFlagParser::StrFlagParser(std::string *s, const std::string &description) :
+StrFlagParser::StrFlagParser(std::string *s, const std::string &usage) :
     _s(s),
-    _description(description) {}
+    _usage(usage) {}
 
 void StrFlagParser::parse(const std::string &arg) {
   *_s = arg;
 }
 
-std::string StrFlagParser::getDescription() const {
-  return _description;
+std::string StrFlagParser::getUsage() const {
+  return _usage;
 }
 
-void Flags::define(const std::string &flag, std::string *s, const std::string &description) {
+std::string StrFlagParser::getType() const {
+  return "string";
+}
+
+Flags::Flags(const std::string &usage) : _usage(usage) {}
+
+void Flags::define(const std::string &flag, std::string *s, const std::string &usage) {
   CHECK(_parsers.find(flag) == _parsers.end());
   CHECK(s);
   CHECK((!flag.empty()) && flag[0] == '-');
 
-  _parsers.emplace(flag, std::make_unique<StrFlagParser>(s, description));
+  _parsers.emplace(flag, std::make_unique<StrFlagParser>(s, usage));
 }
 
 void Flags::parse(int argc, char *argv[]) {
@@ -64,7 +71,7 @@ void Flags::parse(int argc, char *argv[]) {
   int state = FlagParserStateBegin;
   std::string flag;
   for (int i = 0; i < argc; ++i) {
-    std::string arg = ly::trim(argv[argc]);
+    std::string arg = ly::trim(argv[i]);
     if (state == FlagParserStateBegin) {
       if (arg.empty()) {
         continue;
@@ -87,6 +94,16 @@ void Flags::parse(int argc, char *argv[]) {
 
   if (state == FlagParserStateFlag)
     throw InvalidArgError(ly::sprintf("no value for flag: %s", flag));
+}
+
+void Flags::printUsage() const {
+  puts(_usage.c_str());
+  for (const auto &it : _parsers) {
+    printf("%s %s\n", it.first.c_str(), it.second->getType().c_str());
+    std::string usage = it.second->getUsage();
+    if (!usage.empty())
+      printf("    %s\n", usage.c_str());
+  }
 }
 
 } // namespace ly

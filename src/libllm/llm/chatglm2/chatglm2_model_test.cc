@@ -26,6 +26,7 @@
 #include "llm/common/generator.h"
 #include "llm/chatglm2/chatglm2_config.h"
 #include "llm/chatglm2/chatglm2_model.h"
+#include "llm/chatglm2/chatglm2_model_for_generation.h"
 
 
 using llyn::Context;
@@ -38,20 +39,15 @@ using libllm::GenerationConfig;
 using libllm::Generator;
 using libllm::chatglm2::ChatGLM2Config;
 using libllm::chatglm2::ChatGLM2Model;
+using libllm::chatglm2::ChatGLM2ModelForGeneration;
 using lytok::Tokenizer;
 
 namespace F = llyn::functional;
 
-std::shared_ptr<ChatGLM2Model> readModel(const std::string &iniPath) {
+std::shared_ptr<ChatGLM2ModelForGeneration> readModel(const std::string &iniPath) {
   Context ctx = getCtxForCPU();
   auto ini = ly::IniConfig::read(iniPath);
-  auto config = ChatGLM2Config::fromIni(*ini);
-  auto model = ChatGLM2Model::create(ctx, *config);
-
-  ly::Path modelPath = ini->getSection("model").getPath("model_file");
-  readParameters(modelPath.string(), model.get());
-
-  return model;
+  return ChatGLM2ModelForGeneration::create(ctx, *ini);
 }
 
 CATCH_TEST_CASE("test ChatGLM2 module", "[core][nn][chatglm2]") {
@@ -65,11 +61,11 @@ CATCH_TEST_CASE("test ChatGLM2 module", "[core][nn][chatglm2]") {
   });
 
   StateMap stateMap;
-  Tensor x = model->forward(&stateMap, in);
+  Tensor x = model->forward(stateMap, in);
   F::print(x);
 }
 
-void benchmarkDecoding(const ChatGLM2Model *model, int ctxLen) {
+void benchmarkDecoding(const ChatGLM2ModelForGeneration *model, int ctxLen) {
   std::vector<LongType> ctx = {
       64790, 64792, 790, 30951, 517, 30910, 30939, 30996, 13, 13, 54761, 31211, 39701, 13, 13,
       55437, 31211 };
@@ -81,15 +77,14 @@ void benchmarkDecoding(const ChatGLM2Model *model, int ctxLen) {
 
   StateMap stateMap;
   double t0 = ly::now();
-  Tensor x = model->forward(&stateMap, in);
+  Tensor x = model->forward(stateMap, in);
   double t1 = ly::now() - t0;
-
 
   in = Tensor::create<LongType>({1, 1}, {39701});
 
 
   t0 = ly::now();
-  x = model->forward(&stateMap, in);
+  x = model->forward(stateMap, in);
   double t2 = ly::now() - t0;
   LOG(INFO) << ly::sprintf(
       "ctxLen=%d forward=%.2fms decode=%.2fms", ctxLen, 1000.0 * t1, 1000.0 * t2);

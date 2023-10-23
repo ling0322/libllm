@@ -38,23 +38,23 @@ ChatGLM2Config::ChatGLM2Config()
       symbolSOP(0),
       symbolEOS(0) {}
 
-std::unique_ptr<ChatGLM2Config> ChatGLM2Config::fromIni(const ly::IniConfig &ini) {
-  std::unique_ptr<ChatGLM2Config> config{new ChatGLM2Config()};
-
+ChatGLM2Config ChatGLM2Config::loadConfig(const ly::IniConfig &ini) {
   const ly::IniSection &section = ini.getSection(kSection);
 
-  config->hiddenSize = section.getInt("hidden_size");
-  config->vocabSize = section.getInt("vocab_size");
-  config->kvChannels = section.getInt("kv_channels");
-  config->seqLength = section.getInt("seq_length");
-  config->hiddenSizePerAttentionHead = section.getInt("hidden_size_per_attention_head");
-  config->multiQueryGroupNum = section.getInt("multi_query_group_num");
-  config->normEps = section.getFloat("norm_eps");
-  config->ffnHiddenSize = section.getFloat("ffn_hidden_size");
-  config->numLayers = section.getFloat("num_layers");
-  config->symbolGMask = section.getFloat("symbol_gmask");
-  config->symbolSOP = section.getFloat("symbol_sop");
-  config->symbolEOS = section.getFloat("symbol_eos");
+  ChatGLM2Config config;
+  config.hiddenSize = section.getInt("hidden_size");
+  config.vocabSize = section.getInt("vocab_size");
+  config.kvChannels = section.getInt("kv_channels");
+  config.seqLength = section.getInt("seq_length");
+  config.hiddenSizePerAttentionHead = section.getInt("hidden_size_per_attention_head");
+  config.multiQueryGroupNum = section.getInt("multi_query_group_num");
+  config.normEps = section.getFloat("norm_eps");
+  config.ffnHiddenSize = section.getFloat("ffn_hidden_size");
+  config.numLayers = section.getFloat("num_layers");
+  config.symbolGMask = section.getFloat("symbol_gmask");
+  config.symbolSOP = section.getFloat("symbol_sop");
+  config.symbolEOS = section.getFloat("symbol_eos");
+
   return config;
 }
 

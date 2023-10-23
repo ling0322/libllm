@@ -36,7 +36,7 @@ class ModelForGeneration {
   //   inputs <long>(N, L): prompt token ids.
   // Returns:
   //   <float>(N, L, D): hidden state from last layer.
-  virtual llyn::Tensor forward(llyn::StateMap *past, const llyn::Tensor &input) const = 0;
+  virtual llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const = 0;
 
   // Forward the hidden state from last layer and get the logits. hiddenState is usually the
   // return value of forward().
@@ -44,12 +44,17 @@ class ModelForGeneration {
   //   hidden_state <float>(N, L, D): hidden state from last layer.
   // Returns:
   //   <float>(N, L, V): logits. V is vocabulary size.
-  virtual llyn::Tensor getLogits(const llyn::Tensor &hiddenState) const = 0;
+  virtual llyn::Tensor forwardHidden(llyn::Tensor hiddenState) const = 0;
 
-  virtual llyn::Tensor buildPrompt(const lytok::Tokenizer *tokenizer,
-                                    const std::string &query) const = 0;
+  // build model input from the prompt and tokenizer.
+  virtual llyn::Tensor buildInput(const lytok::Tokenizer &tokenizer,
+                                  const std::string &query) const = 0;
 
-  virtual int getEOSTokenId() const = 0;;
+  // get the end-of-sentence symbol id.
+  virtual int getEosId() const = 0;
+
+  // get model name.
+  virtual const char *getName() const = 0;
 };
 
 }  // namespace libllm

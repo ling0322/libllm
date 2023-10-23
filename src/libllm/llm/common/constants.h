@@ -19,35 +19,18 @@
 
 #pragma once
 
-#include <string>
-#include "llyn/device.h"
+namespace libllm {
 
-namespace llyn {
+/// @brief model section in config file.
+constexpr char ModelSection[] = "model";
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  // default constructor (root context).
-  Context();
+/// @brief llama section in config file.
+constexpr char Llama2Section[] = "llama2";
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
+/// @brief model file field in config file.
+constexpr char ModelFileField[] = "model_file";
 
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
+/// @brief Model type field in libllm config file.
+constexpr char ModelTypeField[] = "type";
 
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
-};
-
-}  // namespace llyn
+}  // namespace libllm

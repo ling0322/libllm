@@ -40,8 +40,16 @@ class Flags {
  public:
   class Parser;
 
-  void define(const std::string &flag, std::string *s, const std::string &description = "");
+  Flags(const std::string &usage);
+
+  // define a string flag.
+  void define(const std::string &flag, std::string *s, const std::string &usage = "");
+
+  // parse argc and argv arguments.
   void parse(int argc, char *argv[]);
+
+  // print usage.
+  void printUsage() const;
 
   // get positional arguments after parsing.
   template<typename T>
@@ -50,6 +58,7 @@ class Flags {
  private:
   std::map<std::string, std::unique_ptr<Parser>> _parsers;
   std::vector<std::string> _positionalArgs;
+  std::string _usage;
 };
 
 // interface for flags parser. It parse the argument given by Flags and store the parsed value into
@@ -57,8 +66,15 @@ class Flags {
 class Flags::Parser {
  public:
   virtual ~Parser() = default;
+
+  // parse the flag argument.
   virtual void parse(const std::string &arg) = 0;
-  virtual std::string getDescription() const = 0;
+
+  // gets the usage description.
+  virtual std::string getUsage() const = 0;
+
+  // gets the parameter type information in string.
+  virtual std::string getType() const = 0;
 };
 
 template<typename T>

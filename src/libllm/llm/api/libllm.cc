@@ -3,6 +3,7 @@
 #include <memory>
 #include "llyn/llyn.h"
 #include "llm/api/environment.h"
+#include "llm/api/model_factory.h"
 #include "llm/chatglm2/chatglm2_model.h"
 #include "llm/common/generator.h"
 #include "llm/common/model_for_generation.h"
@@ -14,6 +15,7 @@
 using libllm::Environment;
 using libllm::Generator;
 using libllm::GenerationConfig;
+using libllm::ModelFactory;
 using libllm::ModelForGeneration;
 using libllm::chatglm2::ChatGLM2Config;
 using libllm::chatglm2::ChatGLM2Model;
@@ -63,25 +65,27 @@ void llm_destroy() {
 llm_model_t *llm_model_init(const char *ini_path) {
   std::unique_ptr<llm_model_t> model = std::make_unique<llm_model_t>();
   try {
-    if (!ini_path) throw ly::InvalidArgError("ini_path");
+    if (!ini_path)
+      throw ly::InvalidArgError("ini_path");
+    std::unique_ptr<IniConfig> ini = IniConfig::read(ini_path);
 
     model->ctx.setDevice(llyn::Device::createForCPU());
-
-    std::unique_ptr<IniConfig> ini = IniConfig::read(ini_path);
     model->tokenizer = Tokenizer::create(ini->getSection("tokenizer"));
-
-    // create model.
-    std::unique_ptr<ChatGLM2Config> config = ChatGLM2Config::fromIni(*ini);
-    std::unique_ptr<ChatGLM2Model> chatglm2Model = ChatGLM2Model::create(model->ctx, *config);
-
-    // initialize parameters.
-    llyn::StateMap stateMap;
-    ly::Path modelPath = ini->getSection("model").getPath("model_file");
-    stateMap.read(modelPath.string());
-    chatglm2Model->initParameters(stateMap);
-
-    model->model_for_generation = std::move(chatglm2Model);
+    model->model_for_generation = ModelFactory::createModel(model->ctx, *ini);
+  
     return model.release();
+  } catch (const ly::Error &e) {
+    LOG(ERROR) << e.what();
+    return nullptr;
+  }
+}
+
+const char *llm_model_get_name(llm_model_t *m) {
+  try {
+    if (!m) throw ly::InvalidArgError("m");
+    if (!m->model_for_generation) throw ly::InvalidArgError("m");
+
+    return m->model_for_generation->getName();
   } catch (const ly::Error &e) {
     LOG(ERROR) << e.what();
     return nullptr;
@@ -219,7 +223,6 @@ llm_chunk_t *llm_compl_next_chunk(llm_compl_t *c) {
 const char *llm_chunk_get_text(llm_chunk_t *c) {
   try {
     if (!c) throw ly::InvalidArgError("c");
-    if (c->text.empty()) throw ly::AbortedError("empty text");
     return c->text.c_str();
   } catch (const ly::Error &e) {
     LOG(ERROR) << e.what();

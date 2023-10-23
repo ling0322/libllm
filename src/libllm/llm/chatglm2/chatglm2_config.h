@@ -44,7 +44,7 @@ struct ChatGLM2Config {
   int symbolEOS;
 
   ChatGLM2Config();
-  static std::unique_ptr<ChatGLM2Config> fromIni(const ly::IniConfig &ini);
+  static ChatGLM2Config loadConfig(const ly::IniConfig &ini);
 };
 
 }  // namespace chatglm2

@@ -62,12 +62,6 @@ void SelfAttention::initParameters(const llyn::StateMap &stateDict) {
 }
 
 
-void SelfAttention::updateCtxLength(llyn::StateMap *past, int currentLength) const {
-  if (past) {
-    past->putValue<int>(_namePastLength, getCtxLength(past) + currentLength);
-  }
-}
-
 int SelfAttention::getCtxLength(llyn::StateMap *past) const {
   if (past && past->hasValue<int>(_namePastLength)) {
     return past->getValue<int>(_namePastLength);
@@ -76,49 +70,7 @@ int SelfAttention::getCtxLength(llyn::StateMap *past) const {
   }
 }
 
-
-llyn::Tensor SelfAttention::updateKvCache(
-    llyn::StateMap *past, const std::string &name, llyn::Tensor present) const {
-  CHECK(present.getDim() == 4);
-
-  // tensor shape (B, L, nH, D)
-  Tensor ctxTensor;
-  int updatedLen = 0;
-  if (past && past->hasTensor(name)) {
-    Tensor pastTensor = past->getTensor(name);
-    CHECK(pastTensor.getDim() == 4);
-
-    int ctxLen = getCtxLength(past);
-    int presentLen = present.getShape(1);
-
-    CHECK(pastTensor.getShape(0) == present.getShape(0));
-    if (pastTensor.getShape(1) < ctxLen + present.getShape(1)) {
-      std::vector<Tensor::ShapeType> shape = pastTensor.getShape();
-
-      shape[1] = ctxLen + present.getShape(1) + 50;
-      Tensor newTensor = F::zeros(shape, present.getDType());
-      F::copy(pastTensor.slice(1, {0, ctxLen}), newTensor.slice(1, {0, ctxLen}));
-
-      ctxTensor = newTensor;
-    } else {
-      ctxTensor = pastTensor;
-    }
-
-    F::copy(present, ctxTensor.slice(1, {ctxLen, ctxLen + presentLen}));
-    updatedLen = ctxLen + presentLen;
-  } else {
-    ctxTensor = present;
-    updatedLen = present.getShape(1);
-  }
-
-  // update kv_cache in past.
-  if (past) 
-    past->putTensor(name, ctxTensor);
-
-  return ctxTensor.slice(1, {0, updatedLen});
-}
-
-Tensor SelfAttention::forward(StateMap *past, const Tensor &input, const Tensor &roPE) const {
+Tensor SelfAttention::forward(StateMap &past, Tensor input, Tensor roPE) const {
   Tensor qkvProj = _qkvProj->forward(input);
   
   CHECK(qkvProj.getDim() == 3 && qkvProj.getShape(-1) == _kvProjDim * 2 + _qProjDim);
@@ -142,13 +94,12 @@ Tensor SelfAttention::forward(StateMap *past, const Tensor &input, const Tensor 
   Tensor ve = v.slice(-1, {0, D / 2});
 
   // fetch and update past length.
+  // TODO: check kvL length oveflow.
   int kvL = qL;
-  if (past && past->hasValue<int>(_namePastLength)) {
-    kvL += past->getValue<int>(_namePastLength);
+  if (past.hasValue<int>(_namePastLength)) {
+    kvL += past.getValue<int>(_namePastLength);
   }
-  if (past) {
-    past->putValue<int>(_namePastLength, kvL);
-  }
+  past.putValue<int>(_namePastLength, kvL);
 
   // apply rope.
   Tensor qkRoPE = roPE.slice({kvL - qL, kvL});
@@ -156,9 +107,9 @@ Tensor SelfAttention::forward(StateMap *past, const Tensor &input, const Tensor 
   F::copy(F::applRotaryPosEmbd(ke, qkRoPE), ke);
 
   // fetch and update past k.
-  if (past && past->hasTensor(_namePastK) && past->hasTensor(_namePastV)) {
-    const Tensor &pastK = past->getTensor(_namePastK);
-    const Tensor &pastV = past->getTensor(_namePastV);
+  if (past.hasTensor(_namePastK) && past.hasTensor(_namePastV)) {
+    const Tensor &pastK = past.getTensor(_namePastK);
+    const Tensor &pastV = past.getTensor(_namePastV);
 
     k = F::cat(pastK, k, 1);
     v = F::cat(pastV, v, 1);
@@ -167,10 +118,8 @@ Tensor SelfAttention::forward(StateMap *past, const Tensor &input, const Tensor 
   }
 
   // update kv_cache in past.
-  if (past) {
-    past->putTensor(_namePastK, k);
-    past->putTensor(_namePastV, v);
-  }
+  past.putTensor(_namePastK, k);
+  past.putTensor(_namePastV, v);
 
   // expand KV
   CHECK(qNH % kvNH == 0);

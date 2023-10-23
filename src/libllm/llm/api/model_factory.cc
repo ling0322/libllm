@@ -17,37 +17,29 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "llm/api/model_factory.h"
 
-#include <string>
-#include "llyn/device.h"
+#include "lyutil/error.h"
+#include "lyutil/strings.h"
+#include "llm/common/constants.h"
+#include "llm/chatglm2/chatglm2_model_for_generation.h"
+#include "llm/llama/llama_model_for_generation.h"
 
-namespace llyn {
+namespace libllm {
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  // default constructor (root context).
-  Context();
+std::shared_ptr<ModelForGeneration> ModelFactory::createModel(
+    const llyn::Context &ctx,
+    const ly::IniConfig &config) {
+  std::string modelType = config.getSection(ModelSection).getString(ModelTypeField);
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
+  if (modelType == "chatglm2")
+    return chatglm2::ChatGLM2ModelForGeneration::create(ctx, config);
 
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
+  if (modelType == "llama")
+    return llama::LlamaModelForGeneration::create(ctx, config);
+  
+  throw ly::AbortedError(ly::sprintf("unexpected model type: %s", modelType));
+  return nullptr;
+}
 
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
-};
-
-}  // namespace llyn
+}  // namespace libllm

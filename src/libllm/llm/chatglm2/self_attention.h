@@ -27,14 +27,12 @@ namespace chatglm2 {
 
 class SelfAttention : public llyn::nn::Module {
  public:
-  static std::unique_ptr<SelfAttention> create(
-      const llyn::Context &ctx, ChatGLM2Config config);
+  static std::unique_ptr<SelfAttention> create(const llyn::Context &ctx, ChatGLM2Config config);
 
   // initialize the module from context
   void initParameters(const llyn::StateMap &stateDict) override;
 
-  llyn::Tensor forward(
-      llyn::StateMap *past, const llyn::Tensor &input, const llyn::Tensor &roPE) const;
+  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input, llyn::Tensor roPE) const;
 
  private:
   std::unique_ptr<llyn::nn::Linear> _qkvProj;
@@ -51,10 +49,7 @@ class SelfAttention : public llyn::nn::Module {
 
   SelfAttention() = default;
 
-  void updateCtxLength(llyn::StateMap *past, int currentLength) const;
   int getCtxLength(llyn::StateMap *past) const;
-  llyn::Tensor updateKvCache(
-    llyn::StateMap *past, const std::string &name, llyn::Tensor present) const;
 };
 
 }  // namespace chatglm2

@@ -17,63 +17,49 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "llm/chatglm2/glm_block.h"
-
-#include "lyutil/time.h"
-#include "llyn/llyn.h"
+#include "llm/llama/llama_model.h"
 
 using llyn::Context;
 using llyn::Tensor;
 using llyn::StateMap;
+using llyn::nn::Embedding;
 using llyn::nn::RMSNorm;
 
 namespace F = llyn::functional;
 
 namespace libllm {
-namespace chatglm2 {
-    
-std::unique_ptr<GLMBlock> GLMBlock::create(const Context &ctx, ChatGLM2Config config) {
-  std::unique_ptr<GLMBlock> layer{new GLMBlock()};
+namespace llama {
 
-  int hiddenSize = config.hiddenSize;
-  float normEps = config.normEps;
+constexpr char LlamaModel::Llama[];
+constexpr char LlamaModel::RoPE[];
 
-  layer->_ctx = ctx;
-  layer->_inputNorm = RMSNorm::create(ctx.withName("norm"), hiddenSize, normEps);
-  layer->_attnNorm = RMSNorm::create(ctx.withName("attn_norm"), hiddenSize, normEps);
-  layer->_attn = SelfAttention::create(ctx.withName("attn"), config);
-  layer->_mlp = MLP::create(ctx.withName("mlp"), config);
+std::shared_ptr<LlamaModel> LlamaModel::create(const Context &rootCtx, LlamaConfig config) {
+  std::shared_ptr<LlamaModel> model{new LlamaModel()};
+  
+  Context ctx = rootCtx.withName(Llama);
+  model->_config = config;
+  model->_ctx = ctx;
+  model->_embedding = Embedding::create(ctx.withName("embd"), config.hiddenSize, config.vocabSize);
+  model->_layer = DecodeLayer::create(ctx.withName("layer"), config);
 
-  return layer;
+  return model;
 }
 
-void GLMBlock::initParameters(const StateMap &stateMap) {
-  _attn->initParameters(stateMap);
-  _inputNorm->initParameters(stateMap);
-  _attnNorm->initParameters(stateMap);
-  _mlp->initParameters(stateMap);
+void LlamaModel::initParameters(const StateMap &stateDict) {
+  _embedding->initParameters(stateDict);
+  _layer->initParameters(stateDict);
+
+  _wOutput = stateDict.getTensor(_ctx.name("out_weight"));
+  _wOutput.throwIfInvalidShape({_config.vocabSize, _config.hiddenSize});
 }
 
-Tensor GLMBlock::forward(StateMap &past, Tensor input, Tensor roPE) const {
-  Tensor residual = input;
-
-  // norm+attention
-  Tensor x = _inputNorm->forward(input);
-  x = _attn->forward(past, x, roPE);
-
-  // residual
-  x = F::add(x, residual);
-  residual = x;
-
-  // norm+mlp
-  x = _attnNorm->forward(x);
-  x = _mlp->forward(x);
-
-  // residual
-  x = F::add(x, residual);
-
-  return x;
+llyn::Tensor LlamaModel::forward(StateMap &past, Tensor input) const {
+  return _embedding->forward(input);
 }
 
-}  // namespace chatglm2
+llyn::Tensor LlamaModel::forwardHidden(llyn::Tensor hidden) const {
+  return F::matmul(hidden, _wOutput.transpose(0, 1));
+}
+
+}  // namespace llama
 }  // namespace libllm

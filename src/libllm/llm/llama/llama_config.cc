@@ -17,37 +17,35 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "llm/llama/llama_config.h"
 
-#include <string>
-#include "llyn/device.h"
+#include "llm/common/constants.h"
 
-namespace llyn {
+namespace libllm {
+namespace llama {
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  // default constructor (root context).
-  Context();
+LlamaConfig::LlamaConfig() :
+    hiddenSize(0),
+    numHeads(0),
+    intermediateSize(0),
+    normEps(0.0f),
+    numLayers(0),
+    vocabSize(0),
+    maxContextLength(0) {}
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
+LlamaConfig LlamaConfig::loadConfig(const ly::IniConfig &iniConfig) {
+  const ly::IniSection &section = iniConfig.getSection(Llama2Section);
+  LlamaConfig config;
 
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
+  config.hiddenSize = section.getInt("hidden_size");
+  config.numHeads = section.getInt("num_heads");
+  config.intermediateSize = section.getInt("intermediate_size");
+  config.normEps = section.getInt("norm_eps");
+  config.numLayers = section.getInt("num_layers");
+  config.vocabSize = section.getInt("vocab_size");
 
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
+  return config;
+}
 
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
-};
-
-}  // namespace llyn
+}  // namespace llama
+}  // namespace libllm

@@ -50,7 +50,6 @@ void ChatGLM2Dialog::chat(const std::string &query) {
          t1 - t0,
          (t1 - t0) / numToken * 1000 );
 
-
   answer = ly::trim(answer);
   QA qa;
   qa.question = query;
