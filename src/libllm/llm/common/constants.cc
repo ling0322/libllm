@@ -17,37 +17,12 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "llm/common/constants.h"
 
-#include <string>
-#include "llyn/device.h"
+namespace libllm {
 
-namespace llyn {
+constexpr char ModelSection[];
+constexpr char LlamaSection[];
+constexpr char ModelFileField[];
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  // default constructor (root context).
-  Context();
-
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
-
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
-
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
-};
-
-}  // namespace llyn
+}  // namespace libllm

@@ -29,8 +29,7 @@ namespace libllm {
 namespace chatglm2 {
 
 // The ChatGLM2 model.
-class ChatGLM2Model : public llyn::nn::Module,
-                      public ModelForGeneration {
+class ChatGLM2Model : public llyn::nn::Module {
  public:
   // create ChatGLM2 Model.
   static std::unique_ptr<ChatGLM2Model> create(const llyn::Context &ctx, ChatGLM2Config config);
@@ -38,11 +37,8 @@ class ChatGLM2Model : public llyn::nn::Module,
   // initialize the module from context
   void initParameters(const llyn::StateMap &stateDict) override;
 
-  llyn::Tensor forward(llyn::StateMap *past, const llyn::Tensor &input) const override;
-  llyn::Tensor getLogits(const llyn::Tensor &hiddenState) const override;
-  llyn::Tensor buildPrompt(const lytok::Tokenizer *tokenizer,
-                            const std::string &query) const override;
-  int getEOSTokenId() const override;
+  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const;
+  llyn::Tensor forwardHidden(llyn::Tensor hiddenState) const;
 
  private:
   llyn::Context _ctx;

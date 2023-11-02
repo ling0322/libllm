@@ -17,63 +17,62 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "llm/chatglm2/glm_block.h"
+#include "llm/llama/decoder_layer.h"
 
-#include "lyutil/time.h"
-#include "llyn/llyn.h"
+#include "llyn/functional.h"
 
 using llyn::Context;
-using llyn::Tensor;
 using llyn::StateMap;
+using llyn::Tensor;
 using llyn::nn::RMSNorm;
 
 namespace F = llyn::functional;
 
 namespace libllm {
-namespace chatglm2 {
-    
-std::unique_ptr<GLMBlock> GLMBlock::create(const Context &ctx, ChatGLM2Config config) {
-  std::unique_ptr<GLMBlock> layer{new GLMBlock()};
+namespace llama {
 
-  int hiddenSize = config.hiddenSize;
-  float normEps = config.normEps;
-
+std::shared_ptr<DecodeLayer> DecodeLayer::create(const Context &ctx, const LlamaConfig &config) {
+  std::shared_ptr<DecodeLayer> layer{new DecodeLayer()};
   layer->_ctx = ctx;
-  layer->_inputNorm = RMSNorm::create(ctx.withName("norm"), hiddenSize, normEps);
-  layer->_attnNorm = RMSNorm::create(ctx.withName("attn_norm"), hiddenSize, normEps);
-  layer->_attn = SelfAttention::create(ctx.withName("attn"), config);
-  layer->_mlp = MLP::create(ctx.withName("mlp"), config);
 
+  layer->_attn = Attention::create(ctx.withName("attn"), config);
+  layer->_mlp = MLP::create(ctx.withName("mlp"), config);
+  layer->_inputNorm = RMSNorm::create(
+      ctx.withName("input_norm"),
+      config.hiddenSize,
+      config.normEps);
+  layer->_postAttnNorm = RMSNorm::create(
+      ctx.withName("post_attn_norm"),
+      config.hiddenSize,
+      config.normEps);
+  
   return layer;
 }
 
-void GLMBlock::initParameters(const StateMap &stateMap) {
-  _attn->initParameters(stateMap);
-  _inputNorm->initParameters(stateMap);
-  _attnNorm->initParameters(stateMap);
-  _mlp->initParameters(stateMap);
+void DecodeLayer::initParameters(const llyn::StateMap &stateDict) {
+  _attn->initParameters(stateDict);
+  _mlp->initParameters(stateDict);
+  _inputNorm->initParameters(stateDict);
+  _postAttnNorm->initParameters(stateDict);
 }
 
-Tensor GLMBlock::forward(StateMap &past, Tensor input, Tensor roPE) const {
+Tensor DecodeLayer::forward(StateMap &past, Tensor input) const {
   Tensor residual = input;
-
-  // norm+attention
+  
+  // norm + attn
   Tensor x = _inputNorm->forward(input);
-  x = _attn->forward(past, x, roPE);
 
-  // residual
+  x = _attn->forward(past, x);
   x = F::add(x, residual);
-  residual = x;
 
-  // norm+mlp
-  x = _attnNorm->forward(x);
+  // norm + mlp
+  residual = x;
+  x = _postAttnNorm->forward(x);
   x = _mlp->forward(x);
 
-  // residual
   x = F::add(x, residual);
-
   return x;
 }
 
-}  // namespace chatglm2
+}  // namespace llama
 }  // namespace libllm

@@ -19,35 +19,36 @@
 
 #pragma once
 
-#include <string>
-#include "llyn/device.h"
+#include <memory>
+#include "lyutil/ini_config.h"
+#include "llm/common/model_for_generation.h"
+#include "llm/chatglm2/chatglm2_model.h"
 
-namespace llyn {
+namespace libllm {
+namespace chatglm2 {
 
-// context for a module including operator set, device info and the namespace
-class Context {
+class ChatGLM2ModelForGeneration : public ModelForGeneration {
  public:
-  // default constructor (root context).
-  Context();
+  static std::shared_ptr<ChatGLM2ModelForGeneration> create(
+      const llyn::Context &ctx,
+      const ly::IniConfig &config);
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
-
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
-
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
+  // implements interface ModelForGeneration
+  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const override;
+  llyn::Tensor forwardHidden(llyn::Tensor hidden) const override;
+  llyn::Tensor buildInput(const lytok::Tokenizer &tokenizer,
+                          const std::string &query) const override;
+  int getEosId() const override;
+  const char *getName() const override;
 
  private:
-  std::string _ns;
-  Device _device;
+  static const char *_modelName;
+
+  std::shared_ptr<ChatGLM2Model> _model;
+  ChatGLM2Config _config;
+
+  ChatGLM2ModelForGeneration() = default;
 };
 
-}  // namespace llyn
+}  // namespace chatglm2
+}  // namespace libllm

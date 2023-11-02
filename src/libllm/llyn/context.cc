@@ -34,14 +34,20 @@ Context Context::withName(const std::string &name) const {
   return ctx;
 }
 
+std::string Context::joinName(const std::string &left, const std::string &right) {
+  std::string join = left;
+  join += ".";
+  join += right;
+  return join;
+}
+
 std::string Context::name(const std::string &name) const {
   std::string ns = _ns;
 
   if (ns.empty()) {
     ns = name;
   } else {
-    ns += ".";
-    ns += name;
+    ns = joinName(ns, name);
   }
 
   return ns;

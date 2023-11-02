@@ -80,11 +80,11 @@ void ChatGLM2Model::initParameters(const StateMap &stateDict) {
   }
 }
 
-llyn::Tensor ChatGLM2Model::getLogits(const llyn::Tensor &hiddenState) const {
+llyn::Tensor ChatGLM2Model::forwardHidden(llyn::Tensor hiddenState) const {
   return F::matmul(hiddenState, _output.transpose(0, 1));
 }
 
-Tensor ChatGLM2Model::forward(StateMap *past, const Tensor &input) const {
+Tensor ChatGLM2Model::forward(StateMap &past, Tensor input) const {
   Tensor x = _embedding->forward(input);
   for (int i = 0; i < _config.numLayers; ++i) {
     x = _blocks[i]->forward(past, x, _rope);
@@ -92,25 +92,6 @@ Tensor ChatGLM2Model::forward(StateMap *past, const Tensor &input) const {
   x = _finalNorm->forward(x);
 
   return x;
-}
-
-llyn::Tensor ChatGLM2Model::buildPrompt(const lytok::Tokenizer *tokenizer,
-                                         const std::string &query) const {
-  std::vector<int> tokenIds = tokenizer->encode(query);
-  std::vector<llyn::LongType> inputData{_config.symbolGMask, _config.symbolSOP};
-  const lytok::Vocab *vocab = tokenizer->getVocab();
-  for (int tokenId : tokenIds) {
-    LOG(DEBUG) << ly::sprintf("'%s' -> %d", vocab->getTokenString(tokenId), tokenId);
-    inputData.push_back(tokenId);
-  }
-
-  int len = inputData.size();
-  Tensor inputs = Tensor::create<llyn::LongType>({1, len}, inputData);
-  return inputs;
-}
-
-int ChatGLM2Model::getEOSTokenId() const {
-  return _config.symbolEOS;
 }
 
 }  // namespace chatglm2

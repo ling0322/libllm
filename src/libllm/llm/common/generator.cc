@@ -43,12 +43,12 @@ Generator::Generator(
         _currentToken(-1) {}
 
 void Generator::setPrompt(const std::string &query) {
-  Tensor inputs = _model->buildPrompt(_tokenizer.get(), query);
-  Tensor hiddenState = _model->forward(&_past, inputs);
+  Tensor inputs = _model->buildInput(*_tokenizer, query);
+  Tensor hiddenState = _model->forward(_past, inputs);
 
   CHECK(hiddenState.getDim() == 3);
   Tensor x = hiddenState.slice(1, {-1, llyn::None});
-  Tensor logits = _model->getLogits(x);
+  Tensor logits = _model->forwardHidden(x);
   _currentToken = sampleToken(logits);
 }
 
@@ -65,15 +65,15 @@ const char *Generator::nextToken() {
   std::array<llyn::LongType, 1> inputData{_currentToken};
   Tensor inputs = Tensor::create<llyn::LongType>({1, 1}, inputData);
 
-  Tensor x = _model->forward(&_past, inputs);
-  Tensor logits = _model->getLogits(x);
+  Tensor x = _model->forward(_past, inputs);
+  Tensor logits = _model->forwardHidden(x);
   _currentToken = sampleToken(logits);
 
   return token;
 }
 
 bool Generator::stopped() const {
-  return _currentToken == _model->getEOSTokenId() || _currentToken < 0;
+  return _currentToken == _model->getEosId() || _currentToken < 0;
 }
 
 int Generator::sampleToken(const llyn::Tensor &logits) {

@@ -20,8 +20,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <memory>
-#include <stdexcept>
 
 #define LLMAPI
 
@@ -46,6 +44,7 @@ LLMAPI void llm_destroy();
 
 LLMAPI llm_model_t *llm_model_init(const char *ini_path);
 LLMAPI void llm_model_destroy(llm_model_t *m);
+LLMAPI const char *llm_model_get_name(llm_model_t *m);
 
 LLMAPI llm_compl_opt_t *llm_compl_opt_init();
 LLMAPI void llm_compl_opt_destroy(llm_compl_opt_t *o);
@@ -66,7 +65,10 @@ LLMAPI void llm_chunk_destroy(llm_chunk_t *c);
 
 #ifdef __cplusplus
 }  // extern "C"
-#endif
+
+#include <memory>
+#include <stdexcept>
+
 
 namespace llm {
 
@@ -125,10 +127,22 @@ class Completion {
   Chunk _chunk;
 };
 
+/// @brief Stores an instance of LLM Model.
 class Model {
  public:
-  static Model create(const std::string &iniPath);
+  /// @brief Create an instance of Model from the config file path;
+  /// @param configFile config file of the model.
+  /// @return A shared pointer of the Model instance.
+  static std::shared_ptr<Model> create(const std::string &configFile);
 
+  /// @brief Get the name of model, for example, "llama".
+  /// @return name of the model.
+  const char *getName();
+
+  /// @brief Complete the given `prompt` with LLM.
+  /// @param prompt The prompt to complete.
+  /// @param config The config for completion.
+  /// @return A `Completion` object.
   Completion complete(const std::string &prompt,
                       CompletionConfig config = CompletionConfig());
 
@@ -184,13 +198,17 @@ inline Chunk Completion::nextChunk() {
   return c;
 }
 
-inline Model Model::create(const std::string &iniPath) {
+inline std::shared_ptr<Model> Model::create(const std::string &iniPath) {
   llm_model_t *model_ptr = llm_model_init(iniPath.c_str());
   if (!model_ptr) throw std::runtime_error("create model failed.");
 
-  Model model;
-  model._model = {model_ptr, llm_model_destroy};
+  std::shared_ptr<Model> model{new Model()};
+  model->_model = {model_ptr, llm_model_destroy};
   return model;
+}
+
+inline const char *Model::getName() {
+  return llm_model_get_name(_model.get());
 }
 
 inline Completion Model::complete(const std::string &prompt, CompletionConfig config) {
@@ -212,3 +230,5 @@ inline Completion Model::complete(const std::string &prompt, CompletionConfig co
 }
 
 }  // namespace llm
+
+#endif  // __cplusplus

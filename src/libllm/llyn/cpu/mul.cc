@@ -27,7 +27,16 @@ namespace llyn {
 namespace cpu {
 
 Tensor mul(const Tensor &A, const float k) {
-  if (A.getDType() == DType::kFloat) return mulFp32(Subtensor<const float>::fromTensor(A), k);
+  if (A.getDType() == DType::kFloat)
+    return mulFp32(Subtensor<const float>::fromTensor(A), k);
+
+  NOT_IMPL();
+  return Tensor();
+}
+
+Tensor mul(const Tensor &A, const Tensor &B) {
+  if (A.getDType() == DType::kFloat && B.getDType() == DType::kFloat)
+    return mulFp32(Subtensor<const float>::fromTensor(A), Subtensor<const float>::fromTensor(B));
 
   NOT_IMPL();
   return Tensor();
@@ -48,6 +57,30 @@ Tensor mulFp32(Subtensor<const float> A, float k) {
 
     for (int i = 0; i < vA.dimension(0); ++i) {
       vC.elem(i) = k * vA.elem(i);
+    }
+  }
+  return C;
+}
+
+Tensor mulFp32(Subtensor<const float> A, Subtensor<const float> B) {
+  CHECK(isShapeMatchBroadcastB(A, B));
+
+  Tensor C = tensor(A.getShape(), DType::kFloat);
+  Subtensor<float> Cs = Subtensor<float>::fromTensor(C);
+
+  SubtensorList<const float> vAs = getVectorList(A);
+  SubtensorList<const float> vBs = getVectorList(B);
+  SubtensorList<float> vCs = getVectorList(Cs);
+  CHECK(vAs.getSize() == vCs.getSize());
+
+  #pragma omp parallel for
+  for (int j = 0; j < vAs.getSize(); ++j) {
+    Subtensor<const float> vA = vAs.getSubtensor(j);
+    Subtensor<const float> vB = vBs.getSubtensor(j % vBs.getSize());
+    Subtensor<float> vC = vCs.getSubtensor(j);
+
+    for (int i = 0; i < vA.dimension(0); ++i) {
+      vC.elem(i) = vB.elem(i) * vA.elem(i);
     }
   }
   return C;

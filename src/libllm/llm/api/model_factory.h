@@ -19,35 +19,17 @@
 
 #pragma once
 
-#include <string>
-#include "llyn/device.h"
+#include <memory>
+#include "llm/common/model_for_generation.h"
+#include "lyutil/ini_config.h"
 
-namespace llyn {
+namespace libllm {
 
-// context for a module including operator set, device info and the namespace
-class Context {
+class ModelFactory {
  public:
-  // default constructor (root context).
-  Context();
-
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
-
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
-
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
+  // create model from ini.
+  static std::shared_ptr<ModelForGeneration> createModel(const llyn::Context &ctx,
+                                                         const ly::IniConfig &config);
 };
 
-}  // namespace llyn
+}  // namespace libllm

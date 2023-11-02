@@ -17,8 +17,29 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "llm/api/model_factory.h"
 
-#include "llm/api/llm.h"
+#include "lyutil/error.h"
+#include "lyutil/strings.h"
+#include "llm/common/constants.h"
+#include "llm/chatglm2/chatglm2_model_for_generation.h"
+#include "llm/llama/llama_model_for_generation.h"
 
-void llm_chatglm2_main(const llm::Model &model);
+namespace libllm {
+
+std::shared_ptr<ModelForGeneration> ModelFactory::createModel(
+    const llyn::Context &ctx,
+    const ly::IniConfig &config) {
+  std::string modelType = config.getSection(ModelSection).getString(ModelTypeField);
+
+  if (modelType == "chatglm2")
+    return chatglm2::ChatGLM2ModelForGeneration::create(ctx, config);
+
+  if (modelType == "llama")
+    return llama::LlamaModelForGeneration::create(ctx, config);
+  
+  throw ly::AbortedError(ly::sprintf("unexpected model type: %s", modelType));
+  return nullptr;
+}
+
+}  // namespace libllm

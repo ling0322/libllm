@@ -19,35 +19,33 @@
 
 #pragma once
 
-#include <string>
-#include "llyn/device.h"
+#include <memory>
+#include "llyn/context.h"
+#include "llyn/nn/rms_norm.h"
+#include "llm/llama/attention.h"
+#include "llm/llama/llama_config.h"
+#include "llm/llama/mlp.h"
 
-namespace llyn {
+namespace libllm {
+namespace llama {
 
-// context for a module including operator set, device info and the namespace
-class Context {
+class DecodeLayer : public llyn::nn::Module {
  public:
-  // default constructor (root context).
-  Context();
+  static std::shared_ptr<DecodeLayer> create(const llyn::Context &ctx, const LlamaConfig &config);
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
-
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
-
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
+  void initParameters(const llyn::StateMap &stateDict) override;
+  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const;
 
  private:
-  std::string _ns;
-  Device _device;
+  std::shared_ptr<llyn::nn::RMSNorm> _inputNorm;
+  std::shared_ptr<llyn::nn::RMSNorm> _postAttnNorm;
+  std::shared_ptr<Attention> _attn;
+  std::shared_ptr<MLP> _mlp;
+
+  llyn::Context _ctx;
+
+  DecodeLayer() = default;
 };
 
-}  // namespace llyn
+}  // namespace llama
+}  // namespace libllm

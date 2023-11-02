@@ -19,35 +19,34 @@
 
 #pragma once
 
-#include <string>
-#include "llyn/device.h"
+#include <memory>
+#include "llyn/context.h"
+#include "llyn/tensor.h"
+#include "llyn/nn/module.h"
+#include "llm/llama/llama_config.h"
 
-namespace llyn {
+namespace libllm {
+namespace llama {
 
-// context for a module including operator set, device info and the namespace
-class Context {
+class MLP : public llyn::nn::Module {
  public:
-  // default constructor (root context).
-  Context();
+  static std::shared_ptr<MLP> create(const llyn::Context &ctx, const LlamaConfig &config);
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
-
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
-
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
+  void initParameters(const llyn::StateMap &stateDict) override;
+  llyn::Tensor forward(llyn::Tensor input) const;
 
  private:
-  std::string _ns;
-  Device _device;
+  llyn::Tensor _wGateUpProj;
+  llyn::Tensor _wDownProj;
+
+  llyn::Context _ctx;
+
+  int _hiddenSize;
+  int _intermediateSize;
+
+  MLP();
 };
 
-}  // namespace llyn
+}  // namespace llama
+}  // namespace libllm
+

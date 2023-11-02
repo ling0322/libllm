@@ -25,12 +25,6 @@
 
 namespace libllm {
 
-namespace nn {
-class Operators;
-enum class CPUMathBackend;
-
-}  // namespace nn
-
 // stores all global function and objects required in finley
 class Environment : private ly::NonCopyable {
  public:

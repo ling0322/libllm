@@ -19,35 +19,44 @@
 
 #pragma once
 
-#include <string>
-#include "llyn/device.h"
+#include "llyn/context.h"
+#include "llyn/state_map.h"
+#include "llyn/nn/module.h"
+#include "llm/llama/llama_config.h"
 
-namespace llyn {
+namespace libllm {
+namespace llama {
 
-// context for a module including operator set, device info and the namespace
-class Context {
+class Attention : public llyn::nn::Module {
  public:
-  // default constructor (root context).
-  Context();
+  static std::shared_ptr<Attention> create(const llyn::Context &ctx, const LlamaConfig &config);
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
-
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
-
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
+  void initParameters(const llyn::StateMap &stateDict) override;
+  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const;
 
  private:
-  std::string _ns;
-  Device _device;
+  llyn::Tensor _qkvProj;
+  llyn::Tensor _outProj;
+  llyn::Tensor _roPE;
+
+  llyn::Context _ctx;
+
+  std::string _namePastK;
+  std::string _namePastV;
+  std::string _namePastLen;
+
+  int _hiddenSize;
+  int _numHead;
+  int _headDim;
+  int _maxCtxLen;
+
+  Attention();
+
+  // get past context length.
+  int getCtxLength(const llyn::StateMap &past) const;
+  llyn::Tensor applyRoPE(llyn::Tensor x, llyn::Tensor roPE) const;
+  llyn::Tensor rotateHalf(llyn::Tensor x) const;
 };
 
-}  // namespace llyn
+}  // namespace llama
+}  // namespace libllm

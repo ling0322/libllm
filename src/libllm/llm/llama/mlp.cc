@@ -17,37 +17,49 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "llm/llama/mlp.h"
 
-#include <string>
-#include "llyn/device.h"
+#include "llyn/functional.h"
 
-namespace llyn {
+using llyn::Context;
+using llyn::Tensor;
+using llyn::StateMap;
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  // default constructor (root context).
-  Context();
+namespace F = llyn::functional;
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
+namespace libllm {
+namespace llama {
 
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
+MLP::MLP() : _hiddenSize(0), _intermediateSize(0) {}
 
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
+std::shared_ptr<MLP> MLP::create(const Context &ctx, const LlamaConfig &config) {
+  std::shared_ptr<MLP> mlp{new MLP()};
 
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
+  mlp->_hiddenSize = config.hiddenSize;
+  mlp->_intermediateSize = config.intermediateSize;
+  mlp->_ctx = ctx;
+  
+  return mlp;
+}
 
- private:
-  std::string _ns;
-  Device _device;
-};
+void MLP::initParameters(const StateMap &stateDict) {
+  _wGateUpProj = stateDict.getTensor(_ctx.name("gate_up_proj"));
+  _wDownProj = stateDict.getTensor(_ctx.name("down_proj"));
 
-}  // namespace llyn
+  _wGateUpProj.throwIfInvalidShape({_intermediateSize * 2, _hiddenSize});
+  _wDownProj.throwIfInvalidShape({_hiddenSize, _intermediateSize});
+}
+
+Tensor MLP::forward(Tensor input) const {
+  CHECK(!_wGateUpProj.empty());
+
+  Tensor x = F::matmul(input, _wGateUpProj.transpose(0, 1));
+  x = F::swiglu(x);
+  x = F::matmul(x, _wDownProj.transpose(0, 1));
+
+  return x;
+}
+
+}  // namespace llama
+}  // namespace libllm
+

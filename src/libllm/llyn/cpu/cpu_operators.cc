@@ -420,6 +420,10 @@ Tensor CPUOperators::mul(Tensor A, float k) {
   return Tensor();
 }
 
+Tensor CPUOperators::mul(Tensor A, Tensor B) {
+  return cpu::mul(A, B);
+}
+
 Tensor CPUOperators::contiguous(Tensor input) {
   if (input.isContiguous()) {
     return input;
