@@ -1,8 +1,13 @@
 # libLLM: Efficient inference of large language models.
 
-Welcome to libLLM, an open-source project tailored for efficient inference of large language models (LLMs) on everyday PCs and mobile devices. Focused on delivering robust inference capabilities, this library is designed to empower various LLMs to perform seamlessly.
+Welcome to libLLM, an open-source project tailored for efficient inference of large language models (LLMs) on everyday PCs and mobile devices. This library is dedicated to providing powerful inference capabilities to various LLMs, enabling them to seamlessly run on a variety of devices.
 
-欢迎使用libLLM，这是一个专为在普通个人电脑和移动设备上高效推理大型语言模型（LLM）而设计的开源项目。该库专注于为各种LLM提供强大的推理能力，旨在使其能够无缝运行。
+欢迎使用libLLM，这是一个专为在普通个人电脑和移动设备上高效推理大型语言模型（LLM）而设计的开源项目。该库专注于为各种LLM提供强大的推理能力，使其能够在各种设备中无缝运行。
+
+## Supported models:
+
+- ChatGLM2
+- Llama2
 
 ## Key Features:
 
