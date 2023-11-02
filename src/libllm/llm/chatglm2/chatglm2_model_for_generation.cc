@@ -36,6 +36,7 @@ std::shared_ptr<ChatGLM2ModelForGeneration> ChatGLM2ModelForGeneration::create(
 
   ChatGLM2Config chatglm2Config = ChatGLM2Config::loadConfig(config);
   model->_model = ChatGLM2Model::create(ctx, chatglm2Config);
+  model->_config = chatglm2Config;
 
   // initialize parameters.
   llyn::StateMap stateMap;

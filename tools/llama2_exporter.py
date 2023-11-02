@@ -17,6 +17,7 @@
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import argparse
 import torch
 import configparser
 from os import path
@@ -32,8 +33,10 @@ class Llama2Exporter(ModelExporter):
         base_model = model.base_model
 
         self.export_embedding(ctx.with_subname("embd"), base_model.embed_tokens)
+        self._export_rms_norm(ctx.with_subname("norm"), base_model.norm)
         self._export_rope(ctx.with_subname("rope"), base_model.layers[0].self_attn.rotary_emb)
-        self._export_block(ctx.with_subname("block0"), base_model.layers[0])
+        for idx, block in enumerate(base_model.layers):
+            self._export_block(ctx.with_subname("block" + str(idx)), block)
         self._write(ctx.with_subname("out_weight"), model.lm_head.weight)
 
     def _export_rms_norm(self, ctx: Context, module):
@@ -49,12 +52,7 @@ class Llama2Exporter(ModelExporter):
         cos_cached = torch.squeeze(rope_embd.cos_cached)
         sin_cached = torch.squeeze(rope_embd.sin_cached)
 
-        assert cos_cached.shape == sin_cached.shape
-        shape = cos_cached.shape
-        rope = torch.zeros((shape[0], shape[1], 2), dtype=cos_cached.dtype, device=cos_cached.device)
-        rope[..., 0] = cos_cached
-        rope[..., 1] = sin_cached
-        rope = rope.reshape(shape[0], shape[1] * 2)
+        rope = torch.stack((cos_cached, sin_cached))
         self._write(ctx.with_quant(Quant.NONE), rope)
 
     def _export_attn(self, ctx: Context, attn_block):
@@ -90,23 +88,30 @@ class Llama2Exporter(ModelExporter):
         chatglm2_section["norm_eps"] = str(llama2_config.rms_norm_eps)
         chatglm2_section["num_layers"] = str(llama2_config.num_hidden_layers)
         chatglm2_section["vocab_size"] = str(llama2_config.vocab_size)
+        chatglm2_section["max_ctx_length"] = str(llama2_config.max_position_embeddings)
+        chatglm2_section["bos_token_id"] = "1"
+        chatglm2_section["eos_token_id"] = "2"
 
         return config
 
     @classmethod
-    def export(cls, llama2_model, output_prefix: str):
+    def export(cls, llama2_model, output_prefix: str, quant: Quant):
         model = llama2_model
         config = llama2_model.config
 
-        ctx = Context("llama2", quant=Quant.NONE)
-        bin_filename = output_prefix + ".bin"
+        quant_name = "fp32"
+        if quant != Quant.NONE:
+            quant_name = str(quant.name).lower()
+
+        ctx = Context("llama", quant=quant)
+        bin_filename = f"{output_prefix}.{quant_name}.bin"
         with TensorWriter(bin_filename) as writer:
             exporter = Llama2Exporter(writer)
             exporter._export_llama2(ctx, model)
 
         ini_config = cls.generate_config(config)
         ini_config["model"] = {}
-        ini_config["model"]["type"] = "llama2"
+        ini_config["model"]["type"] = "llama"
         ini_config["model"]["model_file"] = path.basename(bin_filename)
 
         return ini_config
@@ -115,47 +120,24 @@ class Llama2Exporter(ModelExporter):
 MODEL_NAME = "meta-llama/Llama-2-7b-hf"
 
 if __name__ == '__main__':
-    from transformers import AutoTokenizer, AutoModel
+    from transformers import AutoTokenizer
     from transformers.models.llama import LlamaForCausalLM
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
-    model = LlamaForCausalLM.from_pretrained(MODEL_NAME, trust_remote_code=True)
+
+
+    parser = argparse.ArgumentParser(description='export llama model from huggingface to libllm format.')
+    parser.add_argument('--name', type=str, help='the llama model name in huggingface.', default="meta-llama/Llama-2-7b-hf")
+    parser.add_argument('--quantization', type=Quant.parse, help='quantization type, "q4" or "q4sym" or "none"', default=Quant.Q4)
+    parser.add_argument('--output', type=str, help='output file name.', default="llama2")
+    args = parser.parse_args()
+
+    tokenizer = AutoTokenizer.from_pretrained(args.name, trust_remote_code=True)
+    model = LlamaForCausalLM.from_pretrained(args.name, trust_remote_code=True)
     model = model.eval()
 
-    #prompt = "Hey, are you conscious? Can you talk to me?"
-    #inputs = tokenizer(prompt, return_tensors="pt")
-    #print(model.generate(inputs.input_ids, max_length=30))
-
-    output_prefix = "../data/test/llama2.q4"
-    config = Llama2Exporter.export(model, output_prefix)
-    tokenizer_conifg = TokenizerExporter.export(MODEL_NAME, output_prefix)
+    output_prefix = args.output
+    config = Llama2Exporter.export(model, output_prefix, args.quantization)
+    tokenizer_conifg = TokenizerExporter.export(args.name, output_prefix)
     tokenizer_conifg.update_config(config, "tokenizer")
 
     with open(output_prefix + ".config", "w") as fp:
         config.write(fp)
-
-"""
-from transformers import AutoTokenizer
-import transformers
-import torch
-
-model = "meta-llama/Llama-2-7b-hf"
-
-tokenizer = AutoTokenizer.from_pretrained(model)
-pipeline = transformers.pipeline(
-    "text-generation",
-    model=model,
-    torch_dtype=torch.float32,
-    device_map="cpu",
-)
-
-sequences = pipeline(
-    '1989年',
-    do_sample=True,
-    top_k=10,
-    num_return_sequences=1,
-    eos_token_id=tokenizer.eos_token_id,
-    max_length=30,
-)
-for seq in sequences:
-    print(f"Result: {seq['generated_text']}")
-"""

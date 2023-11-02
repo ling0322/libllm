@@ -26,7 +26,10 @@ namespace llyn {
 namespace cpu {
 
 Tensor mul(const Tensor &A, float k);
+Tensor mul(const Tensor &A, const Tensor &B);
+
 Tensor mulFp32(Subtensor<const float> A, float k);
+Tensor mulFp32(Subtensor<const float> A, Subtensor<const float> B);
 
 }  // cpu
 }  // flint

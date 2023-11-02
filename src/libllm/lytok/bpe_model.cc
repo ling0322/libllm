@@ -31,6 +31,8 @@ BPEModel::BPEModel() : _unkId(kInvalidToken), _isByteTokenAvailable(false) {
 
 std::unique_ptr<BPEModel> BPEModel::create(const std::string &filename) {
   std::unique_ptr<BPEModel> model(new BPEModel());
+  LOG(INFO) << "read tokenizer from " << filename;
+
   auto fp = ly::ReadableFile::open(filename);
 
   model->readModel(fp.get());

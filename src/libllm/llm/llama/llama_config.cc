@@ -40,9 +40,10 @@ LlamaConfig LlamaConfig::loadConfig(const ly::IniConfig &iniConfig) {
   config.hiddenSize = section.getInt("hidden_size");
   config.numHeads = section.getInt("num_heads");
   config.intermediateSize = section.getInt("intermediate_size");
-  config.normEps = section.getInt("norm_eps");
+  config.normEps = section.getFloat("norm_eps");
   config.numLayers = section.getInt("num_layers");
   config.vocabSize = section.getInt("vocab_size");
+  config.maxContextLength = section.getInt("max_ctx_length");
 
   return config;
 }

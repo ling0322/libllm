@@ -46,16 +46,30 @@ std::string ChatGLM2PromptBuilder::buildPrompt(
   return prompt;
 }
 
+std::string ChatGLM2PromptBuilder::getStopSeq() {
+  return "";
+}
+
+const char *llama2Prompt = 
+    "Answer following questions:\n"
+    "\n"
+    "Q: What's the Capital city of Washinton state?\n"
+    "A: Olympia.\n"
+    "\n"
+    "Q: Who is the 31th president in US?\n"
+    "A: Herbert Clark Hoover.\n"
+    "\n"
+    "Q: %s\n"
+    "A: ";
+
 std::string LlamaPromptBuilder::buildPrompt(
     ly::Span<const QA> history,
     const std::string &question) {
-  std::string prompt;
-  for (const QA &qa : history) {
-    prompt += ly::sprintf("QUESTION:\n%s\n\nANSWER:\n%s\n\n", qa.question, qa.answer);
-  }
-  prompt += ly::sprintf("QUESTION:\n%s\n\nANSWER:\n", question);
+  return ly::sprintf(llama2Prompt, question);;
+}
 
-  return prompt;
+std::string LlamaPromptBuilder::getStopSeq() {
+  return "\n";
 }
 
 std::shared_ptr<PromptBulder> PromptBulder::create(const std::string &modelName) {
@@ -85,6 +99,7 @@ ChatOutput DialogManager::chat(
   output.promptDuration = ly::now() - t0;
 
   std::string answer;
+  std::string stopSeq = _promptBuilder->getStopSeq();
   t0 = ly::now();
   int numToken = 0;
   while (!comp.stopped()) {
@@ -94,6 +109,9 @@ ChatOutput DialogManager::chat(
     if (onTokenCallback) onTokenCallback(nextToken);
     answer += nextToken;
     ++numToken;
+
+    if ((!stopSeq.empty()) && (answer.find(stopSeq) != std::string::npos))
+      break;
   }
   output.numAnswerTokens = numToken;
   output.answerDuration = ly::now() - t0;

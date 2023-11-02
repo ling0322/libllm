@@ -44,7 +44,8 @@ class LlamaModel : public llyn::nn::Module {
   llyn::Context _ctx;
   LlamaConfig _config;
   std::shared_ptr<llyn::nn::Embedding> _embedding;
-  std::shared_ptr<DecodeLayer> _layer;
+  std::shared_ptr<llyn::nn::RMSNorm> _norm;
+  std::vector<std::shared_ptr<DecodeLayer>> _layers;
   llyn::Tensor _wOutput;
 
   LlamaModel() = default;

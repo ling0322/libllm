@@ -96,7 +96,9 @@ std::pair<std::string, Tensor> StateMap::readTensor(ly::ReadableFile *fp) const 
 
 Tensor StateMap::getTensor(const std::string &name) const {
   auto it = _dict.find(name);
-  CHECK(it != _dict.end());
+  if (it == _dict.end()) {
+    throw ly::AbortedError(ly::sprintf("tensor \"%s\" not found in state map.", name));
+  }
 
   return it->second;
 }
@@ -113,7 +115,7 @@ template<>
 int StateMap::getValue<int>(const std::string &name) const {
   auto it = _intDict.find(name);
   if (it == _intDict.end()) {
-    throw ly::AbortedError(ly::sprintf("StateMap: key not found: %s", name));
+    throw ly::AbortedError(ly::sprintf("value \"%s\" not found in state map.", name));
   }
 
   return it->second;

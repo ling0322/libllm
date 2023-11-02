@@ -54,6 +54,8 @@ class Attention : public llyn::nn::Module {
 
   // get past context length.
   int getCtxLength(const llyn::StateMap &past) const;
+  llyn::Tensor applyRoPE(llyn::Tensor x, llyn::Tensor roPE) const;
+  llyn::Tensor rotateHalf(llyn::Tensor x) const;
 };
 
 }  // namespace llama

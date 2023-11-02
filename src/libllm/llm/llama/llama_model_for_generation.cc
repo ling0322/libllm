@@ -51,8 +51,9 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::create(
   model->_model->initParameters(stateMap);
 
   // get EOS token
-  model->_eosId = modelSection.getInt("eos_token_id");
-  model->_bosId = modelSection.getInt("bos_token_id");
+  const IniSection &llamaSection = config.getSection(Llama2Section);
+  model->_eosId = llamaSection.getInt("eos_token_id");
+  model->_bosId = llamaSection.getInt("bos_token_id");
 
   return model;
 }

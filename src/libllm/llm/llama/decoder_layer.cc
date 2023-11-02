@@ -61,6 +61,7 @@ Tensor DecodeLayer::forward(StateMap &past, Tensor input) const {
   
   // norm + attn
   Tensor x = _inputNorm->forward(input);
+
   x = _attn->forward(past, x);
   x = F::add(x, residual);
 
@@ -68,8 +69,8 @@ Tensor DecodeLayer::forward(StateMap &past, Tensor input) const {
   residual = x;
   x = _postAttnNorm->forward(x);
   x = _mlp->forward(x);
-  x = F::add(x, residual);
 
+  x = F::add(x, residual);
   return x;
 }
 

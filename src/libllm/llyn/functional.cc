@@ -48,6 +48,10 @@ Tensor mul(Tensor input, float other) {
   return gOperatorsForDevice[Device::kCpu]->mul(input, other);
 }
 
+Tensor mul(Tensor input, Tensor other) {
+  return gOperatorsForDevice[Device::kCpu]->mul(input, other);
+}
+
 Tensor softmax(Tensor input) {
   return gOperatorsForDevice[Device::kCpu]->softmax(input);
 }

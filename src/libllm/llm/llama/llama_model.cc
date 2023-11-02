@@ -19,6 +19,8 @@
 
 #include "llm/llama/llama_model.h"
 
+#include "lyutil/strings.h"
+
 using llyn::Context;
 using llyn::Tensor;
 using llyn::StateMap;
@@ -40,21 +42,35 @@ std::shared_ptr<LlamaModel> LlamaModel::create(const Context &rootCtx, LlamaConf
   model->_config = config;
   model->_ctx = ctx;
   model->_embedding = Embedding::create(ctx.withName("embd"), config.hiddenSize, config.vocabSize);
-  model->_layer = DecodeLayer::create(ctx.withName("layer"), config);
-
+  model->_norm = RMSNorm::create(ctx.withName("norm"), config.hiddenSize, config.normEps);
+  for (int i = 0; i < config.numLayers; ++i) {
+    model->_layers.emplace_back(
+        DecodeLayer::create(ctx.withName(ly::sprintf("block%d", i)), config));
+  }
   return model;
 }
 
 void LlamaModel::initParameters(const StateMap &stateDict) {
   _embedding->initParameters(stateDict);
-  _layer->initParameters(stateDict);
+  _norm->initParameters(stateDict);
+
+  for (int i = 0; i < _config.numLayers; ++i) {
+    _layers[i]->initParameters(stateDict);
+  }
 
   _wOutput = stateDict.getTensor(_ctx.name("out_weight"));
   _wOutput.throwIfInvalidShape({_config.vocabSize, _config.hiddenSize});
 }
 
 llyn::Tensor LlamaModel::forward(StateMap &past, Tensor input) const {
-  return _embedding->forward(input);
+  Tensor x = _embedding->forward(input);
+
+  for (int i = 0; i < _config.numLayers; ++i) {
+    x = _layers[i]->forward(past, x);
+  }
+
+  x = _norm->forward(x);
+  return x;
 }
 
 llyn::Tensor LlamaModel::forwardHidden(llyn::Tensor hidden) const {

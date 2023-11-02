@@ -65,6 +65,7 @@ Tensor matmul(Tensor A, Tensor B);
 
 // Element wise multiply input and other.
 Tensor mul(Tensor input, float other);
+Tensor mul(Tensor input, Tensor other);
 
 // Apply softmax on the last dimension of input
 Tensor softmax(Tensor input);

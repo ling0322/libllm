@@ -63,7 +63,8 @@ void Attention::initParameters(const llyn::StateMap &stateDict) {
 
   _qkvProj.throwIfInvalidShape({_hiddenSize * 3, _hiddenSize});
   _outProj.throwIfInvalidShape({_hiddenSize, _hiddenSize});
-  _roPE.throwIfInvalidShape({_maxCtxLen, _headDim});
+  _roPE.throwIfInvalidShape({2, _maxCtxLen, _headDim});
+  _roPE = _roPE.view({2, _maxCtxLen, 1, _headDim});
 }
 
 int Attention::getCtxLength(const llyn::StateMap &past) const {
@@ -72,6 +73,31 @@ int Attention::getCtxLength(const llyn::StateMap &past) const {
   } else {
     return 0;
   }
+}
+
+Tensor Attention::rotateHalf(Tensor x) const {
+  Tensor rotated = F::createTensorLike(x);
+  int lastDim = x.getDim() - 1;
+  int halfShape = x.getShape(lastDim) / 2;
+
+  Tensor x1 = x.slice(lastDim, {0, halfShape});
+  Tensor x2 = x.slice(lastDim, {halfShape, llyn::None});
+  x2 = F::mul(x2, -1.0f);
+
+  F::copy(x1, rotated.slice(lastDim, {halfShape, llyn::None}));
+  F::copy(x2, rotated.slice(lastDim, {0, halfShape}));
+
+  return rotated;
+}
+
+Tensor Attention::applyRoPE(Tensor input, Tensor roPE) const {
+  Tensor cos = roPE.subtensor(0);
+  Tensor sin = roPE.subtensor(1);
+
+  cos = cos.expand({cos.getShape(0), input.getShape(2), cos.getShape(2)});
+  sin = sin.expand({sin.getShape(0), input.getShape(2), sin.getShape(2)});
+
+  return F::add(F::mul(input, cos), F::mul(rotateHalf(input), sin));
 }
 
 llyn::Tensor Attention::forward(llyn::StateMap &past, llyn::Tensor input) const {
@@ -92,10 +118,10 @@ llyn::Tensor Attention::forward(llyn::StateMap &past, llyn::Tensor input) const 
   q = q.view({N, qLen, _numHead, _headDim});
   k = k.view({N, qLen, _numHead, _headDim});
   v = v.view({N, qLen, _numHead, _headDim});
-  Tensor roPE = _roPE.slice({kvLen - qLen, kvLen});
+  Tensor roPE = _roPE.slice(1, {kvLen - qLen, kvLen});
 
-  q = F::applRotaryPosEmbd(q, roPE);
-  k = F::applRotaryPosEmbd(k, roPE);
+  q = applyRoPE(q, roPE);
+  k = applyRoPE(k, roPE);
 
   // concat past for k and v.
   if (past.hasTensor(_namePastK) && past.hasTensor(_namePastV)) {

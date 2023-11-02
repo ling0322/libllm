@@ -43,6 +43,7 @@ class CPUOperators : public internal::Operators {
   Tensor lookup(Tensor table, Tensor indices) override;
   Tensor matmul(Tensor a, Tensor b) override;
   Tensor mul(Tensor input, float other) override;
+  Tensor mul(Tensor input, Tensor other) override;
   Tensor softmax(Tensor input) override;
   Tensor gelu(Tensor input) override;
   Tensor add(Tensor a, Tensor b) override;

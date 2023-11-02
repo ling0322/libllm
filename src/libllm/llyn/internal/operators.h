@@ -36,6 +36,7 @@ class Operators {
   virtual Tensor rmsNorm(Tensor input, Tensor weight, float eps) = 0;
   virtual Tensor matmul(Tensor A, Tensor B) = 0;
   virtual Tensor mul(Tensor input, float other) = 0;
+  virtual Tensor mul(Tensor input, Tensor other) = 0;
   virtual Tensor softmax(Tensor input) = 0;
   virtual Tensor add(Tensor input, Tensor other) = 0;
   virtual Tensor gelu(Tensor input) = 0;

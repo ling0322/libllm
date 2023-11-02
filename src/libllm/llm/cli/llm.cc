@@ -31,6 +31,17 @@ using libllm::cli::ChatOutput;
 using libllm::cli::DialogManager;
 using libllm::cli::PromptBulder;
 
+/// @brief Print the chat statistical data.
+/// @param chatOutput Output from chat.
+void printChatStat(const ChatOutput &chatOutput) {
+  double msPerToken = 1000 * chatOutput.answerDuration / chatOutput.numAnswerTokens;
+  std::cout << std::endl << ly::sprintf(
+      "(%d token, time=%.2fs, %.2fms per token)",
+      chatOutput.numAnswerTokens,
+      chatOutput.answerDuration,
+      msPerToken) << std::endl;
+}
+
 int main(int argc, char **argv) {
   std::string configPath;
 
@@ -53,24 +64,19 @@ int main(int argc, char **argv) {
   DialogManager dialogManager(model, promptBuilder);
   for (; ; ) {
     std::string query;
-    if (query == "q")
-      break;
   
     std::cout << "> ";
     std::getline(std::cin, query);
     if (ly::trim(query) == "")
       continue;
+    if (ly::trim(query) == "q")
+      break;
 
     ChatOutput chatOutput = dialogManager.chat(query, [](const std::string &token) {
       std::cout << token;
       std::cout.flush();
     });
 
-    double msPerToken = 1000 * chatOutput.answerDuration / chatOutput.numAnswerTokens;
-    std::cout << std::endl << ly::sprintf(
-        "(%d token, time=%.2fs, %.2fms per token)",
-        chatOutput.numAnswerTokens,
-        chatOutput.answerDuration,
-        msPerToken) << std::endl;
+    printChatStat(chatOutput);
   }
 }
