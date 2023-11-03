@@ -20,18 +20,11 @@ set(libllm_SOURCES
     "llama/llama_model_for_generation.cc"
     "llama/mlp.cc")
 
-find_library(MKL_GF_LP64_LIBRARY NAMES mkl_gf_lp64 HINTS ${MKL_PREFIX}/lib/intel64)
-find_library(MKL_CORE_LIBRARY NAMES mkl_core HINTS ${MKL_PREFIX}/lib/intel64)
-find_library(MKL_GNU_THREAD_LIBRARY NAMES mkl_gnu_thread HINTS ${MKL_PREFIX}/lib/intel64)
-
 set(libllm_LIBADD
     OpenMP::OpenMP_CXX
     llyn
     lytok
-    lyutil
-    ${MKL_GF_LP64_LIBRARY}
-    ${MKL_CORE_LIBRARY}
-    ${MKL_GNU_THREAD_LIBRARY})
+    lyutil)
 
 add_library(llm STATIC ${libllm_SOURCES} )
 target_include_directories(llm PRIVATE ${libllm_INCDIRS})
