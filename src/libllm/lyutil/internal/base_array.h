@@ -20,6 +20,7 @@
 #pragma once
 
 #include <assert.h>
+#include <stddef.h>
 #include <functional>
 #include <string>
 #include <vector>
