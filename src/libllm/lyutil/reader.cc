@@ -86,6 +86,7 @@ void BufferedReader::readSpan(Span<int8_t> span) {
 
 std::string BufferedReader::readString(int n) {
   CHECK(n > 0);
+  if (n == 0) return "";
 
   std::vector<int8_t> buffer(n);
   readSpan(makeSpan(buffer));
