@@ -349,6 +349,7 @@ Tensor CPUOperators::matmul(Tensor A, Tensor B) {
     return matmulFp32Q4Fp32(A, B);
   } else {
     NOT_IMPL();
+    return Tensor();
   }
 }
 

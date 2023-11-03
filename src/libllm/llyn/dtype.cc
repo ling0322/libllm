@@ -74,6 +74,7 @@ int64_t DType::getTotalSize(int64_t numel) const {
       return numel;
     default:
       NOT_IMPL();
+      return -1;
   }
 }
 

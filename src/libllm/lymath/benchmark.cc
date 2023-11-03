@@ -19,7 +19,10 @@
 
 #include "third_party/catch2/catch_amalgamated.hpp"
 
+#ifdef MKL_ENABLED
 #include <mkl.h>
+#endif
+
 #include <chrono>
 #include <functional>
 #include "lyutil/log.h"
@@ -28,7 +31,6 @@
 #include "lyutil/time.h"
 #include "lymath/common.h"
 #include "lymath/gemm_common.h"
-
 
 using lymath::Block;
 using lymath::Mode;
@@ -77,6 +79,7 @@ double benchmarkSgemm(int M, int K, int N, int numLoops = 2) {
   return dt;
 }
 
+#ifdef MKL_ENABLED
 double benchmarkMklSgemm(int M, int K, int N, int numLoops = 2) {
   std::vector<float> dA(M * K);
   std::vector<float> dB(K * N);
@@ -103,6 +106,7 @@ double benchmarkMklSgemm(int M, int K, int N, int numLoops = 2) {
   double dt = (ly::now() - t0) / numLoops;
   return dt;
 }
+#endif
 
 CATCH_TEST_CASE("benchmark Pack", "[benchmark][lymath][pack]") {
   constexpr int ROW = 4096;
@@ -136,9 +140,12 @@ CATCH_TEST_CASE("benchmark SGEMM", "[benchmark][lymath][sgemm]") {
     int numLoops = (*pshape)[3];
 
     double dLymath = benchmarkSgemm(m, k, n, numLoops);
+#ifdef MKL_ENABLED
     double dMkl = benchmarkMklSgemm(m, k, n, numLoops);
-
     LOG(INFO) << ly::sprintf(
         "MKL SGEMM (M,K,N)=(%d,%d,%d): mkl=%f lymath=%f", m, k, n, dMkl, dLymath);
+#else
+    LOG(INFO) << ly::sprintf("MKL SGEMM (M,K,N)=(%d,%d,%d): lymath=%f", m, k, n, dLymath);
+#endif
   }
 }
