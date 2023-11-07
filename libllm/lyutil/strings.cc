@@ -23,7 +23,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <vector>
-#include "lyutil/internal/utfcpp.h"
+#include "utfcpp/utfcpp.h"
 #include "lyutil/log.h"
 
 namespace ly {

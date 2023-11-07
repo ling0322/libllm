@@ -15,4 +15,4 @@ if(UNIX)
   add_definitions( "-DCATCH_AMALGAMATED_CUSTOM_MAIN -DCATCH_CONFIG_PREFIX_ALL" )
 endif(UNIX)
 
-add_subdirectory("src/libllm")
+add_subdirectory("libllm")
