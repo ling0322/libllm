@@ -25,7 +25,7 @@ if(UNIX)
 endif(UNIX)
 
 add_library(lyutil STATIC ${lyutil_SOURCES})
-target_include_directories(lyutil PRIVATE .. ../..)
+target_include_directories(lyutil PRIVATE .. ../../third_party)
 target_compile_features(lyutil PRIVATE cxx_std_14)
 if(UNIX)
   target_link_libraries(lyutil -ldl)
