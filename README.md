@@ -33,17 +33,6 @@ $ cmake ..
 $ make -j
 ```
 
-## Export Huggingface models
-
-Here is an example of exporting ChatGLM2 model from huggingface.
-
-```bash
-$ cd tools
-$ python chatglm2_exporter.py
-```
-
-Then 3 files will be exported: `chatglm2.config`, `chatglm2.q4.bin` and `chatglm2.tokenizer.bin`
-
 ## Run libllm command line
 
 ```c++
@@ -56,3 +45,30 @@ INFO 2023-10-20T08:58:58Z state_map.cc:69] 200 tensors read.
  你好👋！我是人工智能助手 ChatGLM2-6B，很高兴见到你，欢迎问我任何问题。
 > 
 ```
+
+## API Examples
+
+### Python
+
+```python
+import libllm
+
+model = libllm.Model("model/chatglm2-6b-q4/chatglm2.config")
+prompt = "[Round 1]\n\n问：你好\n\n答："
+
+for chunk in libllm.Completion(model, prompt):
+    print(chunk.text, end="", flush=True)
+
+print("\nDone!")
+```
+
+## Export Huggingface models
+
+Here is an example of exporting ChatGLM2 model from huggingface.
+
+```bash
+$ cd tools
+$ python chatglm2_exporter.py
+```
+
+Then 3 files will be exported: `chatglm2.config`, `chatglm2.q4.bin` and `chatglm2.tokenizer.bin`

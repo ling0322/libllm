@@ -48,7 +48,6 @@ LLMAPI const char *llm_model_get_name(llm_model_t *m);
 
 LLMAPI llm_compl_opt_t *llm_compl_opt_init();
 LLMAPI void llm_compl_opt_destroy(llm_compl_opt_t *o);
-
 LLMAPI LLM_RESULT llm_compl_opt_set_top_p(llm_compl_opt_t *o, float topp);
 LLMAPI LLM_RESULT llm_compl_opt_set_temperature(llm_compl_opt_t *o, float temperature);
 LLMAPI LLM_RESULT llm_compl_opt_set_prompt(llm_compl_opt_t *o, const char *prompt);

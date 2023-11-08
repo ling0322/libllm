@@ -26,10 +26,15 @@ set(libllm_LIBADD
     lytok
     lyutil)
 
-add_library(llm STATIC ${libllm_SOURCES} )
-target_include_directories(llm PRIVATE ${libllm_INCDIRS})
-target_compile_features(llm PRIVATE cxx_std_14)
-target_link_libraries(llm ${libllm_LIBADD}  )
+add_library(llm-core-static STATIC ${libllm_SOURCES} )
+target_include_directories(llm-core-static PRIVATE ${libllm_INCDIRS})
+target_compile_features(llm-core-static PRIVATE cxx_std_14)
+target_link_libraries(llm-core-static ${libllm_LIBADD}  )
+
+add_library(llm-core MODULE ${libllm_SOURCES} )
+target_include_directories(llm-core PRIVATE ${libllm_INCDIRS})
+target_compile_features(llm-core PRIVATE cxx_std_14)
+target_link_libraries(llm-core ${libllm_LIBADD}  )
 
 set(llm_SOURCES
     "cli/dialog_manager.cc"
@@ -37,7 +42,7 @@ set(llm_SOURCES
 
 add_executable(llm_main ${llm_SOURCES})
 target_include_directories(llm_main PRIVATE ${libllm_INCDIRS})
-target_link_libraries(llm_main llm OpenMP::OpenMP_CXX)
+target_link_libraries(llm_main llm-core-static OpenMP::OpenMP_CXX)
 target_link_options(llm_main PUBLIC "-fopenmp")
 set_property(TARGET llm_main PROPERTY OUTPUT_NAME llm)
 
@@ -50,5 +55,5 @@ set(llm_test_SOURCES
 add_executable(llm_test
     ${llm_test_SOURCES})
 target_include_directories(llm_test PRIVATE ${libllm_INCDIRS})
-target_link_libraries(llm_test llm OpenMP::OpenMP_CXX)
+target_link_libraries(llm_test llm-core-static OpenMP::OpenMP_CXX)
 target_link_options(llm_test PUBLIC "-fopenmp")
