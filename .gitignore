@@ -3,7 +3,12 @@ transformers
 /data
 /build
 /run
+/model
 
 __pycache__
 *.model
 *.bin
+*.egg-info
+*.so
+bindings/python/build
+bindings/python/dist

@@ -29,7 +29,7 @@ DEALINGS IN THE SOFTWARE.
 #include <stdint.h>
 #include <iterator>
 #include <string>
-#include "../../libllm/lyutil/error.h"
+#include "../../src/lyutil/error.h"
 
 namespace ly
 {
