@@ -99,6 +99,8 @@ LL_STATUS llm_init() {
       return static_cast<LL_STATUS>(e.getCode());;
     }
   }
+
+  return LL_OK;
 }
 
 void llm_destroy() {
