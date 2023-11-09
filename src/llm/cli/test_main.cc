@@ -18,15 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "catch2/catch_amalgamated.hpp"
-#include "llm/api/environment.h"
-
-using libllm::Environment;
+#include "llm/api/llm.h"
 
 int main(int argc, char **argv) {
-  Environment::init();
+  llm_init();
 
   int result = Catch::Session().run(argc, argv);
-  Environment::destroy();
+  llm_destroy();
 
   return result;
 }

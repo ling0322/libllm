@@ -102,7 +102,7 @@ ChatOutput DialogManager::chat(
   std::string stopSeq = _promptBuilder->getStopSeq();
   t0 = ly::now();
   int numToken = 0;
-  while (!comp.stopped()) {
+  while (comp.isActive()) {
     llm::Chunk chunk = comp.nextChunk();
     std::string nextToken = chunk.getText();
 

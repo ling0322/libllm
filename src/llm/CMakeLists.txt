@@ -2,8 +2,7 @@ find_package(OpenMP REQUIRED)
 
 set(libllm_INCDIRS .. ../../third_party)
 set(libllm_SOURCES
-    "api/libllm.cc"
-    "api/environment.cc"
+    "api/llm.cc"
     "api/model_factory.cc"
     "chatglm2/chatglm2_config.cc"
     "chatglm2/chatglm2_model.cc"

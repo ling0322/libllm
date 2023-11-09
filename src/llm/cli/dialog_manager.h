@@ -21,8 +21,9 @@
 
 #include <string>
 #include <functional>
+#include <memory>
 #include "lyutil/span.h"
-#include "llm/api/llm.h"
+#include "llm/api/llm_cpp.h"
 
 namespace libllm {
 namespace cli {

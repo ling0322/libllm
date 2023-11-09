@@ -47,18 +47,16 @@ class Completion:
             interop.llm_compl_opt_set_top_k(compl_opt, top_k)
             interop.llm_compl_opt_set_top_p(compl_opt, top_p)
             interop.llm_compl_opt_set_temperature(compl_opt, temperature)
-
             interop.llm_compl_opt_set_prompt(compl_opt, input_text.encode("utf-8"))
-            interop.llm_compl_opt_set_model(compl_opt, model._model_instance)
 
-            self._compl_instance = interop.llm_compl_init(compl_opt)
+            self._compl_instance = interop.llm_model_complete(model._model_instance, compl_opt)
         finally:
             if compl_opt:
                 interop.llm_compl_opt_destroy(compl_opt)
 
     def __iter__(self):
         utf8_decoder = codecs.getincrementaldecoder("utf-8")()
-        while interop.llm_compl_stopped(self._compl_instance) == LLM_FALSE:
+        while interop.llm_compl_is_active(self._compl_instance) == LLM_TRUE:
             try:
                 chunk_instance = interop.llm_compl_next_chunk(self._compl_instance)
                 chunk_token = interop.llm_chunk_get_text(chunk_instance)
