@@ -171,7 +171,7 @@ void llm_compl_opt_destroy(llm_compl_opt_t *o) {
 }
 
 LL_STATUS llm_compl_opt_set_top_p(llm_compl_opt_t *o, float topp) {
-  runAndCatch([o, topp](){
+  return runAndCatch([o, topp](){
     if (!o) throw ly::InvalidArgError("o");
     if (topp > 1.0f) throw ly::InvalidArgError("topp");
     o->top_p = topp;
@@ -179,7 +179,7 @@ LL_STATUS llm_compl_opt_set_top_p(llm_compl_opt_t *o, float topp) {
 }
 
 LL_STATUS llm_compl_opt_set_temperature(llm_compl_opt_t *o, float temperature) {
-  runAndCatch([o, temperature](){
+  return runAndCatch([o, temperature](){
     if (!o) throw ly::InvalidArgError("o");
     if (temperature <= 0.0f) throw ly::InvalidArgError("temperature");
     o->temperature = temperature;
@@ -187,7 +187,7 @@ LL_STATUS llm_compl_opt_set_temperature(llm_compl_opt_t *o, float temperature) {
 }
 
 LL_STATUS llm_compl_opt_set_prompt(llm_compl_opt_t *o, const char *prompt) {
-  runAndCatch([o, prompt](){
+  return runAndCatch([o, prompt](){
     if (!o) throw ly::InvalidArgError("o");
     if (!prompt) throw ly::InvalidArgError("prompt");
     o->prompt = prompt;
@@ -195,7 +195,7 @@ LL_STATUS llm_compl_opt_set_prompt(llm_compl_opt_t *o, const char *prompt) {
 }
 
 LL_STATUS llm_compl_opt_set_top_k(llm_compl_opt_t *o, int32_t topk) {
-  runAndCatch([o, topk](){
+  return runAndCatch([o, topk](){
     if (!o) throw ly::InvalidArgError("o");
     if (topk <= 0) throw ly::InvalidArgError("topk");
     o->top_k = topk;
