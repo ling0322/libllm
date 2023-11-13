@@ -19,10 +19,10 @@
 
 import libllm
 
-model = libllm.Model("model/chatglm2-6b-q4/chatglm2.config")
+model = libllm.Model("model/chatglm2-6b-libllm-q4/chatglm2.config")
 prompt = "[Round 1]\n\n问：你好\n\n答："
 
-for chunk in libllm.Completion(model, prompt):
+for chunk in model.complete(prompt):
     print(chunk.text, end="", flush=True)
 
 print("\nDone!")

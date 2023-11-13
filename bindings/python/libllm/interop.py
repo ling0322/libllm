@@ -23,6 +23,20 @@ from ctypes import CDLL, CFUNCTYPE, c_char_p, c_void_p, c_int32, c_float
 LIB_NAME = "libllm-core.so"
 _lib = CDLL(path.join(path.dirname(__file__), LIB_NAME))
 
+LL_TRUE = 1
+LL_FALSE = 0
+
+class AutoPtr:
+    def __init__(self, p: c_void_p, deleter) -> None:
+        self._ptr = p
+        self._deleter = deleter
+    
+    def __del__(self):
+        self._deleter(self._ptr)
+    
+    def get(self):
+        return self._ptr
+
 def _capi(name, restype, argtypes, return_checker=None):
     prototype = CFUNCTYPE(restype, *argtypes)
     if return_checker is None:
