@@ -1,6 +1,7 @@
 #include "llm/api/llm.h"
 
 #include <string.h>
+#include <omp.h>
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -91,6 +92,8 @@ LL_STATUS llm_init() {
     try {
       ly::setLogLevel(ly::LogSeverity::INFO);
       llyn::init();
+
+      LOG(INFO) << "OMP max_threads = " << omp_get_max_threads();
 
       return LL_OK;
     } catch (const ly::Error &e) {

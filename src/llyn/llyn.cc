@@ -27,7 +27,6 @@ namespace llyn {
 
 void init() {
   lymath_init();
-  omp_set_num_threads(16);
   internal::initOperators();
 }
 
