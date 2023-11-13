@@ -8,8 +8,11 @@ Welcome to libLLM, an open-source project tailored for efficient inference of la
 
 ## Supported models:
 
-- ChatGLM2
-- Llama2
+| Model            | Download |
+|------------------|----------|
+| Llama2           | [HuggingFace](https://huggingface.co/ling0322/llama2-7b-libllm-q4/tree/main) |
+| ChatGLM2-6b      | [HuggingFace](https://huggingface.co/ling0322/chatglm2-6b-libllm-q4/tree/main) |
+
 
 ## Key Features:
 
