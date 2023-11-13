@@ -2,9 +2,21 @@
 
 [![Linux](https://github.com/ling0322/libllm/actions/workflows/cmake-linux.yml/badge.svg?branch=main)](https://github.com/ling0322/libllm/actions/workflows/cmake-linux.yml)
 
-Welcome to libLLM, an open-source project tailored for efficient inference of large language models (LLMs) on everyday PCs and mobile devices. This library is dedicated to providing powerful inference capabilities to various LLMs, enabling them to seamlessly run on a variety of devices.
+Welcome to libLLM, an open-source project designed for efficient inference of large language models (LLM) on ordinary personal computers and mobile devices. The core is implemented in C++14, without any third-party dependencies (such as BLAS or SentencePiece), enabling seamless operation across a variety of devices.
 
-欢迎使用libLLM，这是一个专为在普通个人电脑和移动设备上高效推理大型语言模型（LLM）而设计的开源项目。该库专注于为各种LLM提供强大的推理能力，使其能够在各种设备中无缝运行。
+欢迎使用libLLM，这是一个专为在普通个人电脑和移动设备上高效推理大型语言模型（LLM）而设计的开源项目。核心使用C++14编写，没有第三方依赖（BLAS、SentencePiece等），能在各种设备中无缝运行。
+
+## Key features:
+
+- Optimized for Everyday Devices: libLLM is finely tuned for smooth operation on common personal computers, ensuring the powerful capabilities of large language models are accessible to a broader user base.
+- C++ Codebase: The core is written in standard C++14, facilitating straightforward compilation.
+- No External Dependencies: With no reliance on third-party dependencies such as BLAS or SentencePiece, libLLM internally implements the necessary GEMM kernels (avx2, avx512). 
+
+## 特点
+
+- 为日常设备进行优化：libLLM经过优化，可在常见的个人电脑上平稳运行，确保大型语言模型的强大功能面向更广泛的用户。
+- C++代码：核心采用标准C++14编写，可直接编译。
+- 无外部依赖：无需第三方依赖（BLAS、SentencePiece等），所需的GEMM内核均在内部实现(avx2、avx512)。
 
 ## Supported models:
 
@@ -12,21 +24,6 @@ Welcome to libLLM, an open-source project tailored for efficient inference of la
 |------------------|----------|
 | Llama2           | [HuggingFace](https://huggingface.co/ling0322/llama2-7b-libllm-q4/tree/main) |
 | ChatGLM2-6b      | [HuggingFace](https://huggingface.co/ling0322/chatglm2-6b-libllm-q4/tree/main) |
-
-
-## Key Features:
-
-- Optimization for Everyday Devices: libLLM is optimized to run smoothly on common PCs and mobile devices, ensuring that the power of large language models is accessible to a wide range of users.
-- Versatile Inference Capabilities: The library is dedicated to providing powerful inference capabilities for diverse LLMs, catering to a variety of applications and use cases.
-- Native C++ Codebase: The core functionality is implemented in C++ code, allowing for direct compilation without the need for third-party dependencies.
-- No External Dependencies: Enjoy hassle-free integration as libLLM operates without relying on third-party dependencies, simplifying the deployment process.
-
-## 特点:
-
-- 为日常设备进行优化： libLLM经过优化，可在常见的个人电脑和移动设备上平稳运行，确保大型语言模型的强大功能面向更广泛的用户。
-- 多功能的推理能力： 该库致力于为各种LLM提供强大的推理能力，满足各种应用和用例的需求。
-- 本机C++代码： 核心功能采用C++编写，可直接编译，无需第三方依赖，提供更好的性能。
-- 无外部依赖： libLLM在运行时无需依赖第三方库（比如BLAS），简化了部署过程，使集成更加轻松。
 
 ## Build
 
