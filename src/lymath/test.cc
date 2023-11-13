@@ -36,7 +36,6 @@ using namespace lymath;
 constexpr uint32_t MagicNumber = 0x55aa;
 
 int main(int argc, char **argv) {
-  omp_set_num_threads(16);
   lymath_init();
   int result = Catch::Session().run(argc, argv);
   lymath_destroy();
