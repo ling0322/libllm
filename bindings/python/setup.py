@@ -21,7 +21,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="libllm",
-    version="1.2.0",
+    version="1.3.0",
     author="ling0322",
     author_email="ling032x@gmail.com",
     description="libLLM is an open-source project tailored for efficient inference of large language models (LLMs).",
