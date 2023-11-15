@@ -52,6 +52,17 @@ Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const T> data) 
 template Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const float> data);
 template Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const LongType> data);
 
+
+Tensor Tensor::create(std::shared_ptr<internal::TensorShape> shape,
+                      std::shared_ptr<internal::TensorData> data) {
+
+  Tensor tensor;
+  tensor._shape = shape;
+  tensor._data = data;
+
+  return tensor;
+}
+ 
 Tensor::Tensor() : _offset(0) {}
 Tensor::~Tensor() {}
 

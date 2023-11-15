@@ -19,35 +19,30 @@
 
 #pragma once
 
+#include <cuda_fp16.h>
+#include <cuda_runtime.h>
 #include <stdint.h>
 #include "llyn/tensor.h"
 #include "llyn/internal/tensor_shape.h"
 
-#if defined(__CUDACC__) 
-#define LLYN_DEVICE __device__
-#define LLYN_HOST __host__
-#else
-#define LLYN_DEVICE
-#define LLYN_HOST
-#endif
 
 namespace llyn {
 namespace cuda {
 
 template<int DIM>
-LLYN_DEVICE int64_t getOffsetByFlatIndex(internal::TensorShape::Elem *shape, int64_t index);
+__device__ int64_t getOffsetByFlatIndex(internal::TensorShape::Elem *shape, int64_t index);
 template<>
-LLYN_DEVICE int64_t getOffsetByFlatIndex<1>(internal::TensorShape::Elem *shape, int64_t index) {
+__device__ int64_t getOffsetByFlatIndex<1>(internal::TensorShape::Elem *shape, int64_t index) {
   return index * shape[0].stride;
 }
 template<>
-LLYN_DEVICE int64_t getOffsetByFlatIndex<2>(internal::TensorShape::Elem *shape, int64_t index) {
+__device__ int64_t getOffsetByFlatIndex<2>(internal::TensorShape::Elem *shape, int64_t index) {
   int index1 = index % shape[1].shape;
   int numel0 = index / shape[1].shape;
   return numel0 * shape[0].stride + index1 * shape[1].stride;
 }
 template<>
-LLYN_DEVICE int64_t getOffsetByFlatIndex<3>(internal::TensorShape::Elem *shape, int64_t index) {
+__device__ int64_t getOffsetByFlatIndex<3>(internal::TensorShape::Elem *shape, int64_t index) {
   int index2 = index % shape[2].shape;
   int numel1 = index / shape[2].shape;
   int index1 = numel1 % shape[1].shape;
@@ -55,19 +50,38 @@ LLYN_DEVICE int64_t getOffsetByFlatIndex<3>(internal::TensorShape::Elem *shape, 
   return numel0 * shape[0].stride + index1 * shape[1].stride + index2 * shape[1].stride;
 }
 
+/// @brief Get number of tensors in a N-dim shape data.
+/// @tparam DIM The dimension N.
+/// @param shape Pointer to the shape data. It was expected to have at least N elements.
+/// @return Number of tensors.
+template<int DIM>
+__host__ __device__ int64_t getNumTensors(internal::TensorShape::Elem *shape);
+template<>
+__host__ __device__ int64_t getNumTensors<1>(internal::TensorShape::Elem *shape) {
+  return shape[0].shape;
+}
+template<>
+__host__ __device__ int64_t getNumTensors<2>(internal::TensorShape::Elem *shape) {
+  return shape[0].shape * shape[1].shape;
+}
+template<>
+__host__ __device__ int64_t getNumTensors<3>(internal::TensorShape::Elem *shape) {
+  return shape[0].shape * shape[1].shape * shape[2].shape;
+}
+
 template<typename T, int DIM>
 class TensorAccessor {
  public:
-  LLYN_DEVICE TensorAccessor(internal::TensorShape::Elem *shape, T *data) :
+  __device__ TensorAccessor(internal::TensorShape::Elem *shape, T *data) :
       _shape(shape),
       _data(data) {}
 
-  LLYN_DEVICE TensorAccessor<T, DIM - 1> operator[](int index) {
+  __device__ TensorAccessor<T, DIM - 1> operator[](int index) {
     int64_t offset = index * this->_shape[0].stride;
     return TensorAccessor<T, DIM - 1>(_shape + 1, _data + offset);
   }
 
-  LLYN_DEVICE const TensorAccessor<T, DIM - 1> operator[](int index) const {
+  __device__ const TensorAccessor<T, DIM - 1> operator[](int index) const {
     int64_t offset = index * this->_shape[0].stride;
     return TensorAccessor<T, DIM - 1>(_shape + 1, _data + offset);
   }
@@ -80,16 +94,16 @@ class TensorAccessor {
 template<typename T>
 class TensorAccessor<T, 1> {
  public:
-  LLYN_DEVICE TensorAccessor(internal::TensorShape::Elem *shape, T *data) :
+  __device__ TensorAccessor(internal::TensorShape::Elem *shape, T *data) :
       _shape(shape),
       _data(data) {}
 
-  LLYN_DEVICE T &operator[](int index) {
+  __device__ T &operator[](int index) {
     int64_t offset = index * this->_shape[0].stride;
     return _data[offset];
   }
 
-  LLYN_DEVICE T operator[](int index) const {
+  __device__ T operator[](int index) const {
     int64_t offset = index * this->_shape[0].stride;
     return _data[offset];
   }
@@ -99,17 +113,22 @@ class TensorAccessor<T, 1> {
   T *_data;
 };
 
+/// @brief A packed tensor accessor. `Packed` means the accessor also packed with the tensor 
+/// metadata.
+/// @tparam T Tensor data type.
+/// @tparam DIM Dimension of this tensor.
 template<typename T, int DIM>
 class PackedTensorAccessor {
  public:
-  LLYN_DEVICE TensorAccessor<T, 1> getVectorByFlatIndex(int64_t index) {
+  __device__ TensorAccessor<T, 1> getVectorByFlatIndex(int64_t index) {
     int64_t offset = getOffsetByFlatIndex<DIM - 1>(_shape, index);
     return TensorAccessor<T, 1>(this->_shape + DIM - 1, offset);
   }
 
-  LLYN_DEVICE const TensorAccessor<T, 1> getVectorByFlatIndex(int64_t index) const {
-    int64_t offset = getOffsetByFlatIndex<DIM - 1>(_shape, index);
-    return TensorAccessor<T, 1>(this->_shape + DIM - 1, offset);
+  /// @brief Get number of vectors in this tensor.
+  /// @return Number of vectors.
+  __host__ __device__ int64_t getNumVectors() {
+    return getNumTensors<DIM - 1>(this->_shape);
   }
 
  private:

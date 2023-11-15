@@ -62,6 +62,13 @@ class Tensor {
   template<typename T>
   static Tensor create(std::initializer_list<int> shape, ly::Span<const T> data);
 
+  /// @brief Create Tensor from TensorShape and TensorData.
+  /// @param shape pointer to TensorShape.
+  /// @param data pointer to TensorData.
+  /// @return The Tensor created.
+  static Tensor create(std::shared_ptr<internal::TensorShape> shape,
+                       std::shared_ptr<internal::TensorData> data);
+
   // constructor and destructor.
   Tensor();
   ~Tensor();

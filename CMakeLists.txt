@@ -13,6 +13,8 @@ set(CMAKE_CXX_FLAGS "-O3 -g")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(MKL_PREFIX "/opt/intel/mkl" CACHE STRING "Prefix for MKL headers and libraries.")
 
+set (CUDA_ENABLED ON)
+
 #add_compile_options(-fsanitize=address)
 #add_link_options(-fsanitize=address)
 

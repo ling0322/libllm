@@ -19,8 +19,10 @@ set(llyn_SOURCES
     "cpu/swiglu.cc"
     "cpu/tensor.cc"
     "cpu/view.cc"
+    "cuda/create_tensor.cu"
     "cuda/lookup.cu"
     "internal/cpu_tensor_data.cc"
+    "internal/cuda_tensor_data.cc"
     "internal/operators.cc"
     "internal/tensor_data.cc"
     "internal/tensor_shape.cc"
@@ -37,8 +39,14 @@ set(llyn_SOURCES
     "tensor.cc"
     "util.cc")
 
+set(llyn_INCDIR ..)
+
+if(CUDAToolkit_FOUND)
+    set(llyn_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS})
+endif()
+
 add_library(llyn STATIC ${llyn_SOURCES} )
-target_include_directories(llyn PRIVATE .. ${MKL_PREFIX}/include)
+target_include_directories(llyn PRIVATE ${llyn_INCDIR})
 target_compile_features(llyn PRIVATE cxx_std_14)
 target_link_libraries(llyn lymath lyutil)
 target_link_options(llyn PUBLIC "-fopenmp")

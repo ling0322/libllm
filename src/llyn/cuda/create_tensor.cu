@@ -17,16 +17,43 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "llyn/cuda/create_tensor.h"
 
-#include "llyn/tensor.h"
+#include <cuda_runtime.h>
+#include <cuda_fp16.h>
+#include <memory>
+#include "llyn/internal/cuda_tensor_data.h"
+#include "llyn/cuda/cuda_common.h"
 
 namespace llyn {
 namespace cuda {
 
-Tensor createCudaTensorSingle(ly::Span<const int> shape);
-Tensor createCudaTensorHalf(ly::Span<const int> shape);
+template<int DIM>
+__global__ void fillZero(PackedTensorAccessor<half, DIM> tensor) {
+  int64_t numVec = tensor.getNumVectors();
+  int64_t vecIdx = blockIdx.x * blockDim.y + threadIdx.y;
+  if (vecIdx >= numVec)
+    return;
+  
+  TensorAccessor<half, 1> vec = tensor.getVectorByFlatIndex(vecIdx);
+  
+}
+
+Tensor createCudaTensorHalf(ly::Span<const int> shape) {
+  auto tensorShape = std::make_shared<internal::TensorShape>(shape);
+  auto data = internal::CudaTensorData::create(tensorShape->getNumEl(), DType::kFloat16);
+
+  return Tensor::create(tensorShape, data);
+}
+
+Tensor zeros(ly::Span<const int> shape) {
+  auto tensorShape = std::make_shared<internal::TensorShape>(shape);
+  auto data = internal::CudaTensorData::create(tensorShape->getNumEl(), DType::kFloat16);
+
+  return Tensor::create(tensorShape, data);
+}
 
 }  // cuda
 }  // llyn
-
+    
+    
