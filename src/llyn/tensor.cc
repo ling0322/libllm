@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <limits>
 #include "llyn/cpu/view.h"
+#include "llyn/internal/cpu_tensor_data.h"
 #include "lyutil/error.h"
 #include "lyutil/strings.h"
 
@@ -38,7 +39,7 @@ Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const T> data) 
   int64_t numel = tensor._shape->getNumEl();
 
   DType dtype = DType::getType<T>();
-  tensor._data = TensorData::create(numel, dtype);
+  tensor._data = internal::CpuTensorData::create(numel, dtype);
   tensor._offset = 0;
 
   // fill data
@@ -50,15 +51,6 @@ Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const T> data) 
 
 template Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const float> data);
 template Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const LongType> data);
-
-Tensor Tensor::create(ly::Span<const int> shape, std::shared_ptr<internal::TensorData> data) {
-  Tensor tensor;
-
-  tensor._shape = std::make_shared<TensorShape>(shape);
-  tensor._data = data;
-
-  return tensor;
-}
 
 Tensor::Tensor() : _offset(0) {}
 Tensor::~Tensor() {}
@@ -98,16 +90,13 @@ void Tensor::read(ly::ReadableFile *fp) {
   }
 
   _shape = TensorShape::read(fp);
-  _data = TensorData::read(fp);
+  _data = internal::CpuTensorData::read(fp);
   _offset = 0;
 
   // check
   if (_shape->getNumEl() != _data->getNumEl())
     throw ly::AbortedError("tensor data and shape mismatch.");
-  if (_data->getDType().isQuantized()) {
-    if (_data->getNumEl() / _data->getDType().getGroupSize() != _data->getNumEl1())
-      throw ly::AbortedError("tensor data and shape mismatch (scale).");
-  }
+  _data->throwIfInvalid();
 }
 
 Tensor Tensor::view(ly::Span<const int> shape) const {

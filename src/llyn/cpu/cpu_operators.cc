@@ -36,6 +36,7 @@
 #include "llyn/cpu/subtensor_list.h"
 #include "llyn/cpu/swiglu.h"
 #include "llyn/cpu/tensor.h"
+#include "llyn/internal/cpu_tensor_data.h"
 #include "llyn/internal/operators.h"
 #include "llyn/tensor.h"
 #include "llyn/util.h"
@@ -54,7 +55,7 @@ Tensor CPUOperators::createTensor(ly::Span<const int> shape, DType dtype) {
   tensor._shape = std::make_shared<TensorShape>(ly::makeConstSpan(shape));
   int64_t numel = tensor._shape->getNumEl();
 
-  tensor._data = TensorData::create(numel, dtype);
+  tensor._data = internal::CpuTensorData::create(numel, dtype);
   tensor._offset = 0;
 
   return tensor;
@@ -81,7 +82,7 @@ Tensor CPUOperators::createTensorLike(Subtensor<const float> input) {
 
   // data
   int64_t numel = input.numel();
-  tensor._data = TensorData::create(numel, DType::getType<float>());
+  tensor._data = internal::CpuTensorData::create(numel, DType::getType<float>());
   tensor._offset = 0;
 
   return tensor;

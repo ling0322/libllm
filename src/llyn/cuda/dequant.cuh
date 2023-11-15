@@ -17,45 +17,39 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "llyn/cpu/internal.h"
+#pragma once
 
-#include "llyn/internal/cpu_tensor_data.h"
-#include "llyn/internal/tensor_data.h"
-#include "llyn/internal/tensor_shape.h"
-#include "llyn/cpu/subtensor.h"
-#include "lyutil/fixed_array.h"
+#include <cuda_fp16.h>
+#include "llyn/cuda/cuda_common.h"
 
 namespace llyn {
-namespace cpu {
+namespace cuda {
 
-using internal::TensorData;
-using internal::TensorShape;
+constexpr int GroupSizeQ4 = 32;
 
-Tensor Internal::tensor(ly::Span<const int> shape, DType dtype) {
-  Tensor x;
+__device__ inline void dequantQ4ToHalf(
+    int n,
+    const uint8_t *data,
+    const half *pscale,
+    const int8_t *pzeroPoint,
+    half *tgt) {
+  int nb = n / GroupSizeQ4;
 
-  x._shape = std::make_shared<TensorShape>(ly::makeConstSpan(shape));
-  int64_t numel = x._shape->getNumEl();
+  const uint8_t *psrc;
+  half *ptgt = tgt;
 
-  x._data = internal::CpuTensorData::create(numel, dtype);
-  x._offset = 0;
+  for (int j = 0; j < nb; ++j) {
+    int zeroPoint = pzeroPoint[j];
+    half scale = pscale[j];
 
-  return x;
+    #pragma unroll
+    for (int i = 0; i < GroupSizeQ4; ++i) {
+      *ptgt++ = scale * __int2half_rd(static_cast<int>(*psrc >> 4) - zeroPoint);
+      *ptgt++ = scale * __int2half_rd(static_cast<int>(*psrc & 0xf) - zeroPoint);
+      ++psrc;
+    }
+  }
 }
 
-ly::Span<const Shape> Internal::getShapeData(const Tensor &input) {
-  return ly::makeConstSpan(input._shape->_data);
-}
-
-Tensor Internal::tensorView(const Tensor &input, std::shared_ptr<TensorShape> shape) {
-  Tensor x;
-  x._data = input._data;
-  x._offset = input._offset;
-  x._shape = shape;
-
-  return x;
-}
-
-}  // cpu
-}  // flint
-
+}  // cuda
+}  // llyn

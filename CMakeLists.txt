@@ -1,9 +1,16 @@
-cmake_minimum_required(VERSION 3.11)
-project(llmpp LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.25)
 
+
+project(libllm LANGUAGES CXX)
+
+find_package(CUDAToolkit REQUIRED)
+
+set(CMAKE_CUDA_ARCHITECTURES 70 75)
+enable_language(CUDA)
+
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "-O3 -g")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
 set(MKL_PREFIX "/opt/intel/mkl" CACHE STRING "Prefix for MKL headers and libraries.")
 
 #add_compile_options(-fsanitize=address)
