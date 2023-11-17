@@ -30,6 +30,40 @@
 namespace llyn {
 namespace internal {
 
+/// @brief A data record in TensorData object.
+class SlotBase {
+ public:
+  virtual ~SlotBase() = default;
+
+  /// @brief Get number of elements in this slot.
+  /// @return number of elements.
+  virtual int64_t getNumEl() const = 0;
+
+  /// @brief Get data type of this slot.
+  /// @return Data type.
+  virtual DType getDType() const = 0;
+
+  /// @brief Get data pointer of n-th element in this slot as type `T`.
+  /// @tparam T the type of underlying data.
+  /// @param offset the offset `n`.
+  /// @return the pointer of type `T`.
+  template<typename T>
+  T *getData(int offset = 0) const {
+    DType dtype = getDType();
+    CHECK(DType::getType<T>() == dtype);
+    return reinterpret_cast<T *>(getRawData() + dtype.getTotalSize(offset));
+  }
+
+  /// @brief Get the pointer to underlying data.
+  /// @return data pointer.
+  virtual Byte *getRawData() const = 0;
+
+  /// @brief Get total number of bytes in this slot.
+  /// @return 
+  int64_t getSizeInBytes() const {
+    return getDType().getTotalSize(getNumEl());
+  }
+};
 
 /// @brief holds the internal data of a Tensor.
 class TensorData {
@@ -42,32 +76,37 @@ class TensorData {
   // get the device of tensor data.
   virtual Device getDevice() const = 0;
 
-  template<int SLOT, typename T>
-  T *getData(int offset = 0) const;
+  /// @brief Get number of slots in this tensor data.
+  /// @return number of slots.
+  virtual int getNumSlot() const = 0;
 
-  template<int SLOT = 0>
-  DType getDType() const { return getDTypeInternal(SLOT); }
+  /// @brief Get internal Slot by index.
+  /// @param slot index of the slot. It should be less than getNumSlot();
+  /// @return Slot object.
+  virtual const SlotBase *getSlot(int slot) const = 0;
 
-  template<int SLOT = 0>
-  int64_t getNumEl() const { return getNumElInternal(SLOT); }
+  /// @brief Get data pointer of n-th element in slot[0] as type `T`.
+  /// @tparam T the type of underlying data.
+  /// @param offset the offset `n`.
+  /// @return the pointer of type `T`.
+  template<typename T>
+  T *getData(int offset = 0) const { return getSlot(0)->getData<T>(offset); }
 
-  template<int SLOT = 0>
-  int64_t getSizeInBytes() const { return getDType<SLOT>().getTotalSize(getNumEl<SLOT>()); }
+  /// @brief Get data type from slot[0]
+  /// @return slot[0] data type.
+  DType getDType() const { return getSlot(0)->getDType(); }
+
+  /// @brief Get number of elements in slot[0]
+  /// @return number of elements in slot[0].
+  int64_t getNumEl() const { return getSlot(0)->getNumEl(); }
+
+  /// @brief Get total size in bytes of slot[0]
+  /// @return slot[0] size in bytes.
+  int64_t getSizeInBytes() const { return getSlot(0)->getSizeInBytes(); }
 
   /// @brief throw if the tensor data is invalid.
   void throwIfInvalid();
-
- protected:
-  virtual DType getDTypeInternal(int slot) const = 0;
-  virtual int64_t getNumElInternal(int slot) const = 0;
-  virtual void *getDataInternal(int slot, int64_t offset) const = 0;
 };
-
-template<int SLOT, typename T>
-T *TensorData::getData(int offset) const {
-  CHECK(DType::getType<T>() == getDTypeInternal(SLOT));
-  return reinterpret_cast<T *>(getDataInternal(SLOT, offset));
-}
 
 }  // namespace internal
 }  // namespace llyn

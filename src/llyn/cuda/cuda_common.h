@@ -22,9 +22,11 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 #include <stdint.h>
+#include "lyutil/error.h"
+#include "lyutil/strings.h"
 #include "llyn/tensor.h"
+#include "llyn/internal/cuda_tensor_data.h"
 #include "llyn/internal/tensor_shape.h"
-
 
 namespace llyn {
 namespace cuda {
@@ -148,6 +150,13 @@ struct Q4ConstMatrix {
 
   static Q4ConstMatrix fromTensor(const Tensor &tensor);
 };
+
+Tensor createCudaTensorHalf(ly::Span<const int> shape);
+
+void checkCudaError(cudaError_t err) {
+  if (err != cudaSuccess)
+    throw ly::AbortedError(cudaGetErrorString(err));
+}
 
 }  // namespace cuda
 }  // namespace cuda

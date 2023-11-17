@@ -60,8 +60,8 @@ void applyDequant<QInt4SymGroup32>(
     int offset, int n, const internal::TensorData *data, float *tgt) {
   lymath_dequant_q4sym(
       n,
-      (const lymath_q4x2_t *)data->getData<0, QInt4SymGroup32>(offset),
-      (const lymath_float16_t *)data->getData<1, Float16>(offset / QInt4SymGroup32::GroupSize),
+      (const lymath_q4x2_t *)data->getData<QInt4SymGroup32>(offset),
+      (const lymath_float16_t *)data->getSlot(1)->getData<Float16>(offset / QInt4SymGroup32::GroupSize),
       tgt);
 }
 
@@ -70,9 +70,10 @@ void applyDequant<QInt4Group32>(
     int offset, int n, const internal::TensorData *data, float *tgt) {
   lymath_dequant_q4(
       n,
-      (const lymath_q4x2_t *)data->getData<0, QInt4Group32>(offset),
-      (const lymath_float16_t *)data->getData<1, Float16>(offset / QInt4Group32::GroupSize),
-      (const int8_t *)data->getData<2, Int8>(offset / QInt4Group32::GroupSize),
+      (const lymath_q4x2_t *)data->getData<QInt4Group32>(offset),
+      (const lymath_float16_t *)data->getSlot(1)->getData<Float16>(
+          offset / QInt4Group32::GroupSize),
+      (const int8_t *)data->getSlot(2)->getData<Int8>(offset / QInt4Group32::GroupSize),
       tgt);
 }
 

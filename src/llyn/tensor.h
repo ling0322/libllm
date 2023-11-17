@@ -103,6 +103,15 @@ class Tensor {
   // get data type.
   DType getDType() const;
 
+  /// @brief Get storage device of this tensor.
+  /// @return the device.
+  Device getDevice() const { return _data->getDevice(); }
+
+  /// @brief Get offset from the data in getDataObject(). Note: this is a low level function
+  /// designed for internal operators only.
+  /// @return data offset.
+  int64_t getOffset_() const { return _offset; }
+
   // Get a new view of the tensor..
   Tensor view(ly::Span<const int> shape) const;
 
@@ -132,11 +141,11 @@ class Tensor {
   // pointer of data in this tensor
   template<typename T>
   T *getData() { 
-    return _data->getData<0, T>(_offset);
+    return _data->getData<T>(_offset);
   }
   template<typename T>
   const T *getData() const {
-    return _data->getData<0, T>(_offset);
+    return _data->getData<T>(_offset);
   }
 
   // get the internal TensorData object.

@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <initializer_list>
+#include "lyutil/span.h"
 #include "llyn/device.h"
 #include "llyn/internal/tensor_data.h"
 
@@ -28,27 +30,30 @@ namespace internal {
 class CudaTensorData : public TensorData {
  public:
   static std::shared_ptr<TensorData> create(int64_t numel, DType dtype);
+  static std::shared_ptr<TensorData> create(ly::Span<const std::pair<int64_t, DType>> slots);
 
   CudaTensorData();
   ~CudaTensorData();
 
   Device getDevice() const override;
+  int getNumSlot() const override;
+  const SlotBase *getSlot(int slot) const override;
 
  private:
-  struct Slot {
+  struct Slot : public SlotBase {
     Byte *data;
     int64_t numel;
     DType dtype;
 
     Slot();
+
+    int64_t getNumEl() const override;
+    DType getDType() const override;
+    Byte *getRawData() const override;
   };
 
-  Slot _slots[3];
+  Slot _slots[TensorData::MaxSlot];
   int _numSlot;
-
-  DType getDTypeInternal(int slot) const override;
-  int64_t getNumElInternal(int slot) const override;
-  void *getDataInternal(int slot, int64_t offset) const override;
 };
 
 }  // namespace internal

@@ -24,9 +24,10 @@
 namespace llyn {
 namespace cuda {
 
-Tensor createCudaTensorSingle(ly::Span<const int> shape);
-Tensor createCudaTensorHalf(ly::Span<const int> shape);
+Tensor toCpu(const Tensor &tensor);
+Tensor toCuda(const Tensor &tensor);
+
+Tensor toDevice(Tensor tensor, Device device);
 
 }  // cuda
 }  // llyn
-

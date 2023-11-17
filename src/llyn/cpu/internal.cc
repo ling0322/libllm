@@ -32,6 +32,7 @@ using internal::TensorData;
 using internal::TensorShape;
 
 Tensor Internal::tensor(ly::Span<const int> shape, DType dtype) {
+  CHECK(!dtype.isQuantized()) << "unable to create quantized tensor directly";
   Tensor x;
 
   x._shape = std::make_shared<TensorShape>(ly::makeConstSpan(shape));

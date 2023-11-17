@@ -19,8 +19,6 @@ set(llyn_SOURCES
     "cpu/swiglu.cc"
     "cpu/tensor.cc"
     "cpu/view.cc"
-    "cuda/create_tensor.cu"
-    "cuda/lookup.cu"
     "internal/cpu_tensor_data.cc"
     "internal/cuda_tensor_data.cc"
     "internal/operators.cc"

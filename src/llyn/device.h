@@ -26,6 +26,7 @@ class Device {
  public:
   enum Type {
     kCpu,
+    kCuda,
     NumDeviceType,  // number of device types
     kUnknown
   };

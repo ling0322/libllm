@@ -234,8 +234,8 @@ Tensor gemmFp32Q4SymFp32(const Tensor &A, const Tensor &B) {
       gemmArgs.K,
       A.getData<float>(),
       gemmArgs.lda,
-      reinterpret_cast<const lymath_q4x2_t *>(dataObjectB->getData<0, QInt4SymGroup32>()),
-      reinterpret_cast<const lymath_float16_t *>(dataObjectB->getData<1, Float16>()),
+      reinterpret_cast<const lymath_q4x2_t *>(dataObjectB->getData<QInt4SymGroup32>()),
+      reinterpret_cast<const lymath_float16_t *>(dataObjectB->getSlot(1)->getData<Float16>()),
       Cs.data,
       gemmArgs.ldc);
 
@@ -283,9 +283,9 @@ Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
       gemmArgs.K,
       A.getData<float>(),
       gemmArgs.lda,
-      reinterpret_cast<const lymath_q4x2_t *>(dataObjectB->getData<0, QInt4Group32>()),
-      reinterpret_cast<const lymath_float16_t *>(dataObjectB->getData<1, Float16>()),
-      reinterpret_cast<const int8_t *>(dataObjectB->getData<2, Int8>()),
+      reinterpret_cast<const lymath_q4x2_t *>(dataObjectB->getData<QInt4Group32>()),
+      reinterpret_cast<const lymath_float16_t *>(dataObjectB->getSlot(1)->getData<Float16>()),
+      reinterpret_cast<const int8_t *>(dataObjectB->getSlot(2)->getData<Int8>()),
       Cs.data,
       gemmArgs.ldc);
 

@@ -28,11 +28,20 @@
 namespace llyn {
 namespace internal {
 
-
 CpuTensorData::Slot::Slot()
     : data(nullptr),
       numel(0),
       dtype(DType::kUnknown) {}
+
+int64_t CpuTensorData::Slot::getNumEl() const {
+  return numel;
+}
+DType CpuTensorData::Slot::getDType() const {
+  return dtype;
+}
+Byte *CpuTensorData::Slot::getRawData() const {
+  return data;
+}
 
 CpuTensorData::CpuTensorData() : _numSlot(0) {}
 
@@ -59,13 +68,28 @@ void CpuTensorData::readSlot(ly::ReadableFile *fp, int slotIdx) {
 }
 
 std::shared_ptr<TensorData> CpuTensorData::create(int64_t numel, DType dtype) {
-  auto tensorData = std::make_shared<CpuTensorData>();
-  int64_t size = dtype.getTotalSize(numel);
-  tensorData->_slots[0].data = reinterpret_cast<Byte *>(ly::alloc32ByteAlignedMem(size));
-  tensorData->_slots[0].numel = numel;
-  tensorData->_slots[0].dtype = dtype;
+  return create({{numel, dtype}});
+}
 
-  tensorData->_numSlot = 1;
+std::shared_ptr<TensorData> CpuTensorData::create(
+    ly::Span<const std::pair<int64_t, DType>> slots) {
+  CHECK(slots.size() > 0 && slots.size() <= TensorData::MaxSlot);
+
+  auto tensorData = std::make_shared<CpuTensorData>();
+  for (const std::pair<int64_t, DType> &slotSpec : slots) {
+    int64_t numel = slotSpec.first;
+    DType dtype = slotSpec.second;
+
+    CHECK(numel > 0);
+    int64_t size = dtype.getTotalSize(numel);
+    void *data = ly::alloc32ByteAlignedMem(size);
+    tensorData->_slots[tensorData->_numSlot].data = reinterpret_cast<Byte *>(data);
+    tensorData->_slots[tensorData->_numSlot].numel = numel;
+    tensorData->_slots[tensorData->_numSlot].dtype = dtype;
+
+    ++tensorData->_numSlot;
+  }
+
   return tensorData;
 }
 
@@ -90,20 +114,17 @@ std::shared_ptr<TensorData> CpuTensorData::read(ly::ReadableFile *fp) {
   return tensorData;
 }
 
+const SlotBase *CpuTensorData::getSlot(int slot) const {
+  CHECK(slot < _numSlot);
+  return &_slots[slot];
+}
+
 CpuTensorData::~CpuTensorData() {
-  if (_slots[0].data) {
-    ly::free32ByteAlignedMem(_slots[0].data);
-    _slots[0].data = nullptr;
-  }
-
-  if (_slots[1].data) {
-    ly::free32ByteAlignedMem(_slots[1].data);
-    _slots[1].data = nullptr;
-  }
-
-  if (_slots[2].data) {
-    ly::free32ByteAlignedMem(_slots[2].data);
-    _slots[2].data = nullptr;
+  for (int i = 0; i < _numSlot; ++i) {
+    if (_slots[i].data) {
+      ly::free32ByteAlignedMem(_slots[i].data);
+      _slots[i].data = nullptr;
+    }
   }
 }
 
@@ -111,19 +132,8 @@ Device CpuTensorData::getDevice() const {
   return Device(Device::Type::kCpu);
 }
 
-DType CpuTensorData::getDTypeInternal(int slot) const {
-  CHECK(slot < _numSlot);
-  return _slots[slot].dtype;
-}
-
-int64_t CpuTensorData::getNumElInternal(int slot) const {
-  CHECK(slot < _numSlot);
-  return _slots[slot].numel;
-}
-
-void *CpuTensorData::getDataInternal(int slot, int64_t offset) const {
-  CHECK(slot < _numSlot);
-  return _slots[slot].data + _slots[slot].dtype.getTotalSize(offset);
+int CpuTensorData::getNumSlot() const {
+  return _numSlot;
 }
 
 }  // namespace internal

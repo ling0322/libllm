@@ -59,5 +59,6 @@ extern Operators *gOperatorsForDevice[Device::NumDeviceType];
 void initOperators();
 void destroyOperators();
 
+
 }  // namespace internal
 }  // namespace llyn

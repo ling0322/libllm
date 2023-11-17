@@ -3,7 +3,10 @@ cmake_minimum_required(VERSION 3.25)
 
 project(libllm LANGUAGES CXX)
 
+
 find_package(CUDAToolkit REQUIRED)
+
+include_directories(${CUDAToolkit_INCLUDE_DIRS}) 
 
 set(CMAKE_CUDA_ARCHITECTURES 70 75)
 enable_language(CUDA)

@@ -35,59 +35,68 @@ CudaTensorData::Slot::Slot()
       numel(0),
       dtype(DType::kUnknown) {}
 
+int64_t CudaTensorData::Slot::getNumEl() const {
+  return numel;
+}
+DType CudaTensorData::Slot::getDType() const {
+  return dtype;
+}
+Byte *CudaTensorData::Slot::getRawData() const {
+  return data;
+}
+
 CudaTensorData::CudaTensorData() : _numSlot(0) {}
 
 std::shared_ptr<TensorData> CudaTensorData::create(int64_t numel, DType dtype) {
+  return create({{numel, dtype}});
+}
+
+std::shared_ptr<TensorData> CudaTensorData::create(
+    ly::Span<const std::pair<int64_t, DType>> slots) {
+  CHECK(slots.size() > 0 && slots.size() <= TensorData::MaxSlot);
+
   auto tensorData = std::make_shared<CudaTensorData>();
-  int64_t size = dtype.getTotalSize(numel);
+  for (const std::pair<int64_t, DType> &slotSpec : slots) {
+    int64_t numel = slotSpec.first;
+    DType dtype = slotSpec.second;
 
-  void *data = nullptr;
-  cudaError_t err = cudaMalloc(&data, size);
-  if (err != cudaSuccess)
-    throw ly::AbortedError(ly::sprintf("cudaMalloc failed with code %d", err));
+    CHECK(numel > 0);
+    int64_t size = dtype.getTotalSize(numel);
+    void *data = nullptr;
+    cudaError_t err = cudaMalloc(&data, size);
+    if (err != cudaSuccess)
+      throw ly::AbortedError(ly::sprintf("cudaMalloc failed with code %d", err));
 
-  tensorData->_slots[0].data = reinterpret_cast<Byte *>(data);
-  tensorData->_slots[0].numel = numel;
-  tensorData->_slots[0].dtype = dtype;
+    tensorData->_slots[tensorData->_numSlot].data = reinterpret_cast<Byte *>(data);
+    tensorData->_slots[tensorData->_numSlot].numel = numel;
+    tensorData->_slots[tensorData->_numSlot].dtype = dtype;
 
-  tensorData->_numSlot = 1;
+    ++tensorData->_numSlot;
+  }
+
   return tensorData;
 }
 
 CudaTensorData::~CudaTensorData() {
-  if (_slots[0].data) {
-    cudaFree(_slots[0].data);
-    _slots[0].data = nullptr;
+  for (int i = 0; i < _numSlot; ++i) {
+    if (_slots[i].data) {
+      cudaFree(_slots[i].data);
+      _slots[i].data = nullptr;
+    }
   }
+}
 
-  if (_slots[1].data) {
-    cudaFree(_slots[1].data);
-    _slots[1].data = nullptr;
-  }
-
-  if (_slots[2].data) {
-    cudaFree(_slots[2].data);
-    _slots[2].data = nullptr;
-  }
+const SlotBase *CudaTensorData::getSlot(int slot) const {
+  CHECK(slot < _numSlot);
+  return &_slots[slot];
 }
 
 Device CudaTensorData::getDevice() const {
   return Device(Device::Type::kCpu);
 }
 
-DType CudaTensorData::getDTypeInternal(int slot) const {
-  CHECK(slot < _numSlot);
-  return _slots[slot].dtype;
-}
-
-int64_t CudaTensorData::getNumElInternal(int slot) const {
-  CHECK(slot < _numSlot);
-  return _slots[slot].numel;
-}
-
-void *CudaTensorData::getDataInternal(int slot, int64_t offset) const {
-  CHECK(slot < _numSlot);
-  return _slots[slot].data + _slots[slot].dtype.getTotalSize(offset);
+int CudaTensorData::getNumSlot() const {
+  return _numSlot;
 }
 
 }  // namespace internal

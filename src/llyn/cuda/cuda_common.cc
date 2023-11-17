@@ -28,6 +28,13 @@ Q4ConstMatrix Q4ConstMatrix::fromTensor(const Tensor &tensor) {
 
 }
 
+Tensor createCudaTensorHalf(ly::Span<const int> shape) {
+  auto tensorShape = std::make_shared<internal::TensorShape>(shape);
+  auto data = internal::CudaTensorData::create(tensorShape->getNumEl(), DType::kFloat16);
+
+  return Tensor::create(tensorShape, data);
+}
+
 }  // cuda
 }  // llyn
     

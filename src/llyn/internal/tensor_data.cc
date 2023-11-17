@@ -38,13 +38,13 @@ void TensorData::throwIfInvalid() {
       throw ly::AbortedError("invalid tensor (dtype=unknown).");
       break;
     case DType::kQInt4Group32:
-      if (getNumEl() / getDType().getGroupSize() != getNumEl<1>())
+      if (getNumEl() / getDType().getGroupSize() != getSlot(1)->getNumEl())
         throw ly::AbortedError("tensor data and scale size mismatch.");
-      if (getNumEl() / getDType().getGroupSize() != getNumEl<1>())
+      if (getNumEl() / getDType().getGroupSize() != getSlot(2)->getNumEl())
         throw ly::AbortedError("tensor data and zero-point size mismatch.");
       break;
     case DType::kQInt4SymGroup32:
-      if (getNumEl() / getDType().getGroupSize() != getNumEl<1>())
+      if (getNumEl() / getDType().getGroupSize() != getSlot(1)->getNumEl())
         throw ly::AbortedError("tensor data and scale size mismatch.");
       break;
   }

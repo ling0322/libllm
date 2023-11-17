@@ -19,6 +19,8 @@
 
 #pragma once
 
+
+#include "lyutil/span.h"
 #include "llyn/device.h"
 #include "llyn/internal/tensor_data.h"
 
@@ -27,31 +29,39 @@ namespace internal {
 
 class CpuTensorData : public TensorData {
  public:
-  static std::shared_ptr<TensorData> create(int64_t numel, DType dtype);
+  static std::shared_ptr<TensorData> create(int64_t numel0, DType dtype0);
+  static std::shared_ptr<TensorData> create(ly::Span<const std::pair<int64_t, DType>> slots);
   static std::shared_ptr<TensorData> read(ly::ReadableFile *fp);
+
+  /// @brief Create a new instance of CpuTensorData with the same size and slots as `tensorData`.
+  /// @param tensorData The reference tensorData object.
+  /// @return A new instance of CpuTensorData.
+  static std::shared_ptr<TensorData> createLike(const TensorData *tensorData);
 
   CpuTensorData();
   ~CpuTensorData();
 
   Device getDevice() const override;
+  int getNumSlot() const override;
+  const SlotBase *getSlot(int slot) const override;
 
  private:
-  struct Slot {
+  struct Slot : public SlotBase {
     Byte *data;
     int64_t numel;
     DType dtype;
 
     Slot();
+
+    int64_t getNumEl() const override;
+    DType getDType() const override;
+    Byte *getRawData() const override;
   };
 
-  Slot _slots[3];
+  Slot _slots[TensorData::MaxSlot];
   int _numSlot;
 
   void readSlot(ly::ReadableFile *fp, int slotIdx);
-
-  DType getDTypeInternal(int slot) const override;
-  int64_t getNumElInternal(int slot) const override;
-  void *getDataInternal(int slot, int64_t offset) const override;
 };
 
 }  // namespace internal

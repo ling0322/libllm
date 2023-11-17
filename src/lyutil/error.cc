@@ -60,4 +60,7 @@ OutOfRangeError::OutOfRangeError(const std::string &what)
 InvalidArgError::InvalidArgError(const std::string &what)
     : Error(ErrorCode::InvalidArg, buildErrorMsg(ErrorCode::InvalidArg, what)) {}
 
+NotImplementedError::NotImplementedError(const std::string &what)
+    : Error(ErrorCode::InvalidArg, buildErrorMsg(ErrorCode::NotImplemented, what)) {}
+
 } // namespace ly

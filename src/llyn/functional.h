@@ -159,5 +159,8 @@ Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask = Tensor());
 //   <float>(..., D / 2): the output tensor.
 Tensor swiglu(Tensor input);
 
+
+Tensor toDevice(Tensor input);
+
 }  // functional
 }  // flint
