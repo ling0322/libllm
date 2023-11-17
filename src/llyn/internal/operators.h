@@ -53,9 +53,13 @@ class Operators {
   virtual void copy(Tensor src, Tensor dest) = 0;
   virtual Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) = 0;
   virtual Tensor swiglu(Tensor A) = 0;
+  virtual Tensor toDevice(Tensor tensor, Device device) = 0;
 };
 
 extern Operators *gOperatorsForDevice[Device::NumDeviceType];
+
+
+Operators *getOperators(Device::Type deviceType);
 void initOperators();
 void destroyOperators();
 

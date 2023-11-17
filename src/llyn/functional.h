@@ -159,8 +159,11 @@ Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask = Tensor());
 //   <float>(..., D / 2): the output tensor.
 Tensor swiglu(Tensor input);
 
-
-Tensor toDevice(Tensor input);
+/// @brief Copy the tensor data between devices.
+/// @param tensor the source tensor.
+/// @param device target device.
+/// @return the tensor in device.
+Tensor toDevice(Tensor tensor, Device device);
 
 }  // functional
 }  // flint

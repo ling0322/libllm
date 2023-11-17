@@ -19,9 +19,13 @@
 
 #pragma once
 
+#include <string>
+
 namespace llyn {
 
-// storage device for tensor data.
+// storage device for tensor data. 
+// Note: once the Device type is increased, we should also change the initialization of
+// gOperatorsForDevice.
 class Device {
  public:
   enum Type {
@@ -39,6 +43,10 @@ class Device {
 
   // get type of the device
   Type getType() const { return _type; }
+
+  /// @brief Get the name of device.
+  /// @return name of the device.
+  std::string getName() const;
 
  private:
   Type _type;

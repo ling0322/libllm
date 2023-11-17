@@ -19,6 +19,8 @@
 
 #include "llyn/functional.h"
 
+#include "lyutil/error.h"
+#include "lyutil/strings.h"
 #include "llyn/internal/operators.h"
 
 namespace llyn {
@@ -114,6 +116,16 @@ Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
 
 Tensor swiglu(Tensor input) {
   return gOperatorsForDevice[Device::kCpu]->swiglu(input);
+}
+
+Tensor toDevice(Tensor tensor, Device device) {
+  Device::Type src = tensor.getDevice().getType();
+  Device::Type tgt = device.getType();
+
+  Device::Type opDevice = Device::kCpu;
+  if (src == Device::kCuda || tgt == Device::kCuda) opDevice = Device::kCuda;
+
+  return gOperatorsForDevice[opDevice]->toDevice(tensor, device);
 }
 
 }  // functional

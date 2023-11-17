@@ -29,8 +29,8 @@ std::string getErrorCodeName(ErrorCode code) {
       return "OutOfRange";
     case ErrorCode::InvalidArg:
       return "InvalidArg";
-    case ErrorCode::Unimplemented:
-      return "Unimplemented";
+    case ErrorCode::NotImplemented:
+      return "NotImplemented";
     default:
       return "Unknown";
   }

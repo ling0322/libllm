@@ -19,26 +19,49 @@
 
 #include "llyn/internal/operators.h"
 
+#include <atomic>
 #include <mutex>
+#include "lyutil/error.h"
+#include "lyutil/strings.h"
 #include "llyn/cpu/cpu_operators.h"
+#include "llyn/cuda/cuda_operators.h"
 
 namespace llyn {
 namespace internal {
 
 Operators *gOperatorsForDevice[Device::NumDeviceType] = {
+  nullptr,
   nullptr
 };
 
-std::once_flag gInitFlag;
+static std::atomic<bool> gInitialized{false};
 
 void initOperators() {
-  gOperatorsForDevice[Device::kCpu] = new cpu::CPUOperators();
+  if (!gInitialized.exchange(true)) {
+    CHECK(!gOperatorsForDevice[Device::kCpu]);
+    gOperatorsForDevice[Device::kCpu] = new cpu::CPUOperators();
+
+    CHECK(!gOperatorsForDevice[Device::kCuda]);
+    gOperatorsForDevice[Device::kCuda] = new cuda::CudaOperators();
+  }
+}
+
+Operators *getOperators(Device::Type deviceType) {
+  if (!gInitialized) throw ly::AbortedError("call llyn operators before initialization");
+  if (!gOperatorsForDevice[deviceType]) {
+    std::string deviceName = Device(deviceType).getName();
+    throw ly::NotImplementedError(ly::sprintf("%s operators not implemented", deviceName));
+  }
+
+  return gOperatorsForDevice[deviceType];
 }
 
 void destroyOperators() {
-  for (int i = 0; i < Device::NumDeviceType; ++i) {
-    delete gOperatorsForDevice[i];
-    gOperatorsForDevice[i] = nullptr;
+  if (gInitialized.exchange(false)) {
+    for (int i = 0; i < Device::NumDeviceType; ++i) {
+      delete gOperatorsForDevice[i];
+      gOperatorsForDevice[i] = nullptr;
+    }
   }
 }
 

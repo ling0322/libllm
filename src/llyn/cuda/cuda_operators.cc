@@ -19,6 +19,8 @@
 
 #include "llyn/cuda/cuda_operators.h"
 
+#include "llyn/cuda/to_device.h"
+
 namespace llyn {
 namespace cuda {
 
@@ -110,6 +112,9 @@ Tensor CudaOperators::swiglu(Tensor A) {
   NOT_IMPL();
 }
 
+Tensor CudaOperators::toDevice(Tensor tensor, Device device) {
+  return cuda::toDevice(tensor, device);
+}
 
 }  // cuda
 }  // llyn

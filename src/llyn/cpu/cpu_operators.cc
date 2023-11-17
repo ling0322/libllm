@@ -505,5 +505,9 @@ Tensor CPUOperators::swiglu(Tensor A) {
   return cpu::swiglu(A);
 }
 
+Tensor CPUOperators::toDevice(Tensor tensor, Device device) {
+  NOT_IMPL();
+}
+
 }  // cpu
 }  // namespace llyn

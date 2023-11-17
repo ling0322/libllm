@@ -19,6 +19,8 @@
 
 #include "llyn/device.h"
 
+#include "lyutil/log.h"
+
 namespace llyn {
 
 Device::Device() : _type(Type::kUnknown) {}
@@ -26,6 +28,17 @@ Device::Device(Type type) : _type(type) {}
 
 Device Device::createForCPU() {
   return Device(Type::kCpu);
+}
+
+std::string Device::getName() const {
+  switch (_type) {
+    case kCpu:
+      return "cpu";
+    case kCuda:
+      return "cuda";
+    default:
+      NOT_IMPL();
+  }
 }
 
 }  // namespace llyn
