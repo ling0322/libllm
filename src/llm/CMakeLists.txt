@@ -23,7 +23,8 @@ set(libllm_LIBADD
     OpenMP::OpenMP_CXX
     llyn
     lytok
-    lyutil)
+    lyutil
+    CUDA::cudart_static)
 
 add_library(llm-core-static STATIC ${libllm_SOURCES} )
 target_include_directories(llm-core-static PRIVATE ${libllm_INCDIRS})
@@ -41,7 +42,7 @@ set(llm_SOURCES
 
 add_executable(llm_main ${llm_SOURCES})
 target_include_directories(llm_main PRIVATE ${libllm_INCDIRS})
-target_link_libraries(llm_main llm-core-static OpenMP::OpenMP_CXX)
+target_link_libraries(llm_main llm-core-static OpenMP::OpenMP_CXX )
 target_link_options(llm_main PUBLIC "-fopenmp")
 set_property(TARGET llm_main PROPERTY OUTPUT_NAME llm)
 

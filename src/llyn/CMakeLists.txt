@@ -19,6 +19,9 @@ set(llyn_SOURCES
     "cpu/swiglu.cc"
     "cpu/tensor.cc"
     "cpu/view.cc"
+    "cuda/cuda_common.cc"
+    "cuda/cuda_operators.cc"
+    "cuda/to_device.cc"
     "internal/cpu_tensor_data.cc"
     "internal/cuda_tensor_data.cc"
     "internal/operators.cc"
@@ -49,9 +52,9 @@ target_compile_features(llyn PRIVATE cxx_std_14)
 target_link_libraries(llyn lymath lyutil)
 target_link_options(llyn PUBLIC "-fopenmp")
 
-set(llyn_test_SOURCES
-    "${CMAKE_CURRENT_LIST_DIR}/internal/operators_test.cc"
-    "${CMAKE_CURRENT_LIST_DIR}/nn/rms_norm_test.cc"
-    "${CMAKE_CURRENT_LIST_DIR}/tensor_test.cc"
-    "${CMAKE_CURRENT_LIST_DIR}/nn_test.cc"
-    PARENT_SCOPE)
+set(llyn_cuda_test_SOURCES
+    "${CMAKE_CURRENT_LIST_DIR}/cuda/test.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/../../third_party/catch2/catch_amalgamated.cpp")
+add_executable(llyn_cuda_test
+    ${llyn_cuda_test_SOURCES})
+target_include_directories(llyn_cuda_test PRIVATE .. ../.. ../third_party)

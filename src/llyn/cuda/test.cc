@@ -17,17 +17,30 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "../../../third_party/catch2/catch_amalgamated.hpp"
 
-#include "llyn/tensor.h"
+#include "llyn/device.h"
+#include "llyn/llyn.h"
 
-namespace llyn {
-namespace cuda {
+int main(int argc, char **argv) {
+  llyn::init();
 
-Tensor toCpu(const Tensor &tensor);
-Tensor toCuda(const Tensor &tensor);
+  int result = Catch::Session().run(argc, argv);
+  llyn::destroy();
 
-Tensor toDevice(const Tensor &tensor, Device device);
+  return result;
+}
 
-}  // cuda
-}  // llyn
+using llyn::Tensor;
+using llyn::DType;
+using llyn::Device;
+
+namespace F = llyn::functional;
+
+CATCH_TEST_CASE("test cuda toDevice", "[cuda][operators][toDevice]") {
+  Tensor xCpu = F::rand({100, 200}, DType::kFloat);
+  Tensor xCuda = F::toDevice(xCpu, Device(Device::kCuda));
+  Tensor xCpu2 = F::toDevice(xCuda, Device(Device::kCpu));
+  
+  CATCH_REQUIRE(F::allClose(xCpu, xCpu2));
+}

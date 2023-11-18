@@ -178,3 +178,7 @@ CATCH_TEST_CASE("test softmax", "[core][nn][operators]") {
   CATCH_REQUIRE(F::allClose(F::softmax(input), output));
 }
 
+
+CATCH_TEST_CASE("test cuda toDevice", "[cuda][operators][toDevice]") {
+  Tensor xCpu = F::rand({100, 200}, DType::kFloat);
+}
