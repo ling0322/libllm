@@ -35,6 +35,25 @@ Tensor createCudaTensorHalf(ly::Span<const int> shape) {
   return Tensor::create(tensorShape, data);
 }
 
+Tensor createCudaTensorLong(ly::Span<const int> shape) {
+  auto tensorShape = std::make_shared<internal::TensorShape>(shape);
+  auto data = internal::CudaTensorData::create(tensorShape->getNumEl(), DType::kLong);
+
+  return Tensor::create(tensorShape, data);
+}
+
+Tensor createCudaTensorFloat(ly::Span<const int> shape) {
+  auto tensorShape = std::make_shared<internal::TensorShape>(shape);
+  auto data = internal::CudaTensorData::create(tensorShape->getNumEl(), DType::kFloat);
+
+  return Tensor::create(tensorShape, data);
+}
+
+void checkCudaError(cudaError_t err) {
+  if (err != cudaSuccess)
+    throw ly::AbortedError(cudaGetErrorString(err));
+}
+
 }  // cuda
 }  // llyn
     

@@ -19,8 +19,10 @@ set(llyn_SOURCES
     "cpu/swiglu.cc"
     "cpu/tensor.cc"
     "cpu/view.cc"
+    "cuda/cast.cu"
     "cuda/cuda_common.cc"
     "cuda/cuda_operators.cc"
+    "cuda/cudnn_operators.cc"
     "cuda/to_device.cc"
     "internal/cpu_tensor_data.cc"
     "internal/cuda_tensor_data.cc"
@@ -43,7 +45,7 @@ set(llyn_SOURCES
 set(llyn_INCDIR ..)
 
 if(CUDAToolkit_FOUND)
-    set(llyn_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS})
+  set(llyn_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_ROOT}/include)
 endif()
 
 add_library(llyn STATIC ${llyn_SOURCES} )
@@ -52,9 +54,13 @@ target_compile_features(llyn PRIVATE cxx_std_14)
 target_link_libraries(llyn lymath lyutil)
 target_link_options(llyn PUBLIC "-fopenmp")
 
+set(cudnn_LIBRARIES
+    "${CUDNN_ROOT}/lib/libcudnn_ops_infer_static.a")
+
 set(llyn_cuda_test_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/cuda/test.cc"
     "${CMAKE_CURRENT_LIST_DIR}/../../third_party/catch2/catch_amalgamated.cpp")
 add_executable(llyn_cuda_test
     ${llyn_cuda_test_SOURCES})
+target_link_libraries(llyn_cuda_test llyn lymath lyutil ${cudnn_LIBRARIES} CUDA::cudart_static CUDA::cublas_static)
 target_include_directories(llyn_cuda_test PRIVATE .. ../.. ../third_party)

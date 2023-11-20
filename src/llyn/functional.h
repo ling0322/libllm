@@ -165,5 +165,13 @@ Tensor swiglu(Tensor input);
 /// @return the tensor in device.
 Tensor toDevice(Tensor tensor, Device device);
 
+
+/// @brief Cast tensor to another data type.
+/// @param tensor Source tensor.
+/// @param dtype Target data type.
+/// @return tensor with data type `dtype`.
+Tensor cast(Tensor tensor, DType dtype);
+
+
 }  // functional
 }  // flint

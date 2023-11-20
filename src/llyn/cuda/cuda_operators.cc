@@ -19,10 +19,18 @@
 
 #include "llyn/cuda/cuda_operators.h"
 
+#include "llyn/cuda/cast.h"
 #include "llyn/cuda/to_device.h"
 
 namespace llyn {
 namespace cuda {
+
+internal::Operators *CudaOperators::create() {
+  std::unique_ptr<CudaOperators> ops{new CudaOperators()};
+  ops->_cudnnOperators = CudnnOperators::create();
+
+  return ops.release();
+}
 
 Tensor CudaOperators::lookup(Tensor table, Tensor indices) {
   NOT_IMPL();
@@ -69,7 +77,7 @@ Tensor CudaOperators::zeros(ly::Span<const int> shape, DType dtype) {
 }
 
 Tensor CudaOperators::contiguous(Tensor input) {
-  NOT_IMPL();
+  return _cudnnOperators->contigious(input);
 }
 
 bool CudaOperators::allClose(Tensor A, Tensor B) {
@@ -114,6 +122,11 @@ Tensor CudaOperators::swiglu(Tensor A) {
 
 Tensor CudaOperators::toDevice(Tensor tensor, Device device) {
   return cuda::toDevice(tensor, device);
+}
+
+Tensor CudaOperators::cast(Tensor tensor, DType dtype) {
+  CHECK(tensor.getDevice().getType() == Device::kCuda);
+  return cuda::cast(tensor, dtype);
 }
 
 }  // cuda

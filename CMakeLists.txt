@@ -8,15 +8,21 @@ find_package(CUDAToolkit REQUIRED)
 
 include_directories(${CUDAToolkit_INCLUDE_DIRS}) 
 
-set(CMAKE_CUDA_ARCHITECTURES 70 75)
+set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 75 80 86)
 enable_language(CUDA)
 
+if(NOT DEFINED CUDNN_ROOT)
+  message( FATAL_ERROR "CUDNN_ROOT is not defined." )
+endif()
+
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "-O3 -g")
+set(CMAKE_CXX_FLAGS "-O0 -g")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(MKL_PREFIX "/opt/intel/mkl" CACHE STRING "Prefix for MKL headers and libraries.")
 
 set (CUDA_ENABLED ON)
+set(cudnn_LIBRARIES
+    "${CUDNN_ROOT}/lib/libcudnn_ops_infer_static.a")
 
 #add_compile_options(-fsanitize=address)
 #add_link_options(-fsanitize=address)

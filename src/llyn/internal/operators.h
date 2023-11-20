@@ -54,6 +54,7 @@ class Operators {
   virtual Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) = 0;
   virtual Tensor swiglu(Tensor A) = 0;
   virtual Tensor toDevice(Tensor tensor, Device device) = 0;
+  virtual Tensor cast(Tensor tensor, DType dtype) = 0;
 };
 
 extern Operators *gOperatorsForDevice[Device::NumDeviceType];

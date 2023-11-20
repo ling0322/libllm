@@ -63,6 +63,7 @@ class CPUOperators : public internal::Operators {
   Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) override;
   Tensor swiglu(Tensor A) override;
   Tensor toDevice(Tensor tensor, Device device) override;
+  Tensor cast(Tensor tensor, DType dtype) override;
 
  private:
   typedef internal::TensorShape::Elem Shape;

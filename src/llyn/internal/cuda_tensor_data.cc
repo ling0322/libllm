@@ -92,7 +92,7 @@ const SlotBase *CudaTensorData::getSlot(int slot) const {
 }
 
 Device CudaTensorData::getDevice() const {
-  return Device(Device::Type::kCpu);
+  return Device(Device::Type::kCuda);
 }
 
 int CudaTensorData::getNumSlot() const {

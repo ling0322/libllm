@@ -28,48 +28,12 @@
 #include "llyn/internal/cuda_tensor_data.h"
 #include "llyn/internal/tensor_shape.h"
 
+#define LL_CHECK_CONTIGUOUS(x) { if (!x.isContiguous()) { \
+    LOG(FATAL) << "contiguous is required for CUDA operators: " << #x; } }
+
 namespace llyn {
 namespace cuda {
 
-template<int DIM>
-__device__ int64_t getOffsetByFlatIndex(internal::TensorShape::Elem *shape, int64_t index);
-template<>
-__device__ int64_t getOffsetByFlatIndex<1>(internal::TensorShape::Elem *shape, int64_t index) {
-  return index * shape[0].stride;
-}
-template<>
-__device__ int64_t getOffsetByFlatIndex<2>(internal::TensorShape::Elem *shape, int64_t index) {
-  int index1 = index % shape[1].shape;
-  int numel0 = index / shape[1].shape;
-  return numel0 * shape[0].stride + index1 * shape[1].stride;
-}
-template<>
-__device__ int64_t getOffsetByFlatIndex<3>(internal::TensorShape::Elem *shape, int64_t index) {
-  int index2 = index % shape[2].shape;
-  int numel1 = index / shape[2].shape;
-  int index1 = numel1 % shape[1].shape;
-  int numel0 = numel1 / shape[1].shape;
-  return numel0 * shape[0].stride + index1 * shape[1].stride + index2 * shape[1].stride;
-}
-
-/// @brief Get number of tensors in a N-dim shape data.
-/// @tparam DIM The dimension N.
-/// @param shape Pointer to the shape data. It was expected to have at least N elements.
-/// @return Number of tensors.
-template<int DIM>
-__host__ __device__ int64_t getNumTensors(internal::TensorShape::Elem *shape);
-template<>
-__host__ __device__ int64_t getNumTensors<1>(internal::TensorShape::Elem *shape) {
-  return shape[0].shape;
-}
-template<>
-__host__ __device__ int64_t getNumTensors<2>(internal::TensorShape::Elem *shape) {
-  return shape[0].shape * shape[1].shape;
-}
-template<>
-__host__ __device__ int64_t getNumTensors<3>(internal::TensorShape::Elem *shape) {
-  return shape[0].shape * shape[1].shape * shape[2].shape;
-}
 
 template<typename T, int DIM>
 class TensorAccessor {
@@ -122,17 +86,6 @@ class TensorAccessor<T, 1> {
 template<typename T, int DIM>
 class PackedTensorAccessor {
  public:
-  __device__ TensorAccessor<T, 1> getVectorByFlatIndex(int64_t index) {
-    int64_t offset = getOffsetByFlatIndex<DIM - 1>(_shape, index);
-    return TensorAccessor<T, 1>(this->_shape + DIM - 1, offset);
-  }
-
-  /// @brief Get number of vectors in this tensor.
-  /// @return Number of vectors.
-  __host__ __device__ int64_t getNumVectors() {
-    return getNumTensors<DIM - 1>(this->_shape);
-  }
-
  private:
   internal::TensorShape::Elem _shape[DIM];
   T *_data;
@@ -152,11 +105,10 @@ struct Q4ConstMatrix {
 };
 
 Tensor createCudaTensorHalf(ly::Span<const int> shape);
+Tensor createCudaTensorLong(ly::Span<const int> shape);
+Tensor createCudaTensorFloat(ly::Span<const int> shape);
 
-void checkCudaError(cudaError_t err) {
-  if (err != cudaSuccess)
-    throw ly::AbortedError(cudaGetErrorString(err));
-}
+void checkCudaError(cudaError_t err);
 
 }  // namespace cuda
 }  // namespace cuda

@@ -27,6 +27,7 @@ namespace llyn {
 namespace functional {
 
 using internal::gOperatorsForDevice;
+using internal::getOperators;
 
 Tensor lookup(Tensor table, Tensor indices) {
   return gOperatorsForDevice[Device::kCpu]->lookup(table, indices);
@@ -125,8 +126,16 @@ Tensor toDevice(Tensor tensor, Device device) {
   Device::Type opDevice = Device::kCpu;
   if (src == Device::kCuda || tgt == Device::kCuda) opDevice = Device::kCuda;
 
-  return gOperatorsForDevice[opDevice]->toDevice(tensor, device);
+  return getOperators(opDevice)->toDevice(tensor, device);
+}
+
+Tensor cast(Tensor tensor, DType dtype) {
+  Device::Type opDevice = Device::kUnknown;
+  if (tensor.getDevice().getType() == Device::kCuda) opDevice = Device::kCuda;
+  if (tensor.getDevice().getType() == Device::kCpu) NOT_IMPL();
+
+  return getOperators(opDevice)->cast(tensor, dtype);
 }
 
 }  // functional
-}  // flint
+}  // llyn

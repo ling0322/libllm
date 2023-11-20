@@ -17,40 +17,18 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "../../../third_party/catch2/catch_amalgamated.hpp"
+#pragma once
 
-#include "llyn/device.h"
-#include "llyn/llyn.h"
+#include "llyn/tensor.h"
 
-int main(int argc, char **argv) {
-  llyn::init();
+namespace llyn {
+namespace cuda {
 
-  int result = Catch::Session().run(argc, argv);
-  llyn::destroy();
+Tensor castFloatToHalf(const Tensor &tensor, DType dtype);
+Tensor castHalfToFloat(const Tensor &tensor, DType dtype);
 
-  return result;
-}
+Tensor cast(const Tensor &tensor, DType dtype);
 
-using llyn::Tensor;
-using llyn::DType;
-using llyn::Device;
+}  // cuda
+}  // llyn
 
-namespace F = llyn::functional;
-
-CATCH_TEST_CASE("test cuda toDevice", "[cuda][operators][toDevice]") {
-  Tensor xCpu = F::rand({100, 200}, DType::kFloat);
-  Tensor xCuda = F::toDevice(xCpu, Device(Device::kCuda));
-  Tensor xCpu2 = F::toDevice(xCuda, Device(Device::kCpu));
-  
-  CATCH_REQUIRE(F::allClose(xCpu, xCpu2));
-}
-
-CATCH_TEST_CASE("test cuda cast", "[cuda][operators][cast]") {
-  Tensor xCpu = F::rand({100, 20, 50}, DType::kFloat);
-  Tensor xCuda = F::toDevice(xCpu, Device(Device::kCuda));
-  Tensor xHalfCuda = F::cast(xCuda, DType::kFloat16);
-  Tensor xCuda2 = F::cast(xHalfCuda, DType::kFloat);
-  Tensor xCpu2 = F::toDevice(xCuda2, Device(Device::kCpu));
-
-  CATCH_REQUIRE(F::allClose(xCpu, xCpu2));
-}

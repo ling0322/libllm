@@ -509,5 +509,9 @@ Tensor CPUOperators::toDevice(Tensor tensor, Device device) {
   NOT_IMPL();
 }
 
+Tensor CPUOperators::cast(Tensor tensor, DType dtype) {
+  NOT_IMPL();
+}
+
 }  // cpu
 }  // namespace llyn

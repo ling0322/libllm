@@ -20,6 +20,7 @@
 #pragma once
 
 #include "llyn/internal/operators.h"
+#include "llyn/cuda/cudnn_operators.h"
 
 namespace llyn {
 namespace cuda {
@@ -27,11 +28,10 @@ namespace cuda {
 /// @brief Implementation of Operator interface with cuda device.
 class CudaOperators : public internal::Operators {
  public:
-  CudaOperators() = default;
   ~CudaOperators() = default;
 
   // create a instance of CPUOperators
-  static std::unique_ptr<Operators> create();
+  static Operators *create();
 
   // implement interface Operators
   Tensor lookup(Tensor table, Tensor indices) override;
@@ -57,6 +57,12 @@ class CudaOperators : public internal::Operators {
   Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) override;
   Tensor swiglu(Tensor A) override;
   Tensor toDevice(Tensor tensor, Device device) override;
+  Tensor cast(Tensor tensor, DType dtype) override;
+
+ private:
+  std::shared_ptr<CudnnOperators> _cudnnOperators;
+
+  CudaOperators() = default;
 };
 
 }  // cuda

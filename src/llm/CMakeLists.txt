@@ -24,12 +24,14 @@ set(libllm_LIBADD
     llyn
     lytok
     lyutil
-    CUDA::cudart_static)
+    ${cudnn_LIBRARIES}
+    CUDA::cudart_static
+    CUDA::cublas_static)
 
 add_library(llm-core-static STATIC ${libllm_SOURCES} )
 target_include_directories(llm-core-static PRIVATE ${libllm_INCDIRS})
 target_compile_features(llm-core-static PRIVATE cxx_std_14)
-target_link_libraries(llm-core-static ${libllm_LIBADD}  )
+target_link_libraries(llm-core-static ${libllm_LIBADD} ${cudnn_LIBRARIES} )
 
 add_library(llm-core MODULE ${libllm_SOURCES} )
 target_include_directories(llm-core PRIVATE ${libllm_INCDIRS})
