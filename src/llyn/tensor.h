@@ -151,11 +151,6 @@ class Tensor {
   // get the internal TensorData object.
   const internal::TensorData *getDataObject() const { return _data.get(); }
 
-  // return specific element at index. Size of `indices` should be the same as tensor dimension.
-  // And the data should in CPU.
-  template<typename T>
-  T getElem(ly::Span<const int> indices);
-
   // Check the shape of a tensor. If shape of `tensor` does not match `shape`, return AbortedError
   // with message "invalid shape".
   void throwIfInvalidShape(std::initializer_list<int> shape);
@@ -168,19 +163,6 @@ class Tensor {
 
 inline DType Tensor::getDType() const { 
   return _data ? _data->getDType() : DType(DType::kUnknown);
-}
-
-template<typename T>
-inline T Tensor::getElem(ly::Span<const int> indices) {
-  CHECK(indices.size() == getDim());
-
-  const T *data = this->getData<T>();
-  int64_t offset = 0;
-  for (int d = 0; d < getDim(); ++d) {
-    offset += indices[d] * getStride(d);
-  }
-
-  return data[offset];
 }
 
 namespace internal {

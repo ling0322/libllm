@@ -16,7 +16,7 @@ if(NOT DEFINED CUDNN_ROOT)
 endif()
 
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "-O0 -g")
+set(CMAKE_CXX_FLAGS "-O3 -g")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(MKL_PREFIX "/opt/intel/mkl" CACHE STRING "Prefix for MKL headers and libraries.")
 

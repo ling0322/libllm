@@ -17,8 +17,6 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// cuDNN implemented operators.
-
 #pragma once
 
 #include <cudnn.h>
@@ -34,6 +32,7 @@ namespace cuda {
 template<typename T>
 using auto_handle = ly::c_ptr<typename std::remove_pointer<T>::type>;
 
+/// @brief Operators implemented by cuDNN
 class CudnnOperators {
  public:
   static std::shared_ptr<CudnnOperators> create();

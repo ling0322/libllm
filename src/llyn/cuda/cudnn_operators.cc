@@ -188,10 +188,10 @@ Tensor CudnnOperators::contigious(Tensor tensor) {
       _handle.get(),
       alpha,
       srcDesc.get(),
-      tensor.getDataObject()->getSlot(0)->getRawData(),
+      tensor.getData<void>(),
       beta,
       tgtDesc.get(),
-      tgtTensor.getDataObject()->getSlot(0)->getRawData()));
+      tgtTensor.getData<void>()));
 
   return tgtTensor;
 }

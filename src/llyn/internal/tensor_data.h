@@ -43,20 +43,16 @@ class SlotBase {
   /// @return Data type.
   virtual DType getDType() const = 0;
 
-  /// @brief Get data pointer of n-th element in this slot as type `T`.
-  /// @tparam T the type of underlying data.
-  /// @param offset the offset `n`.
-  /// @return the pointer of type `T`.
-  template<typename T>
-  T *getData(int offset = 0) const {
-    DType dtype = getDType();
-    CHECK(DType::getType<T>() == dtype);
-    return reinterpret_cast<T *>(getRawData() + dtype.getTotalSize(offset));
-  }
-
   /// @brief Get the pointer to underlying data.
   /// @return data pointer.
   virtual Byte *getRawData() const = 0;
+
+  /// @brief Get data pointer of n-th element in this slot as type `T`.
+  /// @tparam T the type of underlying data. Use `void` to avoid the type checking.
+  /// @param offset the offset `n`.
+  /// @return the pointer of type `T`.
+  template<typename T>
+  T *getData(int offset = 0) const;
 
   /// @brief Get total number of bytes in this slot.
   /// @return 
@@ -64,6 +60,19 @@ class SlotBase {
     return getDType().getTotalSize(getNumEl());
   }
 };
+
+template<typename T>
+inline T *SlotBase::getData(int offset) const {
+  DType dtype = getDType();
+  CHECK(DType::getType<T>() == dtype);
+  return reinterpret_cast<T *>(getRawData() + dtype.getTotalSize(offset));
+}
+
+template<>
+inline void *SlotBase::getData<void>(int offset) const {
+  DType dtype = getDType();
+  return reinterpret_cast<void *>(getRawData() + dtype.getTotalSize(offset));
+}
 
 /// @brief holds the internal data of a Tensor.
 class TensorData {

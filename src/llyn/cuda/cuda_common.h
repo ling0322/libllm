@@ -22,6 +22,7 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 #include <stdint.h>
+#include <type_traits>
 #include "lyutil/error.h"
 #include "lyutil/strings.h"
 #include "llyn/tensor.h"
@@ -33,63 +34,6 @@
 
 namespace llyn {
 namespace cuda {
-
-
-template<typename T, int DIM>
-class TensorAccessor {
- public:
-  __device__ TensorAccessor(internal::TensorShape::Elem *shape, T *data) :
-      _shape(shape),
-      _data(data) {}
-
-  __device__ TensorAccessor<T, DIM - 1> operator[](int index) {
-    int64_t offset = index * this->_shape[0].stride;
-    return TensorAccessor<T, DIM - 1>(_shape + 1, _data + offset);
-  }
-
-  __device__ const TensorAccessor<T, DIM - 1> operator[](int index) const {
-    int64_t offset = index * this->_shape[0].stride;
-    return TensorAccessor<T, DIM - 1>(_shape + 1, _data + offset);
-  }
-
- private:
-  internal::TensorShape::Elem *_shape;
-  T *_data;
-};
-
-template<typename T>
-class TensorAccessor<T, 1> {
- public:
-  __device__ TensorAccessor(internal::TensorShape::Elem *shape, T *data) :
-      _shape(shape),
-      _data(data) {}
-
-  __device__ T &operator[](int index) {
-    int64_t offset = index * this->_shape[0].stride;
-    return _data[offset];
-  }
-
-  __device__ T operator[](int index) const {
-    int64_t offset = index * this->_shape[0].stride;
-    return _data[offset];
-  }
-
- private:
-  internal::TensorShape::Elem *_shape;
-  T *_data;
-};
-
-/// @brief A packed tensor accessor. `Packed` means the accessor also packed with the tensor 
-/// metadata.
-/// @tparam T Tensor data type.
-/// @tparam DIM Dimension of this tensor.
-template<typename T, int DIM>
-class PackedTensorAccessor {
- public:
- private:
-  internal::TensorShape::Elem _shape[DIM];
-  T *_data;
-};
 
 /// @brief A q4 quantized constant matrix (2D tensor).
 struct Q4ConstMatrix {
