@@ -19,43 +19,12 @@
 
 #pragma once
 
-#include <cudnn.h>
-#include <type_traits>
-#include "lyutil/c_ptr.h"
 #include "llyn/tensor.h"
 
 namespace llyn {
 namespace cuda {
 
-/// @brief Automatically call destroy method on destruction for cudnn handles.
-/// @tparam T 
-template<typename T>
-using auto_handle = ly::c_ptr<typename std::remove_pointer<T>::type>;
-
-/// @brief Operators implemented by cuDNN
-class CudnnOperators {
- public:
-  static std::shared_ptr<CudnnOperators> create();
-
-  Tensor contigious(Tensor tensor);
-  void copy(Tensor src, Tensor dest);
-
- private:
-  auto_handle<cudnnHandle_t> _handle;
-
-  CudnnOperators();
-  auto_handle<cudnnTensorDescriptor_t> createCudnnTensorDescriptor(const Tensor &tensor);
-
-  /// @brief Wrap a cudnn destroy function to perform status check.
-  /// @tparam T type of handle to destory.
-  /// @param destroyFunc the cudnn destroy function to wrap.
-  /// @return the wrapped destroy function.
-  template<typename T>
-  std::function<void(T)> checkDestroy(std::function<cudnnStatus_t(T)> destroyFunc);
-
-  /// @brief convert llyn::DType to cudnnDataType_t.
-  cudnnDataType_t getCudnnDataType(const Tensor &tensor);
-};
+Tensor tensorLike(const Tensor &tensor);
 
 }  // cuda
 }  // llyn

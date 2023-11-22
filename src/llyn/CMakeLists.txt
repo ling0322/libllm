@@ -20,6 +20,7 @@ set(llyn_SOURCES
     "cpu/tensor.cc"
     "cpu/view.cc"
     "cuda/cast.cu"
+    "cuda/create_tensor.cc"
     "cuda/cuda_common.cc"
     "cuda/cuda_operators.cc"
     "cuda/cudnn_operators.cc"

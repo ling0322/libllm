@@ -39,6 +39,9 @@ CudnnOperators::CudnnOperators() : _handle{nullptr, checkDestroy<cudnnHandle_t>(
 std::shared_ptr<CudnnOperators> CudnnOperators::create() {
   std::shared_ptr<CudnnOperators> ops{new CudnnOperators()};
   CHECK_CUDNN_STATUS(cudnnCreate(ops->_handle.get_pp()));
+
+  CHECK_CUDNN_STATUS(cudnnSetCallback(
+      CUDNN_SEV_INFO_EN | CUDNN_SEV_WARNING_EN | CUDNN_SEV_ERROR_EN, nullptr, nullptr));
   
   return ops;
 }
@@ -103,22 +106,17 @@ auto_handle<cudnnTensorDescriptor_t> CudnnOperators::createCudnnTensorDescriptor
         w));
   } else {
     int n = 1, h = 1, w = 1, c = 1;
-    int ns, hs, ws, cs;
+    int ns = 0, hs = 0, ws = 0, cs = 0;
     switch (tensor.getDim()) {
       case 1:
         c = tensor.getShape(0);
         cs = tensor.getStride(0);
-        ws = c * cs;
-        hs = ws;
-        ns = ws;
         break;
       case 2:
         w = tensor.getShape(0);
         c = tensor.getShape(1);
         ws = tensor.getStride(0);
         cs = tensor.getStride(1);
-        hs = w * ws;
-        ns = hs;
         break;
       case 3:
         h = tensor.getShape(0);
@@ -127,7 +125,6 @@ auto_handle<cudnnTensorDescriptor_t> CudnnOperators::createCudnnTensorDescriptor
         hs = tensor.getStride(0);
         ws = tensor.getStride(1);
         cs = tensor.getStride(2);
-        ns = hs * h;
         break;
       case 4:
         n = tensor.getShape(0);
@@ -166,13 +163,13 @@ Tensor CudnnOperators::contigious(Tensor tensor) {
   void *alpha = nullptr;
   void *beta = nullptr;
 
-  half alphaHalf = 1.0;
-  half betaHalf = 0.0;
+  float alphaFloat = 1.0;
+  float betaFloat = 0.0;
   int64_t alphaLong = 1;
   int64_t betaLong = 0;
   if (tensor.getDType() == DType::kFloat16) {
-    alpha = &alphaHalf;
-    beta = &betaHalf;
+    alpha = &alphaFloat;
+    beta = &betaFloat;
     tgtTensor = createCudaTensorHalf(tensor.getShape());
   } else if (tensor.getDType() == DType::kLong) {
     alpha = &alphaLong;
@@ -194,6 +191,52 @@ Tensor CudnnOperators::contigious(Tensor tensor) {
       tgtTensor.getData<void>()));
 
   return tgtTensor;
+}
+
+void CudnnOperators::copy(Tensor src, Tensor dest) {
+  if (src.isContiguous() && dest.isContiguous()) {
+    cudaMemcpy(
+        dest.getData<void>(),
+        src.getData<void>(),
+        src.getDType().getTotalSize(src.getNumEl()),
+        cudaMemcpyDeviceToDevice);
+  } else {
+    void *alpha = nullptr;
+    void *beta = nullptr;
+
+    float alphaFloat = 1.0;
+    float betaFloat = 0.0;
+    int64_t alphaLong = 1;
+    int64_t betaLong = 0;
+    if (src.getDType() == DType::kFloat16) {
+      alpha = &alphaFloat;
+      beta = &betaFloat;
+    } else if (src.getDType() == DType::kLong) {
+      alpha = &alphaLong;
+      beta = &betaLong;
+    } else {
+      NOT_IMPL();
+    }
+
+    auto_handle<cudnnTensorDescriptor_t> srcDesc = createCudnnTensorDescriptor(src);
+    auto_handle<cudnnTensorDescriptor_t> destDesc = createCudnnTensorDescriptor(dest);
+    CHECK_CUDNN_STATUS(cudnnTransformTensor(
+        _handle.get(),
+        alpha,
+        srcDesc.get(),
+        src.getData<void>(),
+        beta,
+        destDesc.get(),
+        dest.getData<void>()));
+
+    /*
+    
+    cudnnStatus_t status = cudnnTransformTensor( _handle.get(), alpha, srcDesc.get(), src.getData<void>(), beta, destDesc.get(), dest.getData<void>());
+    if (status != CUDNN_STATUS_SUCCESS) { 
+      LOG(ERROR) << "Error while calling: " << "cudnnTransformTensor( _handle.get(), alpha, srcDesc.get(), src.getData<void>(), beta, destDesc.get(), dest.getData<void>())"; 
+      throw ly::AbortedError(cudnnGetErrorString(status)); 
+    }*/
+  }
 }
 
 }  // cuda

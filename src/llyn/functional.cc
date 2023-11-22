@@ -72,7 +72,14 @@ Tensor createTensor(std::initializer_list<int> shape, DType dtype) {
 }
 
 Tensor createTensorLike(Tensor input) {
-  return gOperatorsForDevice[Device::kCpu]->createTensorLike(input);
+  switch (input.getDevice().getType()) {
+    case Device::kCpu:
+      return getOperators(Device::kCpu)->createTensorLike(input);
+    case Device::kCuda:
+      return getOperators(Device::kCuda)->createTensorLike(input);
+    default:
+      NOT_IMPL();
+  }
 }
 
 Tensor rand(std::initializer_list<int> shape, DType dtype) {
@@ -108,7 +115,21 @@ Tensor applRotaryPosEmbd(Tensor A, Tensor roPE) {
 }
 
 void copy(Tensor src, Tensor dest) {
-  return gOperatorsForDevice[Device::kCpu]->copy(src, dest);
+  CHECK(src.getDType() == dest.getDType());
+  src.throwIfInvalidShape(dest.getShape());
+
+  switch (src.getDevice().getType()) {
+    case Device::kCpu:
+      CHECK(dest.getDevice().getType() == Device::kCpu);
+      getOperators(Device::kCpu)->copy(src, dest);
+      break;
+    case Device::kCuda:
+      CHECK(dest.getDevice().getType() == Device::kCuda);
+      getOperators(Device::kCuda)->copy(src, dest);
+      break;
+    default:
+      NOT_IMPL();
+  }
 }
 
 Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {

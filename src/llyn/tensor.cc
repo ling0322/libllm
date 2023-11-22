@@ -220,7 +220,7 @@ Tensor Tensor::squeeze(int dim) const {
   return tensor;
 }
 
-void Tensor::throwIfInvalidShape(std::initializer_list<int> shape) {
+void Tensor::throwIfInvalidShape(ly::Span<const int> shape) {
   if (shape.size() != getDim()) {
     throw ly::AbortedError(ly::sprintf(
         "invalid shape. dim=%d expected, but %d got.", shape.size(), getDim()));

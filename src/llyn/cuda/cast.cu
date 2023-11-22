@@ -74,6 +74,7 @@ Tensor castHalfToFloat(const Tensor &tensor) {
 }
 
 Tensor cast(const Tensor &tensor, DType dtype) {
+  if (tensor.getDType() == dtype) return tensor;
   if (tensor.getDType() == DType::kFloat16 && dtype == DType::kFloat)
     return castHalfToFloat(tensor);
   if (tensor.getDType() == DType::kFloat && dtype == DType::kFloat16)

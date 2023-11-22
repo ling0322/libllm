@@ -20,6 +20,7 @@
 #include "llyn/cuda/cuda_operators.h"
 
 #include "llyn/cuda/cast.h"
+#include "llyn/cuda/create_tensor.h"
 #include "llyn/cuda/to_device.h"
 
 namespace llyn {
@@ -65,7 +66,7 @@ Tensor CudaOperators::createTensor(std::initializer_list<int> shape, DType dtype
 }
 
 Tensor CudaOperators::createTensorLike(Tensor input) {
-  NOT_IMPL();
+  return tensorLike(input);
 }
 
 Tensor CudaOperators::rand(std::initializer_list<int> shape, DType dtype) {
@@ -109,7 +110,11 @@ Tensor CudaOperators::applRotaryPosEmb(Tensor A, Tensor roPE) {
 }
 
 void CudaOperators::copy(Tensor src, Tensor dest) {
-  NOT_IMPL();
+  CHECK(src.getDevice().getType() == Device::kCuda);
+  CHECK(dest.getDevice().getType() == Device::kCuda);
+
+  src.throwIfInvalidShape(dest.getShape());
+  _cudnnOperators->copy(src, dest);
 }
 
 Tensor CudaOperators::attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
