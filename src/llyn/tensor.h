@@ -153,7 +153,7 @@ class Tensor {
 
   // Check the shape of a tensor. If shape of `tensor` does not match `shape`, return AbortedError
   // with message "invalid shape".
-  void throwIfInvalidShape(ly::Span<const int> shape);
+  void throwIfInvalidShape(ly::Span<const int> shape) const;
 
  protected:
   std::shared_ptr<internal::TensorData> _data;

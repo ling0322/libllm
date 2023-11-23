@@ -28,6 +28,7 @@
 #include "lymath/q8kernel.h"
 #include "lymath/skernel.h"
 #include "lymath/util.h"
+#include "lyutil/half.h"
 #include "lyutil/random.h"
 #include "lyutil/log.h"
 
@@ -140,7 +141,7 @@ void testGemmFp32QInt4Fp32(bool transB, int M, int N, int K) {
   random.fillUInt8(ly::makeSpan(B));
   random.fill(ly::makeSpan(scaleBFp32));
 
-  std::transform(scaleBFp32.begin(), scaleBFp32.end(), scaleB.begin(), cvtss_sh);
+  std::transform(scaleBFp32.begin(), scaleBFp32.end(), scaleB.begin(), ly::cvtss_sh);
 
   std::vector<float> C(M * N);
   std::vector<float> refC(M * N);
@@ -187,7 +188,7 @@ CATCH_TEST_CASE("test q4sym dequantization", "[llyn][lymath][q4sym]") {
 
   random.fillUInt8(ly::makeSpan(x));
   random.fill(ly::makeSpan(scaleXFp32));
-  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), cvtss_sh);
+  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), ly::cvtss_sh);
 
   DequantQ4SymFallbackKnl::apply(DIM, x.data(), scaleX.data(), y.data());
 
@@ -216,7 +217,7 @@ CATCH_TEST_CASE("test q4 dequantization", "[llyn][lymath][kernel][q4]") {
   random.fillUInt8(ly::makeSpan(x));
   random.fill(ly::makeSpan(scaleXFp32));
   random.fillInt8(ly::makeSpan(zeroPointX), -112, 127);
-  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), cvtss_sh);
+  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), ly::cvtss_sh);
 
   DequantQ4FallbackKernel::apply(DIM, x.data(), scaleX.data(), zeroPointX.data(), y.data());
 }
@@ -234,7 +235,7 @@ CATCH_TEST_CASE("test int4 dot kernels", "[llyn][lymath][kernel][int4]") {
   random.fill(ly::makeSpan(x));
   random.fillUInt8(ly::makeSpan(y));
   random.fill(ly::makeSpan(yscaleFp32));
-  std::transform(yscaleFp32.begin(), yscaleFp32.end(), yscale.begin(), cvtss_sh);
+  std::transform(yscaleFp32.begin(), yscaleFp32.end(), yscale.begin(), ly::cvtss_sh);
 
   float rs = DotQ4SymFallbackKernel::apply(DIM, x.data(), y.data(), yscale.data());
   float s = DotQ4SymAvx2Kernel::apply(DIM, x.data(), y.data(), yscale.data());
@@ -256,7 +257,7 @@ CATCH_TEST_CASE("test q4sym axpy kernels", "[llyn][lymath][kernel][q4sym]") {
   random.fillUInt8(ly::makeSpan(x));
   random.fill(ly::makeSpan(scaleFp32));
   random.fill(ly::makeSpan(yRef));
-  std::transform(scaleFp32.begin(), scaleFp32.end(), scale.begin(), cvtss_sh);
+  std::transform(scaleFp32.begin(), scaleFp32.end(), scale.begin(), ly::cvtss_sh);
 
   std::copy(yRef.begin(), yRef.end(), y.begin());
 
@@ -283,7 +284,7 @@ CATCH_TEST_CASE("test q4 axpy kernels", "[llyn][lymath][kernel][q4]") {
   random.fillInt8(ly::makeSpan(zeroPointX), -112, 127);
   random.fill(ly::makeSpan(scaleFp32));
   random.fill(ly::makeSpan(yRef));
-  std::transform(scaleFp32.begin(), scaleFp32.end(), scale.begin(), cvtss_sh);
+  std::transform(scaleFp32.begin(), scaleFp32.end(), scale.begin(), ly::cvtss_sh);
 
   std::copy(yRef.begin(), yRef.end(), y.begin());
 
@@ -307,7 +308,7 @@ CATCH_TEST_CASE("test q4 dot kernels", "[llyn][lymath][kernel][q4]") {
   random.fillInt8(ly::makeSpan(zeroPointY), -112, 127);
   random.fill(ly::makeSpan(scaleYFp32));
   random.fill(ly::makeSpan(x));
-  std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), cvtss_sh);
+  std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), ly::cvtss_sh);
 
   float a = DotQ4Avx2Kernel::apply(DIM, x.data(), y.data(), scaleY.data(), zeroPointY.data());
   float aRef = DotQ4FallbackKernel::apply(

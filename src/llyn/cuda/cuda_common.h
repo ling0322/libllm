@@ -28,6 +28,7 @@
 #include "llyn/tensor.h"
 #include "llyn/internal/cuda_tensor_data.h"
 #include "llyn/internal/tensor_shape.h"
+#include "llyn/cuda/subtensor.h"
 
 #define LL_CHECK_CONTIGUOUS(x) { if (!x.isContiguous()) { \
     LOG(FATAL) << "contiguous is required for CUDA operators: " << #x; } }
@@ -53,6 +54,20 @@ Tensor createCudaTensorLong(ly::Span<const int> shape);
 Tensor createCudaTensorFloat(ly::Span<const int> shape);
 
 void checkCudaError(cudaError_t err);
+
+/// @brief Split a index into dim3 object according to the shape info in `size`.
+/// @param index the index to split.
+/// @param size the shape info. it should have at least 3 elements. size[0] is the shape and stride
+//              info for axis `z`, size[1] for `y` and size[2] for `x`.
+/// @return the dim3 object.
+__device__ inline dim3 splitIndexToDim3(unsigned int index, const Size *size) {
+  dim3 d;
+  d.x = index % size[2].shape;
+  d.y = (index / size[2].shape) % size[1].shape;
+  d.z = index / (size[1].shape * size[2].shape);
+
+  return d;
+}
 
 }  // namespace cuda
 }  // namespace cuda

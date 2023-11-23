@@ -24,6 +24,53 @@
 namespace llyn {
 namespace cuda {
 
+__global__
+void lookupHalf2DKernel(PackedSubtensor<const half, 2> embd,
+                        PackedSubtensor<const int64_t, 2> inputs,
+                        PackedSubtensor<half, 3> dst) {
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+  if (x < embd.getShape(1) && y < inputs.getShape(1) && z < inputs.getShape(0)) {
+    dst[z][y][x] = embd[(int)inputs[z][y]][x];
+  }
+}
+
+Tensor lookupHalf2D(const Tensor &embdTable, const Tensor &input) {
+  CHECK(embdTable.getDType() == DType::kFloat16);
+
+  std::vector<Tensor::ShapeType> shape = input.getShape();
+  shape.push_back(embdTable.getShape(1));
+  Tensor dst = createCudaTensorHalf(shape);
+
+  constexpr int blockSize = 256;
+  dim3 d;
+  d.z = dst.getShape(0);
+  d.y = dst.getShape(1);
+  d.x = (dst.getShape(2) + blockSize - 1) / blockSize;
+
+  PackedSubtensor<const half, 2> sA(embdTable);
+  PackedSubtensor<const int64_t, 2> sB(input);
+  PackedSubtensor<half, 3> sC(dst);
+
+  lookupHalf2DKernel<<<d, blockSize>>>(sA, sB, sC);
+  checkCudaError(cudaGetLastError());
+  return dst;
+}
+
+Tensor lookup(const Tensor &embdTable, const Tensor &input) {
+  CHECK(input.getDType() == DType::kLong);
+  CHECK(input.getDevice().getType() == Device::kCuda);
+  CHECK(embdTable.getDevice().getType() == Device::kCuda);
+  CHECK(embdTable.getDim() == 2);
+
+  if (input.getDim() == 2 && embdTable.getDType() == DType::kFloat16) {
+    return lookupHalf2D(embdTable, input);
+  } else {
+    NOT_IMPL();
+  }
+}
 
 }  // cuda
 }  // llyn

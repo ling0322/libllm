@@ -44,7 +44,6 @@ class Operators {
   virtual Tensor createTensorLike(Tensor input) = 0;
   virtual Tensor rand(std::initializer_list<int> shape, DType dtype) = 0;
   virtual Tensor zeros(ly::Span<const int> shape, DType dtype) = 0;
-  virtual Tensor contiguous(Tensor input) = 0;
   virtual bool allClose(Tensor A, Tensor B) = 0;
   virtual void print(Tensor tensor) = 0;
   virtual Tensor causalMask(int max_len) = 0;

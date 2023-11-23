@@ -27,6 +27,10 @@ set(cudnn_LIBRARIES
 #add_compile_options(-fsanitize=address)
 #add_link_options(-fsanitize=address)
 
+if(CUDA_ENABLED)
+  add_definitions("-DLLYN_CUDA_ENABLED")
+endif(CUDA_ENABLED)
+
 if(WIN32)
   add_definitions( "/D_CRT_SECURE_NO_WARNINGS /wd4267 /DCATCH_AMALGAMATED_CUSTOM_MAIN" )
 endif(WIN32)

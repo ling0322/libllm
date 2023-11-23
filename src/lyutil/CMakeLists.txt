@@ -3,6 +3,7 @@ set(lyutil_SOURCES
     "internal/sprintf.cc"
     "error.cc"
     "flags.cc"
+    "half.cc"
     "ini_config.cc"
     "path.cc"
     "random.cc"

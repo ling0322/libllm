@@ -17,26 +17,20 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "lymath/util.h"
+#pragma once
 
-#include "lymath/common.h"
-#include "lyutil/platform.h"
+#include <stdint.h>
 
-namespace lymath {
+namespace ly {
 
-// copy vector x to y.
-void scopy(int n, const float *x, int incx, float *y, int incy) {
-  for (int i = 0; i < n; ++i) {
-    y[i * incy] = x[i * incx];
-  }
-}
+/// @brief Convert from float to float16.
+/// @param v value in float32.
+/// @return value in float16.
+uint16_t cvtss_sh(float v);
 
-// allocate n single float and returns the holder. the memory is 32 byte aligned.
-ly::c_ptr<float> salloc(int64_t n) {
-  return ly::c_ptr<float>(
-      reinterpret_cast<float *>(ly::alloc32ByteAlignedMem(sizeof(float) * n)),
-      ly::free32ByteAlignedMem);
-}
+/// @brief Convert from float16 to float32.
+/// @param v value in float16.
+/// @return value in float32.
+float cvtsh_ss(uint16_t v);
 
-}  // namespace lymath
-
+}  // namespace ly

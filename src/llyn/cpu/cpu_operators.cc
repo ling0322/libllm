@@ -426,23 +426,6 @@ Tensor CPUOperators::mul(Tensor A, Tensor B) {
   return cpu::mul(A, B);
 }
 
-Tensor CPUOperators::contiguous(Tensor input) {
-  if (input.isContiguous()) {
-    return input;
-  } else {
-    Tensor C = createTensorLike(input);
-    switch (input.getDType()) {
-      case DType::kFloat:
-        copyFp32(Subtensor<const float>::fromTensor(input), Subtensor<float>::fromTensor(C));
-        break;
-      default:
-        NOT_IMPL();
-    }
-
-    return C;
-  }
-}
-
 Tensor CPUOperators::lookup(Tensor table, Tensor indices) {
   return cpu::lookup(table, indices);
 }

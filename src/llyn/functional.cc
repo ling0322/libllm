@@ -30,7 +30,14 @@ using internal::gOperatorsForDevice;
 using internal::getOperators;
 
 Tensor lookup(Tensor table, Tensor indices) {
-  return gOperatorsForDevice[Device::kCpu]->lookup(table, indices);
+  switch (table.getDevice().getType()) {
+    case Device::kCpu:
+      return getOperators(Device::kCpu)->lookup(table, indices);
+    case Device::kCuda:
+      return getOperators(Device::kCuda)->lookup(table, indices);
+    default:
+      NOT_IMPL();
+  }
 }
 
 Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
@@ -91,7 +98,10 @@ Tensor zeros(ly::Span<const int> shape, DType dtype) {
 }
 
 Tensor contiguous(Tensor input) {
-  return gOperatorsForDevice[Device::kCpu]->contiguous(input);
+  Tensor x = createTensorLike(input);
+  copy(input, x);
+  
+  return x;
 }
 
 bool allClose(Tensor A, Tensor B) {

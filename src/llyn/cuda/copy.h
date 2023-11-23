@@ -17,26 +17,20 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "lymath/util.h"
+#pragma once
 
-#include "lymath/common.h"
-#include "lyutil/platform.h"
+#include "llyn/tensor.h"
 
-namespace lymath {
+namespace llyn {
+namespace cuda {
 
-// copy vector x to y.
-void scopy(int n, const float *x, int incx, float *y, int incy) {
-  for (int i = 0; i < n; ++i) {
-    y[i * incy] = x[i * incx];
-  }
-}
+// copy operator has multiple implementations. If the sec and dest is contiguous, it will call
+// memcpy directly. If both src and dest are sub-4D tensor with float/half, it will call
+// cudnnTransformTensor. Otherwise, it will fallback here.
+void copy(const Tensor &src, Tensor &dest);
 
-// allocate n single float and returns the holder. the memory is 32 byte aligned.
-ly::c_ptr<float> salloc(int64_t n) {
-  return ly::c_ptr<float>(
-      reinterpret_cast<float *>(ly::alloc32ByteAlignedMem(sizeof(float) * n)),
-      ly::free32ByteAlignedMem);
-}
+/// @brief Copy contiguous tensors by cudaMemcpy.
+void copyContig(const Tensor &src, Tensor &dest);
 
-}  // namespace lymath
-
+}  // cuda
+}  // llyn

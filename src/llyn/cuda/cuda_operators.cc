@@ -20,7 +20,9 @@
 #include "llyn/cuda/cuda_operators.h"
 
 #include "llyn/cuda/cast.h"
+#include "llyn/cuda/copy.h"
 #include "llyn/cuda/create_tensor.h"
+#include "llyn/cuda/lookup.h"
 #include "llyn/cuda/to_device.h"
 
 namespace llyn {
@@ -34,7 +36,7 @@ internal::Operators *CudaOperators::create() {
 }
 
 Tensor CudaOperators::lookup(Tensor table, Tensor indices) {
-  NOT_IMPL();
+  return cuda::lookup(table, indices);
 }
 
 Tensor CudaOperators::matmul(Tensor a, Tensor b) {
@@ -77,10 +79,6 @@ Tensor CudaOperators::zeros(ly::Span<const int> shape, DType dtype) {
   NOT_IMPL();
 }
 
-Tensor CudaOperators::contiguous(Tensor input) {
-  return _cudnnOperators->contigious(input);
-}
-
 bool CudaOperators::allClose(Tensor A, Tensor B) {
   NOT_IMPL();
 }
@@ -112,9 +110,16 @@ Tensor CudaOperators::applRotaryPosEmb(Tensor A, Tensor roPE) {
 void CudaOperators::copy(Tensor src, Tensor dest) {
   CHECK(src.getDevice().getType() == Device::kCuda);
   CHECK(dest.getDevice().getType() == Device::kCuda);
-
+  CHECK(src.getDType() == dest.getDType());
   src.throwIfInvalidShape(dest.getShape());
-  _cudnnOperators->copy(src, dest);
+
+  if (src.isContiguous() && dest.isContiguous()) {
+    copyContig(src, dest);
+  } else if (src.getDim() <= 4 && src.getDType() == DType::kFloat16) {
+    _cudnnOperators->copy(src, dest);
+  } else {
+    cuda::copy(src, dest);
+  }
 }
 
 Tensor CudaOperators::attention(Tensor q, Tensor k, Tensor v, Tensor mask) {

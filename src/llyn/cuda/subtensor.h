@@ -32,48 +32,49 @@
 namespace llyn {
 namespace cuda {
 
+struct Size {
+  int32_t shape;
+  int32_t stride;
+};
+
 template<typename T, int DIM>
-class Subtensor {
+class SubtensorBase {
  public:
-  __device__ Subtensor(internal::TensorShape::Elem *shape, T *data) :
-      _shape(shape),
-      _data(data) {}
+  __device__ SubtensorBase(const Size *size, T *data) : _size(size), _data(data) {}
 
-  __device__ Subtensor<T, DIM - 1> operator[](int index) {
-    int64_t offset = index * this->_shape[0].stride;
-    return Subtensor<T, DIM - 1>(_shape + 1, _data + offset);
-  }
-
-  __device__ const Subtensor<T, DIM - 1> operator[](int index) const {
-    int64_t offset = index * this->_shape[0].stride;
-    return Subtensor<T, DIM - 1>(_shape + 1, _data + offset);
-  }
-
- private:
-  internal::TensorShape::Elem *_shape;
+ protected:
+  const Size *_size;
   T *_data;
 };
 
-template<typename T>
-class Subtensor<T, 1> {
+template<typename T, int DIM>
+class Subtensor : public SubtensorBase<T, DIM> {
  public:
-  __device__ Subtensor(internal::TensorShape::Elem *shape, T *data) :
-      _shape(shape),
-      _data(data) {}
+  __device__ Subtensor(const Size *size, T *data) : SubtensorBase<T, DIM>(size, data) {}
 
-  __device__ typename T &operator[](int index) {
-    int64_t offset = index * this->_shape[0].stride;
-    return _data[offset];
+  __device__ Subtensor<T, DIM - 1> operator[](int index) {
+    int64_t offset = index * this->_size[0].stride;
+    return Subtensor<T, DIM - 1>(this->_size + 1, this->_data + offset);
   }
-
-  __device__ typename T operator[](int index) const {
-    int64_t offset = index * this->_shape[0].stride;
-    return _data[offset];
+  __device__ const Subtensor<T, DIM - 1> operator[](int index) const {
+    int64_t offset = index * this->_size[0].stride;
+    return Subtensor<T, DIM - 1>(this->_size + 1, this->_data + offset);
   }
+};
 
- private:
-  internal::TensorShape::Elem *_shape;
-  T *_data;
+template<typename T>
+class Subtensor<T, 1> : public SubtensorBase<T, 1> {
+ public:
+  __device__ Subtensor(const Size *size, T *data) : SubtensorBase<T, 1>(size, data) {}
+
+  __device__ T &operator[](int index) {
+    int64_t offset = index * this->_size[0].stride;
+    return this->_data[offset];
+  }
+  __device__ T operator[](int index) const {
+    int64_t offset = index * this->_size[0].stride;
+    return this->_data[offset];
+  }
 };
 
 /// @brief A packed tensor accessor. `Packed` means the subtensor also packed with the tensor 
@@ -81,22 +82,66 @@ class Subtensor<T, 1> {
 /// @tparam T Tensor data type.
 /// @tparam DIM Dimension of this tensor.
 template<typename T, int DIM>
-class PackedSubtensor {
+class PackedSubtensorBase {
  public:
-  __host__ explicit PackedSubtensor(const Tensor &tensor) {
+  __host__ explicit PackedSubtensorBase(Tensor &tensor) {
     CHECK(tensor.getDim() == DIM);
-    _data = tensor.getData<void>();
+    _data = tensor.getData<T>();
     for (int i = 0; i < DIM; ++i) {
-      
+      _size[i] = Size{tensor.getShape(i), tensor.getStride(i)};
     }
-
   }
 
- private:
-  internal::TensorShape::Elem _shape[DIM];
+  __host__ explicit PackedSubtensorBase(const Tensor &tensor) {
+    CHECK(tensor.getDim() == DIM);
+    _data = tensor.getData<T>();
+    for (int i = 0; i < DIM; ++i) {
+      _size[i] = Size{tensor.getShape(i), tensor.getStride(i)};
+    }
+  }
+
+   __device__ int getShape(int dim) const { return this->_size[dim].shape; }
+
+  __device__ const Size *getSize() {
+    return _size;
+  }
+
+ protected:
+  Size _size[DIM];
   T *_data;
 };
 
+template<typename T, int DIM>
+class PackedSubtensor : public PackedSubtensorBase<T, DIM> {
+ public:
+  __host__ explicit PackedSubtensor(Tensor &tensor) : PackedSubtensorBase<T, DIM>(tensor) {}
+  __host__ explicit PackedSubtensor(const Tensor &tensor) : PackedSubtensorBase<T, DIM>(tensor) {}
+
+  __device__ Subtensor<T, DIM - 1> operator[](int index) {
+    int64_t offset = index * this->_size[0].stride;
+    return Subtensor<T, DIM - 1>(this->_size + 1, this->_data + offset);
+  }
+  __device__ const Subtensor<T, DIM - 1> operator[](int index) const {
+    int64_t offset = index * this->_size[0].stride;
+    return Subtensor<T, DIM - 1>(this->_size + 1, this->_data + offset);
+  }
+};
+
+template<typename T>
+class PackedSubtensor<T, 1> : public PackedSubtensorBase<T, 1> {
+ public:
+  __host__ explicit PackedSubtensor(Tensor &tensor) : PackedSubtensorBase<T, 1>(tensor) {}
+  __host__ explicit PackedSubtensor(const Tensor &tensor) : PackedSubtensorBase<T, 1>(tensor) {}
+
+  __device__ T &operator[](int index) {
+    int64_t offset = index * this->_size[0].stride;
+    return this->_data[offset];
+  }
+  __device__ T operator[](int index) const {
+    int64_t offset = index * this->_size[0].stride;
+    return this->_data[offset];
+  }
+};
 
 }  // namespace cuda
 }  // namespace cuda

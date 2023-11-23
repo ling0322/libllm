@@ -21,7 +21,19 @@
 
 #include "lyutil/log.h"
 
+#ifdef LLYN_CUDA_ENABLED
+#include <cuda_fp16.h>
+#endif
+
 namespace llyn {
+
+constexpr int16_t DType::kUnknown;
+constexpr int16_t DType::kFloat;
+constexpr int16_t DType::kLong;
+constexpr int16_t DType::kQInt4SymGroup32;
+constexpr int16_t DType::kFloat16;
+constexpr int16_t DType::kQInt4Group32;
+constexpr int16_t DType::kInt8;
 
 DType::DType(int16_t dtype) : _dtype(dtype) {}
 
@@ -49,6 +61,13 @@ template<>
 DType DType::getTypeImpl<Int8>() {
   return DType::kInt8;
 }
+#ifdef LLYN_CUDA_ENABLED
+template<>
+DType DType::getTypeImpl<half>() {
+  return DType::kFloat16;
+}
+#endif
+
 
 template DType DType::getTypeImpl<float>();
 template DType DType::getTypeImpl<int64_t>();

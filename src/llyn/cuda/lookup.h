@@ -24,7 +24,10 @@
 namespace llyn {
 namespace cuda {
 
-Tensor lookupHalf(const Tensor &input, const Tensor &embdTable);
+Tensor lookupHalf2D(const Tensor &embdTable, const Tensor &input);
+
+
+Tensor lookup(const Tensor &embdTable, const Tensor &input);
 
 
 }  // cuda
