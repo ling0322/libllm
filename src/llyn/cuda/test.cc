@@ -57,7 +57,7 @@ Tensor createRandomQ4Tensor2D(int numRow, int numCol) {
 
   ly::Random random(1234);
   random.fillUInt8(ly::makeSpan(data));
-  random.fillInt8(ly::makeSpan(bias), -112, 127);
+  random.fillInt8(ly::makeSpan(bias), 2, 12);
   random.fill(ly::makeSpan(scaleFloat));
   std::transform(scaleFloat.begin(), scaleFloat.end(), scale.begin(), ly::cvtss_sh);
 

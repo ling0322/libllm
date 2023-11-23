@@ -24,8 +24,19 @@
 namespace llyn {
 namespace cuda {
 
-Q4ConstMatrix Q4ConstMatrix::fromTensor(const Tensor &tensor) {
+PackedSubtensor2DQ4::PackedSubtensor2DQ4(const Tensor &tensor) {
+  CHECK(tensor.getDType() == DType::kQInt4Group32);
+  CHECK(tensor.getDevice().getType() == Device::kCuda);
+  CHECK(tensor.getStride(1) == 1);
+  CHECK(tensor.getOffset_() == 0);
+  CHECK(tensor.isContiguous());
 
+  numRow = tensor.getShape(0);
+  numCol = tensor.getShape(1);
+
+  data = (const uint8_t *)tensor.getDataObject()->getSlot(0)->getRawData();
+  scale = (const half *)tensor.getDataObject()->getSlot(1)->getRawData();
+  bias = (const int8_t *)tensor.getDataObject()->getSlot(2)->getRawData();
 }
 
 Tensor createCudaTensorHalf(ly::Span<const int> shape) {

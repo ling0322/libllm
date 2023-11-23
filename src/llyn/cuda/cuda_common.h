@@ -37,16 +37,15 @@ namespace llyn {
 namespace cuda {
 
 /// @brief A q4 quantized constant matrix (2D tensor).
-struct Q4ConstMatrix {
-  int stride;
-  int shape0;
-  int shape1;
+struct PackedSubtensor2DQ4 {
+  int numRow;
+  int numCol;
 
-  const half *scales;
+  const half *scale;
   const uint8_t *data;
-  const int8_t *zeroPoints;
+  const int8_t *bias;
 
-  static Q4ConstMatrix fromTensor(const Tensor &tensor);
+  PackedSubtensor2DQ4(const Tensor &tensor);
 };
 
 Tensor createCudaTensorHalf(ly::Span<const int> shape);
