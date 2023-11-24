@@ -67,7 +67,8 @@ class Tensor {
   /// @param data pointer to TensorData.
   /// @return The Tensor created.
   static Tensor create(std::shared_ptr<internal::TensorShape> shape,
-                       std::shared_ptr<internal::TensorData> data);
+                       std::shared_ptr<internal::TensorData> data,
+                       int64_t offset = 0);
 
   // constructor and destructor.
   Tensor();

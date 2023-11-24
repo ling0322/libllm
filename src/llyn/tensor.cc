@@ -54,11 +54,13 @@ template Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const 
 
 
 Tensor Tensor::create(std::shared_ptr<internal::TensorShape> shape,
-                      std::shared_ptr<internal::TensorData> data) {
+                      std::shared_ptr<internal::TensorData> data,
+                      int64_t offset) {
 
   Tensor tensor;
   tensor._shape = shape;
   tensor._data = data;
+  tensor._offset = offset;
 
   return tensor;
 }

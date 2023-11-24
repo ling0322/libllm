@@ -105,10 +105,16 @@ std::vector<internal::TensorShape::Elem> getViewShapeStride(const Tensor &src, l
 Tensor view(const Tensor &src, ly::Span<const int> view) {
   std::vector<Tensor::ShapeType> shape = getRealShape(src.getNumEl(), view);
   if (src.isContiguous()) {
-    return Tensor::create(std::make_shared<TensorShape>(shape), src.getDataShared_());
+    return Tensor::create(
+        std::make_shared<TensorShape>(shape),
+        src.getDataShared_(),
+        src.getOffset_());
   } else {
     std::vector<internal::TensorShape::Elem> viewShape = getViewShapeStride(src, view);
-    return Tensor::create(std::make_shared<TensorShape>(viewShape), src.getDataShared_());
+    return Tensor::create(
+        std::make_shared<TensorShape>(viewShape),
+        src.getDataShared_(),
+        src.getOffset_());
   }
 }
 
