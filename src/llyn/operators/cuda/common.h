@@ -23,11 +23,10 @@
 #include <cuda_runtime.h>
 #include <stdint.h>
 #include <type_traits>
+#include "lyutil/c_ptr.h"
 #include "lyutil/error.h"
 #include "lyutil/strings.h"
 #include "llyn/tensor.h"
-#include "llyn/internal/tensor_shape.h"
-#include "llyn/operators/cuda/cuda_tensor_data.h"
 #include "llyn/operators/cuda/subtensor.h"
 
 #define LL_CHECK_CONTIGUOUS(x) { if (!x.isContiguous()) { \
@@ -48,6 +47,11 @@ struct PackedSubtensor2DQ4 {
 
   PackedSubtensor2DQ4(const Tensor &tensor);
 };
+
+/// @brief Automatically call destroy method on destruction for cudnn handles.
+/// @tparam T 
+template<typename T>
+using auto_handle = ly::c_ptr<typename std::remove_pointer<T>::type>;
 
 Tensor createCudaTensorHalf(ly::Span<const int> shape);
 Tensor createCudaTensorLong(ly::Span<const int> shape);

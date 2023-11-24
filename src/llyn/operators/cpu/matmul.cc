@@ -20,6 +20,7 @@
 #include "llyn/operators/cpu/matmul.h"
 
 #include "lyutil/strings.h"
+#include "llyn/operators/common/matmul.h"
 #include "llyn/operators/cpu/subtensor.h"
 #include "llyn/operators/cpu/subtensor_list.h"
 #include "llyn/operators/cpu/tensor.h"
@@ -68,7 +69,7 @@ Tensor gemmFp32(const Tensor &A, const Tensor &B) {
   Subtensor<float> Cs = Subtensor<float>::fromTensor(C);
   zerosFp32(Cs);
 
-  GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
+  common::GEMMArgs gemmArgs = common::generateGemmArgs(A, B, C);
   lymath_sgemm_omp(
       gemmArgs.transA,
       gemmArgs.transB,
@@ -96,7 +97,7 @@ Tensor bmmNx2Fp32(const Tensor &A, const Tensor &B) {
 }
 
 Tensor bmmFp32(const Tensor &A, const Tensor &B) {
-  std::vector<int> shapeC = getBmmOutputShape(A, B);
+  std::vector<int> shapeC = common::getBmmOutputShape(A, B);
 
   Tensor tensorC = cpu::tensor(shapeC, DType::kFloat);
   Subtensor<float> C = Subtensor<float>::fromTensor(tensorC);
@@ -106,7 +107,7 @@ Tensor bmmFp32(const Tensor &A, const Tensor &B) {
   SubtensorList<const float> mBs = getMatrixList(Subtensor<const float>::fromTensor(B));
   SubtensorList<float> mCs = getMatrixList(C);
 
-  GEMMArgs gemmArgs = generateGemmArgs(A, B, tensorC);
+  common::GEMMArgs gemmArgs = common::generateGemmArgs(A, B, tensorC);
 
   // broadcast B.
   CHECK(mAs.getSize() == mCs.getSize());
@@ -142,79 +143,6 @@ Tensor bmmFp32QInt4Fp32(const Tensor &A, const Tensor &B) {
   return Tensor();
 }
 
-
-std::vector<int> getBmmOutputShape(const Tensor &A, const Tensor &B) {
-  CHECK(A.getDim() >= B.getDim());
-  CHECK(A.getDim() > 2 && A.getDim() <= 4 && B.getDim() >= 2);
-  std::vector<int> shape;
-
-  // broadcast B
-  int broadcastDims = A.getDim() - B.getDim();
-  for (int i = 0; i < broadcastDims; ++i) {
-    shape.push_back(A.getShape(i));
-  }
-
-  // batch dim: B.shape(i) == A.shape(broadcastDims + i)
-  int batchDims = B.getDim() - 2;
-  for (int i = 0; i < batchDims; ++i) {
-    CHECK(A.getShape(broadcastDims + i) == B.getShape(i));
-    shape.push_back(B.getShape(i));
-  }
-
-  shape.push_back(A.getShape(-2));
-  shape.push_back(B.getShape(-1));
-
-  return shape;
-}
-
-GEMMArgs generateGemmArgs(const Tensor &A, const Tensor &B, const Tensor &C) {
-  CHECK(A.getDim() >= B.getDim() && A.getDim() == C.getDim());
-  CHECK(B.getDim() >= 2);
-  CHECK(A.getShape(-2) == C.getShape(-2));
-  CHECK(A.getShape(-1) == B.getShape(-2));
-  CHECK(B.getShape(-1) == C.getShape(-1));
-
-  bool transA, transB;
-  int lda, ldb;
-  if (A.getStride(-1) == 1) {
-    transA = false;
-    lda = A.getStride(-2);
-  } else if (A.getStride(-2) == 1) {
-    transA = true;
-    lda = A.getStride(-1);
-  } else {
-    NOT_IMPL();
-  }
-
-  if (B.getStride(-1) == 1) {
-    transB = false;
-    ldb = B.getStride(-2);
-  } else if (B.getStride(-2) == 1) {
-    transB = true;
-    ldb = B.getStride(-1);
-  } else {
-    NOT_IMPL();
-  }
-
-  int m = A.getShape(-2);
-  int k = A.getShape(-1);
-  int n = B.getShape(-1);
-  int ldc = C.getStride(-2);
-
-  GEMMArgs gemmArgs;
-  gemmArgs.K = k;
-  gemmArgs.lda = lda;
-  gemmArgs.ldb = ldb;
-  gemmArgs.ldc = ldc;
-  gemmArgs.M = m;
-  gemmArgs.N = n;
-  gemmArgs.transA = transA;
-  gemmArgs.transB = transB;
-
-  return gemmArgs;
-}
-
-
 // -- q4sym ----------
 
 Tensor gemmFp32Q4SymFp32(const Tensor &A, const Tensor &B) {
@@ -224,7 +152,7 @@ Tensor gemmFp32Q4SymFp32(const Tensor &A, const Tensor &B) {
   Subtensor<float> Cs = Subtensor<float>::fromTensor(C);
   zerosFp32(Cs);
 
-  GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
+  common::GEMMArgs gemmArgs = common::generateGemmArgs(A, B, C);
   const internal::TensorData *dataObjectB = B.getDataObject();
   lymath_qgemm_nqn_q4sym_omp(
       gemmArgs.transA,
@@ -273,7 +201,7 @@ Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
   Subtensor<float> Cs = Subtensor<float>::fromTensor(C);
   zerosFp32(Cs);
 
-  GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
+  common::GEMMArgs gemmArgs = common::generateGemmArgs(A, B, C);
   const internal::TensorData *dataObjectB = B.getDataObject();
   lymath_q4gemm(
       gemmArgs.transA,

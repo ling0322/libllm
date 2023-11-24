@@ -19,7 +19,7 @@
 
 #include <cudnn.h>
 #include "llyn/operators/cuda/cuda_tensor_data.h"
-#include "llyn/operators/cuda/cuda_common.h"
+#include "llyn/operators/cuda/common.h"
 #include "llyn/operators/cuda/cudnn_operators.h"
 #include "lyutil/log.h"
 

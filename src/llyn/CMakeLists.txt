@@ -7,6 +7,7 @@ endif()
 
 set(llyn_SOURCES
     "operators/operators.cc"
+    "operators/common/matmul.cc"
     "operators/cpu/apply_rotary_pos_emb.cc"
     "operators/cpu/attention.cc"
     "operators/cpu/cat.cc"
@@ -49,12 +50,12 @@ endif()
 set(llynextcuda_SOURCES
     "operators/cuda/cast.cu"
     "operators/cuda/copy.cu"
-    "operators/cuda/create_tensor.cc"
-    "operators/cuda/cuda_common.cc"
+    "operators/cuda/common.cc"
     "operators/cuda/cuda_operators.cc"
     "operators/cuda/cuda_tensor_data.cc"
     "operators/cuda/cudnn_operators.cc"
     "operators/cuda/lookup.cu"
+    "operators/cuda/matmul.cc"
     "operators/cuda/to_device.cc")
 add_library(llynextcuda STATIC ${llynextcuda_SOURCES})
 target_include_directories(llynextcuda PRIVATE .. ${llynextcuda_INCDIR})

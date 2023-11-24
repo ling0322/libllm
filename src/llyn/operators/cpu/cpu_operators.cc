@@ -373,14 +373,17 @@ Tensor CPUOperators::gelu(Tensor input) {
   return Tensor();
 }
 
-bool CPUOperators::allClose(Tensor A, Tensor B) {
+bool CPUOperators::allClose(Tensor A, Tensor B, float rtol, float atol) {
   if (A.getDType() != B.getDType()) {
     return false;
   }
 
   switch (A.getDType()) {
     case DType::kFloat:
-      return allCloseFp32(Subtensor<const float>::fromTensor(A), Subtensor<const float>::fromTensor(B), 1e-6f, 1e-3f);
+      return allCloseFp32(Subtensor<const float>::fromTensor(A), 
+                          Subtensor<const float>::fromTensor(B),
+                          rtol,
+                          atol);
       break;
     default:
       NOT_IMPL();

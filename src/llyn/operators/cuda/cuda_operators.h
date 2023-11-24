@@ -26,6 +26,7 @@ namespace op {
 namespace cuda {
 
 class CudnnOperators;
+class MatMul;
 
 /// @brief Implementation of Operator interface with cuda device.
 class CudaOperators : public internal::Operators {
@@ -43,12 +44,7 @@ class CudaOperators : public internal::Operators {
   Tensor softmax(Tensor input) override;
   Tensor gelu(Tensor input) override;
   Tensor add(Tensor a, Tensor b) override;
-  Tensor createTensor(std::initializer_list<int> shape, DType dtype) override;
   Tensor createTensorLike(Tensor input) override;
-  Tensor rand(std::initializer_list<int> shape, DType dtype) override;
-  Tensor zeros(ly::Span<const int> shape, DType dtype) override;
-  bool allClose(Tensor A, Tensor B) override;
-  void print(Tensor tensor) override;
   Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor causalMask(int max_len) override;
@@ -62,6 +58,7 @@ class CudaOperators : public internal::Operators {
 
  private:
   std::shared_ptr<CudnnOperators> _cudnnOperators;
+  std::shared_ptr<MatMul> _matmul;
 
   CudaOperators() = default;
 };

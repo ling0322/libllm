@@ -52,7 +52,7 @@ class CPUOperators : public internal::Operators {
   Tensor createTensorLike(Tensor input) override;
   Tensor rand(std::initializer_list<int> shape, DType dtype) override;
   Tensor zeros(ly::Span<const int> shape, DType dtype) override;
-  bool allClose(Tensor A, Tensor B) override;
+  bool allClose(Tensor A, Tensor B, float rtol, float atol) override;
   void print(Tensor tensor) override;
   Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;

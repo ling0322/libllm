@@ -19,6 +19,7 @@
 
 #include "../../../../third_party/catch2/catch_amalgamated.hpp"
 
+#include <cuda_fp16.h>
 #include <algorithm>
 #include "llyn/device.h"
 #include "llyn/llyn.h"
@@ -32,7 +33,6 @@ using llyn::DType;
 using llyn::Device;
 using llyn::internal::TensorShape;
 using llyn::op::cpu::CpuTensorData;
-
 
 namespace F = llyn::functional;
 
@@ -170,5 +170,23 @@ CATCH_TEST_CASE("test lookup q4", "[cuda][operators][lookup]") {
 
   Tensor xr = F::lookup(embd, ids);
   CATCH_REQUIRE(F::allClose(x, xr));
+}
+
+CATCH_TEST_CASE("test matmul gemm", "[cuda][operators][matmul]") {
+  Tensor a = F::rand({10, 20}, DType::kFloat);
+  Tensor b = F::rand({40, 30}, DType::kFloat);
+  Tensor xr = F::matmul(a, b.slice(1, {5, 25}).transpose(1, 0));
+
+  Tensor x = F::toDevice(a, Device(Device::kCuda));
+  Tensor y = F::toDevice(b, Device(Device::kCuda));
+  x = F::cast(x, DType::kFloat16);
+  y = F::cast(y, DType::kFloat16);
+  y = y.slice(1, {5, 25});
+  y = y.transpose(1, 0);
+  x = F::matmul(x, y);
+  x = F::cast(x, DType::kFloat);
+  x = F::toDevice(x, Device(Device::kCpu));
+
+  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
 }
 

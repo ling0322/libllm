@@ -21,20 +21,21 @@
 
 #include "llyn/operators/cuda/cast.h"
 #include "llyn/operators/cuda/copy.h"
-#include "llyn/operators/cuda/create_tensor.h"
-#include "llyn/operators/cuda/lookup.h"
-#include "llyn/operators/cuda/to_device.h"
 #include "llyn/operators/cuda/cudnn_operators.h"
+#include "llyn/operators/cuda/lookup.h"
+#include "llyn/operators/cuda/matmul.h"
+#include "llyn/operators/cuda/to_device.h"
 
 namespace llyn {
 namespace op {
 namespace cuda {
 
 internal::Operators *CudaOperators::create() {
-  std::unique_ptr<CudaOperators> ops{new CudaOperators()};
-  ops->_cudnnOperators = CudnnOperators::create();
+  std::unique_ptr<CudaOperators> op{new CudaOperators()};
+  op->_cudnnOperators = CudnnOperators::create();
+  op->_matmul = MatMul::create();
 
-  return ops.release();
+  return op.release();
 }
 
 Tensor CudaOperators::lookup(Tensor table, Tensor indices) {
@@ -42,7 +43,7 @@ Tensor CudaOperators::lookup(Tensor table, Tensor indices) {
 }
 
 Tensor CudaOperators::matmul(Tensor a, Tensor b) {
-  NOT_IMPL();
+  return _matmul->apply(a, b);
 }
 
 Tensor CudaOperators::mul(Tensor input, float other) {
@@ -65,30 +66,6 @@ Tensor CudaOperators::add(Tensor a, Tensor b) {
   NOT_IMPL();
 }
 
-Tensor CudaOperators::createTensor(std::initializer_list<int> shape, DType dtype) {
-  NOT_IMPL();
-}
-
-Tensor CudaOperators::createTensorLike(Tensor input) {
-  return tensorLike(input);
-}
-
-Tensor CudaOperators::rand(std::initializer_list<int> shape, DType dtype) {
-  NOT_IMPL();
-}
-
-Tensor CudaOperators::zeros(ly::Span<const int> shape, DType dtype) {
-  NOT_IMPL();
-}
-
-bool CudaOperators::allClose(Tensor A, Tensor B) {
-  NOT_IMPL();
-}
-
-void CudaOperators::print(Tensor tensor) {
-  NOT_IMPL();
-}
-
 Tensor CudaOperators::layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
   NOT_IMPL();
 }
@@ -106,6 +83,15 @@ Tensor CudaOperators::cat(Tensor A, Tensor B, int dim) {
 }
 
 Tensor CudaOperators::applRotaryPosEmb(Tensor A, Tensor roPE) {
+  NOT_IMPL();
+}
+
+Tensor CudaOperators::createTensorLike(Tensor input) {
+  CHECK(input.getDevice().getType() == Device::kCuda);
+
+  if (input.getDType() == DType::kFloat16) return createCudaTensorHalf(input.getShape());
+  if (input.getDType() == DType::kLong) return createCudaTensorLong(input.getShape());
+
   NOT_IMPL();
 }
 

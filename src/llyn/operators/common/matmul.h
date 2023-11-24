@@ -17,22 +17,31 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "llyn/operators/cuda/create_tensor.h"
+#pragma once
 
-#include "llyn/operators/cuda/cuda_common.h"
+#include "llyn/tensor.h"
 
 namespace llyn {
 namespace op {
-namespace cuda {
+namespace common {
 
-Tensor tensorLike(const Tensor &tensor) {
-  if (tensor.getDType() == DType::kFloat16) return createCudaTensorHalf(tensor.getShape());
-  if (tensor.getDType() == DType::kLong) return createCudaTensorLong(tensor.getShape());
+struct GEMMArgs {
+  bool transA;
+  bool transB;
+  int M;
+  int N;
+  int K;
+  int lda;
+  int ldb;
+  int ldc;
+};
 
-  NOT_IMPL();
-}
+std::vector<int> getBmmOutputShape(const Tensor &A, const Tensor &B);
 
-}  // cuda
+// generate GEMMArgs from the input tensor A, B and output tensor C. dimensions of A could be
+// greater than 2 (for BMM). throw exception if shape mismatch.
+GEMMArgs generateGemmArgs(const Tensor &A, const Tensor &B, const Tensor &C);
+
+}  // commoon
 }  // op
 }  // llyn
-

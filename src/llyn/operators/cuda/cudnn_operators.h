@@ -21,17 +21,13 @@
 
 #include <cudnn.h>
 #include <type_traits>
+#include "llyn/operators/cuda/common.h"
 #include "lyutil/c_ptr.h"
 #include "llyn/tensor.h"
 
 namespace llyn {
 namespace op {
 namespace cuda {
-
-/// @brief Automatically call destroy method on destruction for cudnn handles.
-/// @tparam T 
-template<typename T>
-using auto_handle = ly::c_ptr<typename std::remove_pointer<T>::type>;
 
 /// @brief Operators implemented by cuDNN
 class CudnnOperators {

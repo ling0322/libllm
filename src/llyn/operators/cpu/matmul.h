@@ -26,7 +26,6 @@ namespace llyn {
 namespace op {
 namespace cpu {
 
-
 Tensor matmulFp32(const Tensor &A, const Tensor &B);
 
 Tensor bmmFp32(const Tensor &A, const Tensor &B);
@@ -42,23 +41,6 @@ Tensor bmmNx2Fp32Q4SymFp32(const Tensor &A, const Tensor &B);
 Tensor matmulFp32Q4Fp32(const Tensor &A, const Tensor &B);
 Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B);
 Tensor bmmNx2Fp32Q4Fp32(const Tensor &A, const Tensor &B);
-
-struct GEMMArgs {
-  bool transA;
-  bool transB;
-  int M;
-  int N;
-  int K;
-  int lda;
-  int ldb;
-  int ldc;
-};
-
-std::vector<int> getBmmOutputShape(const Tensor &A, const Tensor &B);
-
-// generate GEMMArgs from the input tensor A, B and output tensor C. dimensions of A could be
-// greater than 2 (for BMM). throw exception if shape mismatch.
-GEMMArgs generateGemmArgs(const Tensor &A, const Tensor &B, const Tensor &C);
 
 }  // cpu
 }  // op

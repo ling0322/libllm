@@ -51,7 +51,15 @@ Tensor rmsNorm(Tensor input, Tensor weight, float eps) {
 Tensor matmul(Tensor A, Tensor B) {
   CHECK(!A.empty());
   CHECK(!B.empty());
-  return gOperatorsForDevice[Device::kCpu]->matmul(A, B);
+
+  switch (A.getDevice().getType()) {
+    case Device::kCpu:
+      return getOperators(Device::kCpu)->matmul(A, B);
+    case Device::kCuda:
+      return getOperators(Device::kCuda)->matmul(A, B);
+    default:
+      NOT_IMPL();
+  }
 }
 
 Tensor mul(Tensor input, float other) {
@@ -104,8 +112,8 @@ Tensor contiguous(Tensor input) {
   return x;
 }
 
-bool allClose(Tensor A, Tensor B) {
-  return gOperatorsForDevice[Device::kCpu]->allClose(A, B);
+bool allClose(Tensor A, Tensor B, float atol, float rtol) {
+  return gOperatorsForDevice[Device::kCpu]->allClose(A, B, atol, rtol);
 }
 
 void print(Tensor tensor) {

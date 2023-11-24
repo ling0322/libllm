@@ -20,7 +20,7 @@
 #pragma once
 
 #include <cuda_fp16.h>
-#include "llyn/operators/cuda/cuda_common.h"
+#include "llyn/operators/cuda/common.h"
 
 namespace llyn {
 namespace op {
