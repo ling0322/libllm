@@ -34,6 +34,7 @@
     LOG(FATAL) << "contiguous is required for CUDA operators: " << #x; } }
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 /// @brief A q4 quantized constant matrix (2D tensor).
@@ -68,5 +69,6 @@ __device__ inline dim3 splitIndexToDim3(unsigned int index, const Size *size) {
   return d;
 }
 
-}  // namespace cuda
-}  // namespace cuda
+}  // cuda
+}  // op
+}  // llyn

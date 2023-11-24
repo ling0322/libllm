@@ -23,6 +23,7 @@
 #include "llyn/operators/cuda/cuda_common.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 constexpr int GroupSizeQ4 = 32;
@@ -52,4 +53,5 @@ __device__ inline void dequantQ4ToHalf(
 }
 
 }  // cuda
+}  // op
 }  // llyn

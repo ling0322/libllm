@@ -25,22 +25,24 @@
 #include "llyn/internal/tensor_data.h"
 
 namespace llyn {
-namespace internal {
+namespace op {
+namespace cuda {
 
-class CudaTensorData : public TensorData {
+class CudaTensorData : public internal::TensorData {
  public:
-  static std::shared_ptr<TensorData> create(int64_t numel, DType dtype);
-  static std::shared_ptr<TensorData> create(ly::Span<const std::pair<int64_t, DType>> slots);
+  static std::shared_ptr<internal::TensorData> create(int64_t numel, DType dtype);
+  static std::shared_ptr<internal::TensorData> create(
+      ly::Span<const std::pair<int64_t, DType>> slots);
 
   CudaTensorData();
   ~CudaTensorData();
 
   Device getDevice() const override;
   int getNumSlot() const override;
-  const SlotBase *getSlot(int slot) const override;
+  const internal::SlotBase *getSlot(int slot) const override;
 
  private:
-  struct Slot : public SlotBase {
+  struct Slot : public internal::SlotBase {
     Byte *data;
     int64_t numel;
     DType dtype;
@@ -56,5 +58,6 @@ class CudaTensorData : public TensorData {
   int _numSlot;
 };
 
-}  // namespace internal
-}  // namespace llyn
+}  // cuda
+}  // op
+}  // llyn

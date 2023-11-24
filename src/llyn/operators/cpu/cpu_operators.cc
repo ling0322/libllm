@@ -50,14 +50,7 @@ using internal::TensorShape;
 CPUOperators::CPUOperators() {}
 
 Tensor CPUOperators::createTensor(ly::Span<const int> shape, DType dtype) {
-  Tensor tensor;
-
-  auto tensorShape = std::make_shared<TensorShape>(ly::makeConstSpan(shape));
-
-  int64_t numel = tensorShape->getNumEl();
-  auto tensorData = internal::CpuTensorData::create(numel, dtype);
-
-  return Tensor::create(tensorShape, tensorData);
+  return op::cpu::tensor(shape, dtype);
 }
 
 void CPUOperators::randFp32(Tensor *tensor) {

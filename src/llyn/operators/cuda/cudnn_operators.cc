@@ -32,6 +32,7 @@
     }
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 CudnnOperators::CudnnOperators() : _handle{nullptr, checkDestroy<cudnnHandle_t>(cudnnDestroy)} {}
@@ -179,5 +180,6 @@ void CudnnOperators::copy(Tensor src, Tensor dest) {
 }
 
 }  // cuda
+}  // op
 }  // llyn
 

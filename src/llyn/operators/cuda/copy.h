@@ -22,6 +22,7 @@
 #include "llyn/tensor.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 // copy operator has multiple implementations. If the sec and dest is contiguous, it will call
@@ -33,4 +34,5 @@ void copy(const Tensor &src, Tensor &dest);
 void copyContig(const Tensor &src, Tensor &dest);
 
 }  // cuda
+}  // op
 }  // llyn

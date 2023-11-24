@@ -42,7 +42,7 @@ void initOperators() {
     gOperatorsForDevice[Device::kCpu] = new op::cpu::CPUOperators();
 
     CHECK(!gOperatorsForDevice[Device::kCuda]);
-    gOperatorsForDevice[Device::kCuda] = cuda::CudaOperators::create();
+    gOperatorsForDevice[Device::kCuda] = llynCreateCudaOperators();
   }
 }
 

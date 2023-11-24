@@ -22,6 +22,7 @@
 #include "llyn/operators/cuda/cuda_common.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 Tensor tensorLike(const Tensor &tensor) {
@@ -32,5 +33,6 @@ Tensor tensorLike(const Tensor &tensor) {
 }
 
 }  // cuda
+}  // op
 }  // llyn
 

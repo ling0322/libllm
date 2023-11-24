@@ -25,6 +25,7 @@
 #include "llyn/tensor.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 /// @brief Automatically call destroy method on destruction for cudnn handles.
@@ -58,5 +59,6 @@ class CudnnOperators {
 };
 
 }  // cuda
+}  // op
 }  // llyn
 

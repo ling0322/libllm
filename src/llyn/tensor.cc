@@ -39,7 +39,7 @@ Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const T> data) 
   int64_t numel = tensor._shape->getNumEl();
 
   DType dtype = DType::getType<T>();
-  tensor._data = internal::CpuTensorData::create(numel, dtype);
+  tensor._data = op::cpu::CpuTensorData::create(numel, dtype);
   tensor._offset = 0;
 
   // fill data
@@ -103,7 +103,7 @@ void Tensor::read(ly::ReadableFile *fp) {
   }
 
   _shape = TensorShape::read(fp);
-  _data = internal::CpuTensorData::read(fp);
+  _data = op::cpu::CpuTensorData::read(fp);
   _offset = 0;
 
   // check

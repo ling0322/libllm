@@ -28,7 +28,8 @@
 #include "lyutil/strings.h"
 
 namespace llyn {
-namespace internal {
+namespace op {
+namespace cuda {
 
 CudaTensorData::Slot::Slot()
     : data(nullptr),
@@ -47,11 +48,11 @@ Byte *CudaTensorData::Slot::getRawData() const {
 
 CudaTensorData::CudaTensorData() : _numSlot(0) {}
 
-std::shared_ptr<TensorData> CudaTensorData::create(int64_t numel, DType dtype) {
+std::shared_ptr<internal::TensorData> CudaTensorData::create(int64_t numel, DType dtype) {
   return create({{numel, dtype}});
 }
 
-std::shared_ptr<TensorData> CudaTensorData::create(
+std::shared_ptr<internal::TensorData> CudaTensorData::create(
     ly::Span<const std::pair<int64_t, DType>> slots) {
   CHECK(slots.size() > 0 && slots.size() <= TensorData::MaxSlot);
 
@@ -86,7 +87,7 @@ CudaTensorData::~CudaTensorData() {
   }
 }
 
-const SlotBase *CudaTensorData::getSlot(int slot) const {
+const internal::SlotBase *CudaTensorData::getSlot(int slot) const {
   CHECK(slot < _numSlot);
   return &_slots[slot];
 }
@@ -99,5 +100,6 @@ int CudaTensorData::getNumSlot() const {
   return _numSlot;
 }
 
-}  // namespace internal
-}  // namespace llyn
+}  // cuda
+}  // op
+}  // llyn

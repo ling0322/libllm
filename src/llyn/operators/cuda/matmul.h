@@ -22,9 +22,11 @@
 #include "llyn/tensor.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 Tensor maumul();
 
 }  // cuda
+}  // op
 }  // llyn

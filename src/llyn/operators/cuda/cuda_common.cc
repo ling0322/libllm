@@ -22,6 +22,7 @@
 #include "llyn/tensor.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 PackedSubtensor2DQ4::PackedSubtensor2DQ4(const Tensor &tensor) {
@@ -41,21 +42,21 @@ PackedSubtensor2DQ4::PackedSubtensor2DQ4(const Tensor &tensor) {
 
 Tensor createCudaTensorHalf(ly::Span<const int> shape) {
   auto tensorShape = std::make_shared<internal::TensorShape>(shape);
-  auto data = internal::CudaTensorData::create(tensorShape->getNumEl(), DType::kFloat16);
+  auto data = CudaTensorData::create(tensorShape->getNumEl(), DType::kFloat16);
 
   return Tensor::create(tensorShape, data);
 }
 
 Tensor createCudaTensorLong(ly::Span<const int> shape) {
   auto tensorShape = std::make_shared<internal::TensorShape>(shape);
-  auto data = internal::CudaTensorData::create(tensorShape->getNumEl(), DType::kLong);
+  auto data = CudaTensorData::create(tensorShape->getNumEl(), DType::kLong);
 
   return Tensor::create(tensorShape, data);
 }
 
 Tensor createCudaTensorFloat(ly::Span<const int> shape) {
   auto tensorShape = std::make_shared<internal::TensorShape>(shape);
-  auto data = internal::CudaTensorData::create(tensorShape->getNumEl(), DType::kFloat);
+  auto data = CudaTensorData::create(tensorShape->getNumEl(), DType::kFloat);
 
   return Tensor::create(tensorShape, data);
 }
@@ -66,5 +67,6 @@ void checkCudaError(cudaError_t err) {
 }
 
 }  // cuda
+}  // op
 }  // llyn
     

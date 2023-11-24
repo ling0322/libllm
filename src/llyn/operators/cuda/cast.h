@@ -22,6 +22,7 @@
 #include "llyn/tensor.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 Tensor castFloatToHalf(const Tensor &tensor, DType dtype);
@@ -30,5 +31,6 @@ Tensor castHalfToFloat(const Tensor &tensor, DType dtype);
 Tensor cast(const Tensor &tensor, DType dtype);
 
 }  // cuda
+}  // op
 }  // llyn
 

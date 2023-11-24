@@ -24,8 +24,10 @@
 #include "llyn/operators/cuda/create_tensor.h"
 #include "llyn/operators/cuda/lookup.h"
 #include "llyn/operators/cuda/to_device.h"
+#include "llyn/operators/cuda/cudnn_operators.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 internal::Operators *CudaOperators::create() {
@@ -140,5 +142,9 @@ Tensor CudaOperators::cast(Tensor tensor, DType dtype) {
 }
 
 }  // cuda
+}  // op
 }  // llyn
 
+llyn::internal::Operators *llynCreateCudaOperators() {
+  return llyn::op::cuda::CudaOperators::create();
+}

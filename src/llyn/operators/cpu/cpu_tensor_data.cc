@@ -26,7 +26,8 @@
 #include "lyutil/span.h"
 
 namespace llyn {
-namespace internal {
+namespace op {
+namespace cpu {
 
 CpuTensorData::Slot::Slot()
     : data(nullptr),
@@ -67,11 +68,11 @@ void CpuTensorData::readSlot(ly::ReadableFile *fp, int slotIdx) {
     throw ly::AbortedError("bad tensor data format (magic number).");
 }
 
-std::shared_ptr<TensorData> CpuTensorData::create(int64_t numel, DType dtype) {
+std::shared_ptr<internal::TensorData> CpuTensorData::create(int64_t numel, DType dtype) {
   return create({{numel, dtype}});
 }
 
-std::shared_ptr<TensorData> CpuTensorData::create(
+std::shared_ptr<internal::TensorData> CpuTensorData::create(
     ly::Span<const std::pair<int64_t, DType>> slots) {
   CHECK(slots.size() > 0 && slots.size() <= TensorData::MaxSlot);
 
@@ -93,7 +94,7 @@ std::shared_ptr<TensorData> CpuTensorData::create(
   return tensorData;
 }
 
-std::shared_ptr<TensorData> CpuTensorData::read(ly::ReadableFile *fp) {
+std::shared_ptr<internal::TensorData> CpuTensorData::read(ly::ReadableFile *fp) {
   std::shared_ptr<CpuTensorData> tensorData = std::make_shared<CpuTensorData>();
 
   if (fp->readString(4) != "tdat")
@@ -114,7 +115,7 @@ std::shared_ptr<TensorData> CpuTensorData::read(ly::ReadableFile *fp) {
   return tensorData;
 }
 
-const SlotBase *CpuTensorData::getSlot(int slot) const {
+const internal::SlotBase *CpuTensorData::getSlot(int slot) const {
   CHECK(slot < _numSlot);
   return &_slots[slot];
 }
@@ -136,5 +137,6 @@ int CpuTensorData::getNumSlot() const {
   return _numSlot;
 }
 
-}  // namespace internal
+}  // namespace cpu
+}  // namespace op
 }  // namespace llyn

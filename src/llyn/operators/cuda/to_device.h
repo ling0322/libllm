@@ -22,6 +22,7 @@
 #include "llyn/tensor.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 Tensor toCpu(const Tensor &tensor);
@@ -30,4 +31,5 @@ Tensor toCuda(const Tensor &tensor);
 Tensor toDevice(const Tensor &tensor, Device device);
 
 }  // cuda
+}  // op
 }  // llyn

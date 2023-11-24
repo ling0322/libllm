@@ -27,20 +27,12 @@
 #include "lyutil/half.h"
 #include "lyutil/random.h"
 
-int main(int argc, char **argv) {
-  llyn::init();
-
-  int result = Catch::Session().run(argc, argv);
-  llyn::destroy();
-
-  return result;
-}
-
 using llyn::Tensor;
 using llyn::DType;
 using llyn::Device;
-using llyn::internal::CpuTensorData;
 using llyn::internal::TensorShape;
+using llyn::op::cpu::CpuTensorData;
+
 
 namespace F = llyn::functional;
 

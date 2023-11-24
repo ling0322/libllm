@@ -22,6 +22,7 @@
 #include "llyn/operators/cuda/cuda_common.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 template<typename T>
@@ -77,4 +78,5 @@ void copyContig(const Tensor &src, Tensor &dest) {
 }
 
 }  // cuda
+}  // op
 }  // llyn

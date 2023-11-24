@@ -23,6 +23,7 @@
 #include "llyn/operators/cuda/cuda_common.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 __global__ void castFloatToHalfKernel(int n, const float *src, half *dest) {
@@ -84,4 +85,5 @@ Tensor cast(const Tensor &tensor, DType dtype) {
 }
 
 }  // cuda
+}  // op
 }  // llyn

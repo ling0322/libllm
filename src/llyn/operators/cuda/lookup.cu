@@ -22,6 +22,7 @@
 #include "llyn/operators/cuda/cuda_common.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 __global__
@@ -127,5 +128,6 @@ Tensor lookup(const Tensor &embdTable, const Tensor &input) {
 }
 
 }  // cuda
+}  // op
 }  // llyn
     

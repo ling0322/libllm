@@ -17,7 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "third_party/catch2/catch_amalgamated.hpp"
+#include "../../third_party/catch2/catch_amalgamated.hpp"
 
 #include <omp.h>
 #include "lymath/common.h"
@@ -35,15 +35,6 @@
 using namespace lymath;
 
 constexpr uint32_t MagicNumber = 0x55aa;
-
-int main(int argc, char **argv) {
-  lymath_init();
-  int result = Catch::Session().run(argc, argv);
-  lymath_destroy();
-
-  return result;
-}
-
 
 void refGemmNqnInt4SymGroup32(
     bool transA,
@@ -175,7 +166,7 @@ void testGemmFp32QInt4Fp32(bool transB, int M, int N, int K) {
   CATCH_REQUIRE(isClose(C, refC));
 }
 
-CATCH_TEST_CASE("test q4sym dequantization", "[llyn][lymath][q4sym]") {
+CATCH_TEST_CASE("test q4sym dequantization", "[lymath][q4sym]") {
   constexpr int DIM = DequantMinElemPerThread + Q4GroupSize;
 
   std::vector<uint8_t> x(DIM / 2);
@@ -202,7 +193,7 @@ CATCH_TEST_CASE("test q4sym dequantization", "[llyn][lymath][q4sym]") {
   CATCH_REQUIRE(isClose(y, yRef));
 }
 
-CATCH_TEST_CASE("test q4 dequantization", "[llyn][lymath][kernel][q4]") {
+CATCH_TEST_CASE("test q4 dequantization", "[lymath][kernel][q4]") {
   constexpr int DIM = DequantMinElemPerThread + Q4GroupSize;
 
   std::vector<uint8_t> x(DIM / 2);
@@ -222,7 +213,7 @@ CATCH_TEST_CASE("test q4 dequantization", "[llyn][lymath][kernel][q4]") {
   DequantQ4FallbackKernel::apply(DIM, x.data(), scaleX.data(), zeroPointX.data(), y.data());
 }
 
-CATCH_TEST_CASE("test int4 dot kernels", "[llyn][lymath][kernel][int4]") {
+CATCH_TEST_CASE("test int4 dot kernels", "[lymath][kernel][int4]") {
   constexpr int DIM = 1024;
 
   std::vector<float> x(DIM);
@@ -243,7 +234,7 @@ CATCH_TEST_CASE("test int4 dot kernels", "[llyn][lymath][kernel][int4]") {
   CATCH_REQUIRE(fabs(rs - s) < 1e-5);
 }
 
-CATCH_TEST_CASE("test q4sym axpy kernels", "[llyn][lymath][kernel][q4sym]") {
+CATCH_TEST_CASE("test q4sym axpy kernels", "[lymath][kernel][q4sym]") {
   constexpr int DIM = 1024;
 
   float a = 0.1f;
@@ -268,7 +259,7 @@ CATCH_TEST_CASE("test q4sym axpy kernels", "[llyn][lymath][kernel][q4sym]") {
 }
 
 
-CATCH_TEST_CASE("test q4 axpy kernels", "[llyn][lymath][kernel][q4]") {
+CATCH_TEST_CASE("test q4 axpy kernels", "[lymath][kernel][q4]") {
   constexpr int DIM = 1024;
 
   float a = 0.1f;
@@ -294,7 +285,7 @@ CATCH_TEST_CASE("test q4 axpy kernels", "[llyn][lymath][kernel][q4]") {
   CATCH_REQUIRE(isClose(y, yRef));
 }
 
-CATCH_TEST_CASE("test q4 dot kernels", "[llyn][lymath][kernel][q4]") {
+CATCH_TEST_CASE("test q4 dot kernels", "[lymath][kernel][q4]") {
   constexpr int DIM = 1024;
 
   std::vector<float> x(DIM);
@@ -317,7 +308,7 @@ CATCH_TEST_CASE("test q4 dot kernels", "[llyn][lymath][kernel][q4]") {
   CATCH_REQUIRE(isClose(a, aRef));
 }
 
-CATCH_TEST_CASE("test int8b dequant kernels", "[llyn][lymath][kernel][int8]") {
+CATCH_TEST_CASE("test int8b dequant kernels", "[lymath][kernel][int8]") {
   constexpr int DIM = 512;
 
   float a = 0.1f;
@@ -352,7 +343,7 @@ CATCH_TEST_CASE("test int8b dequant kernels", "[llyn][lymath][kernel][int8]") {
   CATCH_REQUIRE(isClose(rdata[257], qdata[257 + 127] * scaleZp[6] + scaleZp[7]));
 }
 
-CATCH_TEST_CASE("test lymath_gemm_fp32qint4fp32", "[llyn][lymath][api][int4]") {
+CATCH_TEST_CASE("test lymath_gemm_fp32qint4fp32", "[lymath][api][int4]") {
   testGemmFp32QInt4Fp32(true, 1, 32, 32);
   testGemmFp32QInt4Fp32(true, 32, 32, 32);
   testGemmFp32QInt4Fp32(false, 1, 32, 32);
@@ -418,7 +409,7 @@ int gemmTestShapes[][3] = {
   {0, 0, 0}
 };
 
-CATCH_TEST_CASE("test lymath_sgemm", "[sgemm]") {
+CATCH_TEST_CASE("test lymath_sgemm", "[lymath][sgemm]") {
   int (*pshape)[3];
   
   for (pshape = &gemmTestShapes[0]; **pshape != 0; ++pshape) {

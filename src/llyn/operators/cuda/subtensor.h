@@ -30,6 +30,7 @@
 #include "llyn/internal/tensor_shape.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 struct Size {
@@ -140,5 +141,6 @@ class PackedSubtensor<T, 1> : public PackedSubtensorBase<T, 1> {
   }
 };
 
-}  // namespace cuda
-}  // namespace cuda
+}  // cuda
+}  // op
+}  // llyn

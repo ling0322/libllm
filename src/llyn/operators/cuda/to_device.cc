@@ -30,10 +30,10 @@
 
 using llyn::internal::TensorData;
 using llyn::internal::TensorShape;
-using llyn::internal::CpuTensorData;
-using llyn::internal::CudaTensorData;
+using llyn::op::cpu::CpuTensorData;
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 template<Device::Type DEVICE>
@@ -131,4 +131,5 @@ Tensor toDevice(const Tensor &tensor, Device device) {
 }
 
 }  // cuda
+}  // op
 }  // llyn

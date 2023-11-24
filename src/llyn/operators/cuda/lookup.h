@@ -22,6 +22,7 @@
 #include "llyn/tensor.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
 
 Tensor lookup2DHalf(const Tensor &embdTable, const Tensor &input);
@@ -31,5 +32,6 @@ Tensor lookup(const Tensor &embdTable, const Tensor &input);
 
 
 }  // cuda
+}  // op
 }  // llyn
 

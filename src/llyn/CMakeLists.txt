@@ -20,15 +20,6 @@ set(llyn_SOURCES
     "operators/cpu/swiglu.cc"
     "operators/cpu/tensor.cc"
     "operators/cpu/view.cc"
-    "operators/cuda/cast.cu"
-    "operators/cuda/copy.cu"
-    "operators/cuda/create_tensor.cc"
-    "operators/cuda/cuda_common.cc"
-    "operators/cuda/cuda_operators.cc"
-    "operators/cuda/cuda_tensor_data.cc"
-    "operators/cuda/cudnn_operators.cc"
-    "operators/cuda/lookup.cu"
-    "operators/cuda/to_device.cc"
     "internal/tensor_data.cc"
     "internal/tensor_shape.cc"
     "nn/embedding.cc"
@@ -43,25 +34,32 @@ set(llyn_SOURCES
     "state_map.cc"
     "tensor.cc")
 
-set(llyn_INCDIR ..)
-
-if(CUDAToolkit_FOUND)
-  set(llyn_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_ROOT}/include)
-endif()
-
 add_library(llyn STATIC ${llyn_SOURCES} )
-target_include_directories(llyn PRIVATE ${llyn_INCDIR})
+target_include_directories(llyn PRIVATE ..)
 target_compile_features(llyn PRIVATE cxx_std_14)
 target_link_libraries(llyn lymath lyutil)
 target_link_options(llyn PUBLIC "-fopenmp")
 
-set(cudnn_LIBRARIES
-    "${CUDNN_ROOT}/lib/libcudnn_ops_infer_static.a")
+set(cudnn_LIBRARIES "${CUDNN_ROOT}/lib/libcudnn_ops_infer_static.a")
 
-set(llyn_cuda_test_SOURCES
+if(CUDAToolkit_FOUND)
+    set(llynextcuda_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_ROOT}/include)
+endif()
+
+set(llynextcuda_SOURCES
+    "operators/cuda/cast.cu"
+    "operators/cuda/copy.cu"
+    "operators/cuda/create_tensor.cc"
+    "operators/cuda/cuda_common.cc"
+    "operators/cuda/cuda_operators.cc"
+    "operators/cuda/cuda_tensor_data.cc"
+    "operators/cuda/cudnn_operators.cc"
+    "operators/cuda/lookup.cu"
+    "operators/cuda/to_device.cc")
+add_library(llynextcuda STATIC ${llynextcuda_SOURCES})
+target_include_directories(llynextcuda PRIVATE .. ${llynextcuda_INCDIR})
+target_compile_features(llynextcuda PRIVATE cxx_std_14)
+
+set(llyn_test_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc"
-    "${CMAKE_CURRENT_LIST_DIR}/../../third_party/catch2/catch_amalgamated.cpp")
-add_executable(llyn_cuda_test
-    ${llyn_cuda_test_SOURCES})
-target_link_libraries(llyn_cuda_test llyn lymath lyutil ${cudnn_LIBRARIES} CUDA::cudart_static CUDA::cublas_static)
-target_include_directories(llyn_cuda_test PRIVATE .. ../.. ../third_party)
+    PARENT_SCOPE)

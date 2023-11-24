@@ -25,9 +25,10 @@
 #include "llyn/internal/tensor_data.h"
 
 namespace llyn {
-namespace internal {
+namespace op {
+namespace cpu {
 
-class CpuTensorData : public TensorData {
+class CpuTensorData : public internal::TensorData {
  public:
   static std::shared_ptr<TensorData> create(int64_t numel0, DType dtype0);
   static std::shared_ptr<TensorData> create(ly::Span<const std::pair<int64_t, DType>> slots);
@@ -43,10 +44,10 @@ class CpuTensorData : public TensorData {
 
   Device getDevice() const override;
   int getNumSlot() const override;
-  const SlotBase *getSlot(int slot) const override;
+  const internal::SlotBase *getSlot(int slot) const override;
 
  private:
-  struct Slot : public SlotBase {
+  struct Slot : public internal::SlotBase {
     Byte *data;
     int64_t numel;
     DType dtype;
@@ -64,5 +65,6 @@ class CpuTensorData : public TensorData {
   void readSlot(ly::ReadableFile *fp, int slotIdx);
 };
 
-}  // namespace internal
+}  // namespace cpu
+}  // namespace op
 }  // namespace llyn

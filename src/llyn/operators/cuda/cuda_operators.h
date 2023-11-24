@@ -20,10 +20,12 @@
 #pragma once
 
 #include "llyn/operators/operators.h"
-#include "llyn/operators/cuda/cudnn_operators.h"
 
 namespace llyn {
+namespace op {
 namespace cuda {
+
+class CudnnOperators;
 
 /// @brief Implementation of Operator interface with cuda device.
 class CudaOperators : public internal::Operators {
@@ -65,4 +67,7 @@ class CudaOperators : public internal::Operators {
 };
 
 }  // cuda
+}  // op
 }  // llyn
+
+llyn::internal::Operators *llynCreateCudaOperators();

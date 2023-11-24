@@ -32,7 +32,7 @@ Tensor tensor(ly::Span<const int> shape, DType dtype) {
   auto tensorShape = std::make_shared<internal::TensorShape>(ly::makeConstSpan(shape));
 
   int64_t numel = tensorShape->getNumEl();
-  auto tensorData = internal::CpuTensorData::create(numel, dtype);
+  auto tensorData = CpuTensorData::create(numel, dtype);
 
   return Tensor::create(tensorShape, tensorData);
 }
