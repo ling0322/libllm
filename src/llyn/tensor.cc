@@ -21,8 +21,8 @@
 
 #include <stdlib.h>
 #include <limits>
-#include "llyn/cpu/view.h"
-#include "llyn/internal/cpu_tensor_data.h"
+#include "llyn/operators/cpu/view.h"
+#include "llyn/operators/cpu/cpu_tensor_data.h"
 #include "lyutil/error.h"
 #include "lyutil/strings.h"
 
@@ -111,7 +111,7 @@ void Tensor::read(ly::ReadableFile *fp) {
 }
 
 Tensor Tensor::view(ly::Span<const int> shape) const {
-  return cpu::view(*this, shape);
+  return op::cpu::view(*this, shape);
 }
 
 Tensor Tensor::expand(ly::Span<const int> shape) const {

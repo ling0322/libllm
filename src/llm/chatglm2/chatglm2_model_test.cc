@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "catch2/catch_amalgamated.hpp"
-#include "llyn/util.h"
 #include "lyutil/ini_config.h"
 #include "lyutil/strings.h"
 #include "lyutil/time.h"
@@ -33,8 +32,6 @@ using llyn::Context;
 using llyn::LongType;
 using llyn::StateMap;
 using llyn::Tensor;
-using llyn::getCtxForCPU;
-using llyn::readParameters;
 using libllm::GenerationConfig;
 using libllm::Generator;
 using libllm::chatglm2::ChatGLM2Config;
@@ -45,7 +42,7 @@ using lytok::Tokenizer;
 namespace F = llyn::functional;
 
 std::shared_ptr<ChatGLM2ModelForGeneration> readModel(const std::string &iniPath) {
-  Context ctx = getCtxForCPU();
+  Context ctx = Context::getCpu();
   auto ini = ly::IniConfig::read(iniPath);
   return ChatGLM2ModelForGeneration::create(ctx, *ini);
 }

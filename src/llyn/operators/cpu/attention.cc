@@ -17,39 +17,33 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "llyn/operators/cpu/attention.h"
 
-#include <string>
-#include "llyn/device.h"
+#include <math.h>
+#include "llyn/functional.h"
+#include "llyn/operators/cpu/mul.h"
+#include "lyutil/time.h"
 
 namespace llyn {
+namespace op {
+namespace cpu {
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  static Context getCpu();
+namespace F = llyn::functional;
 
-  // default constructor (root context).
-  Context();
+Tensor attention(const Tensor &q, const Tensor &k, const Tensor &v, const Tensor &mask) {
+  Tensor scores = F::matmul(q, k.transpose(-2, -1));
+  scores = mul(scores,  1.0f / sqrtf(1.0f * q.getShape(-1)));
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
+  if (!mask.empty()) {
+    scores = F::add(scores, mask);
+  }
 
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
+  scores = F::softmax(scores);
+  Tensor outputs = F::matmul(scores, v);  
 
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
+  return outputs;
+}
 
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
-};
-
-}  // namespace llyn
+}  // cpu
+}  // op
+}  // llyn

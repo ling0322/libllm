@@ -19,37 +19,37 @@
 
 #pragma once
 
-#include <string>
-#include "llyn/device.h"
+#include <cuda_fp16.h>
+#include "llyn/operators/cuda/cuda_common.h"
 
 namespace llyn {
+namespace cuda {
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  static Context getCpu();
+constexpr int GroupSizeQ4 = 32;
 
-  // default constructor (root context).
-  Context();
+__device__ inline void dequantQ4ToHalf(
+    int n,
+    const uint8_t *data,
+    const half *pscale,
+    const int8_t *pzeroPoint,
+    half *tgt) {
+  int nb = n / GroupSizeQ4;
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
+  const uint8_t *psrc;
+  half *ptgt = tgt;
 
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
+  for (int j = 0; j < nb; ++j) {
+    int zeroPoint = pzeroPoint[j];
+    half scale = pscale[j];
 
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
+    #pragma unroll
+    for (int i = 0; i < GroupSizeQ4; ++i) {
+      *ptgt++ = scale * __int2half_rd(static_cast<int>(*psrc >> 4) - zeroPoint);
+      *ptgt++ = scale * __int2half_rd(static_cast<int>(*psrc & 0xf) - zeroPoint);
+      ++psrc;
+    }
+  }
+}
 
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
-};
-
-}  // namespace llyn
+}  // cuda
+}  // llyn

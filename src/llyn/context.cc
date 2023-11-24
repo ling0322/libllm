@@ -19,9 +19,17 @@
 
 #include "llyn/context.h"
 
+#include "llyn/device.h"
 #include "lyutil/log.h"
 
 namespace llyn {
+
+Context Context::getCpu() {
+  Context ctx;
+  ctx.setDevice(Device::createForCPU());
+
+  return ctx;
+}
 
 Context::Context() {}
 

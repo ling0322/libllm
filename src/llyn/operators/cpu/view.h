@@ -19,37 +19,26 @@
 
 #pragma once
 
-#include <string>
-#include "llyn/device.h"
+#include "llyn/tensor.h"
+#include "llyn/operators/cpu/subtensor.h"
+#include "lyutil/span.h"
 
 namespace llyn {
+namespace op {
+namespace cpu {
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  static Context getCpu();
+Tensor view(const Tensor &src, ly::Span<const int> view);
 
-  // default constructor (root context).
-  Context();
+// infer the -1 dimension in view.
+std::vector<Tensor::ShapeType> getRealShape(int64_t numEl, ly::Span<const int> view);
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
+// infer the stride for new view, according to the original stride.
+std::vector<internal::TensorShape::Elem> getViewShapeStride(
+    const Tensor &src, ly::Span<const int> view);
 
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
+// merge contiguous dimensions in the shape of `src`.
+std::vector<internal::TensorShape::Elem> mergeContigShape(const Tensor &src);
 
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
-};
-
-}  // namespace llyn
+}  // cpu
+}  // op
+}  // llyn

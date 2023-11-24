@@ -17,39 +17,20 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "llyn/operators/cuda/create_tensor.h"
 
-#include <string>
-#include "llyn/device.h"
+#include "llyn/operators/cuda/cuda_common.h"
 
 namespace llyn {
+namespace cuda {
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  static Context getCpu();
+Tensor tensorLike(const Tensor &tensor) {
+  if (tensor.getDType() == DType::kFloat16) return createCudaTensorHalf(tensor.getShape());
+  if (tensor.getDType() == DType::kLong) return createCudaTensorLong(tensor.getShape());
 
-  // default constructor (root context).
-  Context();
+  NOT_IMPL();
+}
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
+}  // cuda
+}  // llyn
 
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
-
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
-};
-
-}  // namespace llyn

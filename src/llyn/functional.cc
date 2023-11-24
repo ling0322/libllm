@@ -21,7 +21,7 @@
 
 #include "lyutil/error.h"
 #include "lyutil/strings.h"
-#include "llyn/internal/operators.h"
+#include "llyn/operators/operators.h"
 
 namespace llyn {
 namespace functional {

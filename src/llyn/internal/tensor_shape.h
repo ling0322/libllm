@@ -86,6 +86,8 @@ class TensorShape {
   int getRealDim(int dim) const;
   int getRealIndex(int dim, int index) const;
 
+  ly::Span<const Elem> getData_() const { return ly::makeConstSpan(_data); }
+
   std::string toString() const;
 
  private:

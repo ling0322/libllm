@@ -19,37 +19,19 @@
 
 #pragma once
 
-#include <string>
-#include "llyn/device.h"
+#include "llyn/tensor.h"
+#include "llyn/operators/cpu/subtensor.h"
 
 namespace llyn {
+namespace op {
+namespace cpu {
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  static Context getCpu();
+Tensor mul(const Tensor &A, float k);
+Tensor mul(const Tensor &A, const Tensor &B);
 
-  // default constructor (root context).
-  Context();
+Tensor mulFp32(Subtensor<const float> A, float k);
+Tensor mulFp32(Subtensor<const float> A, Subtensor<const float> B);
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
-
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
-
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
-};
-
-}  // namespace llyn
+}  // cpu
+}  // op
+}  // llyn

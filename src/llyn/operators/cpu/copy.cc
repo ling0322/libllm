@@ -17,39 +17,41 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "llyn/operators/cpu/copy.h"
 
-#include <string>
-#include "llyn/device.h"
+#include "llyn/operators/cpu/subtensor.h"
+#include "llyn/operators/cpu/subtensor_list.h"
+#include "llyn/operators/cpu/tensor.h"
 
 namespace llyn {
+namespace op {
+namespace cpu {
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  static Context getCpu();
+void copyFp32(Subtensor<const float> src, Subtensor<float> tgt) {
+  SubtensorList<const float> vAs = getVectorList(src);
+  SubtensorList<float> vCs = getVectorList(tgt);
+  CHECK(vAs.getSize() == vCs.getSize() && vAs.getShape(0) == vCs.getShape(0));
 
-  // default constructor (root context).
-  Context();
+  #pragma omp parallel for
+  for (int j = 0; j < vAs.getSize(); ++j) {
+    Subtensor<const float> vA = vAs.getSubtensor(j);
+    Subtensor<float> vC = vCs.getSubtensor(j);
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
+    for (int i = 0; i < vA.dimension(0); ++i) {
+      vC.elem(i) = vA.elem(i);
+    }
+  }
+}
 
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
+void copy(const Tensor &src, Tensor &dest) {
+  if (src.getDType() == DType::kFloat) {
+    copyFp32(Subtensor<const float>::fromTensor(src), Subtensor<float>::fromTensor(dest));
+    return;
+  }
+  
+  NOT_IMPL();
+}
 
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
-
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
-};
-
-}  // namespace llyn
+}  // cpu
+}  // op
+}  // llyn

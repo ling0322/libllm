@@ -19,37 +19,47 @@
 
 #pragma once
 
-#include <string>
-#include "llyn/device.h"
+#include "llyn/tensor.h"
+#include "llyn/operators/cpu/subtensor.h"
 
 namespace llyn {
+namespace op {
+namespace cpu {
 
-// context for a module including operator set, device info and the namespace
-class Context {
- public:
-  static Context getCpu();
 
-  // default constructor (root context).
-  Context();
+Tensor matmulFp32(const Tensor &A, const Tensor &B);
 
-  // join two names or namespaces.
-  static std::string joinName(const std::string &left, const std::string &right);
+Tensor bmmFp32(const Tensor &A, const Tensor &B);
+Tensor bmmNx2Fp32(const Tensor &A, const Tensor &B);
+Tensor gemmFp32(const Tensor &A, const Tensor &B);
 
-  // return a copy of this context with a new name under current context namespace.
-  Context withName(const std::string &name) const;
+// q4sym
+Tensor matmulFp32Q4SymFp32(const Tensor &A, const Tensor &B);
+Tensor gemmFp32Q4SymFp32(const Tensor &A, const Tensor &B);
+Tensor bmmNx2Fp32Q4SymFp32(const Tensor &A, const Tensor &B);
 
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
-  std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
+// q4
+Tensor matmulFp32Q4Fp32(const Tensor &A, const Tensor &B);
+Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B);
+Tensor bmmNx2Fp32Q4Fp32(const Tensor &A, const Tensor &B);
 
-  // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
-
- private:
-  std::string _ns;
-  Device _device;
+struct GEMMArgs {
+  bool transA;
+  bool transB;
+  int M;
+  int N;
+  int K;
+  int lda;
+  int ldb;
+  int ldc;
 };
 
-}  // namespace llyn
+std::vector<int> getBmmOutputShape(const Tensor &A, const Tensor &B);
+
+// generate GEMMArgs from the input tensor A, B and output tensor C. dimensions of A could be
+// greater than 2 (for BMM). throw exception if shape mismatch.
+GEMMArgs generateGemmArgs(const Tensor &A, const Tensor &B, const Tensor &C);
+
+}  // cpu
+}  // op
+}  // llyn

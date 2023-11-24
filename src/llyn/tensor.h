@@ -107,11 +107,6 @@ class Tensor {
   /// @return the device.
   Device getDevice() const { return _data->getDevice(); }
 
-  /// @brief Get offset from the data in getDataObject(). Note: this is a low level function
-  /// designed for internal operators only.
-  /// @return data offset.
-  int64_t getOffset_() const { return _offset; }
-
   // Get a new view of the tensor..
   Tensor view(ly::Span<const int> shape) const;
 
@@ -140,20 +135,19 @@ class Tensor {
 
   // pointer of data in this tensor
   template<typename T>
-  T *getData() { 
-    return _data->getData<T>(_offset);
-  }
+  T *getData() {  return _data->getData<T>(_offset); }
   template<typename T>
-  const T *getData() const {
-    return _data->getData<T>(_offset);
-  }
-
-  // get the internal TensorData object.
-  const internal::TensorData *getDataObject() const { return _data.get(); }
+  const T *getData() const { return _data->getData<T>(_offset); }
 
   // Check the shape of a tensor. If shape of `tensor` does not match `shape`, return AbortedError
   // with message "invalid shape".
   void throwIfInvalidShape(ly::Span<const int> shape) const;
+
+  // low-level functions. DO NOT use them outside llyn.
+  const internal::TensorData *getDataObject() const { return _data.get(); }
+  const internal::TensorShape *getShape_() const { return _shape.get(); }
+  std::shared_ptr<internal::TensorData> getDataShared_() const { return _data; }
+  int64_t getOffset_() const { return _offset; }
 
  protected:
   std::shared_ptr<internal::TensorData> _data;

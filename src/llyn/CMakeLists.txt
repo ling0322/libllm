@@ -6,30 +6,29 @@ if (OPENMP_FOUND)
 endif()
 
 set(llyn_SOURCES
-    "cpu/apply_rotary_pos_emb.cc"
-    "cpu/attention.cc"
-    "cpu/cat.cc"
-    "cpu/copy.cc"
-    "cpu/cpu_operators.cc"
-    "cpu/internal.cc"
-    "cpu/lookup.cc"
-    "cpu/matmul.cc"
-    "cpu/mul.cc"
-    "cpu/print.cc"
-    "cpu/swiglu.cc"
-    "cpu/tensor.cc"
-    "cpu/view.cc"
-    "cuda/cast.cu"
-    "cuda/copy.cu"
-    "cuda/create_tensor.cc"
-    "cuda/cuda_common.cc"
-    "cuda/cuda_operators.cc"
-    "cuda/cudnn_operators.cc"
-    "cuda/lookup.cu"
-    "cuda/to_device.cc"
-    "internal/cpu_tensor_data.cc"
-    "internal/cuda_tensor_data.cc"
-    "internal/operators.cc"
+    "operators/operators.cc"
+    "operators/cpu/apply_rotary_pos_emb.cc"
+    "operators/cpu/attention.cc"
+    "operators/cpu/cat.cc"
+    "operators/cpu/copy.cc"
+    "operators/cpu/cpu_operators.cc"
+    "operators/cpu/cpu_tensor_data.cc"
+    "operators/cpu/lookup.cc"
+    "operators/cpu/matmul.cc"
+    "operators/cpu/mul.cc"
+    "operators/cpu/print.cc"
+    "operators/cpu/swiglu.cc"
+    "operators/cpu/tensor.cc"
+    "operators/cpu/view.cc"
+    "operators/cuda/cast.cu"
+    "operators/cuda/copy.cu"
+    "operators/cuda/create_tensor.cc"
+    "operators/cuda/cuda_common.cc"
+    "operators/cuda/cuda_operators.cc"
+    "operators/cuda/cuda_tensor_data.cc"
+    "operators/cuda/cudnn_operators.cc"
+    "operators/cuda/lookup.cu"
+    "operators/cuda/to_device.cc"
     "internal/tensor_data.cc"
     "internal/tensor_shape.cc"
     "nn/embedding.cc"
@@ -42,8 +41,7 @@ set(llyn_SOURCES
     "functional.cc"
     "llyn.cc"
     "state_map.cc"
-    "tensor.cc"
-    "util.cc")
+    "tensor.cc")
 
 set(llyn_INCDIR ..)
 
@@ -61,7 +59,7 @@ set(cudnn_LIBRARIES
     "${CUDNN_ROOT}/lib/libcudnn_ops_infer_static.a")
 
 set(llyn_cuda_test_SOURCES
-    "${CMAKE_CURRENT_LIST_DIR}/cuda/test.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc"
     "${CMAKE_CURRENT_LIST_DIR}/../../third_party/catch2/catch_amalgamated.cpp")
 add_executable(llyn_cuda_test
     ${llyn_cuda_test_SOURCES})
