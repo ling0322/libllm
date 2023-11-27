@@ -221,7 +221,7 @@ float DotQ4SymAvx2Kernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY) {
   PCFp32 px = x;
   PCQ4x2 py = y;
   for (int i = 0; i < nb; ++i) {
-#ifdef LL_MSVC
+#if LL_MSVC
     float scale = lymath_cvtsh_ss(*scaleY);
 #else
     float scale = _mm_cvtsh_ss(*scaleY);
@@ -299,7 +299,7 @@ float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCInt
   PCQ4x2 py = y;
   PCInt8 pyzp = zpY;
   for (int i = 0; i < nb; ++i) {
-#ifdef LL_MSVC
+#if LL_MSVC
     ymmScale = _mm256_set1_ps(lymath_cvtsh_ss(*scaleY));
 #else
     ymmScale = _mm256_set1_ps(_cvtsh_ss(*scaleY));
@@ -396,7 +396,7 @@ void AxpyQ4SymAvx2Kernel::apply(
   const Fp16 *pxscale = scaleX;
   float *py = y;
   for (int i = 0; i < nb; ++i) {
-#ifdef LL_MSVC
+#if LL_MSVC
     scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(*pxscale));
 #else
     scalev8 = _mm256_set1_ps(_cvtsh_ss(*pxscale));
@@ -505,7 +505,7 @@ void AxpyQ4Avx2Kernel::apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCInt8
   PCInt8 pxzp = zpX;
   PFp32 py = y;
   for (int i = 0; i < nb; ++i) {
-#ifdef LL_MSVC
+#if LL_MSVC
     scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(*pxscale));
 #else
     scalev8 = _mm256_set1_ps(_cvtsh_ss(*pxscale));
@@ -583,7 +583,7 @@ void DequantQ4SymAvx2Knl::apply(int n, PCQ4x2 src, PCFp16 scale, PFp32 tgt) {
   PCFp16 pxscale = scale;
   PFp32 py = tgt;
   for (int i = 0; i < nb; ++i) {
-#ifdef LL_MSVC
+#if LL_MSVC
     scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(*pxscale));
 #else
     scalev8 = _mm256_set1_ps(_cvtsh_ss(*pxscale));
@@ -644,7 +644,7 @@ void DequantQ4Avx2Kernel::apply(int n, PCQ4x2 src, PCFp16 scale, PCInt8 zero, PF
   PFp32 py = tgt;
   PCInt8 pzp = zero;
   for (int i = 0; i < nb; ++i) {
-#ifdef LL_MSVC
+#if LL_MSVC
     scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(*pxscale));
 #else
     scalev8 = _mm256_set1_ps(_cvtsh_ss(*pxscale));
