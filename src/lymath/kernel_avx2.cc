@@ -224,7 +224,7 @@ float DotQ4SymAvx2Kernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY) {
 #if LL_MSVC
     float scale = lymath_cvtsh_ss(*scaleY);
 #else
-    float scale = _mm_cvtsh_ss(*scaleY);
+    float scale = _cvtsh_ss(*scaleY);
 #endif
     ymmScale = _mm256_set1_ps(scale);
   
