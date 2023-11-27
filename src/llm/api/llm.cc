@@ -90,7 +90,7 @@ T runAndCatch(std::function<T()> &&c, T default_value) {
 LL_STATUS llm_init() {
   if (!gInitialized.exchange(true)) {
     try {
-      ly::setLogLevel(ly::LogSeverity::INFO);
+      ly::setLogLevel(ly::LogSeverity::kINFO);
       llyn::init();
 
       LOG(INFO) << "OMP max_threads = " << omp_get_max_threads();

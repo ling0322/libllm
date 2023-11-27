@@ -210,7 +210,7 @@ void DequantInt8BFallbackKernel::apply(
     int64_t begin = i == 0 ? hBegin : 0;
     int64_t end = i == nb - 1 ? tEnd : Int8bScaleGroupSize;
     assert(end - begin > 0);
-    for (int j = begin; j < end; ++j) {
+    for (int64_t j = begin; j < end; ++j) {
       *ptgt++ = scale * (*pdata++) + zeroPoint;
     }
   }

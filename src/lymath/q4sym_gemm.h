@@ -62,7 +62,7 @@ class QGemmNQNInt4AImpl : public QGemmNQNInt4A {
       ly::c_ptr<float> B = salloc(numelB);
       DequantQ4SymImpl().apply(numelB, args.B, args.scaleB, B.get());
 
-      int64_t ldb = args.transB ? args.K : args.N;
+      int ldb = args.transB ? args.K : args.N;
       TGEMMKernel().apply(
           args.transA,
           args.transB,

@@ -21,7 +21,11 @@
 
 #include <stdint.h>
 
+#if defined(_WIN32)
+#define LLMAPI __declspec(dllexport)
+#else
 #define LLMAPI
+#endif
 
 typedef int32_t LL_STATUS;
 typedef int32_t LL_BOOL;

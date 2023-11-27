@@ -55,30 +55,30 @@ class LogWrapper {
 };
 
 // log wrappers for each severity
-class LogWrapperDEBUG : public LogWrapper {
+class LogWrapperkDEBUG : public LogWrapper {
  public:
-  LogWrapperDEBUG(const char *source_file, int source_line) : 
-      LogWrapper(LogSeverity::DEBUG, source_file, source_line) {}
+  LogWrapperkDEBUG(const char *source_file, int source_line) : 
+      LogWrapper(LogSeverity::kDEBUG, source_file, source_line) {}
 };
-class LogWrapperINFO : public LogWrapper {
+class LogWrapperkINFO : public LogWrapper {
  public:
-  LogWrapperINFO(const char *source_file, int source_line) : 
-      LogWrapper(LogSeverity::INFO, source_file, source_line) {}
+  LogWrapperkINFO(const char *source_file, int source_line) : 
+      LogWrapper(LogSeverity::kINFO, source_file, source_line) {}
 };
-class LogWrapperWARN : public LogWrapper {
+class LogWrapperkWARN : public LogWrapper {
  public:
-  LogWrapperWARN(const char *source_file, int source_line) : 
-      LogWrapper(LogSeverity::WARN, source_file, source_line) {}
+  LogWrapperkWARN(const char *source_file, int source_line) : 
+      LogWrapper(LogSeverity::kWARN, source_file, source_line) {}
 };
-class LogWrapperERROR : public LogWrapper {
+class LogWrapperkERROR : public LogWrapper {
  public:
-  LogWrapperERROR(const char *source_file, int source_line) : 
-      LogWrapper(LogSeverity::ERROR, source_file, source_line) {}
+  LogWrapperkERROR(const char *source_file, int source_line) : 
+      LogWrapper(LogSeverity::kERROR, source_file, source_line) {}
 };
-class LogWrapperFATAL : public LogWrapper {
+class LogWrapperkFATAL : public LogWrapper {
  public:
-  LogWrapperFATAL(const char *source_file, int source_line) : 
-      LogWrapper(LogSeverity::FATAL, source_file, source_line) {}
+  LogWrapperkFATAL(const char *source_file, int source_line) : 
+      LogWrapper(LogSeverity::kFATAL, source_file, source_line) {}
 };
 
 }  // namespace internal
