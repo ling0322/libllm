@@ -48,7 +48,7 @@ class TensorData {
 
   // slot0
   template<int SLOT, typename T>
-  T *getData(int offset = 0) const;
+  T *getData(int64_t offset = 0) const;
 
   DType getDType() const { return _slots[0].dtype; }
   int64_t getNumEl() const { return _slots[0].numel; }
@@ -78,7 +78,7 @@ class TensorData {
 };
 
 template<int SLOT, typename T>
-T *TensorData::getData(int offset) const {
+T *TensorData::getData(int64_t offset) const {
   CHECK(_numSlot > SLOT && DType::getType<T>() == _slots[SLOT].dtype);
   return reinterpret_cast<T *>(_slots[SLOT].data + _slots[SLOT].dtype.getTotalSize(offset));
 }

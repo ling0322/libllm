@@ -24,6 +24,9 @@ endif()
 add_library(lymath STATIC ${lymath_SOURCES} )
 target_include_directories(lymath PRIVATE .. ../..)
 target_compile_features(lymath PRIVATE cxx_std_14)
+if(WIN32)
+  target_compile_definitions(lymath PUBLIC  "/openmp")
+endif(WIN32)
 
 if (ENABLE_MKL)
     add_definitions("-DMKL_ENABLED")
@@ -48,5 +51,7 @@ target_link_libraries(lymath_test
     lymath
     lyutil
     OpenMP::OpenMP_CXX)
+if(UNIX)
+  target_link_options(lymath_test PUBLIC "-fopenmp")
+endif(UNIX)
 
-target_link_options(lymath_test PUBLIC "-fopenmp")

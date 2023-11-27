@@ -49,11 +49,11 @@ ChatGLM2Config ChatGLM2Config::loadConfig(const ly::IniConfig &ini) {
   config.hiddenSizePerAttentionHead = section.getInt("hidden_size_per_attention_head");
   config.multiQueryGroupNum = section.getInt("multi_query_group_num");
   config.normEps = section.getFloat("norm_eps");
-  config.ffnHiddenSize = section.getFloat("ffn_hidden_size");
-  config.numLayers = section.getFloat("num_layers");
-  config.symbolGMask = section.getFloat("symbol_gmask");
-  config.symbolSOP = section.getFloat("symbol_sop");
-  config.symbolEOS = section.getFloat("symbol_eos");
+  config.ffnHiddenSize = section.getInt("ffn_hidden_size");
+  config.numLayers = section.getInt("num_layers");
+  config.symbolGMask = section.getInt("symbol_gmask");
+  config.symbolSOP = section.getInt("symbol_sop");
+  config.symbolEOS = section.getInt("symbol_eos");
 
   return config;
 }

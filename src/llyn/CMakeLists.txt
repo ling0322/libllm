@@ -39,7 +39,12 @@ add_library(llyn STATIC ${llyn_SOURCES} )
 target_include_directories(llyn PRIVATE .. ${MKL_PREFIX}/include)
 target_compile_features(llyn PRIVATE cxx_std_14)
 target_link_libraries(llyn lymath lyutil)
-target_link_options(llyn PUBLIC "-fopenmp")
+if(WIN32)
+  target_compile_definitions(llyn PUBLIC  "/openmp")
+endif(WIN32)
+if(UNIX)
+  target_link_options(llyn PUBLIC "-fopenmp")
+endif(UNIX)
 
 set(llyn_test_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/internal/operators_test.cc"

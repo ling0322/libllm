@@ -55,7 +55,7 @@ std::vector<Tensor::ShapeType> getRealShape(int64_t numEl, ly::Span<const int> v
 
 std::vector<Shape> mergeContigShape(const Tensor &src) {
   std::vector<Shape> mergedShape;
-  for (int64_t d = src.getDim() - 1; d >= 0; --d) {
+  for (int d = src.getDim() - 1; d >= 0; --d) {
     CHECK(src.getStride(d) != 0) << "unable to change view of expanded tensor.";
 
     if (d == src.getDim() - 1) {

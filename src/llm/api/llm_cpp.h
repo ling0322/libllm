@@ -34,9 +34,9 @@ class Completion;
 class CompletionConfig {
  public:
   CompletionConfig() :
-      _topP(0.8),
+      _topP(0.8f),
       _topK(50),
-      _temperature(1.0) {}
+      _temperature(1.0f) {}
 
   // setters for the config.
   void setTopP(float topP) { _topP = topP; }
@@ -46,7 +46,7 @@ class CompletionConfig {
   // getters for the config.
   float getTopP() const { return _topP; }
   int getTopK() const { return _topK; }
-  int getTemperature() const { return _temperature; }
+  float getTemperature() const { return _temperature; }
 
   // gets the instance of C-API llm_compl_opt_t object.
   std::shared_ptr<llm_compl_opt_t> getInternalOption();
