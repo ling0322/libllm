@@ -7,6 +7,7 @@ endif()
 
 set(llyn_SOURCES
     "operators/operators.cc"
+    "operators/common/common.cc"
     "operators/common/matmul.cc"
     "operators/cpu/apply_rotary_pos_emb.cc"
     "operators/cpu/attention.cc"

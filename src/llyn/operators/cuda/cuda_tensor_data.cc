@@ -26,6 +26,7 @@
 #include "lyutil/platform.h"
 #include "lyutil/span.h"
 #include "lyutil/strings.h"
+#include "llyn/operators/cuda/common.h"
 
 namespace llyn {
 namespace op {
@@ -64,9 +65,7 @@ std::shared_ptr<internal::TensorData> CudaTensorData::create(
     CHECK(numel > 0);
     int64_t size = dtype.getTotalSize(numel);
     void *data = nullptr;
-    cudaError_t err = cudaMalloc(&data, size);
-    if (err != cudaSuccess)
-      throw ly::AbortedError(ly::sprintf("cudaMalloc failed with code %d", err));
+    LL_CHECK_CUDA_STATUS(cudaMalloc(&data, size));
 
     tensorData->_slots[tensorData->_numSlot].data = reinterpret_cast<Byte *>(data);
     tensorData->_slots[tensorData->_numSlot].numel = numel;
@@ -81,7 +80,7 @@ std::shared_ptr<internal::TensorData> CudaTensorData::create(
 CudaTensorData::~CudaTensorData() {
   for (int i = 0; i < _numSlot; ++i) {
     if (_slots[i].data) {
-      cudaFree(_slots[i].data);
+      llynCudaFree(_slots[i].data);
       _slots[i].data = nullptr;
     }
   }

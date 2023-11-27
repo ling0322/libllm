@@ -53,7 +53,7 @@ Tensor castFloatToHalf(const Tensor &tensor) {
   constexpr int blockSize = 256;
   int64_t nb = (numel + blockSize - 1) / blockSize;
   castFloatToHalfKernel<<<nb, blockSize>>>(numel, src, dest);
-  checkCudaError(cudaGetLastError());
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return tgtTensor;
 }
@@ -69,7 +69,7 @@ Tensor castHalfToFloat(const Tensor &tensor) {
   constexpr int blockSize = 256;
   int64_t nb = (numel + blockSize - 1) / blockSize;
   castHalfToFloatKernel<<<nb, blockSize>>>(numel, src, dest);
-  checkCudaError(cudaGetLastError());
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return tgtTensor;
 }

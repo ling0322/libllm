@@ -19,34 +19,14 @@
 
 #pragma once
 
-#include <cublas_v2.h>
 #include "llyn/tensor.h"
-#include "llyn/operators/cuda/common.h"
 
 namespace llyn {
 namespace op {
-namespace cuda {
+namespace common {
 
-/// @brief Operators implemented by cuBLAS.
-class MatMul {
- public:
-  static std::shared_ptr<MatMul> create();
+Tensor broadcastTensor(const Tensor &input, const Tensor &ref);
 
-  Tensor apply(const Tensor &A, const Tensor &B);
-
- private:
-  auto_handle<cublasHandle_t> _handle;
-
-  static void safeDestroyCublas(cublasHandle_t handle);
-
-  Tensor matmulHalf(const Tensor &A, const Tensor &B);
-  Tensor gemmHalf(const Tensor &A, const Tensor &B);
-  Tensor bmmHalf(const Tensor &A, const Tensor &B);
-  Tensor bmmToGemmHalf(const Tensor &A, const Tensor &B);
-
-  std::vector<const half *> getBatch(const Tensor &A, int nBatchDim);
-};
-
-}  // cuda
+}  // commoon
 }  // op
 }  // llyn

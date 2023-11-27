@@ -17,36 +17,37 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
-
-#include <cublas_v2.h>
-#include "llyn/tensor.h"
-#include "llyn/operators/cuda/common.h"
+#include "llyn/operators/common/common.h"
 
 namespace llyn {
 namespace op {
-namespace cuda {
+namespace common {
 
-/// @brief Operators implemented by cuBLAS.
-class MatMul {
- public:
-  static std::shared_ptr<MatMul> create();
+Tensor broadcastTensor(const Tensor &input, const Tensor &ref) {
+  if (input.getDim() == ref.getDim()) return input;
+  int nBroadcastDim = ref.getDim() - input.getDim();
 
-  Tensor apply(const Tensor &A, const Tensor &B);
+  Tensor x = input;
+  std::vector<internal::TensorShape::Elem> broadcastShape;
+  for (int i = 0; i < nBroadcastDim; ++i) {
+    internal::TensorShape::Elem shapeElem;
+    shapeElem.stride = 0;
+    shapeElem.shape = ref.getShape(i);
+    broadcastShape.push_back(shapeElem);
+  }
 
- private:
-  auto_handle<cublasHandle_t> _handle;
+  for (int i = 0; i < input.getDim(); ++i) {
+    internal::TensorShape::Elem shapeElem;
+    shapeElem.stride = input.getStride(i);
+    shapeElem.shape = input.getShape(i);
+    broadcastShape.push_back(shapeElem);
+  }
 
-  static void safeDestroyCublas(cublasHandle_t handle);
+  return Tensor::create(std::make_shared<internal::TensorShape>(broadcastShape),
+                        input.getDataShared_(),
+                        input.getOffset_());
+}
 
-  Tensor matmulHalf(const Tensor &A, const Tensor &B);
-  Tensor gemmHalf(const Tensor &A, const Tensor &B);
-  Tensor bmmHalf(const Tensor &A, const Tensor &B);
-  Tensor bmmToGemmHalf(const Tensor &A, const Tensor &B);
-
-  std::vector<const half *> getBatch(const Tensor &A, int nBatchDim);
-};
-
-}  // cuda
+}  // commoon
 }  // op
 }  // llyn

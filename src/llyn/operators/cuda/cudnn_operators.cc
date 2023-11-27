@@ -37,10 +37,20 @@ namespace cuda {
 
 CudnnOperators::CudnnOperators() : _handle{nullptr, checkDestroy<cudnnHandle_t>(cudnnDestroy)} {}
 
+
+void loggingCallback(cudnnSeverity_t sev, void *udata, const cudnnDebug_t *dbg, const char *msg) {
+  if (sev == CUDNN_SEV_FATAL) LOG(FATAL) << msg;
+  else if (sev == CUDNN_SEV_ERROR) LOG(ERROR) << msg;
+  else if (sev == CUDNN_SEV_WARNING) LOG(WARN) << msg;
+  else if (sev == CUDNN_SEV_INFO) LOG(INFO) << msg;
+  else NOT_IMPL();
+}
+
 std::shared_ptr<CudnnOperators> CudnnOperators::create() {
   std::shared_ptr<CudnnOperators> ops{new CudnnOperators()};
-  CHECK_CUDNN_STATUS(cudnnSetCallback(
-      CUDNN_SEV_INFO_EN | CUDNN_SEV_WARNING_EN | CUDNN_SEV_ERROR_EN, nullptr, nullptr));
+  CHECK_CUDNN_STATUS(cudnnSetCallback(CUDNN_SEV_WARNING_EN | CUDNN_SEV_ERROR_EN,
+                                      nullptr,
+                                      loggingCallback));
   CHECK_CUDNN_STATUS(cudnnCreate(ops->_handle.get_pp()));
 
   
@@ -63,7 +73,10 @@ cudnnDataType_t CudnnOperators::getCudnnDataType(const Tensor &tensor) {
 template<typename T>
 std::function<void(T)> CudnnOperators::checkDestroy(std::function<cudnnStatus_t(T)> destroyFunc) {
   return [destroyFunc](T handle) {
-    CHECK_CUDNN_STATUS((destroyFunc(handle)));
+    cudnnStatus_t status = destroyFunc(handle);
+    if (status != CUDNN_STATUS_SUCCESS) {
+      LOG(ERROR) << "Error while calling destroy function: " << cudnnGetErrorString(status);
+    }
   };
 }
 

@@ -20,6 +20,7 @@
 #include "llyn/operators/cpu/matmul.h"
 
 #include "lyutil/strings.h"
+#include "llyn/operators/common/common.h"
 #include "llyn/operators/common/matmul.h"
 #include "llyn/operators/cpu/subtensor.h"
 #include "llyn/operators/cpu/subtensor_list.h"
@@ -35,18 +36,6 @@ namespace op {
 namespace cpu {
 
 using internal::TensorData;
-
-template<typename T>
-std::vector<T> repeat(ly::Span<const T> v, int n) {
-  std::vector<T> rep;
-  for (int i = 0; i < n; ++i) {
-    for (const T &elem : v) {
-      rep.emplace_back(elem);
-    }
-  }
-
-  return rep;
-}
 
 Tensor matmulFp32(const Tensor &A, const Tensor &B) {
   if (A.getDim() == 2 && B.getDim() == 2) {
@@ -97,23 +86,23 @@ Tensor bmmNx2Fp32(const Tensor &A, const Tensor &B) {
 }
 
 Tensor bmmFp32(const Tensor &A, const Tensor &B) {
-  std::vector<int> shapeC = common::getBmmOutputShape(A, B);
+  Tensor xB = B;
+  if (A.getDim() != B.getDim()) xB = common::broadcastTensor(B, A);
+  std::vector<int> shapeC = common::getBmmOutputShape(A, xB);
 
   Tensor tensorC = cpu::tensor(shapeC, DType::kFloat);
   Subtensor<float> C = Subtensor<float>::fromTensor(tensorC);
   zerosFp32(C);
 
   SubtensorList<const float> mAs = getMatrixList(Subtensor<const float>::fromTensor(A));
-  SubtensorList<const float> mBs = getMatrixList(Subtensor<const float>::fromTensor(B));
+  SubtensorList<const float> mBs = getMatrixList(Subtensor<const float>::fromTensor(xB));
   SubtensorList<float> mCs = getMatrixList(C);
 
-  common::GEMMArgs gemmArgs = common::generateGemmArgs(A, B, tensorC);
+  common::GEMMArgs gemmArgs = common::generateGemmArgs(A, xB, tensorC);
 
   // broadcast B.
   CHECK(mAs.getSize() == mCs.getSize());
   CHECK(mAs.getSize() % mBs.getSize() == 0);
-  int nb = mAs.getSize() / mBs.getSize();
-  std::vector<const float*> batchB = repeat(ly::makeConstSpan(mBs.getDataPtrList()), nb);
 
   const float *const *mAp = mAs.getDataPtrList().data();
   const float *const *mBp = mBs.getDataPtrList().data();

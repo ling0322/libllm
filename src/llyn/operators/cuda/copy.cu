@@ -57,7 +57,7 @@ void copy5D(const Tensor &src, Tensor &dest) {
   d.x = (src.getShape(4) + blockSize - 1) / blockSize;
 
   copy5DKernel<T><<<d, blockSize>>>(sA, sC);
-  checkCudaError(cudaGetLastError());
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
 
 void copy(const Tensor &src, Tensor &dest) {
@@ -70,11 +70,11 @@ void copy(const Tensor &src, Tensor &dest) {
 }
 
 void copyContig(const Tensor &src, Tensor &dest) {
-  cudaMemcpy(
+  LL_CHECK_CUDA_STATUS(cudaMemcpy(
       dest.getData<void>(),
       src.getData<void>(),
       src.getDType().getTotalSize(src.getNumEl()),
-      cudaMemcpyDeviceToDevice); 
+      cudaMemcpyDeviceToDevice)); 
 }
 
 }  // cuda

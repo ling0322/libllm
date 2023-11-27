@@ -32,6 +32,14 @@
 #define LL_CHECK_CONTIGUOUS(x) { if (!x.isContiguous()) { \
     LOG(FATAL) << "contiguous is required for CUDA operators: " << #x; } }
 
+#define LL_CHECK_CUDA_STATUS(x) {\
+      cudaError_t status = x; \
+      if (status != cudaSuccess) { \
+        LOG(ERROR) << "Error while calling: " << #x; \
+        throw ly::AbortedError(cudaGetErrorString(status)); \
+      } \
+    }
+
 namespace llyn {
 namespace op {
 namespace cuda {
@@ -53,11 +61,23 @@ struct PackedSubtensor2DQ4 {
 template<typename T>
 using auto_handle = ly::c_ptr<typename std::remove_pointer<T>::type>;
 
+inline void llynCudaFree(void *ptr) {
+  cudaError_t err = cudaFree(ptr);
+  if (err != cudaSuccess) {
+    LOG(ERROR) << "Error while calling cudaFree(): " << cudaGetErrorString(err);
+  }
+}
+
+template<typename T>
+ly::c_ptr<T> llynCudaAlloc(int64_t n) {
+  T *p = nullptr;
+  LL_CHECK_CUDA_STATUS(cudaMalloc(&p, n * sizeof(T)));
+  return {p, llynCudaFree};
+}
+
 Tensor createCudaTensorHalf(ly::Span<const int> shape);
 Tensor createCudaTensorLong(ly::Span<const int> shape);
 Tensor createCudaTensorFloat(ly::Span<const int> shape);
-
-void checkCudaError(cudaError_t err);
 
 /// @brief Split a index into dim3 object according to the shape info in `size`.
 /// @param index the index to split.

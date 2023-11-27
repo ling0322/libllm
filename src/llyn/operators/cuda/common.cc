@@ -61,11 +61,6 @@ Tensor createCudaTensorFloat(ly::Span<const int> shape) {
   return Tensor::create(tensorShape, data);
 }
 
-void checkCudaError(cudaError_t err) {
-  if (err != cudaSuccess)
-    throw ly::AbortedError(cudaGetErrorString(err));
-}
-
 }  // cuda
 }  // op
 }  // llyn

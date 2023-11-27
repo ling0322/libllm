@@ -53,11 +53,11 @@ template<Device::Type DEST_DEVICE>
 void copyData(void *dest, const void *src, int64_t n);
 template<>
 void copyData<Device::kCpu>(void *dest, const void *src, int64_t n) {
-  checkCudaError(cudaMemcpy(dest, src, n, cudaMemcpyDeviceToHost));
+  LL_CHECK_CUDA_STATUS(cudaMemcpy(dest, src, n, cudaMemcpyDeviceToHost));
 }
 template<>
 void copyData<Device::kCuda>(void *dest, const void *src, int64_t n) {
-  checkCudaError(cudaMemcpy(dest, src, n, cudaMemcpyHostToDevice));
+  LL_CHECK_CUDA_STATUS(cudaMemcpy(dest, src, n, cudaMemcpyHostToDevice));
 }
 
 std::vector<std::pair<int64_t, DType>> getSlotSpec(const Tensor &srcTensor) {
