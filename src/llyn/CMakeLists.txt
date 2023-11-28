@@ -54,7 +54,8 @@ set(llynextcuda_SOURCES
     "operators/cuda/common.cc"
     "operators/cuda/cuda_operators.cc"
     "operators/cuda/cuda_tensor_data.cc"
-    "operators/cuda/cudnn_operators.cc"
+    "operators/cuda/cudnn_wrapper.cc"
+    "operators/cuda/dequant.cu"
     "operators/cuda/lookup.cu"
     "operators/cuda/matmul.cc"
     "operators/cuda/to_device.cc")

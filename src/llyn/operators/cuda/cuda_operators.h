@@ -25,7 +25,7 @@ namespace llyn {
 namespace op {
 namespace cuda {
 
-class CudnnOperators;
+class CudnnWrapper;
 class MatMul;
 
 /// @brief Implementation of Operator interface with cuda device.
@@ -57,7 +57,7 @@ class CudaOperators : public internal::Operators {
   Tensor cast(Tensor tensor, DType dtype) override;
 
  private:
-  std::shared_ptr<CudnnOperators> _cudnnOperators;
+  std::shared_ptr<CudnnWrapper> _cudnn;
   std::shared_ptr<MatMul> _matmul;
 
   CudaOperators() = default;

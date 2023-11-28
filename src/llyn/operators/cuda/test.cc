@@ -225,3 +225,51 @@ CATCH_TEST_CASE("test matmul bmm", "[cuda][operators][matmul]") {
 
   CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
 }
+
+CATCH_TEST_CASE("test matmul q4", "[cuda][operators][matmul]") {
+  Tensor a = F::rand({5, 10, 50}, DType::kFloat);
+  Tensor b = createRandomQ4Tensor2D(50, 32);
+  Tensor xr = F::matmul(a, b);
+
+  Tensor x = F::toDevice(a, Device(Device::kCuda));
+  Tensor y = F::toDevice(b, Device(Device::kCuda));
+  x = F::cast(x, DType::kFloat16);
+  x = F::matmul(x, y);
+  x = F::cast(x, DType::kFloat);
+  x = F::toDevice(x, Device(Device::kCpu));
+
+  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
+}
+
+CATCH_TEST_CASE("test scale", "[cuda][operators][scale]") {
+  Tensor a = F::rand({2, 5, 10}, DType::kFloat);
+  Tensor xr = F::mul(a.transpose(2, 1).slice(1, {1, 9}), 0.1f);
+
+  Tensor x = F::toDevice(a, Device(Device::kCuda));
+  x = F::cast(x, DType::kFloat16);
+  x = x.transpose(2, 1);
+  x = x.slice(1, {1, 9});
+  x = F::mul(x, 0.1f);
+  x = F::cast(x, DType::kFloat);
+  x = F::toDevice(x, Device(Device::kCpu));
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}
+
+CATCH_TEST_CASE("test mul", "[cuda][operators][scale]") {
+  Tensor a = F::rand({2, 5, 10}, DType::kFloat);
+  Tensor b = F::rand({5}, DType::kFloat);
+  Tensor xr = F::mul(a.transpose(2, 1).slice(1, {1, 9}), b);
+
+  Tensor x = F::toDevice(a, Device(Device::kCuda));
+  Tensor y = F::toDevice(b, Device(Device::kCuda));
+  x = F::cast(x, DType::kFloat16);
+  y = F::cast(y, DType::kFloat16);
+  x = x.transpose(2, 1);
+  x = x.slice(1, {1, 9});
+  x = F::mul(x, y);
+  x = F::cast(x, DType::kFloat);
+  x = F::toDevice(x, Device(Device::kCpu));
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}

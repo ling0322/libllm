@@ -17,8 +17,9 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "llyn/operators/cuda/lookup.h"
+
 #include <cuda_fp16.h>
-#include "llyn/operators/cuda/dequant.cuh"
 #include "llyn/operators/cuda/common.h"
 
 namespace llyn {
@@ -26,7 +27,7 @@ namespace op {
 namespace cuda {
 
 __global__
-void lookup2DHaldKernel(PackedSubtensor<const half, 2> embd,
+void lookupHalfKernel2D(PackedSubtensor<const half, 2> embd,
                         PackedSubtensor<const int64_t, 2> inputs,
                         PackedSubtensor<half, 3> dst) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -48,21 +49,21 @@ void lookupQ4Kernel2D(PackedSubtensor2DQ4 embd,
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-  if (x < embd.numCol / 2 && y < inputs.getShape(1) && z < inputs.getShape(0)) {
+  if (x < embd.getNumCol() / 2 && y < inputs.getShape(1) && z < inputs.getShape(0)) {
     int row = inputs[z][y];
-    assert(row < embd.numRow);
+    assert(row < embd.getNumRow());
 
-    int rowGroup = row * embd.numCol / 32;
-    int rowOffset = row * embd.numCol / 2;
+    int rowGroup = row * embd.getNumCol() / 32;
+    int rowOffset = row * embd.getNumCol() / 2;
     int elemOffset = rowOffset + x;
     int elemGroup = rowGroup + x / 16;
 
-    uint8_t q4elem = embd.data[elemOffset];
-    half scale = embd.scale[elemGroup];
-    int8_t bias = embd.bias[elemGroup];
+    uint8_t q4elem = embd.getData()[elemOffset];
+    half scale = embd.getScale()[elemGroup];
+    int8_t bias = embd.getBias()[elemGroup];
 
-    dst[z][y][x * 2] = scale * __int2half_rd(static_cast<int>(q4elem >> 4) - bias);
-    dst[z][y][x * 2+ 1] = scale * __int2half_rd(static_cast<int>(q4elem & 0xf) - bias);
+    dst[z][y][x * 2] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem >> 4) - bias));
+    dst[z][y][x * 2+ 1] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem & 0xf) - bias));
   }
 }
 
@@ -83,7 +84,7 @@ Tensor lookup2DHalf(const Tensor &embdTable, const Tensor &input) {
   PackedSubtensor<const int64_t, 2> sB(input);
   PackedSubtensor<half, 3> sC(dst);
 
-  lookup2DHaldKernel<<<d, blockSize>>>(sA, sB, sC);
+  lookupHalfKernel2D<<<d, blockSize>>>(sA, sB, sC);
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return dst;
 }

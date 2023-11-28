@@ -24,6 +24,7 @@
 #include "llyn/operators/common/common.h"
 #include "llyn/operators/common/matmul.h"
 #include "llyn/operators/cuda/common.h"
+#include "llyn/operators/cuda/dequant.h"
 
 #define CHECK_CUBLAS_STATUS(x) { \
       cublasStatus_t status = x; \
@@ -46,18 +47,31 @@ std::shared_ptr<MatMul> MatMul::create() {
 }
 
 void MatMul::safeDestroyCublas(cublasHandle_t handle) {
-  CHECK_CUBLAS_STATUS(cublasDestroy(handle));
+  cublasStatus_t status = cublasDestroy(handle);
+  if (status != CUBLAS_STATUS_SUCCESS) {
+    LOG(ERROR) << "Error while calling cublasDestroy(): " << cublasGetStatusString(status);
+  }
 }
 
 Tensor MatMul::apply(const Tensor &A, const Tensor &B) {
   CHECK(A.getDevice().getType() == Device::kCuda);
   CHECK(B.getDevice().getType() == Device::kCuda);
 
-  if (B.getDType() == DType::kFloat16) {
+  if (A.getDType() == DType::kFloat16 && B.getDType() == DType::kFloat16) {
     return matmulHalf(A, B);
+  } else if (A.getDType() == DType::kFloat16 && B.getDType() == DType::kQInt4Group32) {
+    return matmulQ4(A, B);
   } else {
     NOT_IMPL();
   }
+}
+
+Tensor MatMul::matmulQ4(const Tensor &A, const Tensor &B) {
+  CHECK(B.getDType() == DType::kQInt4Group32);
+  CHECK(A.getDType() == DType::kFloat16);
+
+  Tensor xB = dequantQ4ToHalf(B);
+  return matmulHalf(A, xB);
 }
 
 Tensor MatMul::matmulHalf(const Tensor &A, const Tensor &B) {

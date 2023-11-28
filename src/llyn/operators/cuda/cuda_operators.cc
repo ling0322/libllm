@@ -21,7 +21,7 @@
 
 #include "llyn/operators/cuda/cast.h"
 #include "llyn/operators/cuda/copy.h"
-#include "llyn/operators/cuda/cudnn_operators.h"
+#include "llyn/operators/cuda/cudnn_wrapper.h"
 #include "llyn/operators/cuda/lookup.h"
 #include "llyn/operators/cuda/matmul.h"
 #include "llyn/operators/cuda/to_device.h"
@@ -32,7 +32,7 @@ namespace cuda {
 
 internal::Operators *CudaOperators::create() {
   std::unique_ptr<CudaOperators> op{new CudaOperators()};
-  op->_cudnnOperators = CudnnOperators::create();
+  op->_cudnn = CudnnWrapper::create();
   op->_matmul = MatMul::create();
 
   return op.release();
@@ -47,11 +47,11 @@ Tensor CudaOperators::matmul(Tensor a, Tensor b) {
 }
 
 Tensor CudaOperators::mul(Tensor input, float other) {
-  NOT_IMPL();
+  return _cudnn->scale(input, other);
 }
 
 Tensor CudaOperators::mul(Tensor input, Tensor other) {
-  NOT_IMPL();
+  return _cudnn->applyOp(input, other, CUDNN_OP_TENSOR_MUL);
 }
 
 Tensor CudaOperators::softmax(Tensor input) {
@@ -104,7 +104,7 @@ void CudaOperators::copy(Tensor src, Tensor dest) {
   if (src.isContiguous() && dest.isContiguous()) {
     copyContig(src, dest);
   } else if (src.getDim() <= 4 && src.getDType() == DType::kFloat16) {
-    _cudnnOperators->copy(src, dest);
+    _cudnn->copy(src, dest);
   } else {
     cuda::copy(src, dest);
   }

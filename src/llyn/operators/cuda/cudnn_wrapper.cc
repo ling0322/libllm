@@ -20,7 +20,7 @@
 #include <cudnn.h>
 #include "llyn/operators/cuda/cuda_tensor_data.h"
 #include "llyn/operators/cuda/common.h"
-#include "llyn/operators/cuda/cudnn_operators.h"
+#include "llyn/operators/cuda/cudnn_wrapper.h"
 #include "lyutil/log.h"
 
 #define CHECK_CUDNN_STATUS(x) { \
@@ -35,7 +35,7 @@ namespace llyn {
 namespace op {
 namespace cuda {
 
-CudnnOperators::CudnnOperators() : _handle{nullptr, checkDestroy<cudnnHandle_t>(cudnnDestroy)} {}
+CudnnWrapper::CudnnWrapper() : _handle{nullptr, checkDestroy<cudnnHandle_t>(cudnnDestroy)} {}
 
 
 void loggingCallback(cudnnSeverity_t sev, void *udata, const cudnnDebug_t *dbg, const char *msg) {
@@ -46,8 +46,8 @@ void loggingCallback(cudnnSeverity_t sev, void *udata, const cudnnDebug_t *dbg, 
   else NOT_IMPL();
 }
 
-std::shared_ptr<CudnnOperators> CudnnOperators::create() {
-  std::shared_ptr<CudnnOperators> ops{new CudnnOperators()};
+std::shared_ptr<CudnnWrapper> CudnnWrapper::create() {
+  std::shared_ptr<CudnnWrapper> ops{new CudnnWrapper()};
   CHECK_CUDNN_STATUS(cudnnSetCallback(CUDNN_SEV_WARNING_EN | CUDNN_SEV_ERROR_EN,
                                       nullptr,
                                       loggingCallback));
@@ -57,7 +57,7 @@ std::shared_ptr<CudnnOperators> CudnnOperators::create() {
   return ops;
 }
 
-cudnnDataType_t CudnnOperators::getCudnnDataType(const Tensor &tensor) {
+cudnnDataType_t CudnnWrapper::getCudnnDataType(const Tensor &tensor) {
   // Only single-slot tensor is allowed.
   const internal::TensorData *tensorData = tensor.getDataObject();
   CHECK(tensorData->getNumSlot() == 1);
@@ -71,7 +71,7 @@ cudnnDataType_t CudnnOperators::getCudnnDataType(const Tensor &tensor) {
 }
 
 template<typename T>
-std::function<void(T)> CudnnOperators::checkDestroy(std::function<cudnnStatus_t(T)> destroyFunc) {
+std::function<void(T)> CudnnWrapper::checkDestroy(std::function<cudnnStatus_t(T)> destroyFunc) {
   return [destroyFunc](T handle) {
     cudnnStatus_t status = destroyFunc(handle);
     if (status != CUDNN_STATUS_SUCCESS) {
@@ -80,7 +80,7 @@ std::function<void(T)> CudnnOperators::checkDestroy(std::function<cudnnStatus_t(
   };
 }
 
-auto_handle<cudnnTensorDescriptor_t> CudnnOperators::createCudnnTensorDescriptor(
+auto_handle<cudnnTensorDescriptor_t> CudnnWrapper::createCudnnTensorDescriptor(
     const Tensor &tensor) {
   auto_handle<cudnnTensorDescriptor_t> tensorDesc{
       nullptr, checkDestroy<cudnnTensorDescriptor_t>(cudnnDestroyTensorDescriptor)};
@@ -169,7 +169,7 @@ auto_handle<cudnnTensorDescriptor_t> CudnnOperators::createCudnnTensorDescriptor
   return tensorDesc;
 }
 
-void CudnnOperators::copy(Tensor src, Tensor dest) {
+void CudnnWrapper::copy(Tensor src, Tensor dest) {
   CHECK(src.getDevice().getType() == Device::kCuda);
   CHECK(dest.getDevice().getType() == Device::kCuda);
   CHECK(src.getDim() <= 4);
@@ -190,6 +190,63 @@ void CudnnOperators::copy(Tensor src, Tensor dest) {
       beta,
       destDesc.get(),
       dest.getData<void>()));
+}
+
+Tensor CudnnWrapper::scale(Tensor src, float alpha) {
+  CHECK(src.getDevice().getType() == Device::kCuda);
+  CHECK(src.getDim() <= 4);
+
+  Tensor dest = createCudaTensorHalf(src.getShape());
+  copy(src, dest);
+
+  auto_handle<cudnnTensorDescriptor_t> destDesc = createCudnnTensorDescriptor(dest);
+  CHECK_CUDNN_STATUS(cudnnScaleTensor(
+      _handle.get(),
+      destDesc.get(),
+      dest.getData<void>(),
+      &alpha));
+
+  return dest;
+}
+
+Tensor CudnnWrapper::applyOp(const Tensor &A, const Tensor &B, cudnnOpTensorOp_t op) {
+  CHECK(A.getDevice().getType() == Device::kCuda);
+  CHECK(B.getDevice().getType() == Device::kCuda);
+  CHECK(A.getDim() <= 4);
+  CHECK(B.getDim() <= 4);
+
+  auto_handle<cudnnOpTensorDescriptor_t> opDesc{
+      nullptr,
+      checkDestroy<cudnnOpTensorDescriptor_t>(cudnnDestroyOpTensorDescriptor)};
+  CHECK_CUDNN_STATUS(cudnnCreateOpTensorDescriptor(opDesc.get_pp()));
+  CHECK_CUDNN_STATUS(cudnnSetOpTensorDescriptor(
+      opDesc.get(),
+      op,
+      CUDNN_DATA_FLOAT,
+      CUDNN_PROPAGATE_NAN));
+  
+  float alpha = 1.0f;
+  float beta = 0.0f;
+
+  Tensor C = createCudaTensorHalf(A.getShape());
+  auto_handle<cudnnTensorDescriptor_t> descA = createCudnnTensorDescriptor(A);
+  auto_handle<cudnnTensorDescriptor_t> descB = createCudnnTensorDescriptor(B);
+  auto_handle<cudnnTensorDescriptor_t> descC = createCudnnTensorDescriptor(C);
+
+  CHECK_CUDNN_STATUS(cudnnOpTensor(
+      _handle.get(),
+      opDesc.get(),
+      &alpha,
+      descA.get(),
+      A.getData<void>(),
+      &alpha,
+      descB.get(),
+      B.getData<void>(),
+      &beta,
+      descC.get(),
+      C.getData<void>()));
+
+  return C;
 }
 
 }  // cuda

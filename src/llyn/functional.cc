@@ -63,11 +63,25 @@ Tensor matmul(Tensor A, Tensor B) {
 }
 
 Tensor mul(Tensor input, float other) {
-  return gOperatorsForDevice[Device::kCpu]->mul(input, other);
+  switch (input.getDevice().getType()) {
+    case Device::kCpu:
+      return getOperators(Device::kCpu)->mul(input, other);
+    case Device::kCuda:
+      return getOperators(Device::kCuda)->mul(input, other);
+    default:
+      NOT_IMPL();
+  }
 }
 
 Tensor mul(Tensor input, Tensor other) {
-  return gOperatorsForDevice[Device::kCpu]->mul(input, other);
+  switch (input.getDevice().getType()) {
+    case Device::kCpu:
+      return getOperators(Device::kCpu)->mul(input, other);
+    case Device::kCuda:
+      return getOperators(Device::kCuda)->mul(input, other);
+    default:
+      NOT_IMPL();
+  }
 }
 
 Tensor softmax(Tensor input) {

@@ -46,12 +46,18 @@ namespace cuda {
 
 /// @brief A q4 quantized constant matrix (2D tensor).
 struct PackedSubtensor2DQ4 {
-  int numRow;
-  int numCol;
+  int _numRow;
+  int _numCol;
 
-  const half *scale;
-  const uint8_t *data;
-  const int8_t *bias;
+  const half *_scale;
+  const uint8_t *_data;
+  const int8_t *_bias;
+
+  __device__ int getNumRow() const { return _numRow; }
+  __device__ int getNumCol() const { return _numCol; }
+  __device__ const half *getScale() const { return _scale; }
+  __device__ const uint8_t *getData() const { return _data; }
+  __device__ const int8_t *getBias() const { return _bias; }
 
   PackedSubtensor2DQ4(const Tensor &tensor);
 };

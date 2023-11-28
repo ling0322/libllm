@@ -19,39 +19,46 @@
 
 #pragma once
 
-#include <cuda_fp16.h>
+#include <cudnn.h>
+#include <type_traits>
 #include "llyn/operators/cuda/common.h"
+#include "lyutil/c_ptr.h"
+#include "llyn/tensor.h"
 
 namespace llyn {
 namespace op {
 namespace cuda {
 
-constexpr int GroupSizeQ4 = 32;
+/// @brief Operators implemented by cuDNN
+class CudnnWrapper {
+ public:
+  static std::shared_ptr<CudnnWrapper> create();
 
-__device__ inline void dequantQ4ToHalf(
-    int n,
-    const uint8_t *data,
-    const half *pscale,
-    const int8_t *pzeroPoint,
-    half *tgt) {
-  int nb = n / GroupSizeQ4;
+  void copy(Tensor src, Tensor dest);
+  Tensor scale(Tensor src, float alpha);
+  Tensor applyOp(const Tensor &A, const Tensor &B, cudnnOpTensorOp_t op);
 
-  const uint8_t *psrc;
-  half *ptgt = tgt;
+ private:
+  auto_handle<cudnnHandle_t> _handle;
 
-  for (int j = 0; j < nb; ++j) {
-    int zeroPoint = pzeroPoint[j];
-    half scale = pscale[j];
+  CudnnWrapper();
+  auto_handle<cudnnTensorDescriptor_t> createCudnnTensorDescriptor(const Tensor &tensor);
 
-    #pragma unroll
-    for (int i = 0; i < GroupSizeQ4; ++i) {
-      *ptgt++ = scale * __int2half_rd(static_cast<int>(*psrc >> 4) - zeroPoint);
-      *ptgt++ = scale * __int2half_rd(static_cast<int>(*psrc & 0xf) - zeroPoint);
-      ++psrc;
-    }
-  }
-}
+  /// @brief Wrap a cudnn destroy function to perform status check.
+  /// @tparam T type of handle to destory.
+  /// @param destroyFunc the cudnn destroy function to wrap.
+  /// @return the wrapped destroy function.
+  template<typename T>
+  std::function<void(T)> checkDestroy(std::function<cudnnStatus_t(T)> destroyFunc);
+
+  /// @brief convert llyn::DType to cudnnDataType_t.
+  cudnnDataType_t getCudnnDataType(const Tensor &tensor);
+
+  /// @brief Check if the input tensor is valid for cudnn.
+  void checkInput(const Tensor &tensor) const;
+};
 
 }  // cuda
 }  // op
 }  // llyn
+

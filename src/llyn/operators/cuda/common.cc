@@ -19,6 +19,7 @@
 
 #include "llyn/operators/cuda/common.h"
 
+#include <cuda_fp16.h>
 #include "llyn/tensor.h"
 
 namespace llyn {
@@ -32,12 +33,12 @@ PackedSubtensor2DQ4::PackedSubtensor2DQ4(const Tensor &tensor) {
   CHECK(tensor.getOffset_() == 0);
   CHECK(tensor.isContiguous());
 
-  numRow = tensor.getShape(0);
-  numCol = tensor.getShape(1);
+  _numRow = tensor.getShape(0);
+  _numCol = tensor.getShape(1);
 
-  data = (const uint8_t *)tensor.getDataObject()->getSlot(0)->getRawData();
-  scale = (const half *)tensor.getDataObject()->getSlot(1)->getRawData();
-  bias = (const int8_t *)tensor.getDataObject()->getSlot(2)->getRawData();
+  _data = (const uint8_t *)tensor.getDataObject()->getSlot(0)->getRawData();
+  _scale = (const __half *)tensor.getDataObject()->getSlot(1)->getRawData();
+  _bias = (const int8_t *)tensor.getDataObject()->getSlot(2)->getRawData();
 }
 
 Tensor createCudaTensorHalf(ly::Span<const int> shape) {
