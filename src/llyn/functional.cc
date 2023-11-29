@@ -85,7 +85,14 @@ Tensor mul(Tensor input, Tensor other) {
 }
 
 Tensor softmax(Tensor input) {
-  return gOperatorsForDevice[Device::kCpu]->softmax(input);
+  switch (input.getDevice().getType()) {
+    case Device::kCpu:
+      return getOperators(Device::kCpu)->softmax(input);
+    case Device::kCuda:
+      return getOperators(Device::kCuda)->softmax(input);
+    default:
+      NOT_IMPL();
+  }
 }
 
 Tensor add(Tensor input, Tensor other) {

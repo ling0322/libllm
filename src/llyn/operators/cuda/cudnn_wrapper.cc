@@ -249,6 +249,31 @@ Tensor CudnnWrapper::applyOp(const Tensor &A, const Tensor &B, cudnnOpTensorOp_t
   return C;
 }
 
+Tensor CudnnWrapper::softmax(const Tensor &tensor) {
+  CHECK(tensor.getDevice().getType() == Device::kCuda);
+  CHECK(tensor.getDim() <= 4);
+
+  float alpha = 1.0f;
+  float beta = 0.0f;
+
+  Tensor C = createCudaTensorHalf(tensor.getShape());
+  auto_handle<cudnnTensorDescriptor_t> descA = createCudnnTensorDescriptor(tensor);
+  auto_handle<cudnnTensorDescriptor_t> descC = createCudnnTensorDescriptor(C);
+
+  CHECK_CUDNN_STATUS(cudnnSoftmaxForward(
+      _handle.get(),
+      CUDNN_SOFTMAX_ACCURATE,
+      CUDNN_SOFTMAX_MODE_CHANNEL,
+      &alpha,
+      descA.get(),
+      tensor.getData<void>(),
+      &beta,
+      descC.get(),
+      C.getData<void>()));
+  
+  return C;
+}
+
 }  // cuda
 }  // op
 }  // llyn

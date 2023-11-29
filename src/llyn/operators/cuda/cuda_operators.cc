@@ -55,7 +55,7 @@ Tensor CudaOperators::mul(Tensor input, Tensor other) {
 }
 
 Tensor CudaOperators::softmax(Tensor input) {
-  NOT_IMPL();
+  return _cudnn->softmax(input);
 }
 
 Tensor CudaOperators::gelu(Tensor input) {

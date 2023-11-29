@@ -273,3 +273,16 @@ CATCH_TEST_CASE("test mul", "[cuda][operators][scale]") {
 
   CATCH_REQUIRE(F::allClose(x, xr));
 }
+
+CATCH_TEST_CASE("test softmax", "[cuda][operators][softmax]") {
+  Tensor a = F::rand({2, 5, 20}, DType::kFloat);
+  Tensor xr = F::softmax(a);
+
+  Tensor x = F::toDevice(a, Device(Device::kCuda));
+  x = F::cast(x, DType::kFloat16);
+  x = F::softmax(x);
+  x = F::cast(x, DType::kFloat);
+  x = F::toDevice(x, Device(Device::kCpu));
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}

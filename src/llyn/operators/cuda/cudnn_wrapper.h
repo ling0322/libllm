@@ -37,6 +37,7 @@ class CudnnWrapper {
   void copy(Tensor src, Tensor dest);
   Tensor scale(Tensor src, float alpha);
   Tensor applyOp(const Tensor &A, const Tensor &B, cudnnOpTensorOp_t op);
+  Tensor softmax(const Tensor &tensor);
 
  private:
   auto_handle<cudnnHandle_t> _handle;
