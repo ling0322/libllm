@@ -25,6 +25,7 @@
 #include "llyn/operators/cuda/lookup.h"
 #include "llyn/operators/cuda/matmul.h"
 #include "llyn/operators/cuda/to_device.h"
+#include "llyn/operators/cuda/rms_norm.h"
 
 namespace llyn {
 namespace op {
@@ -58,20 +59,12 @@ Tensor CudaOperators::softmax(Tensor input) {
   return _cudnn->softmax(input);
 }
 
-Tensor CudaOperators::gelu(Tensor input) {
-  NOT_IMPL();
-}
-
-Tensor CudaOperators::add(Tensor a, Tensor b) {
-  NOT_IMPL();
-}
-
-Tensor CudaOperators::layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
-  NOT_IMPL();
+Tensor CudaOperators::add(Tensor input, Tensor other) {
+  return _cudnn->applyOp(input, other, CUDNN_OP_TENSOR_ADD);
 }
 
 Tensor CudaOperators::rmsNorm(Tensor input, Tensor weight, float eps) {
-  NOT_IMPL();
+  return op::cuda::rmsNorm(_cudnn.get(), input, weight, eps);
 }
 
 Tensor CudaOperators::causalMask(int max_len) {

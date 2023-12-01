@@ -21,6 +21,7 @@
 #include "llyn/operators/cuda/cuda_tensor_data.h"
 #include "llyn/operators/cuda/common.h"
 #include "llyn/operators/cuda/cudnn_wrapper.h"
+#include "llyn/operators/cpu/view.h"
 #include "lyutil/log.h"
 
 #define CHECK_CUDNN_STATUS(x) { \
@@ -271,6 +272,66 @@ Tensor CudnnWrapper::softmax(const Tensor &tensor) {
       descC.get(),
       C.getData<void>()));
   
+  return C;
+}
+
+Tensor CudnnWrapper::reduce(const Tensor &tensor, cudnnReduceTensorOp_t op) {
+  CHECK(tensor.getDevice().getType() == Device::kCuda);
+  CHECK(tensor.getDim() <= 4);
+
+  float alpha = 1.0f;
+  float beta = 0.0f;
+
+  auto_handle<cudnnReduceTensorDescriptor_t> reduceDesc{
+      nullptr,
+      checkDestroy<cudnnReduceTensorDescriptor_t>(cudnnDestroyReduceTensorDescriptor)};
+  
+  CHECK_CUDNN_STATUS(cudnnCreateReduceTensorDescriptor(reduceDesc.get_pp()));
+  CHECK_CUDNN_STATUS(cudnnSetReduceTensorDescriptor(
+      reduceDesc.get(),
+      op,
+      CUDNN_DATA_FLOAT,
+      CUDNN_PROPAGATE_NAN,
+      CUDNN_REDUCE_TENSOR_NO_INDICES,
+      CUDNN_32BIT_INDICES));
+
+  std::vector<Tensor::ShapeType> shapeC = tensor.getShape();
+  shapeC.back() = 1;
+  Tensor C = createCudaTensorHalf(shapeC);
+  auto_handle<cudnnTensorDescriptor_t> descA = createCudnnTensorDescriptor(tensor);
+  auto_handle<cudnnTensorDescriptor_t> descC = createCudnnTensorDescriptor(C);
+
+  size_t workSpaceSize = 0;
+  CHECK_CUDNN_STATUS(cudnnGetReductionWorkspaceSize(
+      _handle.get(),
+      reduceDesc.get(),
+      descA.get(),
+      descC.get(),
+      &workSpaceSize));
+
+  ly::c_ptr<Byte> workspace;
+  if (workSpaceSize) workspace = llynCudaAlloc<Byte>(workSpaceSize);
+
+  CHECK_CUDNN_STATUS(cudnnReduceTensor(
+      _handle.get(),
+      reduceDesc.get(),
+      nullptr,
+      0,
+      workspace.get(),
+      workSpaceSize,
+      &alpha,
+      descA.get(),
+      tensor.getData<void>(),
+      &beta,
+      descC.get(),
+      C.getData<void>()));
+
+  if (shapeC.size() > 1) 
+    shapeC.pop_back();
+  else
+    shapeC.back() = 1;
+
+  C = op::cpu::view(C, shapeC);
   return C;
 }
 

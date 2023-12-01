@@ -42,10 +42,8 @@ class CudaOperators : public internal::Operators {
   Tensor mul(Tensor input, float other) override;
   Tensor mul(Tensor input, Tensor other) override;
   Tensor softmax(Tensor input) override;
-  Tensor gelu(Tensor input) override;
   Tensor add(Tensor a, Tensor b) override;
   Tensor createTensorLike(Tensor input) override;
-  Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor causalMask(int max_len) override;
   Tensor cat(Tensor A, Tensor B, int dim) override;

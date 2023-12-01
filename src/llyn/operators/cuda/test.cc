@@ -256,7 +256,7 @@ CATCH_TEST_CASE("test scale", "[cuda][operators][scale]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test mul", "[cuda][operators][scale]") {
+CATCH_TEST_CASE("test mul", "[cuda][operators][mul]") {
   Tensor a = F::rand({2, 5, 10}, DType::kFloat);
   Tensor b = F::rand({5}, DType::kFloat);
   Tensor xr = F::mul(a.transpose(2, 1).slice(1, {1, 9}), b);
@@ -281,6 +281,38 @@ CATCH_TEST_CASE("test softmax", "[cuda][operators][softmax]") {
   Tensor x = F::toDevice(a, Device(Device::kCuda));
   x = F::cast(x, DType::kFloat16);
   x = F::softmax(x);
+  x = F::cast(x, DType::kFloat);
+  x = F::toDevice(x, Device(Device::kCpu));
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}
+
+CATCH_TEST_CASE("test add", "[cuda][operators][add]") {
+  Tensor a = F::rand({2, 5, 10}, DType::kFloat);
+  Tensor b = F::rand({10}, DType::kFloat);
+  Tensor xr = F::add(a, b);
+
+  Tensor x = F::toDevice(a, Device(Device::kCuda));
+  Tensor y = F::toDevice(b, Device(Device::kCuda));
+  x = F::cast(x, DType::kFloat16);
+  y = F::cast(y, DType::kFloat16);
+  x = F::add(x, y);
+  x = F::cast(x, DType::kFloat);
+  x = F::toDevice(x, Device(Device::kCpu));
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}
+
+CATCH_TEST_CASE("test rmsNorm", "[cuda][operators][rmsnorm]") {
+  Tensor a = F::rand({2, 5, 10}, DType::kFloat);
+  Tensor b = F::rand({10}, DType::kFloat);
+  Tensor xr = F::rmsNorm(a, b, 1e-5);
+
+  Tensor x = F::toDevice(a, Device(Device::kCuda));
+  Tensor y = F::toDevice(b, Device(Device::kCuda));
+  x = F::cast(x, DType::kFloat16);
+  y = F::cast(y, DType::kFloat16);
+  x = F::rmsNorm(x, y, 1e-5);
   x = F::cast(x, DType::kFloat);
   x = F::toDevice(x, Device(Device::kCpu));
 

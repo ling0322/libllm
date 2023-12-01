@@ -19,48 +19,15 @@
 
 #pragma once
 
-#include <cudnn.h>
-#include <type_traits>
-#include "llyn/operators/cuda/common.h"
-#include "lyutil/c_ptr.h"
 #include "llyn/tensor.h"
 
 namespace llyn {
 namespace op {
 namespace cuda {
 
-/// @brief Operators implemented by cuDNN
-class CudnnWrapper {
- public:
-  static std::shared_ptr<CudnnWrapper> create();
+class CudnnWrapper;
 
-  void copy(Tensor src, Tensor dest);
-  Tensor scale(Tensor src, float alpha);
-  Tensor applyOp(const Tensor &A, const Tensor &B, cudnnOpTensorOp_t op);
-  Tensor softmax(const Tensor &tensor);
-
-  // reduce tensor on last dimension.
-  Tensor reduce(const Tensor &tensor, cudnnReduceTensorOp_t op);
-
- private:
-  auto_handle<cudnnHandle_t> _handle;
-
-  CudnnWrapper();
-  auto_handle<cudnnTensorDescriptor_t> createCudnnTensorDescriptor(const Tensor &tensor);
-
-  /// @brief Wrap a cudnn destroy function to perform status check.
-  /// @tparam T type of handle to destory.
-  /// @param destroyFunc the cudnn destroy function to wrap.
-  /// @return the wrapped destroy function.
-  template<typename T>
-  std::function<void(T)> checkDestroy(std::function<cudnnStatus_t(T)> destroyFunc);
-
-  /// @brief convert llyn::DType to cudnnDataType_t.
-  cudnnDataType_t getCudnnDataType(const Tensor &tensor);
-
-  /// @brief Check if the input tensor is valid for cudnn.
-  void checkInput(const Tensor &tensor) const;
-};
+Tensor rmsNorm(CudnnWrapper *cudnn, const Tensor &tensor, const Tensor &weight, float eps);
 
 }  // cuda
 }  // op

@@ -112,8 +112,8 @@ class PackedSubtensorBase {
 template<typename T, int DIM>
 class PackedSubtensor : public PackedSubtensorBase<T, DIM> {
  public:
-  __host__ explicit PackedSubtensor(Tensor &tensor) : PackedSubtensorBase<T, DIM>(tensor) {}
-  __host__ explicit PackedSubtensor(const Tensor &tensor) : PackedSubtensorBase<T, DIM>(tensor) {}
+  __host__ PackedSubtensor(Tensor &tensor) : PackedSubtensorBase<T, DIM>(tensor) {}
+  __host__ PackedSubtensor(const Tensor &tensor) : PackedSubtensorBase<T, DIM>(tensor) {}
 
   __device__ Subtensor<T, DIM - 1> operator[](int index) {
     int64_t offset = index * this->_size[0].stride;
@@ -128,8 +128,8 @@ class PackedSubtensor : public PackedSubtensorBase<T, DIM> {
 template<typename T>
 class PackedSubtensor<T, 1> : public PackedSubtensorBase<T, 1> {
  public:
-  __host__ explicit PackedSubtensor(Tensor &tensor) : PackedSubtensorBase<T, 1>(tensor) {}
-  __host__ explicit PackedSubtensor(const Tensor &tensor) : PackedSubtensorBase<T, 1>(tensor) {}
+  __host__ PackedSubtensor(Tensor &tensor) : PackedSubtensorBase<T, 1>(tensor) {}
+  __host__ PackedSubtensor(const Tensor &tensor) : PackedSubtensorBase<T, 1>(tensor) {}
 
   __device__ T &operator[](int index) {
     int64_t offset = index * this->_size[0].stride;

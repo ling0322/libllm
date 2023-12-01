@@ -45,7 +45,14 @@ Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
 }
 
 Tensor rmsNorm(Tensor input, Tensor weight, float eps) {
-  return gOperatorsForDevice[Device::kCpu]->rmsNorm(input, weight, eps);
+  switch (input.getDevice().getType()) {
+    case Device::kCpu:
+      return getOperators(Device::kCpu)->rmsNorm(input, weight, eps);
+    case Device::kCuda:
+      return getOperators(Device::kCuda)->rmsNorm(input, weight, eps);
+    default:
+      NOT_IMPL();
+  }
 }
 
 Tensor matmul(Tensor A, Tensor B) {
@@ -96,8 +103,14 @@ Tensor softmax(Tensor input) {
 }
 
 Tensor add(Tensor input, Tensor other) {
-  return gOperatorsForDevice[Device::kCpu]->add(input, other);
-}
+  switch (input.getDevice().getType()) {
+    case Device::kCpu:
+      return getOperators(Device::kCpu)->add(input, other);
+    case Device::kCuda:
+      return getOperators(Device::kCuda)->add(input, other);
+    default:
+      NOT_IMPL();
+  }}
 
 Tensor gelu(Tensor input) {
   return gOperatorsForDevice[Device::kCpu]->gelu(input);
