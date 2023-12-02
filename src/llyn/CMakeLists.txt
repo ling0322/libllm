@@ -61,6 +61,7 @@ set(llynextcuda_SOURCES
     "operators/cuda/lookup.cu"
     "operators/cuda/matmul.cc"
     "operators/cuda/rms_norm.cu"
+    "operators/cuda/swiglu.cu"
     "operators/cuda/to_device.cc")
 add_library(llynextcuda STATIC ${llynextcuda_SOURCES})
 target_include_directories(llynextcuda PRIVATE .. ${llynextcuda_INCDIR})

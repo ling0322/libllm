@@ -303,7 +303,7 @@ CATCH_TEST_CASE("test add", "[cuda][operators][add]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test rmsNorm", "[cuda][operators][rmsnorm]") {
+CATCH_TEST_CASE("test rms_norm", "[cuda][operators][rms_norm]") {
   Tensor a = F::rand({2, 5, 10}, DType::kFloat);
   Tensor b = F::rand({10}, DType::kFloat);
   Tensor xr = F::rmsNorm(a, b, 1e-5);
@@ -319,16 +319,40 @@ CATCH_TEST_CASE("test rmsNorm", "[cuda][operators][rmsnorm]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test causal mask", "[cuda][operators][causal_mask]") {
+CATCH_TEST_CASE("test causal_mask", "[cuda][operators][causal_mask]") {
+  constexpr int DIM = 129;
+  Tensor xr = F::softmax(F::causalMask(DIM));
+  Tensor x = F::softmax(F::causalMask(DIM, Device::getCuda()));
+  x = F::cast(x, DType::kFloat);
+  x = F::toDevice(x, Device(Device::kCpu));
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}
+
+
+CATCH_TEST_CASE("test apply_rope", "[cuda][operators][apply_rope]") {
   Tensor a = F::rand({2, 5, 2, 16}, DType::kFloat);
   Tensor b = F::rand({5, 1, 16}, DType::kFloat);
-  Tensor xr = F::applRotaryPosEmbd(a, b);
+  Tensor xr = F::applyRotaryPosEmb(a, b);
 
   Tensor x = F::toDevice(a, Device(Device::kCuda));
   Tensor y = F::toDevice(b, Device(Device::kCuda));
   x = F::cast(x, DType::kFloat16);
   y = F::cast(y, DType::kFloat16);
-  x = F::applRotaryPosEmbd(x, y);
+  x = F::applyRotaryPosEmb(x, y);
+  x = F::cast(x, DType::kFloat);
+  x = F::toDevice(x, Device(Device::kCpu));
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}
+
+CATCH_TEST_CASE("test swiglu", "[cuda][operators][swiglu]") {
+  Tensor a = F::rand({2, 10, 16}, DType::kFloat);
+  Tensor xr = F::swiglu(a);
+
+  Tensor x = F::toDevice(a, Device(Device::kCuda));
+  x = F::cast(x, DType::kFloat16);
+  x = F::swiglu(x);
   x = F::cast(x, DType::kFloat);
   x = F::toDevice(x, Device(Device::kCpu));
 

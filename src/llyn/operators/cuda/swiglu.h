@@ -17,54 +17,17 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "llyn/operators/cpu/swiglu.h"
+#pragma once
 
-#include <math.h>
-#include "llyn/operators/cpu/subtensor.h"
-#include "llyn/operators/cpu/subtensor_list.h"
-#include "llyn/operators/cpu/tensor.h"
+#include "llyn/tensor.h"
 
 namespace llyn {
 namespace op {
-namespace cpu {
+namespace cuda {
 
-Tensor swiglu(const Tensor &A) {
-  CHECK(A.getShape(-1) % 2 == 0);
+Tensor swiglu(const Tensor &tensor);
 
-  if (A.getDType() == DType::kFloat) return swigluFp32(A);
-
-  NOT_IMPL();
-}
-
-Tensor swigluFp32(const Tensor &A) {
-  CHECK(A.getDType() == DType::kFloat);
-  std::vector<int> shapeA = A.getShape();
-  shapeA.back() /= 2;
-  Tensor C = tensor(shapeA, DType::kFloat);
-  Subtensor<float> Cs = Subtensor<float>::fromTensor(C);
-  Subtensor<const float> As = Subtensor<const float>::fromTensor(A);
-
-  SubtensorList<const float> vAs = getVectorList(As);
-  SubtensorList<float> vCs = getVectorList(Cs);
-  CHECK(vAs.getSize() == vCs.getSize());
-
-  #pragma omp parallel for
-  for (int j = 0; j < vAs.getSize(); ++j) {
-    Subtensor<const float> vA = vAs.getSubtensor(j);
-    Subtensor<float> vC = vCs.getSubtensor(j);
-
-    int n = vC.dimension(0);
-    for (int i = 0; i < n; ++i) {
-      float x = vA.data[i];
-      x *= 1.0f / (1 + expf(-x));
-      x *= vA.data[i + n];
-      vC.data[i] = x;
-    }
-  }
-  return C;
-}
-
-}  // cpu
+}  // cuda
 }  // op
 }  // llyn
 

@@ -26,6 +26,7 @@
 #include "llyn/operators/cuda/cudnn_wrapper.h"
 #include "llyn/operators/cuda/lookup.h"
 #include "llyn/operators/cuda/matmul.h"
+#include "llyn/operators/cuda/swiglu.h"
 #include "llyn/operators/cuda/to_device.h"
 #include "llyn/operators/cuda/rms_norm.h"
 
@@ -110,7 +111,7 @@ Tensor CudaOperators::attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
 }
 
 Tensor CudaOperators::swiglu(Tensor A) {
-  NOT_IMPL();
+  return op::cuda::swiglu(A);
 }
 
 Tensor CudaOperators::toDevice(Tensor tensor, Device device) {

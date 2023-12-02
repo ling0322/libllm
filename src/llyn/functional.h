@@ -88,17 +88,19 @@ Tensor gelu(Tensor input);
 //   dtype: data type of the new tensor.
 // Returns:
 //   the tensor with specified shape and dtype.
-Tensor createTensor(std::initializer_list<int> shape, DType dtype);
+Tensor createTensor(std::initializer_list<int> shape,
+                    DType dtype,
+                    Device device = Device::getCpu());
 
 // returns a uninitialized tensor with the same shape and dtype as input
 Tensor createTensorLike(Tensor input);
 
 // Returns a tensor filled with random numbers from a uniform distribution on
 // the interval [0, 1) 
-Tensor rand(std::initializer_list<int> shape, DType dtype);
+Tensor rand(std::initializer_list<int> shape, DType dtype, Device device = Device::getCpu());
 
 // Returns a tensor filled with 0
-Tensor zeros(ly::Span<const int> shape, DType dtype);
+Tensor zeros(ly::Span<const int> shape, DType dtype, Device device = Device::getCpu());
 
 // Return a contiguous in memory tensor containing the same data as input
 Tensor contiguous(Tensor input);
@@ -135,7 +137,7 @@ Tensor cat(Tensor A, Tensor B, int dim);
 //       cos(m*theta), [..., ::1] is the values of sin(m*theta).
 // Returns:
 //   <float>(N, L, nHead, D): the output tensor.
-Tensor applRotaryPosEmbd(Tensor A, Tensor roPE);
+Tensor applyRotaryPosEmb(Tensor A, Tensor roPE);
 
 // Copy elements from src to dest. Shapes of `src` and `dest` should be the same.
 void copy(Tensor src, Tensor dest);

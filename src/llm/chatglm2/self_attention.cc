@@ -103,8 +103,8 @@ Tensor SelfAttention::forward(StateMap &past, Tensor input, Tensor roPE) const {
 
   // apply rope.
   Tensor qkRoPE = roPE.slice({kvL - qL, kvL});
-  F::copy(F::applRotaryPosEmbd(qe, qkRoPE), qe);
-  F::copy(F::applRotaryPosEmbd(ke, qkRoPE), ke);
+  F::copy(F::applyRotaryPosEmb(qe, qkRoPE), qe);
+  F::copy(F::applyRotaryPosEmb(ke, qkRoPE), ke);
 
   // fetch and update past k.
   if (past.hasTensor(_namePastK) && past.hasTensor(_namePastV)) {
