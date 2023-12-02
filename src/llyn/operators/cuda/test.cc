@@ -318,3 +318,19 @@ CATCH_TEST_CASE("test rmsNorm", "[cuda][operators][rmsnorm]") {
 
   CATCH_REQUIRE(F::allClose(x, xr));
 }
+
+CATCH_TEST_CASE("test causal mask", "[cuda][operators][causal_mask]") {
+  Tensor a = F::rand({2, 5, 2, 16}, DType::kFloat);
+  Tensor b = F::rand({5, 1, 16}, DType::kFloat);
+  Tensor xr = F::applRotaryPosEmbd(a, b);
+
+  Tensor x = F::toDevice(a, Device(Device::kCuda));
+  Tensor y = F::toDevice(b, Device(Device::kCuda));
+  x = F::cast(x, DType::kFloat16);
+  y = F::cast(y, DType::kFloat16);
+  x = F::applRotaryPosEmbd(x, y);
+  x = F::cast(x, DType::kFloat);
+  x = F::toDevice(x, Device(Device::kCpu));
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}

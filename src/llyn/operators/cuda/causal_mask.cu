@@ -17,40 +17,38 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "llyn/operators/cuda/causal_mask.h"
 
-#include <string>
+#include <cuda_fp16.h>
+#include <math.h>
+#include "llyn/operators/cuda/common.h"
 
 namespace llyn {
+namespace op {
+namespace cuda {
 
-// storage device for tensor data. 
-// Note: once the Device type is increased, we should also change the initialization of
-// gOperatorsForDevice.
-class Device {
- public:
-  enum Type {
-    kCpu,
-    kCuda,
-    NumDeviceType,  // number of device types
-    kUnknown
-  };
+__global__ void causalMaskKernel(PackedSubtensor<half, 2> mask) {
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-  static Device getCpu();
-  static Device getCuda();
+  if (y < mask.getShape(0) && x < mask.getShape(1)) {
+    mask[y][x] = x > y ? -INFINITY : 0;
+  }
+}
 
-  // construct device by device type
-  Device();
-  Device(Type type);
+Tensor causalMask(int size) {
+  Tensor C = createCudaTensorHalf({size, size});
 
-  // get type of the device
-  Type getType() const { return _type; }
+  constexpr int blockSize = 256;
+  dim3 d;
+  d.y = C.getShape(0);
+  d.x = (C.getShape(1) + blockSize - 1) / blockSize;
 
-  /// @brief Get the name of device.
-  /// @return name of the device.
-  std::string getName() const;
+  causalMaskKernel<<<d, blockSize>>>(C);
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+  return C;
+}
 
- private:
-  Type _type;
-};
-
-}  // namespace llyn
+}  // cuda
+}  // op
+}  // llyn

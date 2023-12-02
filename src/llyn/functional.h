@@ -116,7 +116,7 @@ void print(Tensor tensor);
 //   max_len: max length of the sequence.
 // Returns:
 //   <float>(max_len, max_len): the causal mask.
-Tensor causalMask(int max_len);
+Tensor causalMask(int max_len, Device device = Device::getCpu());
 
 // Concat two tensors in the given dimension. Besides the dimension to concat, the two tensors
 // must have the same shape.

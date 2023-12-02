@@ -154,8 +154,15 @@ void print(Tensor tensor) {
   gOperatorsForDevice[Device::kCpu]->print(tensor);
 }
 
-Tensor causalMask(int maxLen) {
-  return gOperatorsForDevice[Device::kCpu]->causalMask(maxLen);
+Tensor causalMask(int maxLen, Device device) {
+  switch (device.getType()) {
+    case Device::kCpu:
+      return getOperators(Device::kCpu)->causalMask(maxLen);
+    case Device::kCuda:
+      return getOperators(Device::kCuda)->causalMask(maxLen);
+    default:
+      NOT_IMPL();
+  }
 }
 
 Tensor cat(Tensor A, Tensor B, int dim) {
@@ -163,6 +170,14 @@ Tensor cat(Tensor A, Tensor B, int dim) {
 }
 
 Tensor applRotaryPosEmbd(Tensor A, Tensor roPE) {
+  switch (A.getDevice().getType()) {
+    case Device::kCpu:
+      return getOperators(Device::kCpu)->applRotaryPosEmb(A, roPE);
+    case Device::kCuda:
+      return getOperators(Device::kCuda)->applRotaryPosEmb(A, roPE);
+    default:
+      NOT_IMPL();
+  }
   return gOperatorsForDevice[Device::kCpu]->applRotaryPosEmb(A, roPE);
 }
 

@@ -25,7 +25,7 @@ namespace llyn {
 namespace op {
 namespace cpu {
 
-Tensor applyRotaryPosEmb(const Tensor &input, const Tensor &roPE);
+Tensor applyRotaryPosEmb(const Tensor &input, Tensor roPE);
 Tensor applyRotaryPosEmbFp32(const Tensor &input, const Tensor &roPE);
 
 }  // cpu

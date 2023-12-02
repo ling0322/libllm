@@ -19,7 +19,9 @@
 
 #include "llyn/operators/cuda/cuda_operators.h"
 
+#include "llyn/operators/cuda/apply_rotary_pos_emb.h"
 #include "llyn/operators/cuda/cast.h"
+#include "llyn/operators/cuda/causal_mask.h"
 #include "llyn/operators/cuda/copy.h"
 #include "llyn/operators/cuda/cudnn_wrapper.h"
 #include "llyn/operators/cuda/lookup.h"
@@ -68,7 +70,7 @@ Tensor CudaOperators::rmsNorm(Tensor input, Tensor weight, float eps) {
 }
 
 Tensor CudaOperators::causalMask(int max_len) {
-  NOT_IMPL();
+  return op::cuda::causalMask(max_len);
 }
 
 Tensor CudaOperators::cat(Tensor A, Tensor B, int dim) {
@@ -76,7 +78,7 @@ Tensor CudaOperators::cat(Tensor A, Tensor B, int dim) {
 }
 
 Tensor CudaOperators::applRotaryPosEmb(Tensor A, Tensor roPE) {
-  NOT_IMPL();
+  return op::cuda::applyRotaryPosEmb(A, roPE);
 }
 
 Tensor CudaOperators::createTensorLike(Tensor input) {

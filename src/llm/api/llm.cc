@@ -120,7 +120,7 @@ llm_model_t *llm_model_init(const char *ini_path) {
       throw ly::InvalidArgError("ini_path");
     std::unique_ptr<IniConfig> ini = IniConfig::read(ini_path);
 
-    model->ctx.setDevice(llyn::Device::createForCPU());
+    model->ctx.setDevice(llyn::Device::getCpu());
     model->tokenizer = Tokenizer::create(ini->getSection("tokenizer"));
     model->model_for_generation = ModelFactory::createModel(model->ctx, *ini);
   

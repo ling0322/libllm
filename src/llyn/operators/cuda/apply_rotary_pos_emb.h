@@ -19,38 +19,15 @@
 
 #pragma once
 
-#include <string>
+#include "llyn/tensor.h"
 
 namespace llyn {
+namespace op {
+namespace cuda {
 
-// storage device for tensor data. 
-// Note: once the Device type is increased, we should also change the initialization of
-// gOperatorsForDevice.
-class Device {
- public:
-  enum Type {
-    kCpu,
-    kCuda,
-    NumDeviceType,  // number of device types
-    kUnknown
-  };
+Tensor applyRotaryPosEmb(const Tensor &tensor, Tensor roPE);
 
-  static Device getCpu();
-  static Device getCuda();
+}  // cuda
+}  // op
+}  // llyn
 
-  // construct device by device type
-  Device();
-  Device(Type type);
-
-  // get type of the device
-  Type getType() const { return _type; }
-
-  /// @brief Get the name of device.
-  /// @return name of the device.
-  std::string getName() const;
-
- private:
-  Type _type;
-};
-
-}  // namespace llyn

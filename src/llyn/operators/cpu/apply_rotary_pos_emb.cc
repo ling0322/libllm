@@ -60,16 +60,16 @@ Tensor applyRotaryPosEmbFp32(const Tensor &input, const Tensor &roPE) {
   return C;
 }
 
-Tensor applyRotaryPosEmb(const Tensor &input, const Tensor &roPE) {
+Tensor applyRotaryPosEmb(const Tensor &input, Tensor roPE) {
   CHECK(input.getDim() == 4 && roPE.getDim() == 3 && roPE.isContiguous());
   CHECK(input.getShape(1) == roPE.getShape(0) && input.getShape(3) == roPE.getShape(2));
 
-  Tensor broadcastRoPE = roPE.expand({roPE.getShape(0), input.getShape(2), roPE.getShape(2)});
+  roPE = roPE.unsqueeze(0);
+  roPE = roPE.expand({input.getShape(0), roPE.getShape(1), input.getShape(2), roPE.getShape(3)});
 
-  if (input.getDType() == DType::kFloat) return applyRotaryPosEmbFp32(input, broadcastRoPE);
+  if (input.getDType() == DType::kFloat) return applyRotaryPosEmbFp32(input, roPE);
 
   NOT_IMPL();
-  return Tensor();
 }
 
 }  // cpu

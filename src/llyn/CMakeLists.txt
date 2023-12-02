@@ -49,7 +49,9 @@ if(CUDAToolkit_FOUND)
 endif()
 
 set(llynextcuda_SOURCES
+    "operators/cuda/apply_rotary_pos_emb.cu"
     "operators/cuda/cast.cu"
+    "operators/cuda/causal_mask.cu"
     "operators/cuda/copy.cu"
     "operators/cuda/common.cc"
     "operators/cuda/cuda_operators.cc"

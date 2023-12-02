@@ -26,7 +26,7 @@ namespace llyn {
 
 Context Context::getCpu() {
   Context ctx;
-  ctx.setDevice(Device::createForCPU());
+  ctx.setDevice(Device::getCpu());
 
   return ctx;
 }

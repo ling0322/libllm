@@ -26,8 +26,12 @@ namespace llyn {
 Device::Device() : _type(Type::kUnknown) {}
 Device::Device(Type type) : _type(type) {}
 
-Device Device::createForCPU() {
+Device Device::getCpu() {
   return Device(Type::kCpu);
+}
+
+Device Device::getCuda() {
+  return Device(Type::kCuda);
 }
 
 std::string Device::getName() const {
