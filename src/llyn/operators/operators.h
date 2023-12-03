@@ -54,6 +54,8 @@ class Operators {
   virtual Tensor swiglu(Tensor A);
   virtual Tensor toDevice(Tensor tensor, Device device);
   virtual Tensor cast(Tensor tensor, DType dtype);
+
+  virtual DType getDefaultFloatType();
 };
 
 extern Operators *gOperatorsForDevice[Device::NumDeviceType];

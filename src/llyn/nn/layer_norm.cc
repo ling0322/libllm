@@ -53,6 +53,9 @@ void LayerNorm::initParameters(const StateMap &stateDict) {
 
   _w.throwIfInvalidShape({_dModel});
   _b.throwIfInvalidShape({_dModel});
+
+  _w = F::to(_ctx.getDevice(), _w);
+  _b = F::to(_ctx.getDevice(), _b);
 }
 
 Tensor LayerNorm::forward(const Tensor &input) const {

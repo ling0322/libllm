@@ -138,18 +138,35 @@ Tensor swiglu(Tensor input) {
   return getOperators(input.getDevice().getType())->swiglu(input);
 }
 
-Tensor toDevice(Tensor tensor, Device device) {
+Tensor to(Device device, Tensor tensor, bool castFloat) {
   Device::Type src = tensor.getDevice().getType();
   Device::Type tgt = device.getType();
 
-  Device::Type opDevice = Device::kCpu;
-  if (src == Device::kCuda || tgt == Device::kCuda) opDevice = Device::kCuda;
+  Device srcDevice = tensor.getDevice();
+  if (srcDevice.getType() == device.getType())
+    return tensor;
+  
+  Tensor x = tensor;
+  // CPU -> CUDA: to(cuda) then cast(fp16)
+  if (srcDevice.getType() == Device::kCpu && device.getType() == Device::kCuda)
+    x = getOperators(Device::kCuda)->toDevice(x, device);
+  
+  if (castFloat && x.getDType() == getDefaultFloatType(srcDevice))
+    x = cast(x, getDefaultFloatType(device));
+  
+  // CUDA -> CPU: cast(fp32) then to(cpu)
+  if (srcDevice.getType() == Device::kCuda && device.getType() == Device::kCpu)
+    x = getOperators(Device::kCuda)->toDevice(x, device);
 
-  return getOperators(opDevice)->toDevice(tensor, device);
+  return x;
 }
 
 Tensor cast(Tensor tensor, DType dtype) {
   return getOperators(tensor.getDevice().getType())->cast(tensor, dtype);
+}
+
+DType getDefaultFloatType(Device device) {
+  return getOperators(device.getType())->getDefaultFloatType();
 }
 
 }  // functional

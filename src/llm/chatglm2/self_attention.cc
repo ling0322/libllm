@@ -61,7 +61,6 @@ void SelfAttention::initParameters(const llyn::StateMap &stateDict) {
   _denseWeight.throwIfInvalidShape({dModel, dModel});
 }
 
-
 int SelfAttention::getCtxLength(llyn::StateMap *past) const {
   if (past && past->hasValue<int>(_namePastLength)) {
     return past->getValue<int>(_namePastLength);

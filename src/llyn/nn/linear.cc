@@ -53,6 +53,9 @@ void Linear::initParameters(const StateMap &stateDict) {
 
   _w.throwIfInvalidShape({_outFeatures, _inFeatures});
   _b.throwIfInvalidShape({_outFeatures});
+
+  _w = F::to(_ctx.getDevice(), _w);
+  _b = F::to(_ctx.getDevice(), _b);
 }
 
 Tensor Linear::forward(const Tensor &input) const {

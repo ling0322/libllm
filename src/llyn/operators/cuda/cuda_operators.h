@@ -53,6 +53,7 @@ class CudaOperators : public internal::Operators {
   Tensor swiglu(Tensor A) override;
   Tensor toDevice(Tensor tensor, Device device) override;
   Tensor cast(Tensor tensor, DType dtype) override;
+  DType getDefaultFloatType() override;
 
  private:
   std::shared_ptr<CudnnWrapper> _cudnn;

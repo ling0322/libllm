@@ -33,7 +33,7 @@ class LayerNorm : public Module {
  public:
   static std::unique_ptr<LayerNorm> create(const Context &ctx, int d_model, float eps = 1e-5);
   
-  // initialize the module from state dict.
+  // implement interface nn::Module
   void initParameters(const StateMap &state_dict) override;
 
   // forward input and return the output.

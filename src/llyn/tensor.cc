@@ -23,6 +23,7 @@
 #include <limits>
 #include "llyn/operators/cpu/view.h"
 #include "llyn/operators/cpu/cpu_tensor_data.h"
+#include "llyn/functional.h"
 #include "lyutil/error.h"
 #include "lyutil/strings.h"
 

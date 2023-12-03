@@ -31,7 +31,9 @@ class MLP : public llyn::nn::Module {
  public:
   static std::unique_ptr<MLP> create(const llyn::Context &ctx, ChatGLM2Config config);
 
-  void initParameters(const llyn::StateMap &stateDict) override;
+  // implement interface nn::Module
+  void initParameters(const llyn::StateMap &state_dict) override;
+
   llyn::Tensor forward(const llyn::Tensor &input) const;
 
  private:

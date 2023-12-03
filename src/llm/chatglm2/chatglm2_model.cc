@@ -78,6 +78,9 @@ void ChatGLM2Model::initParameters(const StateMap &stateDict) {
   for (int i = 0; i < _config.numLayers; ++i) {
     _blocks[i]->initParameters(stateDict);
   }
+
+  _rope = F::to(_ctx.getDevice(), _rope);
+  _output = F::to(_ctx.getDevice(), _output);
 }
 
 llyn::Tensor ChatGLM2Model::forwardHidden(llyn::Tensor hiddenState) const {

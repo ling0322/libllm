@@ -65,6 +65,8 @@ class CPUOperators : public internal::Operators {
   Tensor toDevice(Tensor tensor, Device device) override;
   Tensor cast(Tensor tensor, DType dtype) override;
 
+  DType getDefaultFloatType() override;
+
  private:
   typedef internal::TensorShape::Elem Shape;
 

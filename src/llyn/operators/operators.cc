@@ -121,6 +121,9 @@ Tensor Operators::cast(Tensor tensor, DType dtype) {
   NOT_IMPL();
 }
 
+DType Operators::getDefaultFloatType() {
+  NOT_IMPL();
+}
 
 Operators *gOperatorsForDevice[Device::NumDeviceType] = {
   nullptr,

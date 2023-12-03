@@ -41,6 +41,7 @@ void Embedding::initParameters(const StateMap &stateDict) {
 
   _wte = stateDict.getTensor(nameW);
   _wte.throwIfInvalidShape({_vocabSize, _dModel});
+  _wte = F::to(_ctx.getDevice(), _wte);
 }
 
 Tensor Embedding::forward(const Tensor &input) const {

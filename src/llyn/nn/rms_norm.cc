@@ -42,6 +42,7 @@ void RMSNorm::initParameters(const StateMap &stateDict) {
 
   _weight = stateDict.getTensor(nameW);
   _weight.throwIfInvalidShape({_dModel});
+  _weight = F::to(_ctx.getDevice(), _weight);
 }
 
 Tensor RMSNorm::forward(const Tensor &input) const {

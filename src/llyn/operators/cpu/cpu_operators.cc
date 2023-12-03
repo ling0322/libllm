@@ -478,6 +478,10 @@ Tensor CPUOperators::cast(Tensor tensor, DType dtype) {
   NOT_IMPL();
 }
 
+DType CPUOperators::getDefaultFloatType() {
+  return DType::kFloat;
+}
+
 }  // cpu
 }  // op
 }  // llyn

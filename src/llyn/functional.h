@@ -161,12 +161,13 @@ Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask = Tensor());
 //   <float>(..., D / 2): the output tensor.
 Tensor swiglu(Tensor input);
 
-/// @brief Copy the tensor data between devices.
+/// @brief Copy the tensor to target device. If `castFloat` is true and the tensor type is float,
+//         it will cast the data type to default float type of that device.
 /// @param tensor the source tensor.
 /// @param device target device.
+/// @param castFloat if cast the float type.
 /// @return the tensor in device.
-Tensor toDevice(Tensor tensor, Device device);
-
+Tensor to(Device device, Tensor tensor, bool castFloat = true);
 
 /// @brief Cast tensor to another data type.
 /// @param tensor Source tensor.
@@ -174,6 +175,10 @@ Tensor toDevice(Tensor tensor, Device device);
 /// @return tensor with data type `dtype`.
 Tensor cast(Tensor tensor, DType dtype);
 
+/// @brief Get default float type of operators for specific device.
+/// @param device The device to query.
+/// @return float type as DType.
+DType getDefaultFloatType(Device device);
 
 }  // functional
 }  // flint

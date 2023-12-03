@@ -42,6 +42,10 @@ Context Context::withName(const std::string &name) const {
   return ctx;
 }
 
+const Device &Context::getDevice() const {
+  return _device;
+}
+
 std::string Context::joinName(const std::string &left, const std::string &right) {
   std::string join = left;
   join += ".";
