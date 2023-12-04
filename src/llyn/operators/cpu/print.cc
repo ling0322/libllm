@@ -39,7 +39,7 @@ void printValue(float value) {
 
 template<>
 void printValue(LongType value) {
-  printf("%ld", value);
+  printf("%lld", value);
 }
 
 template<typename T>

@@ -58,7 +58,7 @@ class Q4GemmImpl : public Q4Gemm {
       ly::c_ptr<float> B = salloc(numelB);
       TDequantQ4Impl().apply(numelB, args.B, args.scaleB, args.zeroPointB, B.get());
 
-      int64_t ldb = args.transB ? args.K : args.N;
+      int ldb = args.transB ? args.K : args.N;
       TGemmKernel().apply(
           args.transA,
           args.transB,

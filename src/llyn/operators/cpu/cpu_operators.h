@@ -30,7 +30,7 @@ namespace llyn {
 namespace op {
 namespace cpu {
 
-constexpr float Pi = 3.14159;
+constexpr float Pi = 3.14159f;
 
 // the CPU implementation of Operators
 class CPUOperators : public internal::Operators {

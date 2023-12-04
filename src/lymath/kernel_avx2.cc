@@ -30,6 +30,18 @@
 
 namespace lymath {
 
+#define LL_MSVC (_MSC_VER && !__INTEL_COMPILER)
+
+#if LL_MSVC
+inline float lymath_cvtsh_ss(Fp16 sh) {
+  __m128h shx8;
+  shx8.m128i_u16[0] = sh;
+
+  __m128 ssx8 = _mm_cvtph_ps(shx8);
+  return ssx8.m128_f32[0];
+}
+#endif
+
 void SGemm6x16Avx2Kernel::apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_t rs_c) {
   // a: kc x MR
   // b: kc x NR
@@ -209,7 +221,11 @@ float DotQ4SymAvx2Kernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY) {
   PCFp32 px = x;
   PCQ4x2 py = y;
   for (int i = 0; i < nb; ++i) {
+#if LL_MSVC
+    float scale = lymath_cvtsh_ss(*scaleY);
+#else
     float scale = _cvtsh_ss(*scaleY);
+#endif
     ymmScale = _mm256_set1_ps(scale);
   
     // read 32 int4 (16 bytes), convert to 32 int8 and store to yint8x32 
@@ -283,7 +299,11 @@ float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCInt
   PCQ4x2 py = y;
   PCInt8 pyzp = zpY;
   for (int i = 0; i < nb; ++i) {
+#if LL_MSVC
+    ymmScale = _mm256_set1_ps(lymath_cvtsh_ss(*scaleY));
+#else
     ymmScale = _mm256_set1_ps(_cvtsh_ss(*scaleY));
+#endif
     zeroPointv32 = _mm256_set1_epi8(*pyzp);
   
     // read 32 int4 (16 bytes), convert to 32 int8 and store to yint8x32 
@@ -361,7 +381,7 @@ float DotQ4SymAvx2Kernel::applyRow(const QGEMVInt4AArgs &args, int row) {
 void AxpyQ4SymAvx2Kernel::apply(
     int64_t n, float a, const uint8_t *x, const Fp16 *scaleX, float *y) {
   __m256 xv8, yv8, scalev8;
-  __m256i xi8v32, xi8x32p0, xi8x32p1, v0xfv32, v0x8v32;
+  __m256i xi8v32, v0xfv32, v0x8v32;
   __m128i xi8v16;
 
   __m256 av8 = _mm256_set1_ps(a);
@@ -376,7 +396,12 @@ void AxpyQ4SymAvx2Kernel::apply(
   const Fp16 *pxscale = scaleX;
   float *py = y;
   for (int i = 0; i < nb; ++i) {
+#if LL_MSVC
+    scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(*pxscale));
+#else
     scalev8 = _mm256_set1_ps(_cvtsh_ss(*pxscale));
+#endif
+    
 
     // read 32 int4 (16 bytes), convert to 32 int8 and store to xi8x32.
     // Here is the steps of converting int4 to int8:
@@ -465,7 +490,7 @@ void AxpyQ4SymAvx2Kernel::apply(
 
 void AxpyQ4Avx2Kernel::apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCInt8 zpX, PFp32 y) {
   __m256 xv8, yv8, scalev8;
-  __m256i xi8v32, xi8x32p0, xi8x32p1, v0xfv32, zeroPointv32;
+  __m256i xi8v32, v0xfv32, zeroPointv32;
   __m128i xi8v16;
 
   __m256 av8 = _mm256_set1_ps(a);
@@ -480,7 +505,11 @@ void AxpyQ4Avx2Kernel::apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCInt8
   PCInt8 pxzp = zpX;
   PFp32 py = y;
   for (int i = 0; i < nb; ++i) {
+#if LL_MSVC
+    scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(*pxscale));
+#else
     scalev8 = _mm256_set1_ps(_cvtsh_ss(*pxscale));
+#endif
     zeroPointv32 = _mm256_set1_epi8(*pxzp);
 
     xi8v32 = _mm256_cvtepu8_epi16(_mm_loadu_si128(reinterpret_cast<const __m128i *>(px)));
@@ -540,8 +569,8 @@ void AxpyQ4Avx2Kernel::applyColumn(const Q4GemvArgs &args, int col, float *y) {
 }
 
 void DequantQ4SymAvx2Knl::apply(int n, PCQ4x2 src, PCFp16 scale, PFp32 tgt) {
-  __m256 xv8, yv8, scalev8;
-  __m256i xi8v32, xi8x32p0, xi8x32p1, v0xfv32, v0x8v32;
+  __m256 xv8, scalev8;
+  __m256i xi8v32, v0xfv32, v0x8v32;
   __m128i xi8v16;
 
   v0xfv32 = _mm256_set1_epi8(0xf);
@@ -554,7 +583,11 @@ void DequantQ4SymAvx2Knl::apply(int n, PCQ4x2 src, PCFp16 scale, PFp32 tgt) {
   PCFp16 pxscale = scale;
   PFp32 py = tgt;
   for (int i = 0; i < nb; ++i) {
+#if LL_MSVC
+    scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(*pxscale));
+#else
     scalev8 = _mm256_set1_ps(_cvtsh_ss(*pxscale));
+#endif
 
     xi8v32 = _mm256_cvtepu8_epi16(_mm_loadu_si128(reinterpret_cast<const __m128i *>(px)));
     xi8v32 = _mm256_or_si256(_mm256_slli_epi16(xi8v32, 8), _mm256_srli_epi16(xi8v32, 4));
@@ -597,8 +630,8 @@ void DequantQ4SymAvx2Knl::apply(int n, PCQ4x2 src, PCFp16 scale, PFp32 tgt) {
 }
 
 void DequantQ4Avx2Kernel::apply(int n, PCQ4x2 src, PCFp16 scale, PCInt8 zero, PFp32 tgt) {
-  __m256 xv8, yv8, scalev8;
-  __m256i xi8v32, xi8x32p0, xi8x32p1, v0xfv32, zeroPointv32;
+  __m256 xv8, scalev8;
+  __m256i xi8v32, v0xfv32, zeroPointv32;
   __m128i xi8v16;
 
   v0xfv32 = _mm256_set1_epi8(0xf);
@@ -611,7 +644,11 @@ void DequantQ4Avx2Kernel::apply(int n, PCQ4x2 src, PCFp16 scale, PCInt8 zero, PF
   PFp32 py = tgt;
   PCInt8 pzp = zero;
   for (int i = 0; i < nb; ++i) {
+#if LL_MSVC
+    scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(*pxscale));
+#else
     scalev8 = _mm256_set1_ps(_cvtsh_ss(*pxscale));
+#endif
     zeroPointv32 = _mm256_set1_epi8(*pzp);
 
     xi8v32 = _mm256_cvtepu8_epi16(_mm_loadu_si128(reinterpret_cast<const __m128i *>(px)));

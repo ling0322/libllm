@@ -17,10 +17,14 @@
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import os
 from os import path
 from ctypes import CDLL, CFUNCTYPE, c_char_p, c_void_p, c_int32, c_float
 
-LIB_NAME = "libllm-core.so"
+if os.name == "posix":
+    LIB_NAME = "libllm-core.so"
+elif os.name == "nt":
+    LIB_NAME = "llm-core.dll"
 _lib = CDLL(path.join(path.dirname(__file__), LIB_NAME))
 
 LL_TRUE = 1

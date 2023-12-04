@@ -22,8 +22,8 @@
 #include <sstream>
 
 #define LOG(severity) \
-   if (ly::internal::gLogLevel > ly::LogSeverity::severity) {} \
-   else ly::internal::LogWrapper ## severity(__FILE__, __LINE__)
+   if (ly::internal::gLogLevel > ly::LogSeverity::k ## severity) {} \
+   else ly::internal::LogWrapperk ## severity(__FILE__, __LINE__)
 #define NOT_IMPL() { LOG(FATAL) << "not implemented"; abort(); }
 
 // CHECK macro conflicts with catch2
@@ -33,11 +33,11 @@
 namespace ly {
 
 enum class LogSeverity {
-  DEBUG = 0,
-  INFO = 1,
-  WARN = 2,
-  ERROR = 4,
-  FATAL = 3
+  kDEBUG = 0,
+  kINFO = 1,
+  kWARN = 2,
+  kERROR = 4,
+  kFATAL = 3
 };
 
 void setLogLevel(LogSeverity level);

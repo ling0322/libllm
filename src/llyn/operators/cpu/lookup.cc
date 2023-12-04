@@ -54,11 +54,11 @@ Tensor lookupFp32(Subtensor<const float> table, Subtensor<const LongType> indice
 }
 
 template<typename T>
-void applyDequant(int offset, int n, const internal::TensorData *data, float *tgt);
+void applyDequant(int64_t offset, int n, const internal::TensorData *data, float *tgt);
 
 template<>
 void applyDequant<QInt4SymGroup32>(
-    int offset, int n, const internal::TensorData *data, float *tgt) {
+  int64_t offset, int n, const internal::TensorData *data, float *tgt) {
   lymath_dequant_q4sym(
       n,
       (const lymath_q4x2_t *)data->getData<QInt4SymGroup32>(offset),
@@ -68,7 +68,7 @@ void applyDequant<QInt4SymGroup32>(
 
 template<>
 void applyDequant<QInt4Group32>(
-    int offset, int n, const internal::TensorData *data, float *tgt) {
+  int64_t offset, int n, const internal::TensorData *data, float *tgt) {
   lymath_dequant_q4(
       n,
       (const lymath_q4x2_t *)data->getData<QInt4Group32>(offset),

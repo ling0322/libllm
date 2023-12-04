@@ -28,7 +28,7 @@
 namespace ly {
 namespace internal {
 
-LogSeverity gLogLevel = LogSeverity::INFO;
+LogSeverity gLogLevel = LogSeverity::kINFO;
 
 LogWrapper::LogWrapper(LogSeverity severity,
                        const char *source_file,
@@ -58,7 +58,7 @@ LogWrapper::~LogWrapper() {
          source_line_,
          message.c_str());
 
-  if (severity_ == LogSeverity::FATAL) {
+  if (severity_ == LogSeverity::kFATAL) {
     abort();
   }
 }
@@ -72,15 +72,15 @@ const char *LogWrapper::Time() {
 
 const char *LogWrapper::Severity() const {
   switch (severity_) {
-    case LogSeverity::DEBUG:
+    case LogSeverity::kDEBUG:
       return "DEBUG";
-    case LogSeverity::INFO:
+    case LogSeverity::kINFO:
       return "INFO";
-    case LogSeverity::WARN:
+    case LogSeverity::kWARN:
       return "WARNING";
-    case LogSeverity::ERROR:
+    case LogSeverity::kERROR:
       return "ERROR";
-    case LogSeverity::FATAL:
+    case LogSeverity::kFATAL:
       return "FATAL";
     default:
       fputs("invalid log severity.", stderr);
