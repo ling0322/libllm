@@ -39,7 +39,7 @@ class SubtensorList : public ly::NonCopyable {
 
   ly::Span<const internal::TensorShape::Elem> getShape() const { return _shape; }
   int getShape(int d) const { return _shape[d].shape; }
-  int getSize() const { return _list.size(); }
+  int getSize() const { return static_cast<int>(_list.size()); }
   ly::Span<T *const> getDataPtrList() const { return ly::makeConstSpan(_list); }
 
   Subtensor<T> getSubtensor(int index) const {

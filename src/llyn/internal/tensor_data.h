@@ -52,7 +52,7 @@ class SlotBase {
   /// @param offset the offset `n`.
   /// @return the pointer of type `T`.
   template<typename T>
-  T *getData(int offset = 0) const;
+  T *getData(int64_t offset = 0) const;
 
   /// @brief Get total number of bytes in this slot.
   /// @return 
@@ -62,14 +62,14 @@ class SlotBase {
 };
 
 template<typename T>
-inline T *SlotBase::getData(int offset) const {
+inline T *SlotBase::getData(int64_t offset) const {
   DType dtype = getDType();
   CHECK(DType::getType<T>() == dtype);
   return reinterpret_cast<T *>(getRawData() + dtype.getTotalSize(offset));
 }
 
 template<>
-inline void *SlotBase::getData<void>(int offset) const {
+inline void *SlotBase::getData<void>(int64_t offset) const {
   DType dtype = getDType();
   return reinterpret_cast<void *>(getRawData() + dtype.getTotalSize(offset));
 }
@@ -99,7 +99,7 @@ class TensorData {
   /// @param offset the offset `n`.
   /// @return the pointer of type `T`.
   template<typename T>
-  T *getData(int offset = 0) const { return getSlot(0)->getData<T>(offset); }
+  T *getData(int64_t offset = 0) const { return getSlot(0)->getData<T>(offset); }
 
   /// @brief Get data type from slot[0]
   /// @return slot[0] data type.

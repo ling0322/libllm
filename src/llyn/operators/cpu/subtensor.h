@@ -96,7 +96,7 @@ struct Subtensor {
   }
 
   // get rank.
-  int rank() const { return shape.size(); }
+  int rank() const { return static_cast<int>(shape.size()); }
 };
 
 }  // cpu

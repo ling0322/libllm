@@ -62,6 +62,7 @@ Tensor rmsNorm3D(CudnnWrapper *cudnn, const Tensor &tensor, const Tensor &weight
   d.x = (C.getShape(2) + blockSize - 1) / blockSize;
 
   rmsNormKernel3D<<<d, blockSize>>>(tensor, reduceNorm2, weight, C, eps);
+  cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return C;
 }

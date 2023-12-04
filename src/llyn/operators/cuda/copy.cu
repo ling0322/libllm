@@ -57,6 +57,7 @@ void copy5D(const Tensor &src, Tensor &dest) {
   d.x = (src.getShape(4) + blockSize - 1) / blockSize;
 
   copy5DKernel<T><<<d, blockSize>>>(sA, sC);
+  cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
 

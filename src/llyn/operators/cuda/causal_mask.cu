@@ -45,6 +45,7 @@ Tensor causalMask(int size) {
   d.x = (C.getShape(1) + blockSize - 1) / blockSize;
 
   causalMaskKernel<<<d, blockSize>>>(C);
+  cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return C;
 }

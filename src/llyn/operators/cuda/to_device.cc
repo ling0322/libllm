@@ -113,12 +113,17 @@ Tensor toDevice(const Tensor &tensor) {
 Tensor toCpu(const Tensor &tensor) {
   if (tensor.getDevice().getType() == Device::kCpu)
     return tensor;
+
+
+  LOG(INFO) << "transfer " << tensor.getNumEl() << " elements to cpu";
   return toDevice<Device::kCpu>(tensor);
 }
 
 Tensor toCuda(const Tensor &tensor) {
   if (tensor.getDevice().getType() == Device::kCuda)
     return tensor;
+
+  LOG(INFO) << "transfer " << tensor.getNumEl() << " elements to cuda";
   return toDevice<Device::kCuda>(tensor);
 }
 

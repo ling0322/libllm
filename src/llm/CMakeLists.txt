@@ -19,6 +19,13 @@ set(libllm_SOURCES
     "llama/llama_model_for_generation.cc"
     "llama/mlp.cc")
 
+if(WIN32)
+    set(cuda_LIBRARIES CUDA::cudart CUDA::cublas)
+endif(WIN32)
+if(UNIX)
+    set(cuda_LIBRARIES CUDA::cudart_static CUDA::cublas_static)
+endif(UNIX)
+
 set(libllm_LIBADD
     llyn
     llynextcuda
@@ -27,12 +34,12 @@ set(libllm_LIBADD
     lyutil
     OpenMP::OpenMP_CXX
     ${cudnn_LIBRARIES}
-    CUDA::cudart_static
-    CUDA::cublas_static)
+    ${cuda_LIBRARIES})
 
 add_library(llmcore SHARED ${libllm_SOURCES} )
 target_include_directories(llmcore PRIVATE ${libllm_INCDIRS})
 target_compile_features(llmcore PRIVATE cxx_std_14)
+target_link_directories(llmcore PUBLIC "${CUDNN_ROOT}/lib/" "${CUDNN_ROOT}/lib/x64")
 target_link_libraries(llmcore ${libllm_LIBADD}  )
 set_property(TARGET llmcore PROPERTY OUTPUT_NAME llm-core)
 target_link_options(llmcore PUBLIC "-Wl,--no-undefined")
@@ -56,5 +63,6 @@ set(llm_test_SOURCES
 
 add_executable(unittest ${llm_test_SOURCES})
 target_include_directories(unittest PRIVATE ${libllm_INCDIRS})
+target_link_directories(unittest PUBLIC "${CUDNN_ROOT}/lib/" "${CUDNN_ROOT}/lib/x64")
 target_link_libraries(unittest ${libllm_LIBADD})
 target_link_options(unittest PUBLIC "-fopenmp")

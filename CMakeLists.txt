@@ -12,17 +12,14 @@ set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 75 80 86)
 enable_language(CUDA)
 
 if(NOT DEFINED CUDNN_ROOT)
-  message( FATAL_ERROR "CUDNN_ROOT is not defined." )
+  message(FATAL_ERROR "CUDNN_ROOT is not defined.")
 endif()
 
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "-O3 -g")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(MKL_PREFIX "/opt/intel/mkl" CACHE STRING "Prefix for MKL headers and libraries.")
 
-set (CUDA_ENABLED ON)
-set(cudnn_LIBRARIES
-    "${CUDNN_ROOT}/lib/libcudnn_ops_infer_static.a")
+set(CUDA_ENABLED ON)
 
 #add_compile_options(-fsanitize=address)
 #add_link_options(-fsanitize=address)
@@ -32,10 +29,12 @@ if(CUDA_ENABLED)
 endif(CUDA_ENABLED)
 
 if(WIN32)
-  add_definitions( "/D_CRT_SECURE_NO_WARNINGS /wd4267 /DCATCH_AMALGAMATED_CUSTOM_MAIN /DCATCH_CONFIG_PREFIX_ALL" )
+  add_definitions( "/D_CRT_SECURE_NO_WARNINGS /DCATCH_AMALGAMATED_CUSTOM_MAIN /DCATCH_CONFIG_PREFIX_ALL" )
+  set(cudnn_LIBRARIES "cudnn_ops_infer")
 endif(WIN32)
 if(UNIX)
   add_definitions( "-DCATCH_AMALGAMATED_CUSTOM_MAIN -DCATCH_CONFIG_PREFIX_ALL" )
+  set(cudnn_LIBRARIES "cudnn_ops_infer_static")
   set(CMAKE_CXX_FLAGS "-O3 -g")
 endif(UNIX)
 

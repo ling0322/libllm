@@ -115,6 +115,7 @@ Tensor MatMul::gemmHalf(const Tensor &A, const Tensor &B) {
       gemmArgs.ldc,
       CUBLAS_COMPUTE_16F,
       CUBLAS_GEMM_DEFAULT));
+  cudaDeviceSynchronize();
 
   return C;
 }
@@ -206,6 +207,7 @@ Tensor MatMul::bmmHalf(const Tensor &A, const Tensor &B) {
       CUBLAS_COMPUTE_16F,
       CUBLAS_GEMM_DEFAULT));
 
+  cudaDeviceSynchronize();
   return C;
 }
 

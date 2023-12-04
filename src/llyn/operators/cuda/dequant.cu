@@ -65,6 +65,7 @@ Tensor dequantQ4ToHalf(const Tensor &qtensor) {
   PackedSubtensor<half, 2> sC(dst);
 
   dequantTensor2DQ4<<<d, blockSize>>>(sA, sC);
+  cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   if (transQ) dst = dst.transpose(0, 1);

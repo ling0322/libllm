@@ -85,6 +85,7 @@ Tensor lookup2DHalf(const Tensor &embdTable, const Tensor &input) {
   PackedSubtensor<half, 3> sC(dst);
 
   lookupHalfKernel2D<<<d, blockSize>>>(sA, sB, sC);
+  cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return dst;
 }
@@ -109,6 +110,7 @@ Tensor lookup2DQ4(const Tensor &embdTable, const Tensor &input) {
   PackedSubtensor<half, 3> sC(dst);
 
   lookupQ4Kernel2D<<<d, blockSize>>>(sA, sB, sC);
+  cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return dst;
 }
