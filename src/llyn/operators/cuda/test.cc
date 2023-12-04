@@ -366,7 +366,10 @@ CATCH_TEST_CASE("test cat", "[cuda][operators][cat]") {
 
   Tensor x = F::to(Device::getCuda(), a);
   Tensor y = F::to(Device::getCuda(), b);
+  x = F::cast(x, DType::kFloat16);
+  y = F::cast(y, DType::kFloat16);
   x = F::cat(x, y, 1);
+  x = F::cast(x, DType::kFloat);
   x = F::to(Device::getCpu(), x);
 
   CATCH_REQUIRE(F::allClose(x, xr));

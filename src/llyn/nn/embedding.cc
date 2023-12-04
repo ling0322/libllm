@@ -29,7 +29,8 @@ constexpr char Embedding::kWeight[];
 
 std::unique_ptr<Embedding> Embedding::create(const Context &ctx, int dModel, int vocabSize) {
   std::unique_ptr<Embedding> layer{new Embedding()};
-  layer->_ctx = ctx;
+  layer->setCtx(ctx);
+
   layer->_dModel = dModel;
   layer->_vocabSize = vocabSize;
 
@@ -37,11 +38,11 @@ std::unique_ptr<Embedding> Embedding::create(const Context &ctx, int dModel, int
 }
 
 void Embedding::initParameters(const StateMap &stateDict) {
-  std::string nameW = _ctx.name(kWeight);
+  std::string nameW = getCtx().name(kWeight);
 
   _wte = stateDict.getTensor(nameW);
   _wte.throwIfInvalidShape({_vocabSize, _dModel});
-  _wte = F::to(_ctx.getDevice(), _wte);
+  _wte = moveAndCastFloat(_wte, getCtx());
 }
 
 Tensor Embedding::forward(const Tensor &input) const {

@@ -39,8 +39,6 @@ class Attention : public llyn::nn::Module {
   llyn::Tensor _outProj;
   llyn::Tensor _roPE;
 
-  llyn::Context _ctx;
-
   std::string _namePastK;
   std::string _namePastV;
   std::string _namePastLen;

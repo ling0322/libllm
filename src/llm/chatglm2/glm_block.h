@@ -42,7 +42,6 @@ class GLMBlock : public llyn::nn::Module {
   std::unique_ptr<llyn::nn::RMSNorm> _attnNorm;
   std::unique_ptr<SelfAttention> _attn;
   std::unique_ptr<MLP> _mlp;
-  llyn::Context _ctx;
 
   GLMBlock() = default;
 };

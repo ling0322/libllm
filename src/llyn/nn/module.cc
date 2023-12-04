@@ -17,60 +17,23 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "llyn/nn/linear.h"
+#include "llyn/nn/module.h"
 
 #include "llyn/functional.h"
-#include "lyutil/error.h"
+
+namespace F = llyn::functional;
 
 namespace llyn {
 namespace nn {
 
-namespace F = functional;
+Tensor Module::moveAndCastFloat(const Tensor &tensor, const Context &ctx) {
+  if (tensor.getDevice().getType() == ctx.getDevice().getType())
+    return tensor;
+  
+  Tensor x = tensor;
+  x = F::to(ctx.getDevice(), x);
 
-constexpr char Linear::kWeight[];
-constexpr char Linear::kBias[];
-
-Linear::Linear() : _inFeatures(0), _outFeatures(0) {}
-
-std::unique_ptr<Linear> Linear::create(const Context &ctx, int inFeatures, int outFeatures) {
-  std::unique_ptr<Linear> linear{new Linear()};
-  linear->setCtx(ctx);
-
-  if (inFeatures <= 0 || outFeatures <= 0) {
-    throw ly::AbortedError("invalid d_model");
-  }
-
-  linear->_inFeatures = inFeatures;
-  linear->_outFeatures = outFeatures;
-  return linear;
-}
-
-void Linear::initParameters(const StateMap &stateDict) {
-  const Context &ctx = getCtx();
-
-  std::string nameW = getCtx().name(kWeight);
-  std::string nameB = ctx.name(kBias);
-
-  _w = stateDict.getTensor(nameW);
-  _b = stateDict.getTensor(nameB);
-
-  _w.throwIfInvalidShape({_outFeatures, _inFeatures});
-  _b.throwIfInvalidShape({_outFeatures});
-
-  _w = moveAndCastFloat(_w, ctx);
-  _b = moveAndCastFloat(_b, ctx);
-
-}
-
-Tensor Linear::forward(const Tensor &input) const {
-  Tensor x;
-  if (input.getDim() >= 2) {
-    x = F::matmul(input, _w.transpose(0, 1));
-  } else {
-    NOT_IMPL();
-  }
-  x = F::add(x, _b);
-
+  if (x.getDType().isFloat()) x = F::cast(x, ctx.getFloatDType());
   return x;
 }
 

@@ -48,8 +48,9 @@ std::unique_ptr<ChatGLM2Model> ChatGLM2Model::create(const Context &rootCtx,
                                                      ChatGLM2Config config) {
   std::unique_ptr<ChatGLM2Model> model{new ChatGLM2Model()};
   Context ctx = rootCtx.withName(ChatGlm2);
+  model->setCtx(ctx);
+
   model->_config = config;
-  model->_ctx = ctx;
   model->_embedding = Embedding::create(ctx.withName(Embd), config.hiddenSize, config.vocabSize);
   model->_finalNorm = RMSNorm::create(ctx.withName(FinalNorm), config.hiddenSize, config.normEps);
   for (int i = 0; i < config.numLayers; ++i) {
@@ -65,22 +66,24 @@ std::unique_ptr<ChatGLM2Model> ChatGLM2Model::create(const Context &rootCtx,
 }
 
 void ChatGLM2Model::initParameters(const StateMap &stateDict) {
+  const Context &ctx = getCtx();
+
   _embedding->initParameters(stateDict);
   _finalNorm->initParameters(stateDict);
 
-  _rope = stateDict.getTensor(_ctx.name(RoPE));
+  _rope = stateDict.getTensor(ctx.name(RoPE));
   _rope.throwIfInvalidShape({_config.seqLength, _config.kvChannels / 4, 2});
   _rope = _rope.view({_config.seqLength, 1, _config.kvChannels / 2});
 
-  _output = stateDict.getTensor(_ctx.name(OutputWeight));
+  _output = stateDict.getTensor(ctx.name(OutputWeight));
   _output.throwIfInvalidShape({_config.vocabSize, _config.hiddenSize});
 
   for (int i = 0; i < _config.numLayers; ++i) {
     _blocks[i]->initParameters(stateDict);
   }
 
-  _rope = F::to(_ctx.getDevice(), _rope);
-  _output = F::to(_ctx.getDevice(), _output);
+  _rope = moveAndCastFloat(_rope, ctx);
+  _output = moveAndCastFloat(_output, ctx);
 }
 
 llyn::Tensor ChatGLM2Model::forwardHidden(llyn::Tensor hiddenState) const {

@@ -39,8 +39,6 @@ class MLP : public llyn::nn::Module {
   llyn::Tensor _wGateUpProj;
   llyn::Tensor _wDownProj;
 
-  llyn::Context _ctx;
-
   int _hiddenSize;
   int _intermediateSize;
 

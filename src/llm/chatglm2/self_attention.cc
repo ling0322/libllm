@@ -36,7 +36,8 @@ std::unique_ptr<SelfAttention> SelfAttention::create(
     const llyn::Context &ctx,
     ChatGLM2Config config) {
   std::unique_ptr<SelfAttention> layer{new SelfAttention()};
-  layer->_ctx = ctx;
+  layer->setCtx(ctx);
+
   layer->_kvProjDim = config.hiddenSizePerAttentionHead * config.multiQueryGroupNum;
   layer->_qProjDim = config.hiddenSize;
   layer->_hiddenSizePerHead = config.hiddenSizePerAttentionHead;
@@ -57,8 +58,9 @@ void SelfAttention::initParameters(const llyn::StateMap &stateDict) {
   _qkvProj->initParameters(stateDict);
 
   int dModel = _qProjDim;
-  _denseWeight = stateDict.getTensor(_ctx.name("dense_weight"));
+  _denseWeight = stateDict.getTensor(getCtx().name("dense_weight"));
   _denseWeight.throwIfInvalidShape({dModel, dModel});
+  _denseWeight = moveAndCastFloat(_denseWeight, getCtx());
 }
 
 int SelfAttention::getCtxLength(llyn::StateMap *past) const {
@@ -133,7 +135,7 @@ Tensor SelfAttention::forward(StateMap &past, Tensor input, Tensor roPE) const {
   k = k.transpose(1, 2);
   v = v.transpose(1, 2);
   Tensor x = qL == 1 ? F::attention(q, k, v)
-                     : F::attention(q, k, v, F::causalMask(q.getShape(2)));
+                     : F::attention(q, k, v, F::causalMask(q.getShape(2), getCtx().getDevice()));
 
   x = F::contiguous(x.transpose(1, 2)).view({N, qL, qNH * D});
   x = F::matmul(x, _denseWeight.transpose(0, 1));

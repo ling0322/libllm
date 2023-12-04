@@ -84,6 +84,10 @@ class DType {
   // return true if the dtype represents a quanztized data.
   bool isQuantized() const;
 
+  /// @brief Return true if DType is a pure float type (without quantization).
+  /// @return if DType is a pure float type.
+  bool isFloat() const;
+
   // get the group size for quantized data.
   int getGroupSize() const;
 

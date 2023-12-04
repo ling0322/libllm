@@ -44,7 +44,6 @@ class Embedding : public Module {
   // tensor names.
   static constexpr char kWeight[] = "weight";
 
-  Context _ctx;
   Tensor _wte;
 
   int _dModel;

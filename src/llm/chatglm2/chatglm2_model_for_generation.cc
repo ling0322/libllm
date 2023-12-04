@@ -79,5 +79,9 @@ const char *ChatGLM2ModelForGeneration::getName() const {
   return _modelName;
 }
 
+llyn::Device ChatGLM2ModelForGeneration::getDevice() const {
+  return _model->getCtx().getDevice();
+}
+
 }  // namespace chatglm2
 }  // namespace libllm

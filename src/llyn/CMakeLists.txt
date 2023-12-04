@@ -27,6 +27,7 @@ set(llyn_SOURCES
     "nn/embedding.cc"
     "nn/layer_norm.cc"
     "nn/linear.cc"
+    "nn/module.cc"
     "nn/rms_norm.cc"
     "context.cc"
     "device.cc"

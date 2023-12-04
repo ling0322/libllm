@@ -37,10 +37,10 @@ constexpr char LlamaModel::RoPE[];
 
 std::shared_ptr<LlamaModel> LlamaModel::create(const Context &rootCtx, LlamaConfig config) {
   std::shared_ptr<LlamaModel> model{new LlamaModel()};
-  
   Context ctx = rootCtx.withName(Llama);
+  model->setCtx(ctx);
+  
   model->_config = config;
-  model->_ctx = ctx;
   model->_embedding = Embedding::create(ctx.withName("embd"), config.hiddenSize, config.vocabSize);
   model->_norm = RMSNorm::create(ctx.withName("norm"), config.hiddenSize, config.normEps);
   for (int i = 0; i < config.numLayers; ++i) {
@@ -58,8 +58,9 @@ void LlamaModel::initParameters(const StateMap &stateDict) {
     _layers[i]->initParameters(stateDict);
   }
 
-  _wOutput = stateDict.getTensor(_ctx.name("out_weight"));
+  _wOutput = stateDict.getTensor(getCtx().name("out_weight"));
   _wOutput.throwIfInvalidShape({_config.vocabSize, _config.hiddenSize});
+  _wOutput = moveAndCastFloat(_wOutput, getCtx());
 }
 
 llyn::Tensor LlamaModel::forward(StateMap &past, Tensor input) const {

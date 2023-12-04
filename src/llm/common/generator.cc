@@ -44,6 +44,8 @@ Generator::Generator(
 
 void Generator::setPrompt(const std::string &query) {
   Tensor inputs = _model->buildInput(*_tokenizer, query);
+  inputs = F::to(_model->getDevice(), inputs);
+
   Tensor hiddenState = _model->forward(_past, inputs);
 
   CHECK(hiddenState.getDim() == 3);
@@ -64,6 +66,7 @@ const char *Generator::nextToken() {
 
   std::array<llyn::LongType, 1> inputData{_currentToken};
   Tensor inputs = Tensor::create<llyn::LongType>({1, 1}, inputData);
+  inputs = F::to(_model->getDevice(), inputs);
 
   Tensor x = _model->forward(_past, inputs);
   Tensor logits = _model->forwardHidden(x);
@@ -84,6 +87,12 @@ int Generator::sampleToken(const llyn::Tensor &logits) {
     x = F::mul(x, 1.0f / _config.temperature);
   }
   x = F::softmax(x);
+  if (x.getDevice().getType() == llyn::Device::kCuda) {
+    x = F::cast(x, llyn::DType::kFloat);
+    x = F::to(llyn::Device::kCpu, x);
+  }
+
+
   return _sampler.sample(x);
 }
 

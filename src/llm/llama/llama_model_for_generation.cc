@@ -86,5 +86,9 @@ const char *LlamaModelForGeneration::getName() const {
   return _modelName;
 }
 
+llyn::Device LlamaModelForGeneration::getDevice() const {
+  return _model->getCtx().getDevice();
+}
+
 }  // namespace llama
 }  // namespace libllm

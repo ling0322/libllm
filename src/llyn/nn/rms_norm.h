@@ -37,7 +37,6 @@ class RMSNorm : public Module {
   void initParameters(const StateMap &state_dict) override;
 
  private:
-  Context _ctx;
   Tensor _weight;
 
   int _dModel;

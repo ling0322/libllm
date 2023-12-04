@@ -44,8 +44,6 @@ class LayerNorm : public Module {
   static constexpr char kWeight[] = "weight";
   static constexpr char kBias[] = "bias";
 
-  Context _ctx;
-
   Tensor _w;
   Tensor _b;
 

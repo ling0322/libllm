@@ -121,6 +121,16 @@ bool DType::isQuantized() const {
   }
 }
 
+bool DType::isFloat() const {
+  switch (_dtype) {
+    case DType::kFloat16:
+    case DType::kFloat:
+      return true;
+    default:
+      return false;
+  }
+}
+
 int DType::getGroupSize() const {
   switch (_dtype) {
     case DType::kQInt4SymGroup32:

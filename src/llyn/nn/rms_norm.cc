@@ -30,7 +30,8 @@ constexpr char RMSNorm::Weight[];
 
 std::unique_ptr<RMSNorm> RMSNorm::create(const Context &ctx, int dModel, float eps) {
   std::unique_ptr<RMSNorm> layer{new RMSNorm()};
-  layer->_ctx = ctx;
+  layer->setCtx(ctx);
+
   layer->_dModel = dModel;
   layer->_eps = eps;
 
@@ -38,11 +39,11 @@ std::unique_ptr<RMSNorm> RMSNorm::create(const Context &ctx, int dModel, float e
 }
 
 void RMSNorm::initParameters(const StateMap &stateDict) {
-  std::string nameW = _ctx.name(Weight);
+  std::string nameW = getCtx().name(Weight);
 
   _weight = stateDict.getTensor(nameW);
   _weight.throwIfInvalidShape({_dModel});
-  _weight = F::to(_ctx.getDevice(), _weight);
+  _weight = moveAndCastFloat(_weight, getCtx());
 }
 
 Tensor RMSNorm::forward(const Tensor &input) const {

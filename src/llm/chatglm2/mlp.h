@@ -43,8 +43,6 @@ class MLP : public llyn::nn::Module {
   int _hiddenSize;
   int _ffnHiddenSize;
 
-  llyn::Context _ctx;
-
   MLP() = default;
 };
 

@@ -49,8 +49,11 @@ void dequantTensor2DQ4(PackedSubtensor2DQ4 qtensor,
 
 Tensor dequantQ4ToHalf(const Tensor &qtensor) {
   CHECK(qtensor.getDType() == DType::kQInt4Group32);
+  Tensor qT = qtensor;
+  bool transQ = qtensor.getStride(0) == 1 && qtensor.getStride(1) != 1;
+  if (transQ) qT = qT.transpose(0, 1);
 
-  std::vector<Tensor::ShapeType> shape = qtensor.getShape();
+  std::vector<Tensor::ShapeType> shape = qT.getShape();
   Tensor dst = createCudaTensorHalf(shape);
 
   constexpr int blockSize = 256;
@@ -58,11 +61,13 @@ Tensor dequantQ4ToHalf(const Tensor &qtensor) {
   d.y = dst.getShape(0);
   d.x = (dst.getShape(1) / 2 + blockSize - 1) / blockSize;
 
-  PackedSubtensor2DQ4 sA(qtensor);
+  PackedSubtensor2DQ4 sA(qT);
   PackedSubtensor<half, 2> sC(dst);
 
   dequantTensor2DQ4<<<d, blockSize>>>(sA, sC);
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
+
+  if (transQ) dst = dst.transpose(0, 1);
   return dst;
 }
 

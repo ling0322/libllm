@@ -37,7 +37,6 @@ class SelfAttention : public llyn::nn::Module {
  private:
   std::unique_ptr<llyn::nn::Linear> _qkvProj;
   llyn::Tensor _denseWeight;
-  llyn::Context _ctx;
 
   int _kvProjDim;
   int _qProjDim;

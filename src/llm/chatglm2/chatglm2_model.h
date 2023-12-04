@@ -41,7 +41,6 @@ class ChatGLM2Model : public llyn::nn::Module {
   llyn::Tensor forwardHidden(llyn::Tensor hiddenState) const;
 
  private:
-  llyn::Context _ctx;
   ChatGLM2Config _config;
 
   static constexpr char ChatGlm2[] = "chatglm2";

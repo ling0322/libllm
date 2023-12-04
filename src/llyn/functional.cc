@@ -145,20 +145,11 @@ Tensor to(Device device, Tensor tensor, bool castFloat) {
   Device srcDevice = tensor.getDevice();
   if (srcDevice.getType() == device.getType())
     return tensor;
-  
-  Tensor x = tensor;
-  // CPU -> CUDA: to(cuda) then cast(fp16)
-  if (srcDevice.getType() == Device::kCpu && device.getType() == Device::kCuda)
-    x = getOperators(Device::kCuda)->toDevice(x, device);
-  
-  if (castFloat && x.getDType() == getDefaultFloatType(srcDevice))
-    x = cast(x, getDefaultFloatType(device));
-  
-  // CUDA -> CPU: cast(fp32) then to(cpu)
-  if (srcDevice.getType() == Device::kCuda && device.getType() == Device::kCpu)
-    x = getOperators(Device::kCuda)->toDevice(x, device);
 
-  return x;
+  if (srcDevice.getType() == Device::kCuda || device.getType() == Device::kCuda)
+    return getOperators(Device::kCuda)->toDevice(tensor, device);
+  else
+    NOT_IMPL();
 }
 
 Tensor cast(Tensor tensor, DType dtype) {

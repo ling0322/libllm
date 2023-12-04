@@ -120,8 +120,8 @@ inline void throwLastError() {
 }  // namespace internal
 
 inline void init() {
-  LL_STATUS status = llm_init();
-  if (status != LL_OK) internal::throwLastError();
+  LIBLLM_STATUS status = llm_init();
+  if (status != LIBLLM_OK) internal::throwLastError();
 }
 
 inline void destroy() {
@@ -134,20 +134,20 @@ inline std::shared_ptr<llm_compl_opt_t> CompletionConfig::getInternalOption() {
       llm_compl_opt_destroy);
   if (!option) throw std::runtime_error("create option failed.");
 
-  if (LL_OK != llm_compl_opt_set_top_p(option.get(), getTopP()))
+  if (LIBLLM_OK != llm_compl_opt_set_top_p(option.get(), getTopP()))
     internal::throwLastError();
 
-  if (LL_OK != llm_compl_opt_set_top_k(option.get(), getTopK()))
+  if (LIBLLM_OK != llm_compl_opt_set_top_k(option.get(), getTopK()))
     internal::throwLastError();
 
-  if (LL_OK != llm_compl_opt_set_temperature(option.get(), getTemperature()))
+  if (LIBLLM_OK != llm_compl_opt_set_temperature(option.get(), getTemperature()))
     internal::throwLastError();
   
   return option;
 }
 
 inline bool Completion::isActive() {
-  return llm_compl_is_active(_completion.get()) == LL_TRUE;
+  return llm_compl_is_active(_completion.get()) == LIBLLM_TRUE;
 }
 
 inline Chunk Completion::nextChunk() {
@@ -179,7 +179,7 @@ inline const char *Model::getName() {
 inline Completion Model::complete(const std::string &prompt, CompletionConfig config) {
   std::shared_ptr<llm_compl_opt_t> option = config.getInternalOption();
 
-  if (LL_OK != llm_compl_opt_set_prompt(option.get(), prompt.c_str()))
+  if (LIBLLM_OK != llm_compl_opt_set_prompt(option.get(), prompt.c_str()))
     internal::throwLastError();
 
   std::shared_ptr<llm_compl_t> completion(llm_model_complete(_model.get(), option.get()),

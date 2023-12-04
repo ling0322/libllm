@@ -31,12 +31,13 @@ Context Context::getCpu() {
   return ctx;
 }
 
-Context::Context() {}
+Context::Context() : _floatType(DType::kFloat) {}
 
 Context Context::withName(const std::string &name) const {
   CHECK(!name.empty());
   Context ctx;
   ctx._device = _device;
+  ctx._floatType = _floatType;
   ctx._ns = this->name(name);
 
   return ctx;
