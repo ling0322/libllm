@@ -34,10 +34,20 @@ namespace llyn {
 namespace op {
 namespace cuda {
 
+bool CudaOperators::isAvailable() {
+  return getCudaDeviceCount() > 0;
+}
+
 internal::Operators *CudaOperators::create() {
   std::unique_ptr<CudaOperators> op{new CudaOperators()};
   op->_cudnn = CudnnWrapper::create();
   op->_matmul = MatMul::create();
+
+  LOG(INFO) << "cuda numDevices = " << getCudaDeviceCount();
+  LOG(INFO) << "cuda:0 maxThreadsPerMultiProcessor = " 
+            << getCudaDeviceAttribute(cudaDevAttrMaxThreadsPerMultiProcessor);
+  LOG(INFO) << "cuda:0 multiProcessorCount = " 
+            << getCudaDeviceAttribute(cudaDevAttrMultiProcessorCount);
 
   return op.release();
 }
@@ -158,5 +168,10 @@ DType CudaOperators::getDefaultFloatType() {
 }  // llyn
 
 llyn::internal::Operators *llynCreateCudaOperators() {
-  return llyn::op::cuda::CudaOperators::create();
+  if (llyn::op::cuda::CudaOperators::isAvailable()) {
+    return llyn::op::cuda::CudaOperators::create();
+  } else {
+    LOG(INFO) << "No CUDA device available.";
+    return nullptr;
+  } 
 }

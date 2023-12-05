@@ -33,6 +33,10 @@ class CudaOperators : public internal::Operators {
  public:
   ~CudaOperators() = default;
 
+  /// @brief Returns true if the CudaOperators is available (CUDA device available in host).
+  /// @return if CudaOperators available.
+  static bool isAvailable();
+
   // create a instance of CPUOperators
   static Operators *create();
 

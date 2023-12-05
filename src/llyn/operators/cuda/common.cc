@@ -62,7 +62,18 @@ Tensor createCudaTensorFloat(ly::Span<const int> shape) {
   return Tensor::create(tensorShape, data);
 }
 
+int getCudaDeviceAttribute(cudaDeviceAttr attr) {
+  int value;
+  LL_CHECK_CUDA_STATUS(cudaDeviceGetAttribute(&value, attr, 0));
+  return value;
+}
+
+int getCudaDeviceCount() {
+  int value;
+  LL_CHECK_CUDA_STATUS(cudaGetDeviceCount(&value));
+  return value;
+}
+
 }  // cuda
 }  // op
 }  // llyn
-    

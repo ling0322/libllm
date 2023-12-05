@@ -29,21 +29,20 @@ namespace cuda {
 __global__
 void dequantTensor2DQ4(PackedSubtensor2DQ4 qtensor,
                        PackedSubtensor<half, 2> destTensor) {
-  int x = blockIdx.x * blockDim.x + threadIdx.x;
-  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  int64_t numQ4x2 = qtensor.getNumCol() * qtensor.getNumRow() / 2;
+  half *destData = destTensor.getData();
 
-  if (x < qtensor.getNumCol() / 2 && y < qtensor.getNumRow()) {
-    int rowGroup = y * qtensor.getNumCol() / 32;
-    int rowOffset = y * qtensor.getNumCol() / 2;
-    int elemOffset = rowOffset + x;
-    int elemGroup = rowGroup + x / 16;
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
+  for (int elemOffset = idx; elemOffset < numQ4x2; elemOffset += gridDim.x * blockDim.x) {
+    int elemGroup = elemOffset / 16;
     uint8_t q4elem = qtensor.getData()[elemOffset];
     half scale = qtensor.getScale()[elemGroup];
     int8_t bias = qtensor.getBias()[elemGroup];
 
-    destTensor[y][x * 2] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem >> 4) - bias));
-    destTensor[y][x * 2+ 1] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem & 0xf) - bias));
+    destData[elemOffset * 2] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem >> 4) - bias));
+    destData[elemOffset * 2 + 1] = __hmul(
+        scale, __int2half_rd(static_cast<int>(q4elem & 0xf) - bias));
   }
 }
 
@@ -57,14 +56,20 @@ Tensor dequantQ4ToHalf(const Tensor &qtensor) {
   Tensor dst = createCudaTensorHalf(shape);
 
   constexpr int blockSize = 256;
-  dim3 d;
-  d.y = dst.getShape(0);
-  d.x = (dst.getShape(1) / 2 + blockSize - 1) / blockSize;
+  int maxThreadsPerSM = getCudaDeviceAttribute(cudaDevAttrMaxThreadsPerMultiProcessor);
+  int numSM = getCudaDeviceAttribute(cudaDevAttrMultiProcessorCount);
+  int numBlock = (qT.getNumEl() / 2 + blockSize - 1) / blockSize;
+  int deviceNumBlock = maxThreadsPerSM * numSM / blockSize;
+  LOG(INFO) << "numBlock = " << numBlock;
+  LOG(INFO) << "deviceNumBlock = " << deviceNumBlock;
+
+  dim3 grid;
+  grid.x = std::min(numBlock, deviceNumBlock);
 
   PackedSubtensor2DQ4 sA(qT);
   PackedSubtensor<half, 2> sC(dst);
 
-  dequantTensor2DQ4<<<d, blockSize>>>(sA, sC);
+  dequantTensor2DQ4<<<grid, blockSize>>>(sA, sC);
   cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
@@ -75,4 +80,3 @@ Tensor dequantQ4ToHalf(const Tensor &qtensor) {
 }  // cuda
 }  // op
 }  // llyn
-    

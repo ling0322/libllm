@@ -103,6 +103,7 @@ class PackedSubtensorBase {
 
   __device__ int getShape(int dim) const { return this->_size[dim].shape; }
   __device__ const Size *getSize() const { return _size; }
+  __device__ T *getData() const { return _data; }
 
  protected:
   Size _size[DIM];

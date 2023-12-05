@@ -99,6 +99,15 @@ __device__ inline dim3 splitIndexToDim3(unsigned int index, const Size *size) {
   return d;
 }
 
+/// @brief Get attribute of cuda device 0.
+/// @param attr device attribute to query.
+/// @return device attribute value.
+int getCudaDeviceAttribute(cudaDeviceAttr attr);
+
+/// @brief Get number of cuda devices available.
+/// @return cuda device count.
+int getCudaDeviceCount();
+
 }  // cuda
 }  // op
 }  // llyn
