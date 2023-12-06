@@ -24,9 +24,12 @@
 #include "llyn/device.h"
 #include "llyn/llyn.h"
 #include "llyn/operators/cpu/cpu_tensor_data.h"
+#include "llyn/operators/cuda/matvec.h"
+#include "llyn/operators/cuda/dequant.h"
 #include "llyn/internal/tensor_shape.h"
 #include "lyutil/half.h"
 #include "lyutil/random.h"
+#include "lyutil/time.h"
 
 using llyn::Tensor;
 using llyn::DType;
@@ -396,3 +399,58 @@ CATCH_TEST_CASE("test attention", "[cuda][operators][attention]") {
 
   CATCH_REQUIRE(F::allClose(x, xr));
 }
+
+
+
+CATCH_TEST_CASE("benchmark GEMV", "[benchmark][cuda][operators][gemm]") {
+  Tensor Aq = createRandomQ4Tensor2D(8000, 4096);
+  Tensor x = F::rand({4096, 1}, DType::kFloat);
+  F::print(x);
+  Tensor xrq = F::matmul(x.transpose(0, 1), Aq.transpose(0, 1));
+
+  Aq = F::to(Device::getCuda(), Aq);
+  x = F::to(Device::getCuda(), x);
+  x = F::cast(x, DType::kFloat16);
+
+  Tensor A = llyn::op::cuda::dequantQ4ToHalf(Aq);
+
+  double t0 = ly::now();
+  F::matmul(A, x);
+  LOG(INFO) << "F::matmul(A, x): " << (ly::now() - t0) * 1000 << "ms";
+
+
+  t0 = ly::now();
+  Tensor xr = F::matmul(A, x);
+  LOG(INFO) << "F::matmul(A, x): " << (ly::now() - t0) * 1000 << "ms";
+
+
+  t0 = ly::now();
+  Tensor x1 = llyn::op::cuda::gemvHalf(A, x);
+  LOG(INFO) << "llyn::op::cuda::gemvHalf(A, x): " << (ly::now() - t0) * 1000 << "ms";
+
+  t0 = ly::now();
+  Tensor xq = llyn::op::cuda::gemvQ4(Aq, x);
+  LOG(INFO) << "llyn::op::cuda::gemvQ4(Aa, x): " << (ly::now() - t0) * 1000 << "ms";
+
+  x = F::cast(x1, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+
+  xr = F::cast(xr, DType::kFloat);
+  xr = F::to(Device::getCpu(), xr);
+
+  xq = F::cast(xq, DType::kFloat);
+  xq = F::to(Device::getCpu(), xq);
+
+  A = F::cast(A, DType::kFloat);
+  A = F::to(Device::getCpu(), A);
+
+  F::print(A);
+  F::print(xq);
+  F::print(xrq);
+  F::print(x);
+  F::print(xr);
+
+  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 5e-2f));
+  CATCH_REQUIRE(F::allClose(xq, xrq.transpose(0, 1), 1e-5f, 5e-2f));
+}
+

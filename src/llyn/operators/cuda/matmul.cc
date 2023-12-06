@@ -91,8 +91,8 @@ Tensor MatMul::gemmHalf(const Tensor &A, const Tensor &B) {
   CHECK(A.getDim() == B.getDim() && A.getDim() == 2);
   Tensor C = createCudaTensorHalf({A.getShape(0), B.getShape(1)});
 
-  half alpha = 1.0;
-  half beta = 0.0;
+  float alpha = 1.0;
+  float beta = 0.0;
 
   common::GEMMArgs gemmArgs = common::generateGemmArgs(A, B, C);
   CHECK_CUBLAS_STATUS(cublasGemmEx(
@@ -113,7 +113,7 @@ Tensor MatMul::gemmHalf(const Tensor &A, const Tensor &B) {
       C.getData<half>(),
       CUDA_R_16F,
       gemmArgs.ldc,
-      CUBLAS_COMPUTE_16F,
+      CUBLAS_COMPUTE_32F,
       CUBLAS_GEMM_DEFAULT));
   cudaDeviceSynchronize();
 
@@ -183,8 +183,8 @@ Tensor MatMul::bmmHalf(const Tensor &A, const Tensor &B) {
   LL_CHECK_CUDA_STATUS(cudaMemcpy(arrayB.get(), batchB.data(), nc, cudaMemcpyHostToDevice));
   LL_CHECK_CUDA_STATUS(cudaMemcpy(arrayC.get(), batchC.data(), nc, cudaMemcpyHostToDevice));
 
-  half alpha = 1.0;
-  half beta = 0.0;
+  float alpha = 1.0;
+  float beta = 0.0;
   CHECK_CUBLAS_STATUS(cublasGemmBatchedEx(
       _handle.get(),
       gemmArgs.transB ? CUBLAS_OP_T : CUBLAS_OP_N,
@@ -204,7 +204,7 @@ Tensor MatMul::bmmHalf(const Tensor &A, const Tensor &B) {
       CUDA_R_16F,
       gemmArgs.ldc,
       nb,
-      CUBLAS_COMPUTE_16F,
+      CUBLAS_COMPUTE_32F,
       CUBLAS_GEMM_DEFAULT));
 
   cudaDeviceSynchronize();

@@ -66,6 +66,7 @@ set(llynextcuda_SOURCES
     "operators/cuda/dequant.cu"
     "operators/cuda/lookup.cu"
     "operators/cuda/matmul.cc"
+    "operators/cuda/matvec.cu"
     "operators/cuda/rms_norm.cu"
     "operators/cuda/swiglu.cu"
     "operators/cuda/to_device.cc")

@@ -60,8 +60,6 @@ Tensor dequantQ4ToHalf(const Tensor &qtensor) {
   int numSM = getCudaDeviceAttribute(cudaDevAttrMultiProcessorCount);
   int numBlock = (qT.getNumEl() / 2 + blockSize - 1) / blockSize;
   int deviceNumBlock = maxThreadsPerSM * numSM / blockSize;
-  LOG(INFO) << "numBlock = " << numBlock;
-  LOG(INFO) << "deviceNumBlock = " << deviceNumBlock;
 
   dim3 grid;
   grid.x = std::min(numBlock, deviceNumBlock);
