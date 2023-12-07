@@ -19,6 +19,15 @@ set(libllm_SOURCES
     "llama/llama_model_for_generation.cc"
     "llama/mlp.cc")
 
+
+set(libllm_LIBADD
+    llyn
+    lymath
+    lytok
+    lyutil
+    OpenMP::OpenMP_CXX)
+
+
 if(WIN32)
     set(cuda_LIBRARIES CUDA::cudart CUDA::cublas)
 endif(WIN32)
@@ -26,15 +35,13 @@ if(UNIX)
     set(cuda_LIBRARIES CUDA::cudart_static CUDA::cublas_static)
 endif(UNIX)
 
-set(libllm_LIBADD
-    llyn
-    llynextcuda
-    lymath
-    lytok
-    lyutil
-    OpenMP::OpenMP_CXX
-    ${cudnn_LIBRARIES}
-    ${cuda_LIBRARIES})
+if(CUDA_ENABLED)
+    set(libllm_LIBADD
+        ${libllm_LIBADD}
+        llynextcuda
+        ${cudnn_LIBRARIES}
+        ${cuda_LIBRARIES})
+endif()
 
 add_library(libllm SHARED ${libllm_SOURCES} )
 target_include_directories(libllm PRIVATE ${libllm_INCDIRS})
