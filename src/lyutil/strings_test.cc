@@ -57,65 +57,65 @@ CATCH_TEST_CASE("string functions works", "[core][util]") {
 
 CATCH_TEST_CASE("sprintf works", "[ly][strings]") {
   // BVT
-  CATCH_REQUIRE(ly::sprintf("%d", 22) == "22");
-  CATCH_REQUIRE(ly::sprintf("foo_%d", 22) == "foo_22");
-  CATCH_REQUIRE(ly::sprintf("foo%d %s", 22, "33") == "foo22 33");
+  CATCH_REQUIRE(lut::sprintf("%d", 22) == "22");
+  CATCH_REQUIRE(lut::sprintf("foo_%d", 22) == "foo_22");
+  CATCH_REQUIRE(lut::sprintf("foo%d %s", 22, "33") == "foo22 33");
 
   // integer
   int i = 1234567;
-  CATCH_REQUIRE(ly::sprintf("%010d", i) == "0001234567");
-  CATCH_REQUIRE(ly::sprintf("%10d", i) == "   1234567");
-  CATCH_REQUIRE(ly::sprintf("%x", i) == "12d687");
-  CATCH_REQUIRE(ly::sprintf("%10x", i) == "    12d687");
-  CATCH_REQUIRE(ly::sprintf("%X", i) == "12D687");
+  CATCH_REQUIRE(lut::sprintf("%010d", i) == "0001234567");
+  CATCH_REQUIRE(lut::sprintf("%10d", i) == "   1234567");
+  CATCH_REQUIRE(lut::sprintf("%x", i) == "12d687");
+  CATCH_REQUIRE(lut::sprintf("%10x", i) == "    12d687");
+  CATCH_REQUIRE(lut::sprintf("%X", i) == "12D687");
 
   // float
   double f = 123.4567;
   double g = 1.234567e8;
-  CATCH_REQUIRE(ly::sprintf("%.6f", f) == "123.456700");
-  CATCH_REQUIRE(ly::sprintf("%.3f", f) == "123.457");
-  CATCH_REQUIRE(ly::sprintf("%9.2f", f) == "   123.46");
-  CATCH_REQUIRE(ly::sprintf("%09.2f", f) == "000123.46");
-  CATCH_REQUIRE(ly::sprintf("%.3e", f) == "1.235e+02");
-  CATCH_REQUIRE(ly::sprintf("%.3E", f) == "1.235E+02");
-  CATCH_REQUIRE(ly::sprintf("%.5g", f) == "123.46");
-  CATCH_REQUIRE(ly::sprintf("%.5g", g) == "1.2346e+08");
-  CATCH_REQUIRE(ly::sprintf("%.5G", g) == "1.2346E+08");
+  CATCH_REQUIRE(lut::sprintf("%.6f", f) == "123.456700");
+  CATCH_REQUIRE(lut::sprintf("%.3f", f) == "123.457");
+  CATCH_REQUIRE(lut::sprintf("%9.2f", f) == "   123.46");
+  CATCH_REQUIRE(lut::sprintf("%09.2f", f) == "000123.46");
+  CATCH_REQUIRE(lut::sprintf("%.3e", f) == "1.235e+02");
+  CATCH_REQUIRE(lut::sprintf("%.3E", f) == "1.235E+02");
+  CATCH_REQUIRE(lut::sprintf("%.5g", f) == "123.46");
+  CATCH_REQUIRE(lut::sprintf("%.5g", g) == "1.2346e+08");
+  CATCH_REQUIRE(lut::sprintf("%.5G", g) == "1.2346E+08");
 
   // string
   std::string foo = "foo";
   const char* bar = "bar";
-  CATCH_REQUIRE(ly::sprintf("%s", foo) == "foo");
-  CATCH_REQUIRE(ly::sprintf("%s", bar) == "bar");
-  CATCH_REQUIRE(ly::sprintf("%s", std::string()) == "");
-  CATCH_REQUIRE(ly::sprintf("%s %s", foo, bar) == "foo bar");
-  CATCH_REQUIRE(ly::sprintf("%10s", foo) == "       foo");
-  CATCH_REQUIRE(ly::sprintf("%-10s", foo) == "foo       ");
+  CATCH_REQUIRE(lut::sprintf("%s", foo) == "foo");
+  CATCH_REQUIRE(lut::sprintf("%s", bar) == "bar");
+  CATCH_REQUIRE(lut::sprintf("%s", std::string()) == "");
+  CATCH_REQUIRE(lut::sprintf("%s %s", foo, bar) == "foo bar");
+  CATCH_REQUIRE(lut::sprintf("%10s", foo) == "       foo");
+  CATCH_REQUIRE(lut::sprintf("%-10s", foo) == "foo       ");
 
   // char
-  CATCH_REQUIRE(ly::sprintf("%c", 'c') == "c");
+  CATCH_REQUIRE(lut::sprintf("%c", 'c') == "c");
 
   // edge cases
-  CATCH_REQUIRE(ly::sprintf("%10.2f %.3e", f, f) == "    123.46 1.235e+02");
-  CATCH_REQUIRE(ly::sprintf("%%%.5e", f) == "%1.23457e+02");
-  CATCH_REQUIRE(ly::sprintf("%%%d%d%d%%", 1, 2, 3) == "%123%");
-  CATCH_REQUIRE(ly::sprintf("%10000000d", 22) == ly::sprintf("%200d", 22));
-  CATCH_REQUIRE(ly::sprintf("%1000000000000d", 22) == ly::sprintf("%200d", 22));
-  CATCH_REQUIRE(ly::sprintf("foo") == "foo");
-  CATCH_REQUIRE(ly::sprintf("%%") == "%");
-  CATCH_REQUIRE(ly::sprintf("") == "");
+  CATCH_REQUIRE(lut::sprintf("%10.2f %.3e", f, f) == "    123.46 1.235e+02");
+  CATCH_REQUIRE(lut::sprintf("%%%.5e", f) == "%1.23457e+02");
+  CATCH_REQUIRE(lut::sprintf("%%%d%d%d%%", 1, 2, 3) == "%123%");
+  CATCH_REQUIRE(lut::sprintf("%10000000d", 22) == lut::sprintf("%200d", 22));
+  CATCH_REQUIRE(lut::sprintf("%1000000000000d", 22) == lut::sprintf("%200d", 22));
+  CATCH_REQUIRE(lut::sprintf("foo") == "foo");
+  CATCH_REQUIRE(lut::sprintf("%%") == "%");
+  CATCH_REQUIRE(lut::sprintf("") == "");
 
   // invalid format string
-  CATCH_REQUIRE(ly::sprintf("%s_%d", "foo") == "foo_%!d(<null>)");
-  CATCH_REQUIRE(ly::sprintf("%s", "foo", 22) == "foo%!_(22)");
-  CATCH_REQUIRE(ly::sprintf("%d", "foo") == "%!d(foo)");
-  CATCH_REQUIRE(ly::sprintf("%d_foo_%d_0", 22) == "22_foo_%!d(<null>)_0");
-  CATCH_REQUIRE(ly::sprintf("%o", 22) == "%!o(22)");
-  CATCH_REQUIRE(ly::sprintf("%8.3o", 22) == "%!8.3o(22)");
-  CATCH_REQUIRE(ly::sprintf("%8", 22) == "%!8(22)");
-  CATCH_REQUIRE(ly::sprintf("%8%", 22) == "%!8%(22)");
-  CATCH_REQUIRE(ly::sprintf("%") == "%!#(<null>)");
-  CATCH_REQUIRE(ly::sprintf("%", 22) == "%!(22)");
-  CATCH_REQUIRE(ly::sprintf("%", 22, "foo") == "%!(22)%!_(foo)");
-  CATCH_REQUIRE(ly::sprintf("%8.ad", 22) == "%!8.a(22)d");
+  CATCH_REQUIRE(lut::sprintf("%s_%d", "foo") == "foo_%!d(<null>)");
+  CATCH_REQUIRE(lut::sprintf("%s", "foo", 22) == "foo%!_(22)");
+  CATCH_REQUIRE(lut::sprintf("%d", "foo") == "%!d(foo)");
+  CATCH_REQUIRE(lut::sprintf("%d_foo_%d_0", 22) == "22_foo_%!d(<null>)_0");
+  CATCH_REQUIRE(lut::sprintf("%o", 22) == "%!o(22)");
+  CATCH_REQUIRE(lut::sprintf("%8.3o", 22) == "%!8.3o(22)");
+  CATCH_REQUIRE(lut::sprintf("%8", 22) == "%!8(22)");
+  CATCH_REQUIRE(lut::sprintf("%8%", 22) == "%!8%(22)");
+  CATCH_REQUIRE(lut::sprintf("%") == "%!#(<null>)");
+  CATCH_REQUIRE(lut::sprintf("%", 22) == "%!(22)");
+  CATCH_REQUIRE(lut::sprintf("%", 22, "foo") == "%!(22)%!_(foo)");
+  CATCH_REQUIRE(lut::sprintf("%8.ad", 22) == "%!8.a(22)d");
 }

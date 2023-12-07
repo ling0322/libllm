@@ -20,14 +20,14 @@
 #include "llm/chatglm2/glm_block.h"
 
 #include "lyutil/time.h"
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 
-using llyn::Context;
-using llyn::Tensor;
-using llyn::StateMap;
-using llyn::nn::RMSNorm;
+using ly::Context;
+using ly::Tensor;
+using ly::StateMap;
+using ly::nn::RMSNorm;
 
-namespace F = llyn::functional;
+namespace F = ly::functional;
 
 namespace libllm {
 namespace chatglm2 {

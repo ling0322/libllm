@@ -20,7 +20,7 @@
 #pragma once
 
 #include "lytok/lytok.h"
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 
 namespace libllm {
 
@@ -36,7 +36,7 @@ class ModelForGeneration {
   //   inputs <long>(N, L): prompt token ids.
   // Returns:
   //   <float>(N, L, D): hidden state from last layer.
-  virtual llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const = 0;
+  virtual ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const = 0;
 
   // Forward the hidden state from last layer and get the logits. hiddenState is usually the
   // return value of forward().
@@ -44,10 +44,10 @@ class ModelForGeneration {
   //   hidden_state <float>(N, L, D): hidden state from last layer.
   // Returns:
   //   <float>(N, L, V): logits. V is vocabulary size.
-  virtual llyn::Tensor forwardHidden(llyn::Tensor hiddenState) const = 0;
+  virtual ly::Tensor forwardHidden(ly::Tensor hiddenState) const = 0;
 
   // build model input from the prompt and tokenizer.
-  virtual llyn::Tensor buildInput(const lytok::Tokenizer &tokenizer,
+  virtual ly::Tensor buildInput(const lytok::Tokenizer &tokenizer,
                                   const std::string &query) const = 0;
 
   // get the end-of-sentence symbol id.
@@ -58,7 +58,7 @@ class ModelForGeneration {
 
   /// @brief Get device of the model.
   /// @return the device.
-  virtual llyn::Device getDevice() const = 0;
+  virtual ly::Device getDevice() const = 0;
 };
 
 }  // namespace libllm

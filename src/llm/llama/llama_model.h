@@ -20,8 +20,8 @@
 #pragma once
 
 #include <memory>
-#include "llyn/nn/module.h"
-#include "llyn/nn/embedding.h"
+#include "ly/nn/module.h"
+#include "ly/nn/embedding.h"
 #include "llm/common/model_for_generation.h"
 #include "llm/llama/decoder_layer.h"
 #include "llm/llama/llama_config.h"
@@ -29,23 +29,23 @@
 namespace libllm {
 namespace llama {
 
-class LlamaModel : public llyn::nn::Module {
+class LlamaModel : public ly::nn::Module {
  public:
   static constexpr char Llama[] = "llama";
   static constexpr char RoPE[] = "rope";
 
-  static std::shared_ptr<LlamaModel> create(const llyn::Context &ctx, LlamaConfig config);
-  void initParameters(const llyn::StateMap &stateDict) override;
+  static std::shared_ptr<LlamaModel> create(const ly::Context &ctx, LlamaConfig config);
+  void initParameters(const ly::StateMap &stateDict) override;
 
-  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const;
-  llyn::Tensor forwardHidden(llyn::Tensor hidden) const;
+  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
+  ly::Tensor forwardHidden(ly::Tensor hidden) const;
 
  private:
   LlamaConfig _config;
-  std::shared_ptr<llyn::nn::Embedding> _embedding;
-  std::shared_ptr<llyn::nn::RMSNorm> _norm;
+  std::shared_ptr<ly::nn::Embedding> _embedding;
+  std::shared_ptr<ly::nn::RMSNorm> _norm;
   std::vector<std::shared_ptr<DecodeLayer>> _layers;
-  llyn::Tensor _wOutput;
+  ly::Tensor _wOutput;
 
   LlamaModel() = default;
 };

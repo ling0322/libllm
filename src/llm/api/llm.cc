@@ -6,7 +6,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 #include "llm/api/model_factory.h"
 #include "llm/chatglm2/chatglm2_model.h"
 #include "llm/common/generator.h"
@@ -23,7 +23,7 @@ using libllm::ModelForGeneration;
 using libllm::chatglm2::ChatGLM2Config;
 using libllm::chatglm2::ChatGLM2Model;
 using lytok::Tokenizer;
-using ly::IniConfig;
+using lut::IniConfig;
 
 struct llm_model_opt_t {
   std::string configFile;
@@ -31,7 +31,7 @@ struct llm_model_opt_t {
 };
 
 struct llm_model_t {
-  llyn::Context ctx;
+  ly::Context ctx;
   std::shared_ptr<ModelForGeneration> model_for_generation;
   std::shared_ptr<Tokenizer> tokenizer;
 };
@@ -55,11 +55,11 @@ struct llm_chunk_t {
 
 namespace {
 
-thread_local int gErrorCode = static_cast<int>(ly::ErrorCode::OK);
+thread_local int gErrorCode = static_cast<int>(lut::ErrorCode::OK);
 thread_local char gErrorMessage[512] = "";
 static std::atomic<bool> gInitialized{false};
 
-void setErrorCodeAndMessage(const ly::Error &e) {
+void setErrorCodeAndMessage(const lut::Error &e) {
   gErrorCode = static_cast<int>(e.getCode());
 
   std::string what = e.what();
@@ -74,7 +74,7 @@ LIBLLM_STATUS runAndCatch(std::function<void()> &&f) {
   try {
     f();
     return LIBLLM_OK;
-  } catch (const ly::Error &e) {
+  } catch (const lut::Error &e) {
     setErrorCodeAndMessage(e);
     return static_cast<LIBLLM_STATUS>(e.getCode());
   }
@@ -84,26 +84,26 @@ template<typename T>
 T runAndCatch(std::function<T()> &&c, T default_value) {
   try {
     return c();
-  } catch (const ly::Error &e) {
+  } catch (const lut::Error &e) {
     setErrorCodeAndMessage(e);
     return default_value;
   }
 }
 
-llyn::Device getDeviceFromApi(int apiDevice) {
+ly::Device getDeviceFromApi(int apiDevice) {
   switch (apiDevice) {
     case LIBLLM_DEVICE_CPU:
-      return llyn::Device::getCpu();
+      return ly::Device::getCpu();
     case LIBLLM_DEVICE_CUDA:
-      return llyn::Device::getCuda();
+      return ly::Device::getCuda();
     case LIBLLM_DEVICE_AUTO:
-      if (llyn::Device::isCudaAvailable()) {
-        return llyn::Device::getCuda();
+      if (ly::Device::isCudaAvailable()) {
+        return ly::Device::getCuda();
       } else {
-        return llyn::Device::getCpu();
+        return ly::Device::getCpu();
       }
     default:
-      throw ly::InvalidArgError("invalid device type");
+      throw lut::InvalidArgError("invalid device type");
   }
 }
 
@@ -112,13 +112,13 @@ llyn::Device getDeviceFromApi(int apiDevice) {
 LIBLLM_STATUS llm_init() {
   if (!gInitialized.exchange(true)) {
     try {
-      ly::setLogLevel(ly::LogSeverity::kINFO);
-      llyn::init();
+      lut::setLogLevel(lut::LogSeverity::kINFO);
+      ly::init();
 
       LOG(INFO) << "OMP max_threads = " << omp_get_max_threads();
 
       return LIBLLM_OK;
-    } catch (const ly::Error &e) {
+    } catch (const lut::Error &e) {
       gInitialized = false;
       setErrorCodeAndMessage(e);
       return static_cast<LIBLLM_STATUS>(e.getCode());;
@@ -130,14 +130,14 @@ LIBLLM_STATUS llm_init() {
 
 void llm_destroy() {
   if (gInitialized.exchange(false)) {
-    llyn::destroy();
+    ly::destroy();
   }
 }
 
 llm_model_opt_t *llm_model_opt_init(const char *config_file) {
   return runAndCatch<llm_model_opt_t *>([config_file](){
     if (!config_file)
-      throw ly::InvalidArgError("config_file");
+      throw lut::InvalidArgError("config_file");
 
     llm_model_opt_t *opt = new llm_model_opt_t();
     opt->configFile = config_file;
@@ -152,7 +152,7 @@ void llm_model_opt_destroy(llm_model_opt_t *opt) {
 
 LIBLLM_STATUS llm_model_opt_set_device(llm_model_opt_t *opt, int device_type) {
   return runAndCatch([opt, device_type](){
-    if (!opt) throw ly::InvalidArgError("opt");
+    if (!opt) throw lut::InvalidArgError("opt");
 
     opt->device = device_type;
     return LIBLLM_OK;
@@ -162,14 +162,14 @@ LIBLLM_STATUS llm_model_opt_set_device(llm_model_opt_t *opt, int device_type) {
 llm_model_t *llm_model_init(llm_model_opt_t *opt) {
   return runAndCatch<llm_model_t *>([opt](){
     std::unique_ptr<llm_model_t> model = std::make_unique<llm_model_t>();
-    if (!opt) throw ly::InvalidArgError("opt");
+    if (!opt) throw lut::InvalidArgError("opt");
 
     if (opt->configFile == "")
-      throw ly::InvalidArgError("config_file is empty");
+      throw lut::InvalidArgError("config_file is empty");
     std::unique_ptr<IniConfig> ini = IniConfig::read(opt->configFile);
 
     model->ctx.setDevice(getDeviceFromApi(opt->device));
-    model->ctx.setFloatDType(llyn::functional::getDefaultFloatType(model->ctx.getDevice()));
+    model->ctx.setFloatDType(ly::functional::getDefaultFloatType(model->ctx.getDevice()));
     model->tokenizer = Tokenizer::create(ini->getSection("tokenizer"));
     model->model_for_generation = ModelFactory::createModel(model->ctx, *ini);
   
@@ -179,8 +179,8 @@ llm_model_t *llm_model_init(llm_model_opt_t *opt) {
 
 const char *llm_model_get_name(llm_model_t *m) {
   return runAndCatch<const char *>([m](){
-    if (!m) throw ly::InvalidArgError("m");
-    if (!m->model_for_generation) throw ly::InvalidArgError("m");
+    if (!m) throw lut::InvalidArgError("m");
+    if (!m->model_for_generation) throw lut::InvalidArgError("m");
 
     return m->model_for_generation->getName();
   }, nullptr);
@@ -188,11 +188,11 @@ const char *llm_model_get_name(llm_model_t *m) {
 
 llm_compl_t *llm_model_complete(llm_model_t *m, llm_compl_opt_t *o) {
   return runAndCatch<llm_compl_t *>([m, o](){
-    if (!o) throw ly::InvalidArgError("o");
-    if (!m) throw ly::InvalidArgError("m");
+    if (!o) throw lut::InvalidArgError("o");
+    if (!m) throw lut::InvalidArgError("m");
 
-    if (o->prompt == "") throw ly::InvalidArgError("prompt");
-    if ((!m->model_for_generation) || (!m->tokenizer)) throw ly::InvalidArgError("model");
+    if (o->prompt == "") throw lut::InvalidArgError("prompt");
+    if ((!m->model_for_generation) || (!m->tokenizer)) throw lut::InvalidArgError("model");
 
     GenerationConfig config;
     config.temperature = o->temperature;
@@ -226,39 +226,39 @@ void llm_compl_opt_destroy(llm_compl_opt_t *o) {
 
 LIBLLM_STATUS llm_compl_opt_set_top_p(llm_compl_opt_t *o, float topp) {
   return runAndCatch([o, topp](){
-    if (!o) throw ly::InvalidArgError("o");
-    if (topp > 1.0f) throw ly::InvalidArgError("topp");
+    if (!o) throw lut::InvalidArgError("o");
+    if (topp > 1.0f) throw lut::InvalidArgError("topp");
     o->top_p = topp;
   });
 }
 
 LIBLLM_STATUS llm_compl_opt_set_temperature(llm_compl_opt_t *o, float temperature) {
   return runAndCatch([o, temperature](){
-    if (!o) throw ly::InvalidArgError("o");
-    if (temperature <= 0.0f) throw ly::InvalidArgError("temperature");
+    if (!o) throw lut::InvalidArgError("o");
+    if (temperature <= 0.0f) throw lut::InvalidArgError("temperature");
     o->temperature = temperature;
   });
 }
 
 LIBLLM_STATUS llm_compl_opt_set_prompt(llm_compl_opt_t *o, const char *prompt) {
   return runAndCatch([o, prompt](){
-    if (!o) throw ly::InvalidArgError("o");
-    if (!prompt) throw ly::InvalidArgError("prompt");
+    if (!o) throw lut::InvalidArgError("o");
+    if (!prompt) throw lut::InvalidArgError("prompt");
     o->prompt = prompt;
   });
 }
 
 LIBLLM_STATUS llm_compl_opt_set_top_k(llm_compl_opt_t *o, int32_t topk) {
   return runAndCatch([o, topk](){
-    if (!o) throw ly::InvalidArgError("o");
-    if (topk <= 0) throw ly::InvalidArgError("topk");
+    if (!o) throw lut::InvalidArgError("o");
+    if (topk <= 0) throw lut::InvalidArgError("topk");
     o->top_k = topk;
   });
 }
 
 LIBLLM_STATUS llm_compl_is_active(llm_compl_t *c) {
   return runAndCatch<LIBLLM_BOOL>([c](){
-    if (!c) throw ly::InvalidArgError("c");
+    if (!c) throw lut::InvalidArgError("c");
     return c->generator->stopped() ? LIBLLM_FALSE : LIBLLM_TRUE;
   }, LIBLLM_FALSE);
 }
@@ -269,11 +269,11 @@ void llm_compl_destroy(llm_compl_t *c) {
 
 llm_chunk_t *llm_compl_next_chunk(llm_compl_t *c) {  
   return runAndCatch<llm_chunk_t *>([c](){
-    if (!c) throw ly::InvalidArgError("c");
-    if (c->generator->stopped()) throw ly::AbortedError("call next() on stopped completion.");
+    if (!c) throw lut::InvalidArgError("c");
+    if (c->generator->stopped()) throw lut::AbortedError("call next() on stopped completion.");
 
     const char *token = c->generator->nextToken();
-    if (!token) throw ly::AbortedError("unexpected empty token");
+    if (!token) throw lut::AbortedError("unexpected empty token");
 
     std::unique_ptr<llm_chunk_t> chunk = std::make_unique<llm_chunk_t>();
     chunk->text = token;
@@ -283,7 +283,7 @@ llm_chunk_t *llm_compl_next_chunk(llm_compl_t *c) {
 
 const char *llm_chunk_get_text(llm_chunk_t *c) {
   return runAndCatch<const char *>([c](){
-    if (!c) throw ly::InvalidArgError("c");
+    if (!c) throw lut::InvalidArgError("c");
     return c->text.c_str();
   }, nullptr);
 }

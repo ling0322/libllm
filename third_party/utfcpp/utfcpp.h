@@ -31,7 +31,7 @@ DEALINGS IN THE SOFTWARE.
 #include <string>
 #include "../../src/lyutil/error.h"
 
-namespace ly
+namespace lut
 {
 namespace utf8
 {
@@ -376,17 +376,17 @@ void utf16to8 (u16bit_iterator start, u16bit_iterator end, octet_iterator result
                 if (utf8::internal::is_trail_surrogate(trail_surrogate)) {
                     cp = (cp << 10) + trail_surrogate + internal::SURROGATE_OFFSET;
                 } else {
-                    throw AbortedError(ly::sprintf(
+                    throw AbortedError(lut::sprintf(
                         "invalid utf16 trail surrogate %d in position %d",
                         trail_surrogate,
                         it - start));
                 }
             } else {
-                throw AbortedError(ly::sprintf(
+                throw AbortedError(lut::sprintf(
                     "invalid utf16 lead surrogate %d in position %d", cp, it - start));
             }
         } else if (utf8::internal::is_trail_surrogate(cp)) {
-            throw AbortedError(ly::sprintf(
+            throw AbortedError(lut::sprintf(
                 "lone trail surrogate %d in position %d", cp, it - start));
         }
 
@@ -427,6 +427,6 @@ void utf8to32 (octet_iterator start, octet_iterator end, u32bit_iterator result)
 }
 
 }  // namespace utf8
-}  // namespace ly
+}  // namespace lut
 
 #endif //header guard

@@ -21,7 +21,7 @@
 
 #include <string>
 
-namespace ly {
+namespace lut {
 
 // provide base functions for path. For example, path::Join, dirname, basename
 // and convert to wstring, ...
@@ -54,4 +54,4 @@ class Path {
   static std::string normPath(const std::string &path);
 };
 
-} // namespace ly
+} // namespace lut

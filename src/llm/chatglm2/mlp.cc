@@ -19,16 +19,16 @@
 
 #include "llm/chatglm2/mlp.h"
 
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 #include "lyutil/error.h"
 
 namespace libllm {
 namespace chatglm2 {
 
-namespace F = llyn::functional;
+namespace F = ly::functional;
 
-using llyn::Context;
-using llyn::Tensor;
+using ly::Context;
+using ly::Tensor;
 
 std::unique_ptr<MLP> MLP::create(const Context &ctx, ChatGLM2Config config) {
   std::unique_ptr<MLP> layer{new MLP()};
@@ -39,7 +39,7 @@ std::unique_ptr<MLP> MLP::create(const Context &ctx, ChatGLM2Config config) {
   return layer;
 }
 
-void MLP::initParameters(const llyn::StateMap &stateDict) {
+void MLP::initParameters(const ly::StateMap &stateDict) {
   const Context &ctx = getCtx();
 
   _dense1Weight = stateDict.getTensor(ctx.name("dense1_weight"));
@@ -52,7 +52,7 @@ void MLP::initParameters(const llyn::StateMap &stateDict) {
   _dense2Weight = moveAndCastFloat(_dense2Weight, ctx);
 }
 
-llyn::Tensor MLP::forward(const llyn::Tensor &input) const {
+ly::Tensor MLP::forward(const ly::Tensor &input) const {
   CHECK(!_dense1Weight.empty());
 
   Tensor x = F::matmul(input, _dense1Weight.transpose(0, 1));

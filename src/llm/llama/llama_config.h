@@ -35,7 +35,7 @@ struct LlamaConfig {
 
   LlamaConfig();
 
-  static LlamaConfig loadConfig(const ly::IniConfig &config);
+  static LlamaConfig loadConfig(const lut::IniConfig &config);
 };
 
 }  // namespace llama

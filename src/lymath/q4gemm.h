@@ -55,7 +55,7 @@ class Q4GemmImpl : public Q4Gemm {
         1});
     } else {
       int numelB = args.K * args.N;
-      ly::c_ptr<float> B = salloc(numelB);
+      lut::c_ptr<float> B = salloc(numelB);
       TDequantQ4Impl().apply(numelB, args.B, args.scaleB, args.zeroPointB, B.get());
 
       int ldb = args.transB ? args.K : args.N;

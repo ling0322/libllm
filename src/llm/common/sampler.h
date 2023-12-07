@@ -20,7 +20,7 @@
 #pragma once
 
 #include <utility>
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 #include "lyutil/random.h"
 #include "lyutil/span.h"
 
@@ -30,17 +30,17 @@ class Sampler {
  public:
   Sampler(int topK, float topP);
   
-  int sample(const llyn::Tensor &distribution);
+  int sample(const ly::Tensor &distribution);
 
  private:
-  ly::Random _random;
+  lut::Random _random;
   int _topK;
   float _topP;
   std::vector<std::pair<int, float>> _topBuffer;
 
-  std::vector<int> getTopK(const llyn::Tensor &distribution);
-  std::vector<int> getTopP(const llyn::Tensor &distribution, ly::Span<const int> topK);
-  int sampleTopP(const llyn::Tensor &distribution, ly::Span<const int> topP);
+  std::vector<int> getTopK(const ly::Tensor &distribution);
+  std::vector<int> getTopP(const ly::Tensor &distribution, lut::Span<const int> topK);
+  int sampleTopP(const ly::Tensor &distribution, lut::Span<const int> topP);
 };
 
 }  // namespace libllm

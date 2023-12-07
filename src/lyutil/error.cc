@@ -19,7 +19,7 @@
 
 #include "lyutil/error.h"
 
-namespace ly {
+namespace lut {
 
 std::string getErrorCodeName(ErrorCode code) {
   switch (code) {
@@ -63,4 +63,4 @@ InvalidArgError::InvalidArgError(const std::string &what)
 NotImplementedError::NotImplementedError(const std::string &what)
     : Error(ErrorCode::InvalidArg, buildErrorMsg(ErrorCode::NotImplemented, what)) {}
 
-} // namespace ly
+} // namespace lut

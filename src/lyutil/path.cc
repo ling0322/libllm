@@ -23,7 +23,7 @@
 #include "lyutil/platform.h"
 #include "lyutil/strings.h"
 
-namespace ly {
+namespace lut {
 
 Path::Path(const std::string &path) : _path(normPath(path)) {}
 Path::Path(std::string &&path): _path(normPath(path)) {}
@@ -89,4 +89,4 @@ std::wstring Path::wstring() const {
   return toWide(_path);
 }
 
-} // namespace ly
+} // namespace lut

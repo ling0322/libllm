@@ -30,17 +30,17 @@ namespace chatglm2 {
 class ChatGLM2ModelForGeneration : public ModelForGeneration {
  public:
   static std::shared_ptr<ChatGLM2ModelForGeneration> create(
-      const llyn::Context &ctx,
-      const ly::IniConfig &config);
+      const ly::Context &ctx,
+      const lut::IniConfig &config);
 
   // implements interface ModelForGeneration
-  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const override;
-  llyn::Tensor forwardHidden(llyn::Tensor hidden) const override;
-  llyn::Tensor buildInput(const lytok::Tokenizer &tokenizer,
+  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const override;
+  ly::Tensor forwardHidden(ly::Tensor hidden) const override;
+  ly::Tensor buildInput(const lytok::Tokenizer &tokenizer,
                           const std::string &query) const override;
   int getEosId() const override;
   const char *getName() const override;
-  llyn::Device getDevice() const override;
+  ly::Device getDevice() const override;
 
  private:
   static const char *_modelName;

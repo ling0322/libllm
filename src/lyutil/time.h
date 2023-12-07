@@ -19,8 +19,8 @@
 
 #pragma once
 
-namespace ly {
+namespace lut {
 
 double now();
 
-} // namespace ly
+} // namespace lut

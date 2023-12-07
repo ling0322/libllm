@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 #include "lyutil/ini_config.h"
 #include "llm/common/model_for_generation.h"
 #include "llm/chatglm2/chatglm2_config.h"
@@ -29,16 +29,16 @@ namespace libllm {
 namespace chatglm2 {
 
 // The ChatGLM2 model.
-class ChatGLM2Model : public llyn::nn::Module {
+class ChatGLM2Model : public ly::nn::Module {
  public:
   // create ChatGLM2 Model.
-  static std::unique_ptr<ChatGLM2Model> create(const llyn::Context &ctx, ChatGLM2Config config);
+  static std::unique_ptr<ChatGLM2Model> create(const ly::Context &ctx, ChatGLM2Config config);
 
   // implement interface nn::Module
-  void initParameters(const llyn::StateMap &state_dict) override;
+  void initParameters(const ly::StateMap &state_dict) override;
 
-  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const;
-  llyn::Tensor forwardHidden(llyn::Tensor hiddenState) const;
+  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
+  ly::Tensor forwardHidden(ly::Tensor hiddenState) const;
 
  private:
   ChatGLM2Config _config;
@@ -50,11 +50,11 @@ class ChatGLM2Model : public llyn::nn::Module {
   static constexpr char FinalNorm[] = "final_norm";
   static constexpr char OutputWeight[] = "output_weight";
 
-  std::unique_ptr<llyn::nn::Embedding> _embedding;
+  std::unique_ptr<ly::nn::Embedding> _embedding;
   std::vector<std::unique_ptr<GLMBlock>> _blocks;
-  std::unique_ptr<llyn::nn::RMSNorm> _finalNorm;
-  llyn::Tensor _rope;
-  llyn::Tensor _output;
+  std::unique_ptr<ly::nn::RMSNorm> _finalNorm;
+  ly::Tensor _rope;
+  ly::Tensor _output;
 
   ChatGLM2Model();
 };

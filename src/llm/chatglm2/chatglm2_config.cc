@@ -38,8 +38,8 @@ ChatGLM2Config::ChatGLM2Config()
       symbolSOP(0),
       symbolEOS(0) {}
 
-ChatGLM2Config ChatGLM2Config::loadConfig(const ly::IniConfig &ini) {
-  const ly::IniSection &section = ini.getSection(kSection);
+ChatGLM2Config ChatGLM2Config::loadConfig(const lut::IniConfig &ini) {
+  const lut::IniSection &section = ini.getSection(kSection);
 
   ChatGLM2Config config;
   config.hiddenSize = section.getInt("hidden_size");

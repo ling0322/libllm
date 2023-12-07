@@ -20,7 +20,7 @@
 #pragma once
 
 #include <memory>
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 #include "llm/common/model_for_generation.h"
 #include "llm/common/sampler.h"
 
@@ -51,12 +51,12 @@ class Generator {
  private:
   GenerationConfig _config;
   Sampler _sampler;
-  llyn::StateMap _past;
+  ly::StateMap _past;
   std::shared_ptr<lytok::Tokenizer> _tokenizer;
   std::shared_ptr<ModelForGeneration> _model;
   int _currentToken;
 
-  int sampleToken(const llyn::Tensor &logits);
+  int sampleToken(const ly::Tensor &logits);
 };
 
 }  // namespace libllm

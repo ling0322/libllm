@@ -19,24 +19,24 @@
 
 #pragma once
 
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 #include "llm/chatglm2/chatglm2_config.h"
 
 namespace libllm {
 namespace chatglm2 {
 
-class SelfAttention : public llyn::nn::Module {
+class SelfAttention : public ly::nn::Module {
  public:
-  static std::unique_ptr<SelfAttention> create(const llyn::Context &ctx, ChatGLM2Config config);
+  static std::unique_ptr<SelfAttention> create(const ly::Context &ctx, ChatGLM2Config config);
 
   // implement interface nn::Module
-  void initParameters(const llyn::StateMap &state_dict) override;
+  void initParameters(const ly::StateMap &state_dict) override;
 
-  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input, llyn::Tensor roPE) const;
+  ly::Tensor forward(ly::StateMap &past, ly::Tensor input, ly::Tensor roPE) const;
 
  private:
-  std::unique_ptr<llyn::nn::Linear> _qkvProj;
-  llyn::Tensor _denseWeight;
+  std::unique_ptr<ly::nn::Linear> _qkvProj;
+  ly::Tensor _denseWeight;
 
   int _kvProjDim;
   int _qProjDim;
@@ -48,7 +48,7 @@ class SelfAttention : public llyn::nn::Module {
 
   SelfAttention() = default;
 
-  int getCtxLength(llyn::StateMap *past) const;
+  int getCtxLength(ly::StateMap *past) const;
 };
 
 }  // namespace chatglm2

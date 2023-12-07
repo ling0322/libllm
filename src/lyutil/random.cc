@@ -19,7 +19,7 @@
 
 #include "lyutil/random.h"
 
-namespace ly {
+namespace lut {
 
 Random::Random() {
   uint64_t seed = static_cast<uint64_t>(time(nullptr));
@@ -67,4 +67,4 @@ float Random::nextFloat() {
   return static_cast<float>(static_cast<double>(nextInt()) / RandMax);
 }
 
-} // namespace ly
+} // namespace lut

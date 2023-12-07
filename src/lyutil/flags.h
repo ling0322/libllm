@@ -27,7 +27,7 @@
 #include "lyutil/strings.h"
 #include "lyutil/log.h"
 
-namespace ly {
+namespace lut {
 
 
 // command line option parser.
@@ -83,5 +83,5 @@ T Flags::getArg(int index) {
   return stox<T>(_positionalArgs[index]);
 }
 
-} // namespace ly
+} // namespace lut
 

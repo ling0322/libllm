@@ -19,21 +19,21 @@
 
 #include "llm/chatglm2/self_attention.h"
 
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 #include "lyutil/error.h"
 #include "lyutil/time.h"
 
-using llyn::StateMap;
-using llyn::Tensor;
-using llyn::nn::Linear;
+using ly::StateMap;
+using ly::Tensor;
+using ly::nn::Linear;
 
-namespace F = llyn::functional;
+namespace F = ly::functional;
 
 namespace libllm {
 namespace chatglm2 {
 
 std::unique_ptr<SelfAttention> SelfAttention::create(
-    const llyn::Context &ctx,
+    const ly::Context &ctx,
     ChatGLM2Config config) {
   std::unique_ptr<SelfAttention> layer{new SelfAttention()};
   layer->setCtx(ctx);
@@ -46,7 +46,7 @@ std::unique_ptr<SelfAttention> SelfAttention::create(
   layer->_namePastLength = ctx.name("len");
 
   if (config.hiddenSize % config.hiddenSizePerAttentionHead != 0) {
-    throw ly::AbortedError("invalid hidden_size and hidden_size_per_head");
+    throw lut::AbortedError("invalid hidden_size and hidden_size_per_head");
   }
 
   int qkvProjOutDim = layer->_qProjDim + 2 * layer->_kvProjDim;
@@ -54,7 +54,7 @@ std::unique_ptr<SelfAttention> SelfAttention::create(
   return layer;
 }
 
-void SelfAttention::initParameters(const llyn::StateMap &stateDict) {
+void SelfAttention::initParameters(const ly::StateMap &stateDict) {
   _qkvProj->initParameters(stateDict);
 
   int dModel = _qProjDim;
@@ -63,7 +63,7 @@ void SelfAttention::initParameters(const llyn::StateMap &stateDict) {
   _denseWeight = moveAndCastFloat(_denseWeight, getCtx());
 }
 
-int SelfAttention::getCtxLength(llyn::StateMap *past) const {
+int SelfAttention::getCtxLength(ly::StateMap *past) const {
   if (past && past->hasValue<int>(_namePastLength)) {
     return past->getValue<int>(_namePastLength);
   } else {

@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 #include "lyutil/ini_config.h"
 #include "llm/chatglm2/chatglm2_config.h"
 #include "llm/chatglm2/self_attention.h"
@@ -27,18 +27,18 @@
 namespace libllm {
 namespace chatglm2 {
     
-class MLP : public llyn::nn::Module {
+class MLP : public ly::nn::Module {
  public:
-  static std::unique_ptr<MLP> create(const llyn::Context &ctx, ChatGLM2Config config);
+  static std::unique_ptr<MLP> create(const ly::Context &ctx, ChatGLM2Config config);
 
   // implement interface nn::Module
-  void initParameters(const llyn::StateMap &state_dict) override;
+  void initParameters(const ly::StateMap &state_dict) override;
 
-  llyn::Tensor forward(const llyn::Tensor &input) const;
+  ly::Tensor forward(const ly::Tensor &input) const;
 
  private:
-  llyn::Tensor _dense1Weight;
-  llyn::Tensor _dense2Weight;
+  ly::Tensor _dense1Weight;
+  ly::Tensor _dense2Weight;
 
   int _hiddenSize;
   int _ffnHiddenSize;

@@ -21,9 +21,9 @@
 
 #include "llm/common/constants.h"
 
-using ly::IniConfig;
-using ly::IniSection;
-using llyn::Tensor;
+using lut::IniConfig;
+using lut::IniSection;
+using ly::Tensor;
 
 
 namespace libllm {
@@ -34,7 +34,7 @@ const char *LlamaModelForGeneration::_modelName = "llama";
 LlamaModelForGeneration::LlamaModelForGeneration() : _bosId(0), _eosId(0) {}
 
 std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::create(
-    const llyn::Context &ctx,
+    const ly::Context &ctx,
     const IniConfig &config) {
   std::shared_ptr<LlamaModelForGeneration> model{new LlamaModelForGeneration()};
 
@@ -44,9 +44,9 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::create(
 
   // initialize parameters
   const IniSection &modelSection = config.getSection(ModelSection);
-  ly::Path modelPath = modelSection.getPath(ModelFileField);
+  lut::Path modelPath = modelSection.getPath(ModelFileField);
 
-  llyn::StateMap stateMap;
+  ly::StateMap stateMap;
   stateMap.read(modelPath.string());
   model->_model->initParameters(stateMap);
 
@@ -58,7 +58,7 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::create(
   return model;
 }
 
-Tensor LlamaModelForGeneration::forward(llyn::StateMap &past, Tensor input) const {
+Tensor LlamaModelForGeneration::forward(ly::StateMap &past, Tensor input) const {
   return _model->forward(past, input);
 }
 
@@ -70,11 +70,11 @@ Tensor LlamaModelForGeneration::buildInput(const lytok::Tokenizer &tokenizer,
                                            const std::string &query) const {
   std::vector<int> tokenIds = tokenizer.encode(query);
 
-  std::vector<llyn::LongType> inputData{_bosId};
+  std::vector<ly::LongType> inputData{_bosId};
   inputData.insert(inputData.end(), tokenIds.begin(), tokenIds.end());
 
   int len = inputData.size();
-  Tensor inputs = Tensor::create<llyn::LongType>({1, len}, inputData);
+  Tensor inputs = Tensor::create<ly::LongType>({1, len}, inputData);
   return inputs;
 }
 
@@ -86,7 +86,7 @@ const char *LlamaModelForGeneration::getName() const {
   return _modelName;
 }
 
-llyn::Device LlamaModelForGeneration::getDevice() const {
+ly::Device LlamaModelForGeneration::getDevice() const {
   return _model->getCtx().getDevice();
 }
 

@@ -21,7 +21,7 @@
 
 #include <sstream>
 
-namespace ly {
+namespace lut {
 namespace internal {
 
 // internal functions for Sprintf()
@@ -122,5 +122,5 @@ inline std::string sprintf0(
 }
 
 }  // namespace internal
-} // namespace ly
+} // namespace lut
 

@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 #include "lyutil/ini_config.h"
 #include "llm/chatglm2/chatglm2_config.h"
 #include "llm/chatglm2/mlp.h"
@@ -28,18 +28,18 @@
 namespace libllm {
 namespace chatglm2 {
     
-class GLMBlock : public llyn::nn::Module {
+class GLMBlock : public ly::nn::Module {
  public:
-  static std::unique_ptr<GLMBlock> create(const llyn::Context &ctx, ChatGLM2Config config);
+  static std::unique_ptr<GLMBlock> create(const ly::Context &ctx, ChatGLM2Config config);
 
   // implement interface nn::Module
-  void initParameters(const llyn::StateMap &state_dict) override;
+  void initParameters(const ly::StateMap &state_dict) override;
 
-  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input, llyn::Tensor roPE) const;
+  ly::Tensor forward(ly::StateMap &past, ly::Tensor input, ly::Tensor roPE) const;
 
  private:
-  std::unique_ptr<llyn::nn::RMSNorm> _inputNorm;
-  std::unique_ptr<llyn::nn::RMSNorm> _attnNorm;
+  std::unique_ptr<ly::nn::RMSNorm> _inputNorm;
+  std::unique_ptr<ly::nn::RMSNorm> _attnNorm;
   std::unique_ptr<SelfAttention> _attn;
   std::unique_ptr<MLP> _mlp;
 

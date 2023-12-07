@@ -19,25 +19,25 @@
 
 #pragma once
 
-#include "llyn/context.h"
-#include "llyn/state_map.h"
-#include "llyn/nn/module.h"
+#include "ly/context.h"
+#include "ly/state_map.h"
+#include "ly/nn/module.h"
 #include "llm/llama/llama_config.h"
 
 namespace libllm {
 namespace llama {
 
-class Attention : public llyn::nn::Module {
+class Attention : public ly::nn::Module {
  public:
-  static std::shared_ptr<Attention> create(const llyn::Context &ctx, const LlamaConfig &config);
+  static std::shared_ptr<Attention> create(const ly::Context &ctx, const LlamaConfig &config);
 
-  void initParameters(const llyn::StateMap &stateDict) override;
-  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const;
+  void initParameters(const ly::StateMap &stateDict) override;
+  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
 
  private:
-  llyn::Tensor _qkvProj;
-  llyn::Tensor _outProj;
-  llyn::Tensor _roPE;
+  ly::Tensor _qkvProj;
+  ly::Tensor _outProj;
+  ly::Tensor _roPE;
 
   std::string _namePastK;
   std::string _namePastV;
@@ -51,9 +51,9 @@ class Attention : public llyn::nn::Module {
   Attention();
 
   // get past context length.
-  int getCtxLength(const llyn::StateMap &past) const;
-  llyn::Tensor applyRoPE(llyn::Tensor x, llyn::Tensor roPE) const;
-  llyn::Tensor rotateHalf(llyn::Tensor x) const;
+  int getCtxLength(const ly::StateMap &past) const;
+  ly::Tensor applyRoPE(ly::Tensor x, ly::Tensor roPE) const;
+  ly::Tensor rotateHalf(ly::Tensor x) const;
 };
 
 }  // namespace llama

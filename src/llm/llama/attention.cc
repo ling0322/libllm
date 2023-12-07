@@ -22,11 +22,11 @@
 #include "lyutil/error.h"
 #include "llm/llama/llama_model.h"
 
-using llyn::Context;
-using llyn::Tensor;
-using llyn::StateMap;
+using ly::Context;
+using ly::Tensor;
+using ly::StateMap;
 
-namespace F = llyn::functional;
+namespace F = ly::functional;
 
 namespace libllm {
 namespace llama {
@@ -42,7 +42,7 @@ std::shared_ptr<Attention> Attention::create(const Context &ctx, const LlamaConf
   layer->setCtx(ctx);
 
   if (config.hiddenSize % config.numHeads != 0)
-    throw ly::AbortedError("invalid hidden_size and num_heads");
+    throw lut::AbortedError("invalid hidden_size and num_heads");
   
   layer->_hiddenSize = config.hiddenSize;
   layer->_numHead = config.numHeads;
@@ -56,7 +56,7 @@ std::shared_ptr<Attention> Attention::create(const Context &ctx, const LlamaConf
   return layer;
 }
 
-void Attention::initParameters(const llyn::StateMap &stateDict) {
+void Attention::initParameters(const ly::StateMap &stateDict) {
   const Context &ctx = getCtx();
 
   _qkvProj = stateDict.getTensor(ctx.name("qkv_proj"));
@@ -73,7 +73,7 @@ void Attention::initParameters(const llyn::StateMap &stateDict) {
   _roPE = moveAndCastFloat(_roPE, ctx);
 }
 
-int Attention::getCtxLength(const llyn::StateMap &past) const {
+int Attention::getCtxLength(const ly::StateMap &past) const {
   if (past.hasValue<int>(_namePastLen)) {
     return past.getValue<int>(_namePastLen);
   } else {
@@ -87,10 +87,10 @@ Tensor Attention::rotateHalf(Tensor x) const {
   int halfShape = x.getShape(lastDim) / 2;
 
   Tensor x1 = x.slice(lastDim, {0, halfShape});
-  Tensor x2 = x.slice(lastDim, {halfShape, llyn::None});
+  Tensor x2 = x.slice(lastDim, {halfShape, ly::None});
   x2 = F::mul(x2, -1.0f);
 
-  F::copy(x1, rotated.slice(lastDim, {halfShape, llyn::None}));
+  F::copy(x1, rotated.slice(lastDim, {halfShape, ly::None}));
   F::copy(x2, rotated.slice(lastDim, {0, halfShape}));
 
   return rotated;
@@ -106,7 +106,7 @@ Tensor Attention::applyRoPE(Tensor input, Tensor roPE) const {
   return F::add(F::mul(input, cos), F::mul(rotateHalf(input), sin));
 }
 
-llyn::Tensor Attention::forward(llyn::StateMap &past, llyn::Tensor input) const {
+ly::Tensor Attention::forward(ly::StateMap &past, ly::Tensor input) const {
   CHECK(input.getDim() == 3);
 
   Tensor qkv = F::matmul(input, _qkvProj.transpose(0, 1));

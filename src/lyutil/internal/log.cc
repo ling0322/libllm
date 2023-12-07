@@ -25,7 +25,7 @@
 #include <ctime>
 #include <string>
 
-namespace ly {
+namespace lut {
 namespace internal {
 
 LogSeverity gLogLevel = LogSeverity::kINFO;
@@ -94,14 +94,14 @@ LogWrapper &LogWrapper::DefaultMessage(const char *message) {
 }
 
 }  // namespace internal
-} // namespace ly
+} // namespace lut
 
 
-namespace ly {
+namespace lut {
 
 void setLogLevel(LogSeverity level) {
   internal::gLogLevel = level;
 }
 
-} // namespace ly
+} // namespace lut
 

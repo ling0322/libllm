@@ -30,7 +30,7 @@ namespace lytok {
 
 
 // String to BPE token-ids encoder.
-class BPEEncoder : private ly::NonCopyable {
+class BPEEncoder : private lut::NonCopyable {
  public:
   BPEEncoder(const BPEModel *model, const BPEConfig &config);
 
@@ -62,7 +62,7 @@ class BPEEncoder : private ly::NonCopyable {
 
   const BPEModel *_model;
   const BPEConfig *_config;
-  ly::Pool<Symbol, kSymbolPoolBlockSize> _symbolPool;
+  lut::Pool<Symbol, kSymbolPoolBlockSize> _symbolPool;
   Symbol *_header;
   std::priority_queue<Bigram, std::vector<Bigram>, std::greater<Bigram>> _queue;
 

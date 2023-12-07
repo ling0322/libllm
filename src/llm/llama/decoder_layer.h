@@ -20,8 +20,8 @@
 #pragma once
 
 #include <memory>
-#include "llyn/context.h"
-#include "llyn/nn/rms_norm.h"
+#include "ly/context.h"
+#include "ly/nn/rms_norm.h"
 #include "llm/llama/attention.h"
 #include "llm/llama/llama_config.h"
 #include "llm/llama/mlp.h"
@@ -29,16 +29,16 @@
 namespace libllm {
 namespace llama {
 
-class DecodeLayer : public llyn::nn::Module {
+class DecodeLayer : public ly::nn::Module {
  public:
-  static std::shared_ptr<DecodeLayer> create(const llyn::Context &ctx, const LlamaConfig &config);
+  static std::shared_ptr<DecodeLayer> create(const ly::Context &ctx, const LlamaConfig &config);
 
-  void initParameters(const llyn::StateMap &stateDict) override;
-  llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const;
+  void initParameters(const ly::StateMap &stateDict) override;
+  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
 
  private:
-  std::shared_ptr<llyn::nn::RMSNorm> _inputNorm;
-  std::shared_ptr<llyn::nn::RMSNorm> _postAttnNorm;
+  std::shared_ptr<ly::nn::RMSNorm> _inputNorm;
+  std::shared_ptr<ly::nn::RMSNorm> _postAttnNorm;
   std::shared_ptr<Attention> _attn;
   std::shared_ptr<MLP> _mlp;
 

@@ -19,14 +19,14 @@
 
 #include "llm/llama/decoder_layer.h"
 
-#include "llyn/functional.h"
+#include "ly/functional.h"
 
-using llyn::Context;
-using llyn::StateMap;
-using llyn::Tensor;
-using llyn::nn::RMSNorm;
+using ly::Context;
+using ly::StateMap;
+using ly::Tensor;
+using ly::nn::RMSNorm;
 
-namespace F = llyn::functional;
+namespace F = ly::functional;
 
 namespace libllm {
 namespace llama {
@@ -49,7 +49,7 @@ std::shared_ptr<DecodeLayer> DecodeLayer::create(const Context &ctx, const Llama
   return layer;
 }
 
-void DecodeLayer::initParameters(const llyn::StateMap &stateDict) {
+void DecodeLayer::initParameters(const ly::StateMap &stateDict) {
   _attn->initParameters(stateDict);
   _mlp->initParameters(stateDict);
   _inputNorm->initParameters(stateDict);

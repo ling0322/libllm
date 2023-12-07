@@ -21,13 +21,13 @@
 
 #include "lyutil/strings.h"
 
-using llyn::Context;
-using llyn::Tensor;
-using llyn::StateMap;
-using llyn::nn::Embedding;
-using llyn::nn::RMSNorm;
+using ly::Context;
+using ly::Tensor;
+using ly::StateMap;
+using ly::nn::Embedding;
+using ly::nn::RMSNorm;
 
-namespace F = llyn::functional;
+namespace F = ly::functional;
 
 namespace libllm {
 namespace llama {
@@ -45,7 +45,7 @@ std::shared_ptr<LlamaModel> LlamaModel::create(const Context &rootCtx, LlamaConf
   model->_norm = RMSNorm::create(ctx.withName("norm"), config.hiddenSize, config.normEps);
   for (int i = 0; i < config.numLayers; ++i) {
     model->_layers.emplace_back(
-        DecodeLayer::create(ctx.withName(ly::sprintf("block%d", i)), config));
+        DecodeLayer::create(ctx.withName(lut::sprintf("block%d", i)), config));
   }
   return model;
 }
@@ -63,7 +63,7 @@ void LlamaModel::initParameters(const StateMap &stateDict) {
   _wOutput = moveAndCastFloat(_wOutput, getCtx());
 }
 
-llyn::Tensor LlamaModel::forward(StateMap &past, Tensor input) const {
+ly::Tensor LlamaModel::forward(StateMap &past, Tensor input) const {
   Tensor x = _embedding->forward(input);
 
   for (int i = 0; i < _config.numLayers; ++i) {
@@ -74,7 +74,7 @@ llyn::Tensor LlamaModel::forward(StateMap &past, Tensor input) const {
   return x;
 }
 
-llyn::Tensor LlamaModel::forwardHidden(llyn::Tensor hidden) const {
+ly::Tensor LlamaModel::forwardHidden(ly::Tensor hidden) const {
   return F::matmul(hidden, _wOutput.transpose(0, 1));
 }
 

@@ -23,7 +23,7 @@
 #include "lyutil/log.h"
 #include "lyutil/strings.h"
 
-namespace ly {
+namespace lut {
 
 class StrFlagParser : public Flags::Parser {
  public:
@@ -71,7 +71,7 @@ void Flags::parse(int argc, char *argv[]) {
   int state = FlagParserStateBegin;
   std::string flag;
   for (int i = 0; i < argc; ++i) {
-    std::string arg = ly::trim(argv[i]);
+    std::string arg = lut::trim(argv[i]);
     if (state == FlagParserStateBegin) {
       if (arg.empty()) {
         continue;
@@ -84,7 +84,7 @@ void Flags::parse(int argc, char *argv[]) {
     } else if (state == FlagParserStateFlag) {
       auto parserIt = _parsers.find(flag);
       if (parserIt == _parsers.end())
-        throw InvalidArgError(ly::sprintf("unexpected flag: %s", flag));
+        throw InvalidArgError(lut::sprintf("unexpected flag: %s", flag));
       parserIt->second->parse(arg);
       state = FlagParserStateBegin;
     } else {
@@ -93,7 +93,7 @@ void Flags::parse(int argc, char *argv[]) {
   }
 
   if (state == FlagParserStateFlag)
-    throw InvalidArgError(ly::sprintf("no value for flag: %s", flag));
+    throw InvalidArgError(lut::sprintf("no value for flag: %s", flag));
 }
 
 void Flags::printUsage() const {
@@ -106,4 +106,4 @@ void Flags::printUsage() const {
   }
 }
 
-} // namespace ly
+} // namespace lut

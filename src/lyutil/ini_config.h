@@ -27,7 +27,7 @@
 #include "lyutil/path.h"
 #include "lyutil/reader.h"
 
-namespace ly {
+namespace lut {
 
 class IniSection;
 
@@ -86,4 +86,4 @@ class IniSection {
   IniSection(const Path &iniDir);
 };
 
-} // namespace ly
+} // namespace lut

@@ -25,7 +25,7 @@
 #include "lyutil/reader.h"
 #include "lyutil/strings.h"
 
-namespace ly {
+namespace lut {
 
 // -- class IniConfig ----------------------------------------------------------
 
@@ -47,7 +47,7 @@ std::unique_ptr<IniConfig> IniConfig::read(const std::string &filename) {
   IniSection section{ini_dir};
   State state = kBegin;
   while (scanner.scan()) {
-    std::string line = ly::trim(scanner.getText());
+    std::string line = lut::trim(scanner.getText());
     if (state == kBegin) {
       if (isEmptyLine(line)) {
         // self-loop
@@ -55,7 +55,7 @@ std::unique_ptr<IniConfig> IniConfig::read(const std::string &filename) {
         section._name = parseHeader(line);
         state = kSelfLoop;
       } else {
-        throw AbortedError(ly::sprintf("invalid line: %s", line));
+        throw AbortedError(lut::sprintf("invalid line: %s", line));
       }
     } else if (state == kSelfLoop) {
       if (isEmptyLine(line)) {
@@ -92,7 +92,7 @@ bool IniConfig::hasSection(const std::string &section) const {
 const IniSection &IniConfig::getSection(const std::string &name) const {
   auto it = _table.find(name);
   if (it == _table.end()) {
-    throw ly::AbortedError(ly::sprintf("section not found: %s", name));
+    throw lut::AbortedError(lut::sprintf("section not found: %s", name));
   }
 
   return it->second;
@@ -116,27 +116,27 @@ bool IniConfig::isHeader(const std::string &s) {
 
 std::string IniConfig::parseHeader(const std::string &s) {
   if (!isHeader(s)) {
-    throw AbortedError(ly::sprintf("invalid line: %s", s));
+    throw AbortedError(lut::sprintf("invalid line: %s", s));
   }
   
   std::string name = s.substr(1, s.size() - 2);
-  name = ly::trim(name);
+  name = lut::trim(name);
   if (name.empty()) {
-    throw AbortedError(ly::sprintf("invalid ini section: %s", s));
+    throw AbortedError(lut::sprintf("invalid ini section: %s", s));
   }
 
   return name;
 }
 
 std::pair<std::string, std::string> IniConfig::parseKeyValue(const std::string &s) {
-  auto row = ly::split(s, "=");
+  auto row = lut::split(s, "=");
   if (row.size() != 2) {
-    throw AbortedError(ly::sprintf("invalid line: %s", s));
+    throw AbortedError(lut::sprintf("invalid line: %s", s));
   }
-  std::string key = ly::toLower(ly::trim(row[0]));
-  std::string value = ly::trim(row[1]);
+  std::string key = lut::toLower(lut::trim(row[0]));
+  std::string value = lut::trim(row[1]);
   if (key.empty() || value.empty()) {
-    throw AbortedError(ly::sprintf("invalid line: %s", s));
+    throw AbortedError(lut::sprintf("invalid line: %s", s));
   }
 
   return std::make_pair(key, value);
@@ -150,7 +150,7 @@ IniSection::IniSection(const Path &iniDir) : _iniDir(iniDir) {}
 std::string IniSection::getString(const std::string &key) const {
   auto it = _kvTable.find(key);
   if (it == _kvTable.end()) {
-    throw AbortedError(ly::sprintf("key not found (ini_session=%s): %s", _name, key));
+    throw AbortedError(lut::sprintf("key not found (ini_session=%s): %s", _name, key));
   }
 
   return it->second;
@@ -158,16 +158,16 @@ std::string IniSection::getString(const std::string &key) const {
 
 int IniSection::getInt(const std::string &key) const {
   std::string s = getString(key);
-  return ly::atoi(s);
+  return lut::atoi(s);
 }
 
 float IniSection::getFloat(const std::string &key) const {
   std::string s = getString(key);
-  return ly::atof(s);
+  return lut::atof(s);
 }
 
 bool IniSection::getBool(const std::string &key) const {
-  return ly::stox<bool>(getString(key));
+  return lut::stox<bool>(getString(key));
 }
 
 Path IniSection::getPath(const std::string &key) const {
@@ -181,4 +181,4 @@ Path IniSection::getPath(const std::string &key) const {
   }
 }
 
-} // namespace ly
+} // namespace lut

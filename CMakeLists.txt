@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(libllm LANGUAGES CXX)
 
-set(CUDA_ENABLED OFF)
-
 if(CUDA_ENABLED)
     add_definitions("-DLLYN_CUDA_ENABLED")
     find_package(CUDAToolkit REQUIRED)

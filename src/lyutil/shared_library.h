@@ -23,7 +23,7 @@
 #include <memory>
 #include "lyutil/noncopyable.h"
 
-namespace ly {
+namespace lut {
 
 // Dynamic library loader. It stores the instance of dynamic library and 
 // supports get function from it.
@@ -59,4 +59,4 @@ class SharedLibrary : private NonCopyable {
   void *getFuncPtr(const std::string& name);
 };
 
-} // namespace ly
+} // namespace lut

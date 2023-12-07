@@ -31,6 +31,6 @@ namespace lymath {
 void scopy(int n, const float *x, int incx, float *y, int incy);
 
 // allocate n single float and returns the holder. the memory is 32 byte aligned.
-ly::c_ptr<float> salloc(int64_t n);
+lut::c_ptr<float> salloc(int64_t n);
 
 }  // namespace lymath

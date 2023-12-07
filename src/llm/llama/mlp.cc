@@ -19,13 +19,13 @@
 
 #include "llm/llama/mlp.h"
 
-#include "llyn/functional.h"
+#include "ly/functional.h"
 
-using llyn::Context;
-using llyn::Tensor;
-using llyn::StateMap;
+using ly::Context;
+using ly::Tensor;
+using ly::StateMap;
 
-namespace F = llyn::functional;
+namespace F = ly::functional;
 
 namespace libllm {
 namespace llama {

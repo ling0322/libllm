@@ -28,8 +28,8 @@
 namespace libllm {
 
 std::shared_ptr<ModelForGeneration> ModelFactory::createModel(
-    const llyn::Context &ctx,
-    const ly::IniConfig &config) {
+    const ly::Context &ctx,
+    const lut::IniConfig &config) {
   std::string modelType = config.getSection(ModelSection).getString(ModelTypeField);
 
   LOG(INFO) << "initialize " << modelType << " model, device = " << ctx.getDevice().getName();
@@ -40,7 +40,7 @@ std::shared_ptr<ModelForGeneration> ModelFactory::createModel(
   if (modelType == "llama")
     return llama::LlamaModelForGeneration::create(ctx, config);
   
-  throw ly::AbortedError(ly::sprintf("unexpected model type: %s", modelType));
+  throw lut::AbortedError(lut::sprintf("unexpected model type: %s", modelType));
   return nullptr;
 }
 

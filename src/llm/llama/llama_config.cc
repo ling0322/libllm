@@ -33,8 +33,8 @@ LlamaConfig::LlamaConfig() :
     vocabSize(0),
     maxContextLength(0) {}
 
-LlamaConfig LlamaConfig::loadConfig(const ly::IniConfig &iniConfig) {
-  const ly::IniSection &section = iniConfig.getSection(Llama2Section);
+LlamaConfig LlamaConfig::loadConfig(const lut::IniConfig &iniConfig) {
+  const lut::IniSection &section = iniConfig.getSection(Llama2Section);
   LlamaConfig config;
 
   config.hiddenSize = section.getInt("hidden_size");

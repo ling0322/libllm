@@ -25,7 +25,7 @@
 #include "lyutil/fixed_array.h"
 #include "lyutil/log.h"
 
-namespace ly {
+namespace lut {
 
 template<typename T>
 class Span : public internal::BaseArray<T> {
@@ -113,4 +113,4 @@ constexpr Span<const T> makeConstSpan(Span<T> v) {
   return Span<const T>(v.data(), v.size());
 }
 
-} // namespace ly
+} // namespace lut

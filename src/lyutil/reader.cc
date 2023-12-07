@@ -23,7 +23,7 @@
 #include "lyutil/log.h"
 #include "lyutil/strings.h"
 
-namespace ly {
+namespace lut {
 
 std::vector<int8_t> readFile(const std::string &filename) {
   std::vector<int8_t> data;
@@ -108,7 +108,7 @@ std::unique_ptr<ReadableFile> ReadableFile::open(const std::string &filename) {
   std::unique_ptr<ReadableFile> fp{new ReadableFile()};
   fp->_fp = fopen(filename.c_str(), "rb");
   if (fp->_fp == nullptr) {
-    throw AbortedError(ly::sprintf("failed to open file %s", filename));
+    throw AbortedError(lut::sprintf("failed to open file %s", filename));
   }
 
   return fp;
@@ -172,4 +172,4 @@ bool Scanner::readBuffer() {
   return true;
 }
 
-} // namespace ly
+} // namespace lut
