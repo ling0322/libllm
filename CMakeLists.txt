@@ -1,18 +1,13 @@
 cmake_minimum_required(VERSION 3.25)
-
-
 project(libllm LANGUAGES CXX)
 
-
-find_package(CUDAToolkit REQUIRED)
-
-include_directories(${CUDAToolkit_INCLUDE_DIRS}) 
-
-set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 75 80 86)
 set(CUDA_ENABLED OFF)
 
 if(CUDA_ENABLED)
     add_definitions("-DLLYN_CUDA_ENABLED")
+    find_package(CUDAToolkit REQUIRED)
+    include_directories(${CUDAToolkit_INCLUDE_DIRS}) 
+    set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 75 80 86)
     enable_language(CUDA)
     if(NOT DEFINED CUDNN_ROOT)
         message(FATAL_ERROR "CUDNN_ROOT is not defined.")
