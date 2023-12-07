@@ -36,7 +36,11 @@ Device Device::getCuda() {
 }
 
 bool Device::isCudaAvailable() {
+#ifdef LLYN_CUDA_ENABLED
   return op::cuda::CudaOperators::isAvailable();
+#else
+  return false;
+#endif
 }
 
 std::string Device::getName() const {
