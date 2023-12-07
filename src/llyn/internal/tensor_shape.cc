@@ -51,7 +51,7 @@ TensorShape::TensorShape(ly::Span<const ShapeType> shape) {
   }
 
   int64_t stride = 1;
-  for (int d = shape.size() - 1; d >= 0; --d) {
+  for (int d = static_cast<int>(shape.size()) - 1; d >= 0; --d) {
     CHECK(stride < std::numeric_limits<ShapeType>::max());
     _data[d].stride = static_cast<ShapeType>(stride);
     stride *= _data[d].shape;

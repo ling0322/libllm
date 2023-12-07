@@ -29,7 +29,7 @@ enum class ErrorCode : int {
   Aborted = 1,
   OutOfRange = 2,
   InvalidArg = 3,
-  Unimplemented = 4,
+  NotImplemented = 4,
 };
 
 class Error : public std::exception {
@@ -61,6 +61,11 @@ class OutOfRangeError : public Error {
 class InvalidArgError : public Error {
  public:
   InvalidArgError(const std::string &what);
+};
+
+class NotImplementedError : public Error {
+ public:
+  NotImplementedError(const std::string &what);
 };
 
 } // namespace ly

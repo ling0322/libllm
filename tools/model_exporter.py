@@ -122,7 +122,7 @@ class Quantization:
     @classmethod
     def quantize_to_q4(cls, tensor: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """1D tensor to qdata (q4x2), scale (fp16), zero_point (int8) """
-        grouped_data = tensor.reshape(-1, 32)
+        grouped_data = tensor.reshape(-1, 64)
         num_group = grouped_data.shape[0]
 
         min0 = torch.min(grouped_data, 1).values
@@ -139,7 +139,7 @@ class Quantization:
         assert torch.all(group_zero_point <= 127) and torch.all(group_zero_point >= -112)
         group_zero_point = group_zero_point.type(torch.int8)
 
-        grouped_data = grouped_data.reshape(num_group, 16, 2)
+        grouped_data = grouped_data.reshape(num_group, 32, 2)
         S = group_scale.reshape(num_group, 1)
         R_min = min_value.reshape(num_group, 1)
         qdata0 = torch.round((grouped_data[:, :, 0] - R_min) / S).type(torch.int8)
@@ -150,6 +150,7 @@ class Quantization:
 
         qdata = qdata0.type(torch.uint8) * 16 + qdata1.type(torch.uint8)
         scale = group_scale.type(torch.float16)
+        print(group_zero_point)
 
         return qdata, scale, group_zero_point
 

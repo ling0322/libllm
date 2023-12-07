@@ -34,25 +34,31 @@ LayerNorm::LayerNorm() : _dModel(0), _eps(0.0f) {}
 
 std::unique_ptr<LayerNorm> LayerNorm::create(const Context &ctx, int dModel, float eps) {
   std::unique_ptr<LayerNorm> layer{new LayerNorm()};
+  layer->setCtx(ctx);
+
   if (dModel <= 0 || eps <= 0.0f) {
     throw ly::AbortedError("invalid dModel or eps");
   }
 
   layer->_dModel = dModel;
   layer->_eps = eps;
-  layer->_ctx = ctx;
   return layer;
 }
 
 void LayerNorm::initParameters(const StateMap &stateDict) {
-  std::string nameW = _ctx.name(kWeight);
-  std::string nameB = _ctx.name(kBias);
+  const Context &ctx = getCtx();
+
+  std::string nameW = ctx.name(kWeight);
+  std::string nameB = ctx.name(kBias);
 
   _w = stateDict.getTensor(nameW);
   _b = stateDict.getTensor(nameB);
 
   _w.throwIfInvalidShape({_dModel});
   _b.throwIfInvalidShape({_dModel});
+
+  _w = moveAndCastFloat(_w, ctx);
+  _b = moveAndCastFloat(_b, ctx);
 }
 
 Tensor LayerNorm::forward(const Tensor &input) const {

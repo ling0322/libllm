@@ -1,15 +1,37 @@
-cmake_minimum_required(VERSION 3.11)
-project(llmpp LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.25)
+project(libllm LANGUAGES CXX)
 
-if(UNIX)
-  
-endif(UNIX)
+set(CUDA_ENABLED OFF)
+
+if(CUDA_ENABLED)
+    add_definitions("-DLLYN_CUDA_ENABLED")
+    find_package(CUDAToolkit REQUIRED)
+    include_directories(${CUDAToolkit_INCLUDE_DIRS}) 
+    set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 75 80 86)
+    enable_language(CUDA)
+    if(NOT DEFINED CUDNN_ROOT)
+        message(FATAL_ERROR "CUDNN_ROOT is not defined.")
+    endif()
+    if(WIN32)
+        set(cuda_LIBRARIES CUDA::cudart CUDA::cublas)
+        set(cudnn_LIBRARIES "cudnn_ops_infer")
+    endif(WIN32)
+    if(UNIX)
+        set(cuda_LIBRARIES CUDA::cudart_static CUDA::cublas_static)
+        set(cudnn_LIBRARIES "cudnn_ops_infer_static")
+    endif(UNIX)
+endif(CUDA_ENABLED)
+
+
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
 set(MKL_PREFIX "/opt/intel/mkl" CACHE STRING "Prefix for MKL headers and libraries.")
 
+#add_compile_options(-fsanitize=address)
+#add_link_options(-fsanitize=address)
+
 if(WIN32)
-  add_definitions( "/D_CRT_SECURE_NO_WARNINGS /wd4267 /DCATCH_AMALGAMATED_CUSTOM_MAIN /DCATCH_CONFIG_PREFIX_ALL" )
+  add_definitions( "/D_CRT_SECURE_NO_WARNINGS /DCATCH_AMALGAMATED_CUSTOM_MAIN /DCATCH_CONFIG_PREFIX_ALL" )
 endif(WIN32)
 if(UNIX)
   add_definitions( "-DCATCH_AMALGAMATED_CUSTOM_MAIN -DCATCH_CONFIG_PREFIX_ALL" )

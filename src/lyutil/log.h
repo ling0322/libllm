@@ -24,7 +24,7 @@
 #define LOG(severity) \
    if (ly::internal::gLogLevel > ly::LogSeverity::k ## severity) {} \
    else ly::internal::LogWrapperk ## severity(__FILE__, __LINE__)
-#define NOT_IMPL() LOG(FATAL) << "not implemented"
+#define NOT_IMPL() { LOG(FATAL) << "not implemented"; abort(); }
 
 // CHECK macro conflicts with catch2
 #define CHECK(cond) \

@@ -34,20 +34,23 @@ MLP::MLP() : _hiddenSize(0), _intermediateSize(0) {}
 
 std::shared_ptr<MLP> MLP::create(const Context &ctx, const LlamaConfig &config) {
   std::shared_ptr<MLP> mlp{new MLP()};
+  mlp->setCtx(ctx);
 
   mlp->_hiddenSize = config.hiddenSize;
   mlp->_intermediateSize = config.intermediateSize;
-  mlp->_ctx = ctx;
   
   return mlp;
 }
 
 void MLP::initParameters(const StateMap &stateDict) {
-  _wGateUpProj = stateDict.getTensor(_ctx.name("gate_up_proj"));
-  _wDownProj = stateDict.getTensor(_ctx.name("down_proj"));
+  _wGateUpProj = stateDict.getTensor(getCtx().name("gate_up_proj"));
+  _wDownProj = stateDict.getTensor(getCtx().name("down_proj"));
 
   _wGateUpProj.throwIfInvalidShape({_intermediateSize * 2, _hiddenSize});
   _wDownProj.throwIfInvalidShape({_hiddenSize, _intermediateSize});
+
+  _wGateUpProj = moveAndCastFloat(_wGateUpProj, getCtx());
+  _wDownProj = moveAndCastFloat(_wDownProj, getCtx());
 }
 
 Tensor MLP::forward(Tensor input) const {

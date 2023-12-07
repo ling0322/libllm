@@ -19,13 +19,39 @@
 
 #include "llyn/device.h"
 
+#include "lyutil/log.h"
+#include "llyn/operators/cuda/cuda_operators.h"
+
 namespace llyn {
 
 Device::Device() : _type(Type::kUnknown) {}
 Device::Device(Type type) : _type(type) {}
 
-Device Device::createForCPU() {
+Device Device::getCpu() {
   return Device(Type::kCpu);
+}
+
+Device Device::getCuda() {
+  return Device(Type::kCuda);
+}
+
+bool Device::isCudaAvailable() {
+#ifdef LLYN_CUDA_ENABLED
+  return op::cuda::CudaOperators::isAvailable();
+#else
+  return false;
+#endif
+}
+
+std::string Device::getName() const {
+  switch (_type) {
+    case kCpu:
+      return "cpu";
+    case kCuda:
+      return "cuda";
+    default:
+      NOT_IMPL();
+  }
 }
 
 }  // namespace llyn

@@ -21,7 +21,9 @@
 
 #include <stdlib.h>
 #include <limits>
-#include "llyn/cpu/view.h"
+#include "llyn/operators/cpu/view.h"
+#include "llyn/operators/cpu/cpu_tensor_data.h"
+#include "llyn/functional.h"
 #include "lyutil/error.h"
 #include "lyutil/strings.h"
 
@@ -38,7 +40,7 @@ Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const T> data) 
   int64_t numel = tensor._shape->getNumEl();
 
   DType dtype = DType::getType<T>();
-  tensor._data = TensorData::create(numel, dtype);
+  tensor._data = op::cpu::CpuTensorData::create(numel, dtype);
   tensor._offset = 0;
 
   // fill data
@@ -51,15 +53,19 @@ Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const T> data) 
 template Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const float> data);
 template Tensor Tensor::create(std::initializer_list<int> shape, ly::Span<const LongType> data);
 
-Tensor Tensor::create(ly::Span<const int> shape, std::shared_ptr<internal::TensorData> data) {
-  Tensor tensor;
 
-  tensor._shape = std::make_shared<TensorShape>(shape);
+Tensor Tensor::create(std::shared_ptr<internal::TensorShape> shape,
+                      std::shared_ptr<internal::TensorData> data,
+                      int64_t offset) {
+
+  Tensor tensor;
+  tensor._shape = shape;
   tensor._data = data;
+  tensor._offset = offset;
 
   return tensor;
 }
-
+ 
 Tensor::Tensor() : _offset(0) {}
 Tensor::~Tensor() {}
 
@@ -98,20 +104,17 @@ void Tensor::read(ly::ReadableFile *fp) {
   }
 
   _shape = TensorShape::read(fp);
-  _data = TensorData::read(fp);
+  _data = op::cpu::CpuTensorData::read(fp);
   _offset = 0;
 
   // check
   if (_shape->getNumEl() != _data->getNumEl())
     throw ly::AbortedError("tensor data and shape mismatch.");
-  if (_data->getDType().isQuantized()) {
-    if (_data->getNumEl() / _data->getDType().getGroupSize() != _data->getNumEl1())
-      throw ly::AbortedError("tensor data and shape mismatch (scale).");
-  }
+  _data->throwIfInvalid();
 }
 
 Tensor Tensor::view(ly::Span<const int> shape) const {
-  return cpu::view(*this, shape);
+  return op::cpu::view(*this, shape);
 }
 
 Tensor Tensor::expand(ly::Span<const int> shape) const {
@@ -220,7 +223,7 @@ Tensor Tensor::squeeze(int dim) const {
   return tensor;
 }
 
-void Tensor::throwIfInvalidShape(std::initializer_list<int> shape) {
+void Tensor::throwIfInvalidShape(ly::Span<const int> shape) const {
   if (shape.size() != getDim()) {
     throw ly::AbortedError(ly::sprintf(
         "invalid shape. dim=%d expected, but %d got.", shape.size(), getDim()));

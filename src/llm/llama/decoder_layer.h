@@ -42,8 +42,6 @@ class DecodeLayer : public llyn::nn::Module {
   std::shared_ptr<Attention> _attn;
   std::shared_ptr<MLP> _mlp;
 
-  llyn::Context _ctx;
-
   DecodeLayer() = default;
 };
 

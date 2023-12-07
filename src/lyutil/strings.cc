@@ -143,8 +143,8 @@ std::string trim(const std::string &s, const char *chars) {
 
 std::vector<std::string> split(const std::string &str, const std::string &delim) {
   std::vector<std::string> fields;
-  int start = 0;
-  int pos = 0;
+  size_t start = 0;
+  size_t pos = 0;
   while ((pos = str.find(delim, start)) != std::string::npos) {
     fields.emplace_back(str.cbegin() + start, str.cbegin() + pos);
     start = pos + delim.size();
@@ -181,7 +181,7 @@ float atof(const std::string &s) {
 }
 
 std::string replace(const std::string &from, const std::string &old, const std::string &repl) {
-  int pos = 0;
+  size_t pos = 0;
   std::string s = from;
   while((pos = s.find(old, pos)) != std::string::npos) {
     s.replace(pos, old.length(), repl);

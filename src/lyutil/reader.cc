@@ -32,7 +32,7 @@ std::vector<int8_t> readFile(const std::string &filename) {
   auto fp = ReadableFile::open(filename);
 
   for (; ; ) {
-    int cbytes = fp->read(makeSpan(chunk));
+    int64_t cbytes = fp->read(makeSpan(chunk));
     if (cbytes) {
       data.insert(data.end(), chunk.begin(), chunk.begin() + cbytes);
     } else {
@@ -50,8 +50,8 @@ BufferedReader::BufferedReader(int buffer_size)
       _w(0),
       _r(0) {}
 
-int BufferedReader::readFromBuffer(Span<int8_t> dest) {
-  int n = std::min(static_cast<int>(dest.size()), _w - _r);
+int64_t BufferedReader::readFromBuffer(Span<int8_t> dest) {
+  int64_t n = std::min(static_cast<int64_t>(dest.size()), _w - _r);
 
   int8_t *begin = _buffer.begin() + _r;
   std::copy(begin, begin + n, dest.begin());
@@ -60,7 +60,7 @@ int BufferedReader::readFromBuffer(Span<int8_t> dest) {
   return n;
 }
 
-int BufferedReader::readNextBuffer() {
+int64_t BufferedReader::readNextBuffer() {
   CHECK(_w - _r == 0);
   _r = 0;
   _w = 0;
@@ -72,10 +72,10 @@ int BufferedReader::readNextBuffer() {
 void BufferedReader::readSpan(Span<int8_t> span) {
   Span<int8_t>::iterator it = span.begin();
 
-  int bytesRead = readFromBuffer(span);
+  int64_t bytesRead = readFromBuffer(span);
   
-  while (bytesRead < span.size()) {
-    int n = readNextBuffer();
+  while (bytesRead < static_cast<int64_t>(span.size())) {
+    int64_t n = readNextBuffer();
     if (!n) {
       throw OutOfRangeError("unexcpected EOF");
     }
@@ -114,9 +114,9 @@ std::unique_ptr<ReadableFile> ReadableFile::open(const std::string &filename) {
   return fp;
 }
 
-int ReadableFile::read(Span<int8_t> buffer) {
+int64_t ReadableFile::read(Span<int8_t> buffer) {
   CHECK(buffer.size() != 0);
-  int n = fread(buffer.data(), sizeof(int8_t), buffer.size(), _fp);
+  size_t n = fread(buffer.data(), sizeof(int8_t), buffer.size(), _fp);
 
   if ((!n) && !feof(_fp)) {
     throw AbortedError("failed to read file.");
@@ -163,7 +163,7 @@ const std::string &Scanner::getText() const {
 }
 
 bool Scanner::readBuffer() {
-  int n = _reader->read(makeSpan(_buffer));
+  int64_t n = _reader->read(makeSpan(_buffer));
   if (!n) {
     return false;
   }

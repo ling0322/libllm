@@ -88,24 +88,26 @@ Tensor gelu(Tensor input);
 //   dtype: data type of the new tensor.
 // Returns:
 //   the tensor with specified shape and dtype.
-Tensor createTensor(std::initializer_list<int> shape, DType dtype);
+Tensor createTensor(std::initializer_list<int> shape,
+                    DType dtype,
+                    Device device = Device::getCpu());
 
 // returns a uninitialized tensor with the same shape and dtype as input
 Tensor createTensorLike(Tensor input);
 
 // Returns a tensor filled with random numbers from a uniform distribution on
 // the interval [0, 1) 
-Tensor rand(std::initializer_list<int> shape, DType dtype);
+Tensor rand(std::initializer_list<int> shape, DType dtype, Device device = Device::getCpu());
 
 // Returns a tensor filled with 0
-Tensor zeros(ly::Span<const int> shape, DType dtype);
+Tensor zeros(ly::Span<const int> shape, DType dtype, Device device = Device::getCpu());
 
 // Return a contiguous in memory tensor containing the same data as input
 Tensor contiguous(Tensor input);
 
 // return true if two tensors are element-wise equal within a tolerance
 // (rtol=1e-05, atol=1e-08)
-bool allClose(Tensor A, Tensor B);
+bool allClose(Tensor A, Tensor B, float atol = 1e-5, float rtol = 1e-3);
 
 // Print the tensor to stdout,
 void print(Tensor tensor);
@@ -116,7 +118,7 @@ void print(Tensor tensor);
 //   max_len: max length of the sequence.
 // Returns:
 //   <float>(max_len, max_len): the causal mask.
-Tensor causalMask(int max_len);
+Tensor causalMask(int max_len, Device device = Device::getCpu());
 
 // Concat two tensors in the given dimension. Besides the dimension to concat, the two tensors
 // must have the same shape.
@@ -135,7 +137,7 @@ Tensor cat(Tensor A, Tensor B, int dim);
 //       cos(m*theta), [..., ::1] is the values of sin(m*theta).
 // Returns:
 //   <float>(N, L, nHead, D): the output tensor.
-Tensor applRotaryPosEmbd(Tensor A, Tensor roPE);
+Tensor applyRotaryPosEmb(Tensor A, Tensor roPE);
 
 // Copy elements from src to dest. Shapes of `src` and `dest` should be the same.
 void copy(Tensor src, Tensor dest);
@@ -158,6 +160,25 @@ Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask = Tensor());
 // Returns:
 //   <float>(..., D / 2): the output tensor.
 Tensor swiglu(Tensor input);
+
+/// @brief Copy the tensor to target device. If `castFloat` is true and the tensor type is float,
+//         it will cast the data type to default float type of that device.
+/// @param tensor the source tensor.
+/// @param device target device.
+/// @param castFloat if cast the float type.
+/// @return the tensor in device.
+Tensor to(Device device, Tensor tensor, bool castFloat = true);
+
+/// @brief Cast tensor to another data type.
+/// @param tensor Source tensor.
+/// @param dtype Target data type.
+/// @return tensor with data type `dtype`.
+Tensor cast(Tensor tensor, DType dtype);
+
+/// @brief Get default float type of operators for specific device.
+/// @param device The device to query.
+/// @return float type as DType.
+DType getDefaultFloatType(Device device);
 
 }  // functional
 }  // flint

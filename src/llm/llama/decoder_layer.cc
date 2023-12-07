@@ -33,7 +33,7 @@ namespace llama {
 
 std::shared_ptr<DecodeLayer> DecodeLayer::create(const Context &ctx, const LlamaConfig &config) {
   std::shared_ptr<DecodeLayer> layer{new DecodeLayer()};
-  layer->_ctx = ctx;
+  layer->setCtx(ctx);
 
   layer->_attn = Attention::create(ctx.withName("attn"), config);
   layer->_mlp = MLP::create(ctx.withName("mlp"), config);

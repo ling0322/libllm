@@ -34,24 +34,4 @@ endif()
 
 set(lymath_test_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/test.cc"
-    "${CMAKE_CURRENT_LIST_DIR}/benchmark.cc"
-    "${CMAKE_CURRENT_LIST_DIR}/../../third_party/catch2/catch_amalgamated.cpp")
-
-if (ENABLE_MKL)
-    find_library(MKL_GF_LP64_LIBRARY NAMES mkl_gf_lp64 HINTS ${MKL_PREFIX}/lib/intel64)
-    find_library(MKL_CORE_LIBRARY NAMES mkl_core HINTS ${MKL_PREFIX}/lib/intel64)
-    find_library(MKL_GNU_THREAD_LIBRARY NAMES mkl_gnu_thread HINTS ${MKL_PREFIX}/lib/intel64)
-endif()
-
-add_executable(lymath_test
-    ${lymath_test_SOURCES})
-
-target_include_directories(lymath_test PRIVATE .. ../.. ../third_party ${MKL_PREFIX}/include)
-target_link_libraries(lymath_test
-    lymath
-    lyutil
-    OpenMP::OpenMP_CXX)
-if(UNIX)
-  target_link_options(lymath_test PUBLIC "-fopenmp")
-endif(UNIX)
-
+    PARENT_SCOPE)

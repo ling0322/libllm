@@ -19,18 +19,28 @@
 
 #pragma once
 
+#include <string>
+
 namespace llyn {
 
-// storage device for tensor data.
+// storage device for tensor data. 
+// Note: once the Device type is increased, we should also change the initialization of
+// gOperatorsForDevice.
 class Device {
  public:
   enum Type {
     kCpu,
+    kCuda,
     NumDeviceType,  // number of device types
     kUnknown
   };
 
-  static Device createForCPU();
+  /// @brief Return true if cuda device is available.
+  /// @return availability of cuda device.
+  static bool isCudaAvailable();
+
+  static Device getCpu();
+  static Device getCuda();
 
   // construct device by device type
   Device();
@@ -38,6 +48,10 @@ class Device {
 
   // get type of the device
   Type getType() const { return _type; }
+
+  /// @brief Get the name of device.
+  /// @return name of the device.
+  std::string getName() const;
 
  private:
   Type _type;

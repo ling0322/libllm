@@ -19,102 +19,146 @@
 
 #include "llyn/functional.h"
 
-#include "llyn/internal/operators.h"
+#include "lyutil/error.h"
+#include "lyutil/strings.h"
+#include "llyn/operators/operators.h"
 
 namespace llyn {
 namespace functional {
 
 using internal::gOperatorsForDevice;
+using internal::getOperators;
 
 Tensor lookup(Tensor table, Tensor indices) {
-  return gOperatorsForDevice[Device::kCpu]->lookup(table, indices);
+  return getOperators(table.getDevice().getType())->lookup(table, indices);
 }
 
 Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
-  return gOperatorsForDevice[Device::kCpu]->layerNorm(input, weight, bias, eps);
+  return getOperators(input.getDevice().getType())->layerNorm(input, weight, bias, eps);
 }
 
 Tensor rmsNorm(Tensor input, Tensor weight, float eps) {
-  return gOperatorsForDevice[Device::kCpu]->rmsNorm(input, weight, eps);
+  return getOperators(input.getDevice().getType())->rmsNorm(input, weight, eps);
+
 }
 
 Tensor matmul(Tensor A, Tensor B) {
   CHECK(!A.empty());
   CHECK(!B.empty());
-  return gOperatorsForDevice[Device::kCpu]->matmul(A, B);
+
+  return getOperators(A.getDevice().getType())->matmul(A, B);
 }
 
 Tensor mul(Tensor input, float other) {
-  return gOperatorsForDevice[Device::kCpu]->mul(input, other);
+  return getOperators(input.getDevice().getType())->mul(input, other);
 }
 
 Tensor mul(Tensor input, Tensor other) {
-  return gOperatorsForDevice[Device::kCpu]->mul(input, other);
+  return getOperators(input.getDevice().getType())->mul(input, other);
 }
 
 Tensor softmax(Tensor input) {
-  return gOperatorsForDevice[Device::kCpu]->softmax(input);
+  return getOperators(input.getDevice().getType())->softmax(input);
 }
 
 Tensor add(Tensor input, Tensor other) {
-  return gOperatorsForDevice[Device::kCpu]->add(input, other);
+  return getOperators(input.getDevice().getType())->add(input, other);
 }
 
 Tensor gelu(Tensor input) {
-  return gOperatorsForDevice[Device::kCpu]->gelu(input);
+  return getOperators(input.getDevice().getType())->gelu(input);
 }
 
-Tensor createTensor(std::initializer_list<int> shape, DType dtype) {
-  return gOperatorsForDevice[Device::kCpu]->createTensor(shape, dtype);
+Tensor createTensor(std::initializer_list<int> shape, DType dtype, Device device) {
+  return getOperators(device.getType())->createTensor(shape, dtype);
 }
 
 Tensor createTensorLike(Tensor input) {
-  return gOperatorsForDevice[Device::kCpu]->createTensorLike(input);
+  return getOperators(input.getDevice().getType())->createTensorLike(input);
 }
 
-Tensor rand(std::initializer_list<int> shape, DType dtype) {
-  return gOperatorsForDevice[Device::kCpu]->rand(shape, dtype);
+Tensor rand(std::initializer_list<int> shape, DType dtype, Device device) {
+  return getOperators(device.getType())->rand(shape, dtype);
 }
 
-Tensor zeros(ly::Span<const int> shape, DType dtype) {
-  return gOperatorsForDevice[Device::kCpu]->zeros(shape, dtype);
+Tensor zeros(ly::Span<const int> shape, DType dtype, Device device) {
+  return getOperators(device.getType())->zeros(shape, dtype);
 }
 
 Tensor contiguous(Tensor input) {
-  return gOperatorsForDevice[Device::kCpu]->contiguous(input);
+  Tensor x = createTensorLike(input);
+  copy(input, x);
+  
+  return x;
 }
 
-bool allClose(Tensor A, Tensor B) {
-  return gOperatorsForDevice[Device::kCpu]->allClose(A, B);
+bool allClose(Tensor A, Tensor B, float atol, float rtol) {
+  return getOperators(A.getDevice().getType())->allClose(A, B, atol, rtol);
 }
 
 void print(Tensor tensor) {
-  gOperatorsForDevice[Device::kCpu]->print(tensor);
+  getOperators(tensor.getDevice().getType())->print(tensor);
 }
 
-Tensor causalMask(int maxLen) {
-  return gOperatorsForDevice[Device::kCpu]->causalMask(maxLen);
+Tensor causalMask(int maxLen, Device device) {
+  return getOperators(device.getType())->causalMask(maxLen);
 }
 
 Tensor cat(Tensor A, Tensor B, int dim) {
-  return gOperatorsForDevice[Device::kCpu]->cat(A, B, dim);
+  return getOperators(A.getDevice().getType())->cat(A, B, dim);
 }
 
-Tensor applRotaryPosEmbd(Tensor A, Tensor roPE) {
-  return gOperatorsForDevice[Device::kCpu]->applRotaryPosEmb(A, roPE);
+Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) {
+  return getOperators(A.getDevice().getType())->applRotaryPosEmb(A, roPE);
 }
 
 void copy(Tensor src, Tensor dest) {
-  return gOperatorsForDevice[Device::kCpu]->copy(src, dest);
+  CHECK(src.getDType() == dest.getDType());
+  src.throwIfInvalidShape(dest.getShape());
+
+  switch (src.getDevice().getType()) {
+    case Device::kCpu:
+      CHECK(dest.getDevice().getType() == Device::kCpu);
+      getOperators(Device::kCpu)->copy(src, dest);
+      break;
+    case Device::kCuda:
+      CHECK(dest.getDevice().getType() == Device::kCuda);
+      getOperators(Device::kCuda)->copy(src, dest);
+      break;
+    default:
+      NOT_IMPL();
+  }
 }
 
 Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
-  return gOperatorsForDevice[Device::kCpu]->attention(q, k, v, mask);
+  return getOperators(q.getDevice().getType())->attention(q, k, v, mask);
 }
 
 Tensor swiglu(Tensor input) {
-  return gOperatorsForDevice[Device::kCpu]->swiglu(input);
+  return getOperators(input.getDevice().getType())->swiglu(input);
+}
+
+Tensor to(Device device, Tensor tensor, bool castFloat) {
+  Device::Type src = tensor.getDevice().getType();
+  Device::Type tgt = device.getType();
+
+  Device srcDevice = tensor.getDevice();
+  if (srcDevice.getType() == device.getType())
+    return tensor;
+
+  if (srcDevice.getType() == Device::kCuda || device.getType() == Device::kCuda)
+    return getOperators(Device::kCuda)->toDevice(tensor, device);
+  else
+    NOT_IMPL();
+}
+
+Tensor cast(Tensor tensor, DType dtype) {
+  return getOperators(tensor.getDevice().getType())->cast(tensor, dtype);
+}
+
+DType getDefaultFloatType(Device device) {
+  return getOperators(device.getType())->getDefaultFloatType();
 }
 
 }  // functional
-}  // flint
+}  // llyn

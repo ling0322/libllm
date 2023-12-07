@@ -31,11 +31,12 @@ class RMSNorm : public Module {
 
   static std::unique_ptr<RMSNorm> create(const Context &ctx, int dModel, float eps);
 
-  void initParameters(const StateMap &state_dict) override;
   Tensor forward(const Tensor &input) const;
 
+  // implement interface nn::Module
+  void initParameters(const StateMap &state_dict) override;
+
  private:
-  Context _ctx;
   Tensor _weight;
 
   int _dModel;

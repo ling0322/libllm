@@ -21,12 +21,15 @@
 
 #include <string>
 #include "llyn/device.h"
+#include "llyn/dtype.h"
 
 namespace llyn {
 
 // context for a module including operator set, device info and the namespace
 class Context {
  public:
+  static Context getCpu();
+
   // default constructor (root context).
   Context();
 
@@ -45,9 +48,14 @@ class Context {
   const Device &getDevice() const; 
   void setDevice(const Device &device) { _device = device; }
 
+  // default float type.
+  DType getFloatDType() const { return _floatType; }
+  void setFloatDType(DType dtype) { _floatType = dtype; }
+
  private:
   std::string _ns;
   Device _device;
+  DType _floatType;
 };
 
 }  // namespace llyn

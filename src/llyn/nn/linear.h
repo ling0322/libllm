@@ -34,7 +34,7 @@ class Linear : public Module {
   // create Linear module from context. 
   static std::unique_ptr<Linear> create(const Context &ctx, int in_features, int out_features);
 
-  // initialize the module from context
+  // implement interface nn::Module
   void initParameters(const StateMap &state_dict) override;
 
   // forward input and return the output.
@@ -44,8 +44,6 @@ class Linear : public Module {
   // tensor names.
   static constexpr char kWeight[] = "weight";
   static constexpr char kBias[] = "bias";
-
-  Context _ctx;
 
   Tensor _w;
   Tensor _b;

@@ -32,7 +32,9 @@ class GLMBlock : public llyn::nn::Module {
  public:
   static std::unique_ptr<GLMBlock> create(const llyn::Context &ctx, ChatGLM2Config config);
 
-  void initParameters(const llyn::StateMap &stateDict) override;
+  // implement interface nn::Module
+  void initParameters(const llyn::StateMap &state_dict) override;
+
   llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input, llyn::Tensor roPE) const;
 
  private:
@@ -40,7 +42,6 @@ class GLMBlock : public llyn::nn::Module {
   std::unique_ptr<llyn::nn::RMSNorm> _attnNorm;
   std::unique_ptr<SelfAttention> _attn;
   std::unique_ptr<MLP> _mlp;
-  llyn::Context _ctx;
 
   GLMBlock() = default;
 };

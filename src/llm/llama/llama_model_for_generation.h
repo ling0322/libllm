@@ -40,6 +40,7 @@ class LlamaModelForGeneration : public ModelForGeneration {
                           const std::string &query) const override;
   int getEosId() const override;
   const char *getName() const override;
+  llyn::Device getDevice() const override;
 
  private:
   static const char *_modelName;

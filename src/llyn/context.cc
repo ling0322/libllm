@@ -19,19 +19,32 @@
 
 #include "llyn/context.h"
 
+#include "llyn/device.h"
 #include "lyutil/log.h"
 
 namespace llyn {
 
-Context::Context() {}
+Context Context::getCpu() {
+  Context ctx;
+  ctx.setDevice(Device::getCpu());
+
+  return ctx;
+}
+
+Context::Context() : _floatType(DType::kFloat) {}
 
 Context Context::withName(const std::string &name) const {
   CHECK(!name.empty());
   Context ctx;
   ctx._device = _device;
+  ctx._floatType = _floatType;
   ctx._ns = this->name(name);
 
   return ctx;
+}
+
+const Device &Context::getDevice() const {
+  return _device;
 }
 
 std::string Context::joinName(const std::string &left, const std::string &right) {

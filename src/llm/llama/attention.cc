@@ -39,11 +39,11 @@ Attention::Attention() :
 
 std::shared_ptr<Attention> Attention::create(const Context &ctx, const LlamaConfig &config) {
   std::shared_ptr<Attention> layer{new Attention()};
+  layer->setCtx(ctx);
 
   if (config.hiddenSize % config.numHeads != 0)
     throw ly::AbortedError("invalid hidden_size and num_heads");
   
-  layer->_ctx = ctx;
   layer->_hiddenSize = config.hiddenSize;
   layer->_numHead = config.numHeads;
   layer->_headDim = config.hiddenSize / config.numHeads;
@@ -57,14 +57,20 @@ std::shared_ptr<Attention> Attention::create(const Context &ctx, const LlamaConf
 }
 
 void Attention::initParameters(const llyn::StateMap &stateDict) {
-  _qkvProj = stateDict.getTensor(_ctx.name("qkv_proj"));
-  _outProj = stateDict.getTensor(_ctx.name("out_proj"));
+  const Context &ctx = getCtx();
+
+  _qkvProj = stateDict.getTensor(ctx.name("qkv_proj"));
+  _outProj = stateDict.getTensor(ctx.name("out_proj"));
   _roPE = stateDict.getTensor(Context::joinName(LlamaModel::Llama, LlamaModel::RoPE));
 
   _qkvProj.throwIfInvalidShape({_hiddenSize * 3, _hiddenSize});
   _outProj.throwIfInvalidShape({_hiddenSize, _hiddenSize});
   _roPE.throwIfInvalidShape({2, _maxCtxLen, _headDim});
   _roPE = _roPE.view({2, _maxCtxLen, 1, _headDim});
+
+  _qkvProj = moveAndCastFloat(_qkvProj, ctx);
+  _outProj = moveAndCastFloat(_outProj, ctx);
+  _roPE = moveAndCastFloat(_roPE, ctx);
 }
 
 int Attention::getCtxLength(const llyn::StateMap &past) const {

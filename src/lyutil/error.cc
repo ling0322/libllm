@@ -29,8 +29,8 @@ std::string getErrorCodeName(ErrorCode code) {
       return "OutOfRange";
     case ErrorCode::InvalidArg:
       return "InvalidArg";
-    case ErrorCode::Unimplemented:
-      return "Unimplemented";
+    case ErrorCode::NotImplemented:
+      return "NotImplemented";
     default:
       return "Unknown";
   }
@@ -59,5 +59,8 @@ OutOfRangeError::OutOfRangeError(const std::string &what)
 
 InvalidArgError::InvalidArgError(const std::string &what)
     : Error(ErrorCode::InvalidArg, buildErrorMsg(ErrorCode::InvalidArg, what)) {}
+
+NotImplementedError::NotImplementedError(const std::string &what)
+    : Error(ErrorCode::InvalidArg, buildErrorMsg(ErrorCode::NotImplemented, what)) {}
 
 } // namespace ly

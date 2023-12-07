@@ -55,6 +55,10 @@ class ModelForGeneration {
 
   // get model name.
   virtual const char *getName() const = 0;
+
+  /// @brief Get device of the model.
+  /// @return the device.
+  virtual llyn::Device getDevice() const = 0;
 };
 
 }  // namespace libllm

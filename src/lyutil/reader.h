@@ -44,7 +44,7 @@ class Reader {
   // Read a buffer from file and return number of bytes read. On EOF reached, returns 0. Throw
   // exceptio if other errors occured.
   // This is a low level file read function, please use other high level functions instead.
-  virtual int read(Span<int8_t> buffer) = 0;
+  virtual int64_t read(Span<int8_t> buffer) = 0;
 };
 
 // -- class BufferedReader -------------------------------------------------------------------------
@@ -71,15 +71,15 @@ class BufferedReader : public Reader {
   FixedArray<int8_t> _buffer;
 
   // write and read position in buffer
-  int _w;
-  int _r;
+  int64_t _w;
+  int64_t _r;
 
   // read at most `dest.size()` bytes from buffer and return the number of bytes read. The number
   // will less than `dest.size()` once no enough bytes in buffer.
-  int readFromBuffer(Span<int8_t> dest);
+  int64_t readFromBuffer(Span<int8_t> dest);
 
   // read next buffer from Reader. Return the number of bytes read.
-  int readNextBuffer();
+  int64_t readNextBuffer();
 };
 
 template<typename T>
@@ -130,7 +130,7 @@ class ReadableFile : public BufferedReader,
   ~ReadableFile();
 
   // implements interface Reader
-  int read(Span<int8_t> buffer) override;
+  int64_t read(Span<int8_t> buffer) override;
 
  private:
   FILE *_fp;

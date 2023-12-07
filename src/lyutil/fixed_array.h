@@ -27,7 +27,7 @@ template<typename T>
 class FixedArray : public internal::BaseArray<T> {
  public:
   FixedArray() noexcept : internal::BaseArray<T>() {}
-  FixedArray(int size) noexcept : 
+  FixedArray(int64_t size) noexcept : 
       internal::BaseArray<T>(size ? new T[size] : nullptr, size) {}
   ~FixedArray() noexcept {
     delete[] internal::BaseArray<T>::_ptr;

@@ -62,8 +62,13 @@ class Tensor {
   template<typename T>
   static Tensor create(std::initializer_list<int> shape, ly::Span<const T> data);
 
-  // Make a tensor with specified shape and data object.
-  static Tensor create(ly::Span<const int> shape, std::shared_ptr<internal::TensorData> data);
+  /// @brief Create Tensor from TensorShape and TensorData.
+  /// @param shape pointer to TensorShape.
+  /// @param data pointer to TensorData.
+  /// @return The Tensor created.
+  static Tensor create(std::shared_ptr<internal::TensorShape> shape,
+                       std::shared_ptr<internal::TensorData> data,
+                       int64_t offset = 0);
 
   // constructor and destructor.
   Tensor();
@@ -99,6 +104,10 @@ class Tensor {
   // get data type.
   DType getDType() const;
 
+  /// @brief Get storage device of this tensor.
+  /// @return the device.
+  Device getDevice() const { return _data->getDevice(); }
+
   // Get a new view of the tensor..
   Tensor view(ly::Span<const int> shape) const;
 
@@ -127,25 +136,19 @@ class Tensor {
 
   // pointer of data in this tensor
   template<typename T>
-  T *getData() { 
-    return _data->getData<0, T>(_offset);
-  }
+  T *getData() {  return _data->getData<T>(_offset); }
   template<typename T>
-  const T *getData() const {
-    return _data->getData<0, T>(_offset);
-  }
-
-  // get the internal TensorData object.
-  const internal::TensorData *getDataObject() const { return _data.get(); }
-
-  // return specific element at index. Size of `indices` should be the same as tensor dimension.
-  // And the data should in CPU.
-  template<typename T>
-  T getElem(ly::Span<const int> indices);
+  const T *getData() const { return _data->getData<T>(_offset); }
 
   // Check the shape of a tensor. If shape of `tensor` does not match `shape`, return AbortedError
   // with message "invalid shape".
-  void throwIfInvalidShape(std::initializer_list<int> shape);
+  void throwIfInvalidShape(ly::Span<const int> shape) const;
+
+  // low-level functions. DO NOT use them outside llyn.
+  const internal::TensorData *getDataObject() const { return _data.get(); }
+  const internal::TensorShape *getShape_() const { return _shape.get(); }
+  std::shared_ptr<internal::TensorData> getDataShared_() const { return _data; }
+  int64_t getOffset_() const { return _offset; }
 
  protected:
   std::shared_ptr<internal::TensorData> _data;
@@ -155,19 +158,6 @@ class Tensor {
 
 inline DType Tensor::getDType() const { 
   return _data ? _data->getDType() : DType(DType::kUnknown);
-}
-
-template<typename T>
-inline T Tensor::getElem(ly::Span<const int> indices) {
-  CHECK(indices.size() == getDim());
-
-  const T *data = this->getData<T>();
-  int64_t offset = 0;
-  for (int d = 0; d < getDim(); ++d) {
-    offset += indices[d] * getStride(d);
-  }
-
-  return data[offset];
 }
 
 namespace internal {

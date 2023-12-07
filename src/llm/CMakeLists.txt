@@ -19,40 +19,49 @@ set(libllm_SOURCES
     "llama/llama_model_for_generation.cc"
     "llama/mlp.cc")
 
+
 set(libllm_LIBADD
-    OpenMP::OpenMP_CXX
     llyn
+    lymath
     lytok
-    lyutil)
+    lyutil
+    OpenMP::OpenMP_CXX)
 
-add_library(llm-core-static STATIC ${libllm_SOURCES} )
-target_include_directories(llm-core-static PRIVATE ${libllm_INCDIRS})
-target_compile_features(llm-core-static PRIVATE cxx_std_14)
-target_link_libraries(llm-core-static ${libllm_LIBADD}  )
+if(CUDA_ENABLED)
+    set(libllm_LIBADD
+        ${libllm_LIBADD}
+        llynextcuda
+        ${cudnn_LIBRARIES}
+        ${cuda_LIBRARIES})
+endif()
 
-add_library(llm-core MODULE ${libllm_SOURCES} )
-target_include_directories(llm-core PRIVATE ${libllm_INCDIRS})
-target_compile_features(llm-core PRIVATE cxx_std_14)
-target_link_libraries(llm-core ${libllm_LIBADD}  )
+add_library(libllm SHARED ${libllm_SOURCES} )
+target_include_directories(libllm PRIVATE ${libllm_INCDIRS})
+target_compile_features(libllm PRIVATE cxx_std_14)
+target_link_directories(libllm PUBLIC "${CUDNN_ROOT}/lib/" "${CUDNN_ROOT}/lib/x64")
+target_link_libraries(libllm ${libllm_LIBADD}  )
+set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
+target_link_options(libllm PUBLIC "-Wl,--no-undefined")
 
 set(llm_SOURCES
     "cli/dialog_manager.cc"
     "cli/llm.cc")
 
-add_executable(llm_main ${llm_SOURCES})
-target_include_directories(llm_main PRIVATE ${libllm_INCDIRS})
-target_link_libraries(llm_main llm-core-static OpenMP::OpenMP_CXX)
-target_link_options(llm_main PUBLIC "-fopenmp")
-set_property(TARGET llm_main PROPERTY OUTPUT_NAME llm)
+add_executable(llm ${llm_SOURCES})
+target_include_directories(llm PRIVATE ${libllm_INCDIRS})
+target_link_libraries(llm libllm OpenMP::OpenMP_CXX )
+target_link_options(llm PUBLIC "-fopenmp")
 
 
 set(llm_test_SOURCES
-    "chatglm2/chatglm2_model_test.cc"
+    ${libllm_SOURCES}
+    ${lymath_test_SOURCES}
+    ${llyn_test_SOURCES}
     "cli/test_main.cc"
     "../../third_party/catch2/catch_amalgamated.cpp")
 
-add_executable(llm_test
-    ${llm_test_SOURCES})
-target_include_directories(llm_test PRIVATE ${libllm_INCDIRS})
-target_link_libraries(llm_test llm-core-static OpenMP::OpenMP_CXX)
-target_link_options(llm_test PUBLIC "-fopenmp")
+add_executable(unittest ${llm_test_SOURCES})
+target_include_directories(unittest PRIVATE ${libllm_INCDIRS})
+target_link_directories(unittest PUBLIC "${CUDNN_ROOT}/lib/" "${CUDNN_ROOT}/lib/x64")
+target_link_libraries(unittest ${libllm_LIBADD})
+target_link_options(unittest PUBLIC "-fopenmp")

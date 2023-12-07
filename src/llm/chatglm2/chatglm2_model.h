@@ -34,14 +34,13 @@ class ChatGLM2Model : public llyn::nn::Module {
   // create ChatGLM2 Model.
   static std::unique_ptr<ChatGLM2Model> create(const llyn::Context &ctx, ChatGLM2Config config);
 
-  // initialize the module from context
-  void initParameters(const llyn::StateMap &stateDict) override;
+  // implement interface nn::Module
+  void initParameters(const llyn::StateMap &state_dict) override;
 
   llyn::Tensor forward(llyn::StateMap &past, llyn::Tensor input) const;
   llyn::Tensor forwardHidden(llyn::Tensor hiddenState) const;
 
  private:
-  llyn::Context _ctx;
   ChatGLM2Config _config;
 
   static constexpr char ChatGlm2[] = "chatglm2";

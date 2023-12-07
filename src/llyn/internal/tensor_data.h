@@ -30,58 +30,92 @@
 namespace llyn {
 namespace internal {
 
-// contains dimension and stride information for an axis in tensor
+/// @brief A data record in TensorData object.
+class SlotBase {
+ public:
+  virtual ~SlotBase() = default;
+
+  /// @brief Get number of elements in this slot.
+  /// @return number of elements.
+  virtual int64_t getNumEl() const = 0;
+
+  /// @brief Get data type of this slot.
+  /// @return Data type.
+  virtual DType getDType() const = 0;
+
+  /// @brief Get the pointer to underlying data.
+  /// @return data pointer.
+  virtual Byte *getRawData() const = 0;
+
+  /// @brief Get data pointer of n-th element in this slot as type `T`.
+  /// @tparam T the type of underlying data. Use `void` to avoid the type checking.
+  /// @param offset the offset `n`.
+  /// @return the pointer of type `T`.
+  template<typename T>
+  T *getData(int64_t offset = 0) const;
+
+  /// @brief Get total number of bytes in this slot.
+  /// @return 
+  int64_t getSizeInBytes() const {
+    return getDType().getTotalSize(getNumEl());
+  }
+};
+
+template<typename T>
+inline T *SlotBase::getData(int64_t offset) const {
+  DType dtype = getDType();
+  CHECK(DType::getType<T>() == dtype);
+  return reinterpret_cast<T *>(getRawData() + dtype.getTotalSize(offset));
+}
+
+template<>
+inline void *SlotBase::getData<void>(int64_t offset) const {
+  DType dtype = getDType();
+  return reinterpret_cast<void *>(getRawData() + dtype.getTotalSize(offset));
+}
+
+/// @brief holds the internal data of a Tensor.
 class TensorData {
  public:
   static constexpr int MaxSlot = 3;
   static constexpr int64_t MaxNumEl = 1073741824;
-
-  static std::shared_ptr<TensorData> read(ly::ReadableFile *fp);
-  static std::shared_ptr<TensorData> create(int64_t numel, DType dtype);
-  static std::shared_ptr<TensorData> create(
-      int64_t numel, DType dtype, int64_t numel2, DType dtype2);
 
   virtual ~TensorData() = default;
 
   // get the device of tensor data.
   virtual Device getDevice() const = 0;
 
-  // slot0
-  template<int SLOT, typename T>
-  T *getData(int64_t offset = 0) const;
+  /// @brief Get number of slots in this tensor data.
+  /// @return number of slots.
+  virtual int getNumSlot() const = 0;
 
-  DType getDType() const { return _slots[0].dtype; }
-  int64_t getNumEl() const { return _slots[0].numel; }
-  int64_t getSizeInBytes() const { return _slots[0].dtype.getTotalSize(_slots[0].numel); }
+  /// @brief Get internal Slot by index.
+  /// @param slot index of the slot. It should be less than getNumSlot();
+  /// @return Slot object.
+  virtual const SlotBase *getSlot(int slot) const = 0;
 
-  // slot1
-  DType getDType1() const { CHECK(_numSlot > 1); return _slots[1].dtype; }
-  int64_t getNumEl1() const { CHECK(_numSlot > 1); return _slots[1].numel; }
-  int64_t getSizeInBytes1() const {
-    CHECK(_numSlot > 1);
-    return _slots[1].dtype.getTotalSize(_slots[1].numel);
-  }
+  /// @brief Get data pointer of n-th element in slot[0] as type `T`.
+  /// @tparam T the type of underlying data.
+  /// @param offset the offset `n`.
+  /// @return the pointer of type `T`.
+  template<typename T>
+  T *getData(int64_t offset = 0) const { return getSlot(0)->getData<T>(offset); }
 
- protected:
-  struct Slot {
-    Byte *data;
-    int64_t numel;
-    DType dtype;
+  /// @brief Get data type from slot[0]
+  /// @return slot[0] data type.
+  DType getDType() const { return getSlot(0)->getDType(); }
 
-    Slot();
-  };
+  /// @brief Get number of elements in slot[0]
+  /// @return number of elements in slot[0].
+  int64_t getNumEl() const { return getSlot(0)->getNumEl(); }
 
-  Slot _slots[3];
-  int _numSlot;
+  /// @brief Get total size in bytes of slot[0]
+  /// @return slot[0] size in bytes.
+  int64_t getSizeInBytes() const { return getSlot(0)->getSizeInBytes(); }
 
-  TensorData();
+  /// @brief throw if the tensor data is invalid.
+  void throwIfInvalid();
 };
-
-template<int SLOT, typename T>
-T *TensorData::getData(int64_t offset) const {
-  CHECK(_numSlot > SLOT && DType::getType<T>() == _slots[SLOT].dtype);
-  return reinterpret_cast<T *>(_slots[SLOT].data + _slots[SLOT].dtype.getTotalSize(offset));
-}
 
 }  // namespace internal
 }  // namespace llyn

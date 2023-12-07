@@ -30,7 +30,7 @@ class Embedding : public Module {
  public:
   static std::unique_ptr<Embedding> create(const Context &ctx, int dModel, int vocabSize);
 
-  // initialize the module from state dict.
+  // implement interface nn::Module
   void initParameters(const StateMap &state_dict) override;
 
   // forward input and return the output.
@@ -44,7 +44,6 @@ class Embedding : public Module {
   // tensor names.
   static constexpr char kWeight[] = "weight";
 
-  Context _ctx;
   Tensor _wte;
 
   int _dModel;

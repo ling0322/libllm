@@ -41,7 +41,6 @@ class LlamaModel : public llyn::nn::Module {
   llyn::Tensor forwardHidden(llyn::Tensor hidden) const;
 
  private:
-  llyn::Context _ctx;
   LlamaConfig _config;
   std::shared_ptr<llyn::nn::Embedding> _embedding;
   std::shared_ptr<llyn::nn::RMSNorm> _norm;

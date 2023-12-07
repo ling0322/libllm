@@ -168,7 +168,7 @@ int BPEModel::getByteId(int ord) const {
 }
 
 int BPEModel::getVocabSize() const {
-  return _tokens.size();
+  return static_cast<int>(_tokens.size());
 }
 
 int BPEModel::getUnkId() const {

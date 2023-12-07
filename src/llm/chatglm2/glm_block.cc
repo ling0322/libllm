@@ -34,11 +34,11 @@ namespace chatglm2 {
     
 std::unique_ptr<GLMBlock> GLMBlock::create(const Context &ctx, ChatGLM2Config config) {
   std::unique_ptr<GLMBlock> layer{new GLMBlock()};
+  layer->setCtx(ctx);
 
   int hiddenSize = config.hiddenSize;
   float normEps = config.normEps;
 
-  layer->_ctx = ctx;
   layer->_inputNorm = RMSNorm::create(ctx.withName("norm"), hiddenSize, normEps);
   layer->_attnNorm = RMSNorm::create(ctx.withName("attn_norm"), hiddenSize, normEps);
   layer->_attn = SelfAttention::create(ctx.withName("attn"), config);

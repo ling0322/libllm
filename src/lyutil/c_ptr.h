@@ -21,6 +21,7 @@
 
 #include <functional>
 #include "lyutil/noncopyable.h"
+#include "lyutil/log.h"
 
 namespace ly {
 

@@ -58,7 +58,7 @@ class BaseArray {
     return *(_ptr + i);
   }
   reference at(size_type i) const {
-    assert(i < _size && i >= 0);
+    assert(i < _size);
     return *(_ptr + i);
   }
   reference front() const noexcept { ASSERT(!empty()); return *_ptr; }

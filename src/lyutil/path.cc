@@ -30,7 +30,7 @@ Path::Path(std::string &&path): _path(normPath(path)) {}
 
 Path Path::dirname() const {
   const char *delim = getPathDelim();
-  int lastDelimIdx = _path.find_last_of(delim);
+  size_t lastDelimIdx = _path.find_last_of(delim);
   if (lastDelimIdx == std::string::npos) {
     return Path();
   }
@@ -42,7 +42,7 @@ Path Path::dirname() const {
 
 Path Path::basename() const {
   const char *delim = getPathDelim();
-  int lastDelimIdx = _path.find_last_of(delim);
+  size_t lastDelimIdx = _path.find_last_of(delim);
   if (lastDelimIdx == std::string::npos) {
     return _path;
   }

@@ -32,19 +32,24 @@ using llyn::Tensor;
 
 std::unique_ptr<MLP> MLP::create(const Context &ctx, ChatGLM2Config config) {
   std::unique_ptr<MLP> layer{new MLP()};
+  layer->setCtx(ctx);
 
   layer->_ffnHiddenSize = config.ffnHiddenSize;
   layer->_hiddenSize = config.hiddenSize;
-  layer->_ctx = ctx;
   return layer;
 }
 
 void MLP::initParameters(const llyn::StateMap &stateDict) {
-  _dense1Weight = stateDict.getTensor(_ctx.name("dense1_weight"));
-  _dense2Weight = stateDict.getTensor(_ctx.name("dense2_weight"));
+  const Context &ctx = getCtx();
+
+  _dense1Weight = stateDict.getTensor(ctx.name("dense1_weight"));
+  _dense2Weight = stateDict.getTensor(ctx.name("dense2_weight"));
 
   _dense1Weight.throwIfInvalidShape({_ffnHiddenSize * 2, _hiddenSize});
   _dense2Weight.throwIfInvalidShape({_hiddenSize, _ffnHiddenSize});
+
+  _dense1Weight = moveAndCastFloat(_dense1Weight, ctx);
+  _dense2Weight = moveAndCastFloat(_dense2Weight, ctx);
 }
 
 llyn::Tensor MLP::forward(const llyn::Tensor &input) const {
