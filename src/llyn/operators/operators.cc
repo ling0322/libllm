@@ -132,16 +132,6 @@ Operators *gOperatorsForDevice[Device::NumDeviceType] = {
 
 static std::atomic<bool> gInitialized{false};
 
-#if !defined(LLYN_CUDA_ENABLED)
-Operators *llynCreateCudaOperators() {
-  return nullptr;
-}
-
-bool llynIsCudaAvailable() 
-}
-
-#endif
-
 void initOperators() {
   if (!gInitialized.exchange(true)) {
     CHECK(!gOperatorsForDevice[Device::kCpu]);
