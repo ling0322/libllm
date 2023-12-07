@@ -38,6 +38,7 @@ typedef int32_t LIBLLM_BOOL;
 #define LIBLLM_DEVICE_CUDA 0x0100
 #define LIBLLM_DEVICE_AUTO 0x1f00
 
+typedef struct llm_model_opt_t llm_model_opt_t;
 typedef struct llm_model_t llm_model_t;
 typedef struct llm_compl_opt_t llm_compl_opt_t;
 typedef struct llm_compl_t llm_compl_t;
@@ -50,7 +51,23 @@ extern "C" {
 LLMAPI LIBLLM_STATUS llm_init();
 LLMAPI void llm_destroy();
 
-LLMAPI llm_model_t *llm_model_init(const char *ini_path);
+/// @brief Create an instance of model option from the specified config file. Once model was
+/// created, this instance could be deleted by llm_model_opt_destroy().
+/// @return Instance of model optoin.
+LLMAPI llm_model_opt_t *llm_model_opt_init(const char *config_file);
+
+/// @brief Destroy the instance of model option.
+/// @param opt pointer of model option.
+LLMAPI void llm_model_opt_destroy(llm_model_opt_t *opt);
+
+/// @brief Set storage and computation device for libllm model. Use LIBLLM_DEVICE_AUTO to let
+/// libllm determine the best device.
+/// @param opt pointer of model option.
+/// @param device_type device for libllm model, for example, LIBLLM_DEVICE_CUDA.
+/// @return if success return LIBLLM_OK, otherwise, return error code.
+LLMAPI LIBLLM_STATUS llm_model_opt_set_device(llm_model_opt_t *opt, int device_type);
+
+LLMAPI llm_model_t *llm_model_init(llm_model_opt_t *opt);
 LLMAPI void llm_model_destroy(llm_model_t *m);
 LLMAPI const char *llm_model_get_name(llm_model_t *m);
 LLMAPI llm_compl_t *llm_model_complete(llm_model_t *m, llm_compl_opt_t *o);

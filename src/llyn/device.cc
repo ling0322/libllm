@@ -20,6 +20,7 @@
 #include "llyn/device.h"
 
 #include "lyutil/log.h"
+#include "llyn/operators/cuda/cuda_operators.h"
 
 namespace llyn {
 
@@ -32,6 +33,10 @@ Device Device::getCpu() {
 
 Device Device::getCuda() {
   return Device(Type::kCuda);
+}
+
+bool Device::isCudaAvailable() {
+  return op::cuda::CudaOperators::isAvailable();
 }
 
 std::string Device::getName() const {

@@ -25,6 +25,11 @@ using libllm::chatglm2::ChatGLM2Model;
 using lytok::Tokenizer;
 using ly::IniConfig;
 
+struct llm_model_opt_t {
+  std::string configFile;
+  int device;
+};
+
 struct llm_model_t {
   llyn::Context ctx;
   std::shared_ptr<ModelForGeneration> model_for_generation;
@@ -84,7 +89,24 @@ T runAndCatch(std::function<T()> &&c, T default_value) {
     return default_value;
   }
 }
- 
+
+llyn::Device getDeviceFromApi(int apiDevice) {
+  switch (apiDevice) {
+    case LIBLLM_DEVICE_CPU:
+      return llyn::Device::getCpu();
+    case LIBLLM_DEVICE_CUDA:
+      return llyn::Device::getCuda();
+    case LIBLLM_DEVICE_AUTO:
+      if (llyn::Device::isCudaAvailable()) {
+        return llyn::Device::getCuda();
+      } else {
+        return llyn::Device::getCpu();
+      }
+    default:
+      throw ly::InvalidArgError("invalid device type");
+  }
+}
+
 }  // anonymous namespace
 
 LIBLLM_STATUS llm_init() {
@@ -112,15 +134,41 @@ void llm_destroy() {
   }
 }
 
-llm_model_t *llm_model_init(const char *ini_path) {
-  return runAndCatch<llm_model_t *>([ini_path](){
+llm_model_opt_t *llm_model_opt_init(const char *config_file) {
+  return runAndCatch<llm_model_opt_t *>([config_file](){
+    if (!config_file)
+      throw ly::InvalidArgError("config_file");
+
+    llm_model_opt_t *opt = new llm_model_opt_t();
+    opt->configFile = config_file;
+    opt->device = LIBLLM_DEVICE_AUTO;
+    return opt;
+  }, nullptr);
+}
+
+void llm_model_opt_destroy(llm_model_opt_t *opt) {
+  delete opt;
+}
+
+LIBLLM_STATUS llm_model_opt_set_device(llm_model_opt_t *opt, int device_type) {
+  return runAndCatch([opt, device_type](){
+    if (!opt) throw ly::InvalidArgError("opt");
+
+    opt->device = device_type;
+    return LIBLLM_OK;
+  });
+}
+
+llm_model_t *llm_model_init(llm_model_opt_t *opt) {
+  return runAndCatch<llm_model_t *>([opt](){
     std::unique_ptr<llm_model_t> model = std::make_unique<llm_model_t>();
+    if (!opt) throw ly::InvalidArgError("opt");
 
-    if (!ini_path)
-      throw ly::InvalidArgError("ini_path");
-    std::unique_ptr<IniConfig> ini = IniConfig::read(ini_path);
+    if (opt->configFile == "")
+      throw ly::InvalidArgError("config_file is empty");
+    std::unique_ptr<IniConfig> ini = IniConfig::read(opt->configFile);
 
-    model->ctx.setDevice(llyn::Device::getCuda());
+    model->ctx.setDevice(getDeviceFromApi(opt->device));
     model->ctx.setFloatDType(llyn::functional::getDefaultFloatType(model->ctx.getDevice()));
     model->tokenizer = Tokenizer::create(ini->getSection("tokenizer"));
     model->model_for_generation = ModelFactory::createModel(model->ctx, *ini);

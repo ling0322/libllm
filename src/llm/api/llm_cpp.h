@@ -85,13 +85,22 @@ class Completion {
   Chunk _chunk;
 };
 
+enum class DeviceType {
+  CPU = LIBLLM_DEVICE_CPU,
+  CUDA = LIBLLM_DEVICE_CUDA,
+  AUTO = LIBLLM_DEVICE_AUTO
+};
+
 /// @brief Stores an instance of LLM Model.
 class Model {
  public:
   /// @brief Create an instance of Model from the config file path;
   /// @param configFile config file of the model.
+  /// @param device device of the model storage and computation device. Use DeviceType::AUTO to
+  /// let libllm determine the best one.
   /// @return A shared pointer of the Model instance.
-  static std::shared_ptr<Model> create(const std::string &configFile);
+  static std::shared_ptr<Model> create(const std::string &configFile,
+                                       DeviceType device = DeviceType::AUTO);
 
   /// @brief Get the name of model, for example, "llama".
   /// @return name of the model.
@@ -109,6 +118,8 @@ class Model {
 
   Model() = default;
 };
+
+// -- Implementation of libLLM C++ API (wrapper for C api) ----------------------------------------
 
 namespace internal {
 
@@ -163,8 +174,14 @@ inline Chunk Completion::nextChunk() {
   return c;
 }
 
-inline std::shared_ptr<Model> Model::create(const std::string &iniPath) {
-  llm_model_t *model_ptr = llm_model_init(iniPath.c_str());
+inline std::shared_ptr<Model> Model::create(const std::string &iniPath, DeviceType device) {
+  std::shared_ptr<llm_model_opt_t> modelOpt(
+      llm_model_opt_init(iniPath.c_str()),
+      llm_model_opt_destroy);
+  if (LIBLLM_OK != llm_model_opt_set_device(modelOpt.get(), int(device))) 
+    internal::throwLastError();
+
+  llm_model_t *model_ptr = llm_model_init(modelOpt.get());
   if (!model_ptr) internal::throwLastError();
 
   std::shared_ptr<Model> model{new Model()};

@@ -25,6 +25,7 @@
 #include "llyn/operators/common/matmul.h"
 #include "llyn/operators/cuda/common.h"
 #include "llyn/operators/cuda/dequant.h"
+#include "llyn/operators/cuda/matvec.h"
 
 #define CHECK_CUBLAS_STATUS(x) { \
       cublasStatus_t status = x; \
@@ -69,9 +70,35 @@ Tensor MatMul::apply(const Tensor &A, const Tensor &B) {
 Tensor MatMul::matmulQ4(const Tensor &A, const Tensor &B) {
   CHECK(B.getDType() == DType::kQInt4Group32);
   CHECK(A.getDType() == DType::kFloat16);
+  CHECK(B.getDim() == 2 && B.getStride(0) == 1);  // make sure B is transposed.
 
-  Tensor xB = dequantQ4ToHalf(B);
-  return matmulHalf(A, xB);
+  if (A.getDim() == 2 && B.getDim() == 2) {
+    return gemmQ4(A, B);
+  } else if (A.getDim() > 2 && B.getDim() == 2) {
+    return bmmToGemmQ4(A, B);
+  } else {
+    NOT_IMPL();
+  }
+}
+
+Tensor MatMul::bmmToGemmQ4(const Tensor &A, const Tensor &B) {
+  std::vector<int> shape = A.getShape();
+
+  Tensor xA = A.view({-1, A.getShape(-1)});
+  Tensor xC = gemmQ4(xA, B);
+
+  shape.back() = B.getShape(1);
+  return xC.view(shape);
+}
+
+Tensor MatMul::gemmQ4(const Tensor &A, const Tensor &B) {
+  if (A.getShape(0) > 1) {
+    Tensor xB = dequantQ4ToHalf(B);
+    return matmulHalf(A, xB);
+  } else {
+    // use GEMV if A is a single row matrix.
+    return op::cuda::gemvQ4(B.transpose(0, 1), A.transpose(0, 1)).transpose(0, 1);
+  }
 }
 
 Tensor MatMul::matmulHalf(const Tensor &A, const Tensor &B) {

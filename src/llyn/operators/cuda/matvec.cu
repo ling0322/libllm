@@ -17,6 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Inspired by https://github.com/ankan-ban/llama_cu_awq and https://github.com/mit-han-lab/llm-awq
 
 #include <cuda_fp16.h>
 #include "llyn/tensor.h"
@@ -28,13 +29,7 @@ namespace cuda {
 
 int divUp(int a, int b) {
     return (a - 1) / b + 1;
-}
-
-__forceinline__ __device__ uint4 loadFromMem(const uint4* ptr) {
-  uint4 ret;
-  ret = __ldcs(ptr);
-  return ret;
-}
+} 
 
 // load with cache streaming.
 template<typename T>
@@ -148,7 +143,8 @@ Tensor gemvHalf(const Tensor &A, const Tensor &B) {
   return C;
 }
 
-Tensor gemvQ4(const Tensor &A, const Tensor &B) {
+Tensor gemvQ4(const Tensor &A, const Tensor &x) {
+  CHECK(A.getShape(1) == x.getShape(0) && x.getShape(1) == 1);
   int n = A.getShape(1);
   int d = A.getShape(0);
 
@@ -157,7 +153,7 @@ Tensor gemvQ4(const Tensor &A, const Tensor &B) {
   dim3 block_dim(32, 4);
   dim3 grid_dim(divUp(d, 4), 1);
 
-  mat_vec_kernel_q4g32 <<<grid_dim, block_dim, 0 >>> (C.getData<half>(), B.getData<half>(), A);
+  mat_vec_kernel_q4g32 <<<grid_dim, block_dim, 0 >>> (C.getData<half>(), x.getData<half>(), A);
   cudaDeviceSynchronize();
   return C;
 }

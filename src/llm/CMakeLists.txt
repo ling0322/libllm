@@ -36,13 +36,13 @@ set(libllm_LIBADD
     ${cudnn_LIBRARIES}
     ${cuda_LIBRARIES})
 
-add_library(llmcore SHARED ${libllm_SOURCES} )
-target_include_directories(llmcore PRIVATE ${libllm_INCDIRS})
-target_compile_features(llmcore PRIVATE cxx_std_14)
-target_link_directories(llmcore PUBLIC "${CUDNN_ROOT}/lib/" "${CUDNN_ROOT}/lib/x64")
-target_link_libraries(llmcore ${libllm_LIBADD}  )
-set_property(TARGET llmcore PROPERTY OUTPUT_NAME llm-core)
-target_link_options(llmcore PUBLIC "-Wl,--no-undefined")
+add_library(libllm SHARED ${libllm_SOURCES} )
+target_include_directories(libllm PRIVATE ${libllm_INCDIRS})
+target_compile_features(libllm PRIVATE cxx_std_14)
+target_link_directories(libllm PUBLIC "${CUDNN_ROOT}/lib/" "${CUDNN_ROOT}/lib/x64")
+target_link_libraries(libllm ${libllm_LIBADD}  )
+set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
+target_link_options(libllm PUBLIC "-Wl,--no-undefined")
 
 set(llm_SOURCES
     "cli/dialog_manager.cc"
@@ -50,7 +50,7 @@ set(llm_SOURCES
 
 add_executable(llm ${llm_SOURCES})
 target_include_directories(llm PRIVATE ${libllm_INCDIRS})
-target_link_libraries(llm llmcore OpenMP::OpenMP_CXX )
+target_link_libraries(llm libllm OpenMP::OpenMP_CXX )
 target_link_options(llm PUBLIC "-fopenmp")
 
 

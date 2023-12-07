@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import codecs
+from enum import IntEnum
 from . import interop
 from .interop import AutoPtr, LL_TRUE
 
@@ -41,10 +42,25 @@ class Completion:
         if chunk_text:
             yield Chunk(text=chunk_text)
 
+class Device(IntEnum):
+    CPU =  0x0000
+    CUDA = 0x0100
+    AUTO = 0x1f00
+
 class Model:
     """Model in libllm."""
-    def __init__(self, model_file) -> None:
-        self._model_c_ptr = AutoPtr(interop.llm_model_init(model_file.encode("utf-8")),
+    def __init__(self, config_file, device: Device = Device.AUTO) -> None:
+        """Create an instance of Model from the libLLM model config file. When device is
+        Device.AUTO, it will automatically choose the best device to load. Otherwise load model to
+        the specified device.
+        Args:
+            config_file (str): config of the libLLM model.
+            device (Device): target computation device.
+        """
+        model_opt_ptr = AutoPtr(interop.llm_model_opt_init(config_file.encode("utf-8")),
+                                interop.llm_model_opt_destroy)
+        interop.llm_model_opt_set_device(model_opt_ptr.get(), int(device))
+        self._model_c_ptr = AutoPtr(interop.llm_model_init(model_opt_ptr.get()),
                                     interop.llm_model_destroy)
 
     @property

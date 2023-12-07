@@ -27,8 +27,8 @@ namespace llyn {
 namespace op {
 namespace cuda {
 
-Tensor gemvHalf(const Tensor &A, const Tensor &B);
-Tensor gemvQ4(const Tensor &A, const Tensor &B);
+Tensor gemvHalf(const Tensor &A, const Tensor &x);
+Tensor gemvQ4(const Tensor &A, const Tensor &x);
 
 }  // cuda
 }  // op

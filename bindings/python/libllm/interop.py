@@ -22,9 +22,9 @@ from os import path
 from ctypes import CDLL, CFUNCTYPE, c_char_p, c_void_p, c_int32, c_float
 
 if os.name == "posix":
-    LIB_NAME = "libllm-core.so"
+    LIB_NAME = "libllm.so"
 elif os.name == "nt":
-    LIB_NAME = "llm-core.dll"
+    LIB_NAME = "llm.dll"
 _lib = CDLL(path.join(path.dirname(__file__), LIB_NAME))
 
 LL_TRUE = 1
@@ -71,7 +71,11 @@ llm_init = _capi_rerr("llm_init", ())
 llm_destroy = _capi("llm_destroy", None, ())
 llm_get_last_error_message = _capi("llm_get_last_error_message", c_char_p, ())
     
-llm_model_init = _capi_rptr("llm_model_init", (c_char_p,))
+llm_model_opt_init = _capi_rptr("llm_model_opt_init", (c_char_p,))
+llm_model_opt_destroy = _capi("llm_model_opt_destroy", None, (c_void_p,))
+llm_model_opt_set_device = _capi_rerr("llm_model_opt_set_device", (c_void_p, c_int32))
+
+llm_model_init = _capi_rptr("llm_model_init", (c_void_p,))
 llm_model_destroy = _capi("llm_model_destroy", None, (c_void_p, ))
 llm_model_get_name = _capi_rstr("llm_model_destroy", (c_void_p, ))
 llm_model_complete = _capi_rptr("llm_model_complete", (c_void_p, c_void_p))

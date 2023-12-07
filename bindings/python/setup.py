@@ -21,7 +21,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pylibllm",
-    version="1.3.1",
+    version="1.5.1",
     author="ling0322",
     author_email="ling032x@gmail.com",
     description="libLLM is an open-source project tailored for efficient inference of large language models (LLMs).",
@@ -42,5 +42,5 @@ setup(
     python_requires=">=3.6",
     packages=find_packages(),
     package_dir={"libllm": "libllm"},
-    package_data={"libllm": ["libllm-core.so", "llm-core.dll"]},
+    package_data={"libllm": ["libllm.so", "llm.dll"]},
 )

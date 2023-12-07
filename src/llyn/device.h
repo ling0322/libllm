@@ -35,6 +35,10 @@ class Device {
     kUnknown
   };
 
+  /// @brief Return true if cuda device is available.
+  /// @return availability of cuda device.
+  static bool isCudaAvailable();
+
   static Device getCpu();
   static Device getCuda();
 

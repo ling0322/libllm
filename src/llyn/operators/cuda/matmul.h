@@ -40,6 +40,9 @@ class MatMul {
   static void safeDestroyCublas(cublasHandle_t handle);
 
   Tensor matmulQ4(const Tensor &A, const Tensor &B);
+  Tensor gemmQ4(const Tensor &A, const Tensor &B);
+  Tensor bmmToGemmQ4(const Tensor &A, const Tensor &B);
+
   Tensor matmulHalf(const Tensor &A, const Tensor &B);
   Tensor gemmHalf(const Tensor &A, const Tensor &B);
   Tensor bmmHalf(const Tensor &A, const Tensor &B);
