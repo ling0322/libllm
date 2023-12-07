@@ -25,7 +25,7 @@ BPEConfig::BPEConfig()
     : addPrefixSpace(true),
       splitByUnicode(true) {}
 
-std::unique_ptr<BPEConfig> BPEConfig::fromIni(const ly::IniSection &iniSection) {
+std::unique_ptr<BPEConfig> BPEConfig::fromIni(const lut::IniSection &iniSection) {
   std::unique_ptr<BPEConfig> config = std::make_unique<BPEConfig>();
 
   config->addPrefixSpace = iniSection.getBool("add_prefix_space");

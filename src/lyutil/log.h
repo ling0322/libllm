@@ -22,15 +22,15 @@
 #include <sstream>
 
 #define LOG(severity) \
-   if (ly::internal::gLogLevel > ly::LogSeverity::k ## severity) {} \
-   else ly::internal::LogWrapperk ## severity(__FILE__, __LINE__)
+   if (lut::internal::gLogLevel > lut::LogSeverity::k ## severity) {} \
+   else lut::internal::LogWrapperk ## severity(__FILE__, __LINE__)
 #define NOT_IMPL() { LOG(FATAL) << "not implemented"; abort(); }
 
 // CHECK macro conflicts with catch2
 #define CHECK(cond) \
     if (cond) {} else LOG(FATAL).DefaultMessage("Check " #cond " failed.")
 
-namespace ly {
+namespace lut {
 
 enum class LogSeverity {
   kDEBUG = 0,
@@ -42,6 +42,6 @@ enum class LogSeverity {
 
 void setLogLevel(LogSeverity level);
 
-} // namespace ly
+} // namespace lut
 
 #include "lyutil/internal/log.h"

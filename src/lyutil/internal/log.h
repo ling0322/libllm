@@ -21,7 +21,7 @@
 
 #include "lyutil/log.h"
 
-namespace ly {
+namespace lut {
 namespace internal {
 
 extern LogSeverity gLogLevel;
@@ -82,5 +82,5 @@ class LogWrapperkFATAL : public LogWrapper {
 };
 
 }  // namespace internal
-} // namespace ly
+} // namespace lut
 

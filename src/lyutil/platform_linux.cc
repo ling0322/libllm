@@ -21,7 +21,7 @@
 
 #include <stdlib.h>
 
-namespace ly {
+namespace lut {
 
 void initCpuInfo() {
 #if !defined(__clang__) || __clang_major__ >= 6
@@ -55,4 +55,4 @@ const char *getPathDelim() {
   return "/";
 }
 
-} // namespace ly
+} // namespace lut

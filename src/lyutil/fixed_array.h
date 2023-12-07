@@ -21,7 +21,7 @@
 
 #include "lyutil/internal/base_array.h"
 
-namespace ly {
+namespace lut {
 
 template<typename T>
 class FixedArray : public internal::BaseArray<T> {
@@ -67,4 +67,4 @@ class FixedArray : public internal::BaseArray<T> {
   }
 };
 
-} // namespace ly
+} // namespace lut

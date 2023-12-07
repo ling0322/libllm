@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 
-namespace ly {
+namespace lut {
 
 /// @brief Convert from float to float16.
 /// @param v value in float32.

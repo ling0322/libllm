@@ -22,7 +22,7 @@
 #include "lyutil/strings.h"
 #include "llm/common/constants.h"
 
-using llyn::Tensor;
+using ly::Tensor;
 
 namespace libllm {
 namespace chatglm2 {
@@ -30,8 +30,8 @@ namespace chatglm2 {
 const char *ChatGLM2ModelForGeneration::_modelName = "chatglm2";
 
 std::shared_ptr<ChatGLM2ModelForGeneration> ChatGLM2ModelForGeneration::create(
-    const llyn::Context &ctx,
-    const ly::IniConfig &config) {
+    const ly::Context &ctx,
+    const lut::IniConfig &config) {
   std::shared_ptr<ChatGLM2ModelForGeneration> model{new ChatGLM2ModelForGeneration()};
 
   ChatGLM2Config chatglm2Config = ChatGLM2Config::loadConfig(config);
@@ -39,31 +39,31 @@ std::shared_ptr<ChatGLM2ModelForGeneration> ChatGLM2ModelForGeneration::create(
   model->_config = chatglm2Config;
 
   // initialize parameters.
-  llyn::StateMap stateMap;
-  ly::Path modelPath = config.getSection(ModelSection).getPath(ModelFileField);
+  ly::StateMap stateMap;
+  lut::Path modelPath = config.getSection(ModelSection).getPath(ModelFileField);
   stateMap.read(modelPath.string());
 
   model->_model->initParameters(stateMap);
   return model;
 }
 
-llyn::Tensor ChatGLM2ModelForGeneration::buildInput(
+ly::Tensor ChatGLM2ModelForGeneration::buildInput(
     const lytok::Tokenizer &tokenizer,
     const std::string &query) const {
   std::vector<int> tokenIds = tokenizer.encode(query);
-  std::vector<llyn::LongType> inputData{_config.symbolGMask, _config.symbolSOP};
+  std::vector<ly::LongType> inputData{_config.symbolGMask, _config.symbolSOP};
   const lytok::Vocab *vocab = tokenizer.getVocab();
   for (int tokenId : tokenIds) {
-    LOG(DEBUG) << ly::sprintf("'%s' -> %d", vocab->getTokenString(tokenId), tokenId);
+    LOG(DEBUG) << lut::sprintf("'%s' -> %d", vocab->getTokenString(tokenId), tokenId);
     inputData.push_back(tokenId);
   }
 
   int len = inputData.size();
-  Tensor inputs = Tensor::create<llyn::LongType>({1, len}, inputData);
+  Tensor inputs = Tensor::create<ly::LongType>({1, len}, inputData);
   return inputs;
 }
 
-Tensor ChatGLM2ModelForGeneration::forward(llyn::StateMap &past, Tensor input) const {
+Tensor ChatGLM2ModelForGeneration::forward(ly::StateMap &past, Tensor input) const {
   return _model->forward(past, input);
 }
 
@@ -79,7 +79,7 @@ const char *ChatGLM2ModelForGeneration::getName() const {
   return _modelName;
 }
 
-llyn::Device ChatGLM2ModelForGeneration::getDevice() const {
+ly::Device ChatGLM2ModelForGeneration::getDevice() const {
   return _model->getCtx().getDevice();
 }
 

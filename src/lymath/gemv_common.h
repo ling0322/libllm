@@ -44,7 +44,7 @@ void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::apply(const TArgs &args) 
   if (args.incX == 1 && args.incY == 1) {
     applyContigousXY(args);
   } else {
-    ly::c_ptr<typename TArgs::VecType> packedXY = salloc(args.M + args.N);
+    lut::c_ptr<typename TArgs::VecType> packedXY = salloc(args.M + args.N);
 
     // On transposed A: dimemsion of (x, y) is (M, N)
     // On non-transposed A: dimemsion of (x, y) is (N, M)
@@ -113,7 +113,7 @@ void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYTransA(
   } else if (MODE == Mode::OMP) {
     // initialize numThreads y buffers.
     // TODO: sfill
-    ly::c_ptr<typename TArgs::VecType> ys = salloc(args.N * numThreads);
+    lut::c_ptr<typename TArgs::VecType> ys = salloc(args.N * numThreads);
     memset(ys.get(), 0, args.N * numThreads * sizeof(typename TArgs::VecType));
 
     // compute axpy.

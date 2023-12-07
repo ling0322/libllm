@@ -38,19 +38,19 @@ std::vector<std::string> encodeAsPieces(const Tokenizer *tokenizer, const std::s
 }
 
 void testTokenizer(const std::string &ini_file, const std::string &test_case) {
-  auto config = ly::IniConfig::read(ini_file);
-  const ly::IniSection &section = config->getSection("tokenizer");
+  auto config = lut::IniConfig::read(ini_file);
+  const lut::IniSection &section = config->getSection("tokenizer");
 
   auto tokenizer = Tokenizer::create(section);
-  auto fp = ly::ReadableFile::open(test_case);
-  ly::Scanner scanner(fp.get());
+  auto fp = lut::ReadableFile::open(test_case);
+  lut::Scanner scanner(fp.get());
   while (scanner.scan()) {
-    std::string line = ly::trimRight(scanner.getText(), "\r\n");
-    auto row = ly::split(line, "\t");
+    std::string line = lut::trimRight(scanner.getText(), "\r\n");
+    auto row = lut::split(line, "\t");
     CATCH_REQUIRE(row.size() == 2);
 
     auto sentence = std::move(row[0]);
-    auto ref_pieces = ly::split(ly::trim(row[1]), " ");
+    auto ref_pieces = lut::split(lut::trim(row[1]), " ");
     auto pieces = encodeAsPieces(tokenizer.get(), sentence);
 
     CATCH_REQUIRE(pieces == ref_pieces);

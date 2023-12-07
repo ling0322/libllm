@@ -27,7 +27,7 @@ namespace lytok {
 
 // Store tne data from sentence-piece BPE model.
 class BPEModel : public Vocab,
-                 private ly::NonCopyable {
+                 private lut::NonCopyable {
  public:
   // token flags.
   static constexpr int kUnknown = 1;
@@ -81,9 +81,9 @@ class BPEModel : public Vocab,
   BPEModel();
 
   // read model from fp
-  void readModel(ly::ReadableFile *fp);
-  void readMagicNumber(ly::ReadableFile *fp);
-  TokenInfo readRecord(ly::ReadableFile *fp);
+  void readModel(lut::ReadableFile *fp);
+  void readMagicNumber(lut::ReadableFile *fp);
+  TokenInfo readRecord(lut::ReadableFile *fp);
   void initModel();
   void checkModel();
 };

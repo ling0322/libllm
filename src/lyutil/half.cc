@@ -19,7 +19,7 @@
 
 #include "lyutil/half.h"
 
-namespace ly {
+namespace lut {
 
 // these float and half converion code are from https://gist.github.com/rygorous/2156668
 // License: https://creativecommons.org/publicdomain/zero/1.0/

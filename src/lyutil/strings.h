@@ -26,7 +26,7 @@
 
 #include "lyutil/internal/sprintf.h"
 
-namespace ly {
+namespace lut {
 
 std::string toUtf8(const std::u16string &u16s);
 std::string toUtf8(const std::wstring &ws);
@@ -55,10 +55,10 @@ T stox(const std::string &s);
 std::vector<std::string> splitUtf8(const std::string &s);
 
 // String formatting, for example:
-//   ly::sprintf("%s %d", "foo", 233);
+//   lut::sprintf("%s %d", "foo", 233);
 template<typename... Args>
 inline std::string sprintf(const std::string &fmt, Args &&...args) {
   return internal::sprintf0(std::stringstream(), fmt.c_str(), std::forward<Args>(args)...);
 }
 
-} // namespace ly
+} // namespace lut

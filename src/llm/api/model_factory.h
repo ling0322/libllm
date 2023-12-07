@@ -28,8 +28,8 @@ namespace libllm {
 class ModelFactory {
  public:
   // create model from ini.
-  static std::shared_ptr<ModelForGeneration> createModel(const llyn::Context &ctx,
-                                                         const ly::IniConfig &config);
+  static std::shared_ptr<ModelForGeneration> createModel(const ly::Context &ctx,
+                                                         const lut::IniConfig &config);
 };
 
 }  // namespace libllm

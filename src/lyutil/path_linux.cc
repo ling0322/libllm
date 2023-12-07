@@ -29,7 +29,7 @@
 
 extern char *program_invocation_name;
 
-namespace ly {
+namespace lut {
 
 Path Path::currentExecutablePath() {
   return Path(program_invocation_name);
@@ -54,4 +54,4 @@ std::string Path::normPath(const std::string &path) {
   return path;
 }
 
-} // namespace ly
+} // namespace lut

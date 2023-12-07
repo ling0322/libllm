@@ -28,7 +28,7 @@ namespace lytok {
 class Tokenizer {
  public:
   // create an instance of Tokenizer from config.
-  static std::unique_ptr<Tokenizer> create(const ly::IniSection &config);
+  static std::unique_ptr<Tokenizer> create(const lut::IniSection &config);
  
   virtual ~Tokenizer() = default;
   

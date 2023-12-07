@@ -21,9 +21,9 @@
 
 #include "lyutil/strings.h"
 
-using llyn::Tensor;
+using ly::Tensor;
 
-namespace F = llyn::functional;
+namespace F = ly::functional;
 
 namespace libllm {
 
@@ -49,7 +49,7 @@ void Generator::setPrompt(const std::string &query) {
   Tensor hiddenState = _model->forward(_past, inputs);
 
   CHECK(hiddenState.getDim() == 3);
-  Tensor x = hiddenState.slice(1, {-1, llyn::None});
+  Tensor x = hiddenState.slice(1, {-1, ly::None});
   Tensor logits = _model->forwardHidden(x);
   _currentToken = sampleToken(logits);
 }
@@ -59,13 +59,13 @@ const char *Generator::nextToken() {
   
   const lytok::Vocab *vocab = _tokenizer->getVocab();
   const char *token = vocab->getTokenPiece(_currentToken).c_str();
-  LOG(DEBUG) << ly::sprintf("%d -> piece='%s' string='%s'",
+  LOG(DEBUG) << lut::sprintf("%d -> piece='%s' string='%s'",
                             _currentToken,
                             vocab->getTokenPiece(_currentToken),
                             vocab->getTokenString(_currentToken));
 
-  std::array<llyn::LongType, 1> inputData{_currentToken};
-  Tensor inputs = Tensor::create<llyn::LongType>({1, 1}, inputData);
+  std::array<ly::LongType, 1> inputData{_currentToken};
+  Tensor inputs = Tensor::create<ly::LongType>({1, 1}, inputData);
   inputs = F::to(_model->getDevice(), inputs);
 
   Tensor x = _model->forward(_past, inputs);
@@ -79,7 +79,7 @@ bool Generator::stopped() const {
   return _currentToken == _model->getEosId() || _currentToken < 0;
 }
 
-int Generator::sampleToken(const llyn::Tensor &logits) {
+int Generator::sampleToken(const ly::Tensor &logits) {
   CHECK(logits.getDim() == 3 && logits.getShape(0) == 1 && logits.getShape(1) == 1);
 
   Tensor x = logits.subtensor(0).subtensor(0);
@@ -87,9 +87,9 @@ int Generator::sampleToken(const llyn::Tensor &logits) {
     x = F::mul(x, 1.0f / _config.temperature);
   }
   x = F::softmax(x);
-  if (x.getDevice().getType() == llyn::Device::kCuda) {
-    x = F::cast(x, llyn::DType::kFloat);
-    x = F::to(llyn::Device::kCpu, x);
+  if (x.getDevice().getType() == ly::Device::kCuda) {
+    x = F::cast(x, ly::DType::kFloat);
+    x = F::to(ly::Device::kCpu, x);
   }
 
 

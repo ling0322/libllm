@@ -19,18 +19,18 @@
 
 #include "llm/chatglm2/chatglm2_model.h"
 
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 #include "lyutil/error.h"
 #include "lyutil/strings.h"
 #include "lytok/lytok.h"
 
-using llyn::Context;
-using llyn::Tensor;
-using llyn::StateMap;
-using llyn::nn::Embedding;
-using llyn::nn::RMSNorm;
+using ly::Context;
+using ly::Tensor;
+using ly::StateMap;
+using ly::nn::Embedding;
+using ly::nn::RMSNorm;
 
-namespace F = llyn::functional;
+namespace F = ly::functional;
 
 namespace libllm {
 namespace chatglm2 {
@@ -55,11 +55,11 @@ std::unique_ptr<ChatGLM2Model> ChatGLM2Model::create(const Context &rootCtx,
   model->_finalNorm = RMSNorm::create(ctx.withName(FinalNorm), config.hiddenSize, config.normEps);
   for (int i = 0; i < config.numLayers; ++i) {
     model->_blocks.emplace_back(
-        GLMBlock::create(ctx.withName(ly::sprintf("%s%d", Block, i)), config));
+        GLMBlock::create(ctx.withName(lut::sprintf("%s%d", Block, i)), config));
   }
 
   if (config.kvChannels % 4 != 0) {
-    throw ly::AbortedError("invalid kv_channels");
+    throw lut::AbortedError("invalid kv_channels");
   }
 
   return model;
@@ -86,7 +86,7 @@ void ChatGLM2Model::initParameters(const StateMap &stateDict) {
   _output = moveAndCastFloat(_output, ctx);
 }
 
-llyn::Tensor ChatGLM2Model::forwardHidden(llyn::Tensor hiddenState) const {
+ly::Tensor ChatGLM2Model::forwardHidden(ly::Tensor hiddenState) const {
   return F::matmul(hiddenState, _output.transpose(0, 1));
 }
 

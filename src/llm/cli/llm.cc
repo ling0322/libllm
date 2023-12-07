@@ -35,7 +35,7 @@ using libllm::cli::PromptBulder;
 /// @param chatOutput Output from chat.
 void printChatStat(const ChatOutput &chatOutput) {
   double msPerToken = 1000 * chatOutput.answerDuration / chatOutput.numAnswerTokens;
-  std::cout << std::endl << ly::sprintf(
+  std::cout << std::endl << lut::sprintf(
       "(%d token, time=%.2fs, %.2fms per token)",
       chatOutput.numAnswerTokens,
       chatOutput.answerDuration,
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
       "Command line interface for libllm.\n"
       "Usage: llm --config <libllm-config-file>";
 
-  ly::Flags flags(usage);
+  lut::Flags flags(usage);
   flags.define("-config", &configPath, "filename of libllm config file.");
   flags.parse(argc, argv);
 
@@ -67,9 +67,9 @@ int main(int argc, char **argv) {
   
     std::cout << "> ";
     std::getline(std::cin, query);
-    if (ly::trim(query) == "")
+    if (lut::trim(query) == "")
       continue;
-    if (ly::trim(query) == "q")
+    if (lut::trim(query) == "q")
       break;
 
     ChatOutput chatOutput = dialogManager.chat(query, [](const std::string &token) {

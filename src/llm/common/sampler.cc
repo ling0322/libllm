@@ -21,20 +21,20 @@
 
 #include <math.h>
 #include <algorithm>
-#include "llyn/llyn.h"
+#include "ly/ly.h"
 #include "lyutil/log.h"
 
-using llyn::DType;
-using llyn::Tensor;
+using ly::DType;
+using ly::Tensor;
 
-namespace F = llyn::functional;
+namespace F = ly::functional;
 
 namespace libllm {
 
 
 Sampler::Sampler(int topK, float topP) : _topK(topK), _topP(topP) {}
 
-std::vector<int> Sampler::getTopP(const llyn::Tensor &distribution, ly::Span<const int> topK) {
+std::vector<int> Sampler::getTopP(const ly::Tensor &distribution, lut::Span<const int> topK) {
   CHECK(distribution.getDim() == 1 && distribution.getDType() == DType::kFloat);
   float sumP = 0.0f;
 
@@ -78,7 +78,7 @@ std::vector<int> Sampler::getTopK(const Tensor &distribution) {
   return topK;
 }
 
-int Sampler::sampleTopP(const llyn::Tensor &distribution, ly::Span<const int> topP) {
+int Sampler::sampleTopP(const ly::Tensor &distribution, lut::Span<const int> topP) {
   CHECK(distribution.getDim() == 1 && distribution.getDType() == DType::kFloat);
   std::vector<float> probAcc;
 

@@ -28,7 +28,7 @@
 #include "lyutil/path.h"
 #include "lyutil/strings.h"
 
-namespace ly {
+namespace lut {
 
 class SharedLibrary::Impl {
  public:
@@ -72,7 +72,7 @@ std::unique_ptr<SharedLibrary::Impl> SharedLibrary::Impl::open(const std::string
     impl->_module = LoadLibraryW(filename.wstring().c_str());
     if (!impl->_module) {
       code = GetLastError();
-      throw AbortedError(ly::sprintf(
+      throw AbortedError(lut::sprintf(
           "Load library %s failed with code 0x%x.", absFilename.string(), code));
     }
   }
@@ -100,4 +100,4 @@ void *SharedLibrary::getFuncPtr(const std::string &name) {
   return _impl->getFuncPtr(name);
 }
 
-} // namespace ly
+} // namespace lut

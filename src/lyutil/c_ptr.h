@@ -23,7 +23,7 @@
 #include "lyutil/noncopyable.h"
 #include "lyutil/log.h"
 
-namespace ly {
+namespace lut {
 
 // Stores the C pointer and it's destroy function
 template<typename T>
@@ -92,4 +92,4 @@ inline T *c_ptr<T>::Release() {
   return ptr;
 }
 
-} // namespace ly
+} // namespace lut

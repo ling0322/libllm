@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include "lyutil/log.h"
 
-namespace ly {
+namespace lut {
 
 // Pool is a class to optimize allocating large number of a class T.
 template<typename T, int BLOCK_SIZE = 4096>
@@ -120,4 +120,4 @@ int Pool<T, BLOCK_SIZE>::getNumAllocated() const {
   return _currentBlock * BLOCK_SIZE + _currentOffset - _free.size();
 }
 
-} // namespace ly
+} // namespace lut

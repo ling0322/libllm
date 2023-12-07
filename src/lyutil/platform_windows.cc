@@ -21,7 +21,7 @@
 
 #include <windows.h>
 
-namespace ly {
+namespace lut {
 
 bool isAvx512Available() {
   return IsProcessorFeaturePresent(PF_AVX512F_INSTRUCTIONS_AVAILABLE) == TRUE;
@@ -43,4 +43,4 @@ const char *getPathDelim() {
   return "\\";
 }
 
-} // namespace ly
+} // namespace lut

@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include "lyutil/span.h"
 
-namespace ly {
+namespace lut {
 
 // random number generator.
 class Random {
@@ -54,4 +54,4 @@ class Random {
   uint64_t _x;
 };
 
-} // namespace ly
+} // namespace lut

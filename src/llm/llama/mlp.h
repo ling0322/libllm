@@ -20,24 +20,24 @@
 #pragma once
 
 #include <memory>
-#include "llyn/context.h"
-#include "llyn/tensor.h"
-#include "llyn/nn/module.h"
+#include "ly/context.h"
+#include "ly/tensor.h"
+#include "ly/nn/module.h"
 #include "llm/llama/llama_config.h"
 
 namespace libllm {
 namespace llama {
 
-class MLP : public llyn::nn::Module {
+class MLP : public ly::nn::Module {
  public:
-  static std::shared_ptr<MLP> create(const llyn::Context &ctx, const LlamaConfig &config);
+  static std::shared_ptr<MLP> create(const ly::Context &ctx, const LlamaConfig &config);
 
-  void initParameters(const llyn::StateMap &stateDict) override;
-  llyn::Tensor forward(llyn::Tensor input) const;
+  void initParameters(const ly::StateMap &stateDict) override;
+  ly::Tensor forward(ly::Tensor input) const;
 
  private:
-  llyn::Tensor _wGateUpProj;
-  llyn::Tensor _wDownProj;
+  ly::Tensor _wGateUpProj;
+  ly::Tensor _wDownProj;
 
   int _hiddenSize;
   int _intermediateSize;

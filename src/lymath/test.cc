@@ -106,7 +106,7 @@ bool isClose(float l, float r) {
   return fabs(l - r) <= atol + rtol * fabs(r);
 }
 
-bool isClose(ly::Span<const float> A, ly::Span<const float> B) {
+bool isClose(lut::Span<const float> A, lut::Span<const float> B) {
   if (A.size() != B.size()) 
     return false;
 
@@ -126,13 +126,13 @@ void testGemmFp32QInt4Fp32(bool transB, int M, int N, int K) {
   std::vector<float> scaleBFp32(K * N / Q4GroupSize);
   std::vector<Fp16> scaleB(K * N / Q4GroupSize);
 
-  ly::Random random(MagicNumber);
+  lut::Random random(MagicNumber);
 
-  random.fill(ly::makeSpan(A));
-  random.fillUInt8(ly::makeSpan(B));
-  random.fill(ly::makeSpan(scaleBFp32));
+  random.fill(lut::makeSpan(A));
+  random.fillUInt8(lut::makeSpan(B));
+  random.fill(lut::makeSpan(scaleBFp32));
 
-  std::transform(scaleBFp32.begin(), scaleBFp32.end(), scaleB.begin(), ly::cvtss_sh);
+  std::transform(scaleBFp32.begin(), scaleBFp32.end(), scaleB.begin(), lut::cvtss_sh);
 
   std::vector<float> C(M * N);
   std::vector<float> refC(M * N);
@@ -175,11 +175,11 @@ CATCH_TEST_CASE("test q4sym dequantization", "[lymath][q4sym]") {
   std::vector<float> y(DIM);
   std::vector<float> yRef(DIM);
 
-  ly::Random random(MagicNumber);
+  lut::Random random(MagicNumber);
 
-  random.fillUInt8(ly::makeSpan(x));
-  random.fill(ly::makeSpan(scaleXFp32));
-  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), ly::cvtss_sh);
+  random.fillUInt8(lut::makeSpan(x));
+  random.fill(lut::makeSpan(scaleXFp32));
+  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), lut::cvtss_sh);
 
   DequantQ4SymFallbackKnl::apply(DIM, x.data(), scaleX.data(), y.data());
 
@@ -203,12 +203,12 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][kernel][q4]") {
   std::vector<float> y(DIM);
   std::vector<float> yRef(DIM);
 
-  ly::Random random(MagicNumber);
+  lut::Random random(MagicNumber);
 
-  random.fillUInt8(ly::makeSpan(x));
-  random.fill(ly::makeSpan(scaleXFp32));
-  random.fillInt8(ly::makeSpan(zeroPointX), -112, 127);
-  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), ly::cvtss_sh);
+  random.fillUInt8(lut::makeSpan(x));
+  random.fill(lut::makeSpan(scaleXFp32));
+  random.fillInt8(lut::makeSpan(zeroPointX), -112, 127);
+  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), lut::cvtss_sh);
 
   DequantQ4FallbackKernel::apply(DIM, x.data(), scaleX.data(), zeroPointX.data(), y.data());
 }
@@ -221,12 +221,12 @@ CATCH_TEST_CASE("test int4 dot kernels", "[lymath][kernel][int4]") {
   std::vector<float> yscaleFp32(DIM / Q4GroupSize);
   std::vector<Fp16> yscale(DIM / Q4GroupSize);
 
-  ly::Random random(MagicNumber);
+  lut::Random random(MagicNumber);
 
-  random.fill(ly::makeSpan(x));
-  random.fillUInt8(ly::makeSpan(y));
-  random.fill(ly::makeSpan(yscaleFp32));
-  std::transform(yscaleFp32.begin(), yscaleFp32.end(), yscale.begin(), ly::cvtss_sh);
+  random.fill(lut::makeSpan(x));
+  random.fillUInt8(lut::makeSpan(y));
+  random.fill(lut::makeSpan(yscaleFp32));
+  std::transform(yscaleFp32.begin(), yscaleFp32.end(), yscale.begin(), lut::cvtss_sh);
 
   float rs = DotQ4SymFallbackKernel::apply(DIM, x.data(), y.data(), yscale.data());
   float s = DotQ4SymAvx2Kernel::apply(DIM, x.data(), y.data(), yscale.data());
@@ -244,11 +244,11 @@ CATCH_TEST_CASE("test q4sym axpy kernels", "[lymath][kernel][q4sym]") {
   std::vector<float> yRef(DIM);
   std::vector<Fp16> scale(DIM / Q4GroupSize);
 
-  ly::Random random(MagicNumber);
-  random.fillUInt8(ly::makeSpan(x));
-  random.fill(ly::makeSpan(scaleFp32));
-  random.fill(ly::makeSpan(yRef));
-  std::transform(scaleFp32.begin(), scaleFp32.end(), scale.begin(), ly::cvtss_sh);
+  lut::Random random(MagicNumber);
+  random.fillUInt8(lut::makeSpan(x));
+  random.fill(lut::makeSpan(scaleFp32));
+  random.fill(lut::makeSpan(yRef));
+  std::transform(scaleFp32.begin(), scaleFp32.end(), scale.begin(), lut::cvtss_sh);
 
   std::copy(yRef.begin(), yRef.end(), y.begin());
 
@@ -270,12 +270,12 @@ CATCH_TEST_CASE("test q4 axpy kernels", "[lymath][kernel][q4]") {
   std::vector<float> yRef(DIM);
   std::vector<Fp16> scale(DIM / Q4GroupSize);
 
-  ly::Random random(MagicNumber);
-  random.fillUInt8(ly::makeSpan(x));
-  random.fillInt8(ly::makeSpan(zeroPointX), -112, 127);
-  random.fill(ly::makeSpan(scaleFp32));
-  random.fill(ly::makeSpan(yRef));
-  std::transform(scaleFp32.begin(), scaleFp32.end(), scale.begin(), ly::cvtss_sh);
+  lut::Random random(MagicNumber);
+  random.fillUInt8(lut::makeSpan(x));
+  random.fillInt8(lut::makeSpan(zeroPointX), -112, 127);
+  random.fill(lut::makeSpan(scaleFp32));
+  random.fill(lut::makeSpan(yRef));
+  std::transform(scaleFp32.begin(), scaleFp32.end(), scale.begin(), lut::cvtss_sh);
 
   std::copy(yRef.begin(), yRef.end(), y.begin());
 
@@ -294,12 +294,12 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][kernel][q4]") {
   std::vector<Int8> zeroPointY(DIM / Q4GroupSize);
   std::vector<Fp16> scaleY(DIM / Q4GroupSize);
 
-  ly::Random random(MagicNumber);
-  random.fillUInt8(ly::makeSpan(y));
-  random.fillInt8(ly::makeSpan(zeroPointY), -112, 127);
-  random.fill(ly::makeSpan(scaleYFp32));
-  random.fill(ly::makeSpan(x));
-  std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), ly::cvtss_sh);
+  lut::Random random(MagicNumber);
+  random.fillUInt8(lut::makeSpan(y));
+  random.fillInt8(lut::makeSpan(zeroPointY), -112, 127);
+  random.fill(lut::makeSpan(scaleYFp32));
+  random.fill(lut::makeSpan(x));
+  std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), lut::cvtss_sh);
 
   float a = DotQ4Avx2Kernel::apply(DIM, x.data(), y.data(), scaleY.data(), zeroPointY.data());
   float aRef = DotQ4FallbackKernel::apply(
@@ -317,8 +317,8 @@ CATCH_TEST_CASE("test int8b dequant kernels", "[lymath][kernel][int8]") {
   std::vector<float> rdata;
   std::vector<float> rdataRef;
 
-  ly::Random random(MagicNumber);
-  random.fillUInt8(ly::makeSpan(qdata));
+  lut::Random random(MagicNumber);
+  random.fillUInt8(lut::makeSpan(qdata));
 
   rdata.resize(2);
   rdataRef.resize(2);
@@ -355,10 +355,10 @@ void testSgemm(bool transA, bool transB, int M, int N, int K) {
   std::vector<float> A(M * K);
   std::vector<float> B(K * N);
 
-  ly::Random random(MagicNumber);
+  lut::Random random(MagicNumber);
 
-  random.fill(ly::makeSpan(A));
-  random.fill(ly::makeSpan(B));
+  random.fill(lut::makeSpan(A));
+  random.fill(lut::makeSpan(B));
 
   std::vector<float> C(M * N);
   std::vector<float> refC(M * N);

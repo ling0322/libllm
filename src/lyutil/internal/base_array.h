@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 
-namespace ly {
+namespace lut {
 namespace internal {
 
 template<typename T>
@@ -85,4 +85,4 @@ class BaseArray {
 };
 
 }  // namespace internal
-} // namespace ly
+} // namespace lut

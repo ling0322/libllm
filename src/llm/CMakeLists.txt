@@ -21,7 +21,7 @@ set(libllm_SOURCES
 
 
 set(libllm_LIBADD
-    llyn
+    ly
     lymath
     lytok
     lyutil
@@ -30,7 +30,7 @@ set(libllm_LIBADD
 if(CUDA_ENABLED)
     set(libllm_LIBADD
         ${libllm_LIBADD}
-        llynextcuda
+        lyextcuda
         ${cudnn_LIBRARIES}
         ${cuda_LIBRARIES})
 endif()
@@ -56,7 +56,7 @@ target_link_options(llm PUBLIC "-fopenmp")
 set(llm_test_SOURCES
     ${libllm_SOURCES}
     ${lymath_test_SOURCES}
-    ${llyn_test_SOURCES}
+    ${ly_test_SOURCES}
     "cli/test_main.cc"
     "../../third_party/catch2/catch_amalgamated.cpp")
 

@@ -40,10 +40,10 @@ enum class CPUMathBackend {
 };
 
 CPUMathBackend findBestCpuMathBackend() {
-  if (ly::isAvx512Available()) {
+  if (lut::isAvx512Available()) {
     LOG(INFO) << "lymath: Use Avx512 backend.";
     return CPUMathBackend::AVX512;
-  } else if (ly::isAvx2Available()) {
+  } else if (lut::isAvx2Available()) {
     LOG(INFO) << "lymath: Use Avx2 backend.";
     return CPUMathBackend::AVX2;
   } else {

@@ -19,7 +19,7 @@
 
 #pragma once
 
-namespace ly {
+namespace lut {
 
 class NonCopyable {
  public: 
@@ -31,5 +31,5 @@ class NonCopyable {
   ~NonCopyable() = default;
 };
 
-} // namespace ly
+} // namespace lut
 

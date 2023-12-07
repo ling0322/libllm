@@ -33,7 +33,7 @@
 #error unknown platform
 #endif
 
-namespace ly {
+namespace lut {
 
 bool isAvx512Available();
 bool isAvx2Available();
@@ -41,4 +41,4 @@ void *alloc32ByteAlignedMem(int64_t nbytes);
 void free32ByteAlignedMem(void *);
 const char *getPathDelim();
 
-} // namespace ly
+} // namespace lut

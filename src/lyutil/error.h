@@ -22,7 +22,7 @@
 #include <exception>
 #include <string>
 
-namespace ly {
+namespace lut {
 
 enum class ErrorCode : int {
   OK = 0,
@@ -68,4 +68,4 @@ class NotImplementedError : public Error {
   NotImplementedError(const std::string &what);
 };
 
-} // namespace ly
+} // namespace lut

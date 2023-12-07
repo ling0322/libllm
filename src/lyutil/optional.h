@@ -19,7 +19,7 @@
 
 #pragma once
 
-namespace ly {
+namespace lut {
 
 struct nullopt_t {
   nullopt_t() = default;
@@ -39,4 +39,4 @@ class optional {
   typename std::aligned_storage<sizeof(T), alignof(T)>::type _storage;
 };
 
-} // namespace ly
+} // namespace lut

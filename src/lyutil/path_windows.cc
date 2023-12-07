@@ -24,7 +24,7 @@
 #include "lyutil/log.h"
 #include "lyutil/strings.h"
 
-namespace ly {
+namespace lut {
 
 Path Path::currentModulePath() {
   char filename[MAX_PATH + 1];
@@ -70,4 +70,4 @@ std::string Path::normPath(const std::string &path) {
   return replace(path, "/", "\\");
 }
 
-} // namespace ly
+} // namespace lut

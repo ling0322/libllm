@@ -23,7 +23,7 @@
 #include <string.h>
 #include "lyutil/log.h"
 
-namespace ly {
+namespace lut {
 namespace internal {
 
 int readDigit(const char **ppch, char *buf, int buf_size) {
@@ -160,4 +160,4 @@ char sprintfParseFormat(const char **pp_string, std::stringstream &ss) {
 }
 
 }  // namespace internal
-} // namespace ly
+} // namespace lut

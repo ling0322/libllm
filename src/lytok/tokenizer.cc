@@ -69,14 +69,14 @@ const Vocab *BPETokenizer::getVocab() const {
 
 // -- class Tokenizer ----------
 
-std::unique_ptr<Tokenizer> Tokenizer::create(const ly::IniSection &config) {
+std::unique_ptr<Tokenizer> Tokenizer::create(const lut::IniSection &config) {
   std::string type = config.getString("type");
   if (type == "bpe") {
     auto bpe_config = BPEConfig::fromIni(config);
 
     return BPETokenizer::create(*bpe_config);
   } else {
-    throw ly::AbortedError(ly::sprintf("invalid tokenizer type: %s", type));
+    throw lut::AbortedError(lut::sprintf("invalid tokenizer type: %s", type));
   }
 }
 

@@ -26,7 +26,7 @@
 #include "utfcpp/utfcpp.h"
 #include "lyutil/log.h"
 
-namespace ly {
+namespace lut {
 
 namespace {
 
@@ -236,7 +236,7 @@ bool stox<bool>(const std::string &s) {
   } else if (sl == "false" || sl == "0") {
     return false;
   } else {
-    throw AbortedError(ly::sprintf("invalid bool value: %s", s));
+    throw AbortedError(lut::sprintf("invalid bool value: %s", s));
   }
 
   // never reach here.
@@ -249,4 +249,4 @@ template float stox<float>(const std::string &s);
 template int stox<int>(const std::string &s);
 template bool stox<bool>(const std::string &s);
 
-} // namespace ly
+} // namespace lut

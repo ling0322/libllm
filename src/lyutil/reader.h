@@ -29,7 +29,7 @@
 #include "lyutil/noncopyable.h"
 #include "lyutil/span.h"
 
-namespace ly {
+namespace lut {
 
 // read all bytes from `filename`.
 std::vector<int8_t> readFile(const std::string &filename);
@@ -85,7 +85,7 @@ class BufferedReader : public Reader {
 template<typename T>
 T BufferedReader::readValue() {
   T value;
-  readSpan(ly::makeSpan(reinterpret_cast<int8_t *>(&value), sizeof(T)));
+  readSpan(lut::makeSpan(reinterpret_cast<int8_t *>(&value), sizeof(T)));
   
   return value;
 }
@@ -138,6 +138,6 @@ class ReadableFile : public BufferedReader,
   ReadableFile();
 };
 
-} // namespace ly
+} // namespace lut
 
 

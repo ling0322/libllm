@@ -33,17 +33,17 @@ std::unique_ptr<BPEModel> BPEModel::create(const std::string &filename) {
   std::unique_ptr<BPEModel> model(new BPEModel());
   LOG(INFO) << "read tokenizer from " << filename;
 
-  auto fp = ly::ReadableFile::open(filename);
+  auto fp = lut::ReadableFile::open(filename);
 
   model->readModel(fp.get());
   model->checkModel();
   return model;
 }
 
-void BPEModel::readModel(ly::ReadableFile *fp) {
+void BPEModel::readModel(lut::ReadableFile *fp) {
   std::string s = fp->readString(4);
   if (s != "LLsp") {
-    throw ly::AbortedError("bad format (header)");
+    throw lut::AbortedError("bad format (header)");
   }
 
   int32_t numTokens = fp->readValue<int32_t>();
@@ -62,11 +62,11 @@ void BPEModel::readModel(ly::ReadableFile *fp) {
   initModel();
 }
 
-void BPEModel::readMagicNumber(ly::ReadableFile *fp) {
+void BPEModel::readMagicNumber(lut::ReadableFile *fp) {
   // ensure magic number
   int16_t magic_number = fp->readValue<int16_t>();
   if (magic_number != kMagicNumber) {
-    throw ly::AbortedError("bad format (magic number)");
+    throw lut::AbortedError("bad format (magic number)");
   }
 }
 
@@ -87,7 +87,7 @@ void BPEModel::initModel() {
       _byteId[static_cast<uint8_t>(info.tokenPiece[0])] = info.id;
     } else if (info.flag & kUnknown) {
       if (_unkId != kInvalidToken) {
-        throw ly::AbortedError("bad format (too many unknown tokens)");
+        throw lut::AbortedError("bad format (too many unknown tokens)");
       }
       _unkId = info.id;
     }
@@ -96,12 +96,12 @@ void BPEModel::initModel() {
   // find id for space character
   auto itSpace = _tokenDict.find(" ");
   if (itSpace == _tokenDict.end()) {
-    throw ly::AbortedError("bad format (no symbol for space)");
+    throw lut::AbortedError("bad format (no symbol for space)");
   }
   _spaceId = itSpace->second->id;
 }
 
-BPEModel::TokenInfo BPEModel::readRecord(ly::ReadableFile *fp) {
+BPEModel::TokenInfo BPEModel::readRecord(lut::ReadableFile *fp) {
   TokenInfo info;
   info.flag = fp->readValue<int8_t>();
 
@@ -113,7 +113,7 @@ BPEModel::TokenInfo BPEModel::readRecord(ly::ReadableFile *fp) {
   }
   info.tokenPiece = std::move(piece);
   if ((info.flag & kByte) && info.tokenPiece.size() != 1) {
-    throw ly::AbortedError("bad format (byte)");
+    throw lut::AbortedError("bad format (byte)");
   }
 
   // piece display.
@@ -133,11 +133,11 @@ BPEModel::TokenInfo BPEModel::readRecord(ly::ReadableFile *fp) {
 void BPEModel::checkModel() {
   for (int ch = 0; ch < 256 && _isByteTokenAvailable; ++ch) {
     if (_byteId[ch] == kInvalidToken)
-      throw ly::AbortedError(ly::sprintf("bad format, byte %d not exist in model", ch));
+      throw lut::AbortedError(lut::sprintf("bad format, byte %d not exist in model", ch));
   }
 
   if (_unkId == kInvalidToken) {
-    throw ly::AbortedError("bad model (no unknown token)");
+    throw lut::AbortedError("bad model (no unknown token)");
   }
 }
 

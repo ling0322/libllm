@@ -32,16 +32,16 @@ ChatOutput::ChatOutput() :
     answerDuration(0.0) {}
 
 std::string ChatGLM2PromptBuilder::buildPrompt(
-    ly::Span<const QA> history,
+    lut::Span<const QA> history,
     const std::string &question) {
   std::string prompt;
 
   int round = 1;
   for (const QA &qa : history) {
-    prompt += ly::sprintf("[Round %d]\n\n问：%s\n\n答：%s\n\n", round, qa.question, qa.answer);
+    prompt += lut::sprintf("[Round %d]\n\n问：%s\n\n答：%s\n\n", round, qa.question, qa.answer);
     ++round;
   }
-  prompt += ly::sprintf("[Round %d]\n\n问：%s\n\n答：", round, question);
+  prompt += lut::sprintf("[Round %d]\n\n问：%s\n\n答：", round, question);
 
   return prompt;
 }
@@ -63,9 +63,9 @@ const char *llama2Prompt =
     "A: ";
 
 std::string LlamaPromptBuilder::buildPrompt(
-    ly::Span<const QA> history,
+    lut::Span<const QA> history,
     const std::string &question) {
-  return ly::sprintf(llama2Prompt, question);;
+  return lut::sprintf(llama2Prompt, question);;
 }
 
 std::string LlamaPromptBuilder::getStopSeq() {
@@ -76,7 +76,7 @@ std::shared_ptr<PromptBulder> PromptBulder::create(const std::string &modelName)
   if (modelName == "llama") return std::make_shared<LlamaPromptBuilder>();
   if (modelName == "chatglm2") return std::make_shared<ChatGLM2PromptBuilder>();
 
-  throw ly::AbortedError("unexpected model name: " + modelName);
+  throw lut::AbortedError("unexpected model name: " + modelName);
   return nullptr;
 }
 
@@ -94,13 +94,13 @@ ChatOutput DialogManager::chat(
   llm::CompletionConfig config;
   config.setTopK(1);
 
-  double t0 = ly::now();
+  double t0 = lut::now();
   llm::Completion comp = _model->complete(prompt);
-  output.promptDuration = ly::now() - t0;
+  output.promptDuration = lut::now() - t0;
 
   std::string answer;
   std::string stopSeq = _promptBuilder->getStopSeq();
-  t0 = ly::now();
+  t0 = lut::now();
   int numToken = 0;
   while (comp.isActive()) {
     llm::Chunk chunk = comp.nextChunk();
@@ -114,9 +114,9 @@ ChatOutput DialogManager::chat(
       break;
   }
   output.numAnswerTokens = numToken;
-  output.answerDuration = ly::now() - t0;
+  output.answerDuration = lut::now() - t0;
 
-  answer = ly::trim(answer);
+  answer = lut::trim(answer);
   output.answer = answer;
 
   QA qa;

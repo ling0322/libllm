@@ -37,7 +37,7 @@ struct BPEConfig {
   bool splitByUnicode;
 
   // create the BPE config from ini config.
-  static std::unique_ptr<BPEConfig> fromIni(const ly::IniSection &config);
+  static std::unique_ptr<BPEConfig> fromIni(const lut::IniSection &config);
 
   // contructor for the default config.
   BPEConfig();

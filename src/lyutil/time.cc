@@ -21,7 +21,7 @@
 #include <chrono>
 #include <stdint.h>
 
-namespace ly {
+namespace lut {
 
 double now() {
   auto t = std::chrono::high_resolution_clock::now().time_since_epoch();
@@ -29,4 +29,4 @@ double now() {
   return ns / 1000000000.0;
 }
 
-} // namespace ly
+} // namespace lut

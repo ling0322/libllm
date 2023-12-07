@@ -158,7 +158,7 @@ void BPEEncoder::initSymbolList(const std::string &s) {
   Symbol *prev = prefix;
   std::vector<std::string> initialPieces;
   if (_config->splitByUnicode) {
-    initialPieces = ly::splitUtf8(s);
+    initialPieces = lut::splitUtf8(s);
   } else {
     initialPieces = splitBytes(s);
   }
