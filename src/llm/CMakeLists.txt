@@ -27,14 +27,6 @@ set(libllm_LIBADD
     lyutil
     OpenMP::OpenMP_CXX)
 
-
-if(WIN32)
-    set(cuda_LIBRARIES CUDA::cudart CUDA::cublas)
-endif(WIN32)
-if(UNIX)
-    set(cuda_LIBRARIES CUDA::cudart_static CUDA::cublas_static)
-endif(UNIX)
-
 if(CUDA_ENABLED)
     set(libllm_LIBADD
         ${libllm_LIBADD}
