@@ -60,7 +60,7 @@ struct Q4GemvArgs {
   int N;
   PCQ4x2 A;
   PCFp16 scaleA;
-  PCInt8 zeroPointA;
+  PCUInt8 zeroA;
   PCFp32 x;
   int incX;
   PFp32 y;
@@ -91,7 +91,7 @@ struct Q4GemmArgs {
   int lda;
   PCQ4x2 B;
   PCFp16 scaleB;
-  PCInt8 zeroPointB;
+  PCUInt8 zeroPointB;
   PFp32 C;
   int ldc;
 };

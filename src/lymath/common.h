@@ -31,12 +31,14 @@ enum class Mode {
 
 typedef uint16_t Fp16;
 typedef int8_t Int8;
+typedef uint8_t UInt8;
 typedef float Fp32;
 
 typedef const float *PCFp32;
 typedef float *PFp32;
 typedef const uint16_t *PCFp16;
 typedef const int8_t *PCInt8;
+typedef const UInt8 *PCUInt8;
 
 typedef uint8_t Q4x2;
 typedef const uint8_t *PCQ4x2;

@@ -28,13 +28,13 @@ namespace lymath {
 class DequantQ4 {
  public:
   virtual ~DequantQ4() = default;
-  virtual void apply(int n, PCQ4x2 src, PCFp16 scale, PCInt8 zeroPoint, PFp32 tgt) const = 0;
+  virtual void apply(int n, PCQ4x2 src, PCFp16 scale, PCUInt8 zeroPoint, PFp32 tgt) const = 0;
 };
 
 template<class TKernel, Mode MODE>
 class DequantQ4Impl : public DequantQ4 {
  public:
-  void apply(int n, PCQ4x2 src, PCFp16 scale, PCInt8 zeroPoint, PFp32 tgt) const override {
+  void apply(int n, PCQ4x2 src, PCFp16 scale, PCUInt8 zeroPoint, PFp32 tgt) const override {
     CHECK(n % Q4GroupSize == 0);
     int nb = (n + DequantMinElemPerThread - 1) / DequantMinElemPerThread;
 

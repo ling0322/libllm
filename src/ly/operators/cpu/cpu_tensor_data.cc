@@ -101,7 +101,7 @@ std::shared_ptr<internal::TensorData> CpuTensorData::read(lut::ReadableFile *fp)
     throw lut::AbortedError("bad tensor data format.");
 
   int32_t numSlot = fp->readValue<int32_t>();
-  if (numSlot <= 0 && numSlot > 2)
+  if (numSlot <= 0 || numSlot > 3)
     throw lut::AbortedError("invalid num slot.");
   
   // slot 0

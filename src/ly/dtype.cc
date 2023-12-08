@@ -30,7 +30,7 @@ namespace ly {
 constexpr int16_t DType::kUnknown;
 constexpr int16_t DType::kFloat;
 constexpr int16_t DType::kLong;
-constexpr int16_t DType::kQInt4SymGroup32;
+constexpr int16_t DType::kUInt8;
 constexpr int16_t DType::kFloat16;
 constexpr int16_t DType::kQInt4Group32;
 constexpr int16_t DType::kInt8;
@@ -46,8 +46,8 @@ DType DType::getTypeImpl<int64_t>() {
   return DType::kLong;
 }
 template<>
-DType DType::getTypeImpl<QInt4SymGroup32>() {
-  return DType::kQInt4SymGroup32;
+DType DType::getTypeImpl<UInt8>() {
+  return DType::kUInt8;
 }
 template<>
 DType DType::getTypeImpl<Float16>() {
@@ -71,7 +71,7 @@ DType DType::getTypeImpl<half>() {
 
 template DType DType::getTypeImpl<float>();
 template DType DType::getTypeImpl<int64_t>();
-template DType DType::getTypeImpl<QInt4SymGroup32>();
+template DType DType::getTypeImpl<UInt8>();
 template DType DType::getTypeImpl<Float16>();
 template DType DType::getTypeImpl<QInt4Group32>();
 template DType DType::getTypeImpl<Int8>();
@@ -85,11 +85,11 @@ int64_t DType::getTotalSize(int64_t numel) const {
       return 2 * numel;
     case DType::kLong:
       return 8 * numel;
-    case DType::kQInt4SymGroup32:
     case DType::kQInt4Group32:
       CHECK(numel % 2 == 0);
       return numel / 2;
     case DType::kInt8:
+    case DType::kUInt8:
       return numel;
     default:
       NOT_IMPL();
@@ -102,7 +102,7 @@ bool DType::isValid() const {
     case DType::kFloat:
     case DType::kFloat16:
     case DType::kLong:
-    case DType::kQInt4SymGroup32:
+    case DType::kUInt8:
     case DType::kQInt4Group32:
     case DType::kInt8:
       return true;
@@ -113,7 +113,6 @@ bool DType::isValid() const {
 
 bool DType::isQuantized() const {
   switch (_dtype) {
-    case DType::kQInt4SymGroup32:
     case DType::kQInt4Group32:
       return true;
     default:
@@ -133,7 +132,6 @@ bool DType::isFloat() const {
 
 int DType::getGroupSize() const {
   switch (_dtype) {
-    case DType::kQInt4SymGroup32:
     case DType::kQInt4Group32:
       return 32;
     default:
@@ -149,10 +147,10 @@ std::string DType::toString() const {
       return "float32";
     case DType::kLong:
       return "int64";
-    case DType::kQInt4SymGroup32:
-      return "qint4symg32";
+    case DType::kUInt8:
+      return "uint8";
     case DType::kQInt4Group32:
-      return "qint4g32";
+      return "q4";
     case DType::kInt8:
       return "int8";
     default:

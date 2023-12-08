@@ -27,31 +27,31 @@ namespace lymath {
 
 
 struct AxpyQ4FallbackKernel {
-  static void apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCInt8 zpX, PFp32 y);
+  static void apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCUInt8 zpX, PFp32 y);
   static void applyColumn(const Q4GemvArgs &args, int col, PFp32 y);
 };
 
 struct AxpyQ4Avx2Kernel {
-  static void apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCInt8 zpX, PFp32 y);
+  static void apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCUInt8 zpX, PFp32 y);
   static void applyColumn(const Q4GemvArgs &args, int col, PFp32 y);
 };
 
 struct DotQ4FallbackKernel {
-  static float apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCInt8 zpY);
+  static float apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCUInt8 zpY);
   static float applyRow(const Q4GemvArgs &args, int row);
 };
 
 struct DotQ4Avx2Kernel {
-  static float apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCInt8 zpY);
+  static float apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCUInt8 zpY);
   static float applyRow(const Q4GemvArgs &args, int row);
 };
 
 struct DequantQ4Avx2Kernel {
-  static void apply(int n, PCQ4x2 src, PCFp16 scale, PCInt8 zero, PFp32 tgt);
+  static void apply(int n, PCQ4x2 src, PCFp16 scale, PCUInt8 qzero, PFp32 tgt);
 };
 
 struct DequantQ4FallbackKernel {
-  static void apply(int n, PCQ4x2 src, PCFp16 scale, PCInt8 zero, PFp32 tgt);
+  static void apply(int n, PCQ4x2 src, PCFp16 scale, PCUInt8 qzero, PFp32 tgt);
 };
 
 }  // namespace lymath

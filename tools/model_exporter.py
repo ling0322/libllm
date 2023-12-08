@@ -33,7 +33,7 @@ import torch.nn.functional as F
 DTYPE_UNKNOWN = 0
 DTYPE_FP32 = 1
 DTYPE_INT64 = 2
-DTYPE_Q4SYM = 3
+DTYPE_UINT8 = 3
 DTYPE_FP16 = 4
 DTYPE_Q4 = 5
 DTYPE_INT8 = 6
@@ -93,125 +93,45 @@ class Context:
         return ctx
 
 class Quantization:
-    INT8M_GROUP_SIZE = 128
-
     @classmethod
-    def quantize_to_int4sym(cls, tensor: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        grouped_data = tensor.reshape(-1, 32)
-        num_group = grouped_data.shape[0]
+    def _pack_uint8_to_uint4x2(cls, tensor: torch.Tensor) -> torch.Tensor:
+        assert tensor.dtype == torch.uint8 and tensor.dim() == 1
+        assert torch.all(tensor <= 15)
 
-        minmax_value = torch.zeros((num_group, 2), dtype=torch.float32)
-        minmax_value[:, 0] = torch.min(grouped_data, 1).values
-        minmax_value[:, 1] = torch.max(grouped_data, 1).values
+        if tensor.shape[0] % 2 == 1:
+            pad_value = torch.zeros((1, ), dtype=torch.uint8, device=tensor.device)
+            tensor = torch.cat((tensor, pad_value))
+        tensor = tensor.reshape(-1, 2)
+        tensor = tensor[:, 0].type(torch.uint8) + tensor[:, 1].type(torch.uint8) * 16
+        print(tensor)
+        return tensor
 
-        group_scale = torch.max(minmax_value.abs(), 1).values / 7
-        group_scale = group_scale.reshape(num_group, 1)
-
-        grouped_data = grouped_data.reshape(num_group, 16, 2)
-        qdata0 = torch.round(grouped_data[:, :, 0] / group_scale).type(torch.int8) + 8
-        qdata1 = torch.round(grouped_data[:, :, 1] / group_scale).type(torch.int8) + 8
-
-        assert torch.all(qdata0 <= 15) and torch.all(qdata0 > 0)
-        assert torch.all(qdata1 <= 15) and torch.all(qdata1 > 0)
-
-        qdata = qdata0.type(torch.uint8) * 16 + qdata1.type(torch.uint8)
-        scale = group_scale.type(torch.float16)
-
-        return qdata, scale
-    
     @classmethod
     def quantize_to_q4(cls, tensor: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """1D tensor to qdata (q4x2), scale (fp16), zero_point (int8) """
-        grouped_data = tensor.reshape(-1, 64)
+        grouped_data = tensor.reshape(-1, 32)
         num_group = grouped_data.shape[0]
 
-        min0 = torch.min(grouped_data, 1).values
-        max0 = torch.max(grouped_data, 1).values
+        min_value = torch.min(grouped_data, 1).values
+        max_value = torch.max(grouped_data, 1).values
 
-        # we use int8 to store zero point. Here to make sure the zero point will not overflow.
-        min1 = (127 - 15) / 127 * max0
-        max1 = (127 - 15) / 127 * min0
-        min_value = torch.min(torch.stack((min0, min1)).T, dim=1).values
-        max_value = torch.max(torch.stack((max0, max1)).T, dim=1).values
+        # zero point is in range(0, 15), here to make sure the zero point will not overflow.
+        min_value[min_value > 0] = 0
+        max_value[max_value < 0] = 0
 
         group_scale = (max_value - min_value) / 15
         group_zero_point = torch.round(-min_value / group_scale).type(torch.int32)
-        assert torch.all(group_zero_point <= 127) and torch.all(group_zero_point >= -112)
-        group_zero_point = group_zero_point.type(torch.int8)
+        assert torch.all(group_zero_point <= 15) and torch.all(group_zero_point >= 0)
+        group_zero_point = group_zero_point.type(torch.uint8)
+        group_zero_point = cls._pack_uint8_to_uint4x2(group_zero_point)
 
-        grouped_data = grouped_data.reshape(num_group, 32, 2)
-        S = group_scale.reshape(num_group, 1)
-        R_min = min_value.reshape(num_group, 1)
-        qdata0 = torch.round((grouped_data[:, :, 0] - R_min) / S).type(torch.int8)
-        qdata1 = torch.round((grouped_data[:, :, 1] - R_min) / S).type(torch.int8)
-
-        assert torch.all(qdata0 <= 15) and torch.all(qdata0 >= 0)
-        assert torch.all(qdata1 <= 15) and torch.all(qdata1 >= 0)
-
-        qdata = qdata0.type(torch.uint8) * 16 + qdata1.type(torch.uint8)
-        scale = group_scale.type(torch.float16)
-        print(group_zero_point)
-
-        return qdata, scale, group_zero_point
-
-    @classmethod
-    def quantize_to_int8b(cls, tensor: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Quantize the input tensor to int8 using 
-            real_value = A * quantized_value + B.
-        Where A is the scale and B is the zero point. Return the quantized data and AB tensors. The
-        group size is 128.
-        Args:
-            tensor (M, N): 1D tensor with float type.
-        Returns:
-            (data, mean-scale)
-            data (L, dtype=int8): the quantized int8 tensor.
-            mean-scale (L / INT8M_GROUP_SIZE, 2, dtype=float32): the scale and zero point of each
-                group. [:, 0] is A (scale) and [:, 1] is B (zero point).
-        """
-        assert len(tensor.shape) == 1
-
-        # make sure tensor.shape[0] is multiple of cls.INT8M_GROUP_SIZE
-        num_elem = tensor.shape[0]
-        padded_tensor = tensor
-        if num_elem % cls.INT8M_GROUP_SIZE != 0:
-            # pad tensor with the mean value of last group
-            begin = math.floor(num_elem / cls.INT8M_GROUP_SIZE) * cls.INT8M_GROUP_SIZE
-            last_group = tensor[begin: ]
-            last_group_mean = last_group.mean()
-            num_pad = cls.INT8M_GROUP_SIZE - num_elem % cls.INT8M_GROUP_SIZE
-            padded_tensor = F.pad(tensor, (0, num_pad), "constant", last_group_mean)
-
-        assert padded_tensor.dim() == 1 and padded_tensor.shape[0] % cls.INT8M_GROUP_SIZE == 0
-
-        # group the numbers into cls.INT8M_GROUP_SIZE
-        num_group = int(padded_tensor.shape[0] / cls.INT8M_GROUP_SIZE)
-        grouped = padded_tensor.reshape(num_group, cls.INT8M_GROUP_SIZE)
-
-        # get A (scale)
-        r_max = torch.max(grouped, 1).values
-        r_min = torch.min(grouped, 1).values
-        A = (r_max - r_min) / 255.0
-
-        assert torch.all(A >= 0)
-        A = torch.clamp(A, min=1e-6)
-
-        # get B (zero point)
-        B = r_min
-
-        # quantize: quantized_value = (real_value - B) / A
-        qdata = torch.round((grouped - B.reshape(num_group, 1)) / A.reshape(num_group, 1))
-        assert torch.all(qdata <= 255) and torch.all(qdata >= 0)
+        qdata = (grouped_data - min_value.reshape(num_group, 1)) / group_scale.reshape(num_group, 1)
+        qdata = torch.round(qdata).reshape(-1).type(torch.int32)
+        assert torch.all(qdata <= 15) and torch.all(qdata >= 0)
         qdata = qdata.type(torch.uint8)
+        qdata = cls._pack_uint8_to_uint4x2(qdata)
 
-        qdata = qdata.reshape(-1)
-        assert qdata.shape[0] == padded_tensor.shape[0]
-        qdata = qdata[: num_elem]
-
-        AB = torch.zeros((num_group, 2), dtype=torch.float32)
-        AB[:, 0] = A
-        AB[:, 1] = B
-
-        return qdata, AB
+        return qdata, group_scale.type(torch.float16), group_zero_point
 
 class TensorWriter:
     """write tensor to file with llyn tensor format."""
@@ -240,10 +160,10 @@ class TensorWriter:
 
     def _write_tensor_elem(self, tensor: torch.Tensor, dtype=DTYPE_UNKNOWN):
         if dtype == DTYPE_UNKNOWN:
-            dtype = self._dtype_to_flint_dtype(tensor.dtype)
+            dtype = self._dtype_to_libllm_dtype(tensor.dtype)
 
         numel = tensor.numel()
-        if dtype in {DTYPE_Q4SYM, DTYPE_Q4}:
+        if dtype in {DTYPE_Q4}:
             # in q4, two int4 merged into a uint8 byte.
             numel *= 2
 
@@ -276,7 +196,7 @@ class TensorWriter:
         self._write_tensor_elem(tensor)
         
 
-    def _dtype_to_flint_dtype(self, dtype):
+    def _dtype_to_libllm_dtype(self, dtype):
         if dtype == torch.float32:
             return DTYPE_FP32
         if dtype == torch.float16:
@@ -285,22 +205,10 @@ class TensorWriter:
             return DTYPE_INT64
         if dtype == torch.int8:
             return DTYPE_INT8
+        if dtype == torch.uint8:
+            return DTYPE_UINT8
         else:
             raise Exception("dtype not supported")
-
-    def _write_tensor_q4sym(self, tensor: torch.Tensor):
-        """ quantize the pytorch tensor to q4sym format (int4 symmetric quantization, group size 32,
-        scale format float16). Then write to self._fp.
-        """
-        if tensor.dtype == torch.float16:
-            tensor = tensor.float()
-        assert tensor.dtype in {torch.float32, torch.int64}
-
-        self._write_tensor_header(tensor.shape, num_slot=2)
-        
-        qdata, scale = Quantization.quantize_to_int4sym(tensor)
-        self._write_tensor_elem(qdata, DTYPE_Q4SYM)
-        self._write_tensor_elem(scale)
 
     def _write_tensor_q4(self, tensor: torch.Tensor):
         """ quantize the pytorch tensor to q4 format (int4 asymmetric quantization, group size 32,

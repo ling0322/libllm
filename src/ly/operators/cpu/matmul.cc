@@ -132,55 +132,6 @@ Tensor bmmFp32QInt4Fp32(const Tensor &A, const Tensor &B) {
   return Tensor();
 }
 
-// -- q4sym ----------
-
-Tensor gemmFp32Q4SymFp32(const Tensor &A, const Tensor &B) {
-  CHECK(A.getDim() == B.getDim() && A.getDim() == 2 && B.getDType() == DType::kQInt4SymGroup32);
-
-  Tensor C = cpu::tensor({A.getShape(0), B.getShape(1)}, DType::kFloat);
-  Subtensor<float> Cs = Subtensor<float>::fromTensor(C);
-  zerosFp32(Cs);
-
-  common::GEMMArgs gemmArgs = common::generateGemmArgs(A, B, C);
-  const internal::TensorData *dataObjectB = B.getDataObject();
-  lymath_qgemm_nqn_q4sym_omp(
-      gemmArgs.transA,
-      gemmArgs.transB,
-      gemmArgs.M,
-      gemmArgs.N,
-      gemmArgs.K,
-      A.getData<float>(),
-      gemmArgs.lda,
-      reinterpret_cast<const lymath_q4x2_t *>(dataObjectB->getData<QInt4SymGroup32>()),
-      reinterpret_cast<const lymath_float16_t *>(dataObjectB->getSlot(1)->getData<Float16>()),
-      Cs.data,
-      gemmArgs.ldc);
-
-  return C;
-}
-
-Tensor bmmNx2Fp32Q4SymFp32(const Tensor &A, const Tensor &B) {
-  std::vector<int> shape = A.getShape();
-
-  Tensor xA = A.view({-1, A.getShape(-1)});
-  Tensor xC = gemmFp32Q4SymFp32(xA, B);
-
-  shape.back() = B.getShape(1);
-  return xC.view(shape);
-}
-
-Tensor matmulFp32Q4SymFp32(const Tensor &A, const Tensor &B) {
-  if (A.getDim() == 2 && B.getDim() == 2) {
-    return gemmFp32Q4SymFp32(A, B);
-  } else if (A.getDim() > 2 && A.isContiguous() && B.getDim() == 2) {
-    return bmmNx2Fp32Q4SymFp32(A, B);
-  } else {
-    NOT_IMPL();
-  }
-
-  return Tensor();
-}
-
 // -- q4 ----------
 
 Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
@@ -202,7 +153,7 @@ Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
       gemmArgs.lda,
       reinterpret_cast<const lymath_q4x2_t *>(dataObjectB->getData<QInt4Group32>()),
       reinterpret_cast<const lymath_float16_t *>(dataObjectB->getSlot(1)->getData<Float16>()),
-      reinterpret_cast<const int8_t *>(dataObjectB->getSlot(2)->getData<Int8>()),
+      reinterpret_cast<const int8_t *>(dataObjectB->getSlot(2)->getData<UInt8>()),
       Cs.data,
       gemmArgs.ldc);
 

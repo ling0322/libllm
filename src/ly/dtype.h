@@ -35,17 +35,22 @@ struct QInt4Group32 {
   static constexpr int GroupSize = 32;
   uint8_t int4x2;
 };
-static_assert(sizeof(QInt4Group32) == 1, "invalid size of QInt4SymGroup32");
+static_assert(sizeof(QInt4Group32) == 1, "invalid size of QInt4Group32");
 
 struct Float16 {
   uint16_t v;
 };
-static_assert(sizeof(Float16) == 2, "invalid size of QInt4SymGroup32");
+static_assert(sizeof(Float16) == 2, "invalid size of Float16");
 
 struct Int8 {
   int8_t v;
 };
-static_assert(sizeof(Int8) == 1, "invalid size of QInt4SymGroup32");
+static_assert(sizeof(Int8) == 1, "invalid size of Int8");
+
+struct UInt8 {
+  uint8_t v;
+};
+static_assert(sizeof(Int8) == 1, "invalid size of UInt8");
 
 typedef int8_t Byte;
 typedef int64_t LongType;
@@ -56,7 +61,7 @@ class DType {
   static constexpr int16_t kUnknown = 0;
   static constexpr int16_t kFloat = 1;
   static constexpr int16_t kLong = 2;
-  static constexpr int16_t kQInt4SymGroup32 = 3;
+  static constexpr int16_t kUInt8 = 3;
   static constexpr int16_t kFloat16 = 4;
   static constexpr int16_t kQInt4Group32 = 5;
   static constexpr int16_t kInt8 = 6;
