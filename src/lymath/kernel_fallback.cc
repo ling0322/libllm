@@ -22,7 +22,6 @@
 #include <algorithm>
 #include "lymath/common.h"
 #include "lymath/q4kernel.h"
-#include "lymath/q8kernel.h"
 #include "lymath/skernel.h"
 #include "lymath/util.h"
 #include "lyutil/half.h"
@@ -94,34 +93,9 @@ float DotQ4FallbackKernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, P
 float DotQ4FallbackKernel::applyRow(const Q4GemvArgs &args, int row) {
   PCQ4x2 data = args.A + row * args.N / 2;
   PCFp16 scale = args.scaleA + row * args.N / Q4GroupSize;
-  PCUInt8 zeroPoint = args.zeroA + row * args.N / Q4GroupSize;
+  PCUInt8 zeroPoint = args.zeroA + row * args.N / Q4GroupSize / 2;
 
   return apply(args.N, args.x, data, scale, zeroPoint);
-}
-
-void AxpyQ4FallbackKernel::apply(
-    int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCUInt8 zeros, PFp32 y) {
-  int64_t nb = n / Q4GroupSize;
-  assert(n % Q4GroupSize == 0);
-
-  const uint8_t *px = x;
-  float *py = y;
-  for (int64_t i = 0; i < nb; ++i) {
-    float scale = lut::cvtsh_ss(scaleX[i]);
-    UInt8 zero = i % 2 == 0 ? zeros[i / 2] & 0xf : zeros[i / 2] >> 4;
-    for (int j = 0; j < Q4GroupSize / 2; ++j) {
-      *py++ += a * scale * (static_cast<int>(*px & 0xf) - zero);
-      *py++ += a * scale * ((static_cast<int>(*px) >> 4) - zero);
-      ++px;
-    }
-  }
-}
-
-void AxpyQ4FallbackKernel::applyColumn(const Q4GemvArgs &args, int col, float *y) {
-  PCQ4x2 data = args.A + col * args.N / 2;
-  PCFp16 scale = args.scaleA + col * args.N / Q4GroupSize;
-  PCUInt8 zp = args.zeroA + col * args.N / Q4GroupSize;
-  apply(args.N, args.x[col], data, scale, zp, y);
 }
 
 void SAxpyFallbackKernel::apply(int64_t n, float a, PCFp32 x, PFp32 y) {

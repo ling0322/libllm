@@ -153,7 +153,7 @@ Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
       gemmArgs.lda,
       reinterpret_cast<const lymath_q4x2_t *>(dataObjectB->getData<QInt4Group32>()),
       reinterpret_cast<const lymath_float16_t *>(dataObjectB->getSlot(1)->getData<Float16>()),
-      reinterpret_cast<const int8_t *>(dataObjectB->getSlot(2)->getData<UInt8>()),
+      reinterpret_cast<const uint8_t *>(dataObjectB->getSlot(2)->getData<UInt8>()),
       Cs.data,
       gemmArgs.ldc);
 

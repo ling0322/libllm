@@ -22,6 +22,7 @@
 #include <omp.h>
 #include "lymath/common.h"
 #include "lymath/q4kernel.h"
+#include "lyutil/log.h"
 
 namespace lymath {
 
@@ -49,7 +50,7 @@ class DequantQ4Impl : public DequantQ4 {
             ne,
             src + i * DequantMinElemPerThread / 2,
             scale + i * DequantMinElemPerThread / Q4GroupSize,
-            zeroPoint + i * DequantMinElemPerThread / Q4GroupSize,
+            zeroPoint + i * DequantMinElemPerThread / Q4GroupSize / 2,
             tgt + i * DequantMinElemPerThread);
       }
     } else {

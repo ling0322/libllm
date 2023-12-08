@@ -22,8 +22,8 @@
 #include <omp.h>
 #include "lymath/common.h"
 #include "lymath/lymath.h"
+#include "lymath/q4dequant.h"
 #include "lymath/q4kernel.h"
-#include "lymath/q8kernel.h"
 #include "lymath/skernel.h"
 #include "lymath/util.h"
 #include "lyutil/half.h"
@@ -33,6 +33,107 @@
 using namespace lymath;
 
 constexpr uint32_t MagicNumber = 0x55aa;
+
+bool isClose(float l, float r, float atol = 1e-5, float rtol = 1e-5) {
+  return fabs(l - r) <= atol + rtol * fabs(r);
+}
+
+bool isClose(lut::Span<const float> A,
+             lut::Span<const float> B,
+             float atol = 1e-5,
+             float rtol = 1e-5) {
+  if (A.size() != B.size()) 
+    return false;
+
+  for (int i = 0; i < A.size(); ++i) {
+    if (!isClose(A[i], B[i], atol, rtol)) {
+      printf("%d: %f vs %f\n", i, A[i], B[i]);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void refGemmQ4(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    PCFp32 A,
+    int lda,
+    PCQ4x2 B,
+    PCFp16 scaleB,
+    PCUInt8 zeroB,
+    PFp32 C,
+    int ldc) {
+  CHECK(transA == false);
+  std::fill_n(C, M * N, 0.0f);
+
+  for (int j = 0; j < M; ++j) {
+    if (transB) {
+      for (int i = 0; i < N; ++i) {
+        PCFp32 Aj = A + j * lda;
+        PCQ4x2 Bi = reinterpret_cast<PCQ4x2>(B) + i * K / 2;
+        PCFp16 si = scaleB + i * K / Q4GroupSize;
+        PCUInt8 zi = zeroB + i * K / Q4GroupSize / 2;
+        C[j * ldc + i] = DotQ4FallbackKernel::apply(K, Aj, Bi, si, zi);
+      }
+    } else {
+      NOT_IMPL();
+    }
+  }
+}
+
+void testGemmQ4(bool transB, int M, int N, int K) {
+  std::vector<float> A(M * K);
+  std::vector<uint8_t> B(K * N / 2);
+  std::vector<float> scaleBFp32(K * N / Q4GroupSize);
+  std::vector<Fp16> scaleB(K * N / Q4GroupSize);
+  std::vector<UInt8> zeroB(K * N / Q4GroupSize / 2);
+
+  lut::Random random(MagicNumber);
+
+  random.fill(lut::makeSpan(A));
+  random.fillUInt8(lut::makeSpan(B));
+  random.fillUInt8(lut::makeSpan(zeroB));
+  random.fill(lut::makeSpan(scaleBFp32));
+  std::transform(scaleBFp32.begin(), scaleBFp32.end(), scaleB.begin(), lut::cvtss_sh);
+
+  std::vector<float> C(M * N);
+  std::vector<float> refC(M * N);
+
+  refGemmQ4(
+      false,
+      transB,
+      M,
+      N,
+      K,
+      A.data(),
+      K,
+      B.data(),
+      scaleB.data(),
+      zeroB.data(),
+      refC.data(),
+      N);
+
+  lymath_q4gemm(
+      false,
+      transB,
+      M,
+      N,
+      K,
+      A.data(),
+      K,
+      (const lymath_q4x2_t *)B.data(),
+      (const lymath_float16_t *)scaleB.data(),
+      (const uint8_t *)zeroB.data(),
+      C.data(),
+      N);
+
+  CATCH_REQUIRE(isClose(C, refC, 1e-3));
+}
 
 void refSgemm(
     bool transA,
@@ -62,29 +163,8 @@ void refSgemm(
   }
 }
 
-bool isClose(float l, float r) {
-  constexpr float atol = 1e-5;
-  constexpr float rtol = 1e-5;
-
-  return fabs(l - r) <= atol + rtol * fabs(r);
-}
-
-bool isClose(lut::Span<const float> A, lut::Span<const float> B) {
-  if (A.size() != B.size()) 
-    return false;
-
-  for (int i = 0; i < A.size(); ++i) {
-    if (!isClose(A[i], B[i])) {
-      printf("%d: %f vs %f\n", i, A[i], B[i]);
-      return false;
-    }
-  }
-
-  return true;
-}
-
 CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
-  constexpr int DIM = DequantMinElemPerThread + Q4GroupSize;
+  constexpr int DIM = DequantMinElemPerThread * 2 + Q4GroupSize;
 
   std::vector<uint8_t> x(DIM / 2);
   std::vector<float> scaleXFp32(DIM / Q4GroupSize);
@@ -103,31 +183,12 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
   DequantQ4FallbackKernel::apply(DIM, x.data(), scaleX.data(), zeroX.data(), yRef.data());
   DequantQ4Avx2Kernel::apply(DIM, x.data(), scaleX.data(), zeroX.data(), y.data());
   CATCH_REQUIRE(isClose(y, yRef));
-}
 
-CATCH_TEST_CASE("test q4 axpy kernels", "[lymath][axpy][q4]") {
-  constexpr int DIM = 1024;
+  // test api.
+  DequantQ4Avx2().apply(DIM, x.data(), scaleX.data(), zeroX.data(), y.data());
+  CATCH_REQUIRE(isClose(y, yRef));
 
-  float a = 0.1f;
-  std::vector<uint8_t> x(DIM / 2);
-  std::vector<float> scaleFp32(DIM / Q4GroupSize);
-  std::vector<UInt8> zeros(DIM / Q4GroupSize / 2);
-  std::vector<float> y(DIM);
-  std::vector<float> yRef(DIM);
-  std::vector<Fp16> scale(DIM / Q4GroupSize);
-
-  lut::Random random(MagicNumber);
-  random.fillUInt8(lut::makeSpan(x));
-  random.fillUInt8(lut::makeSpan(zeros));
-  random.fill(lut::makeSpan(scaleFp32));
-  random.fill(lut::makeSpan(yRef));
-  std::transform(scaleFp32.begin(), scaleFp32.end(), scale.begin(), lut::cvtss_sh);
-
-  std::copy(yRef.begin(), yRef.end(), y.begin());
-
-  AxpyQ4Avx2Kernel::apply(DIM, a, x.data(), scale.data(), zeros.data(), y.data());
-  AxpyQ4FallbackKernel::apply(DIM, a, x.data(), scale.data(), zeros.data(), yRef.data());
-
+  DequantQ4Avx2OMP().apply(DIM, x.data(), scaleX.data(), zeroX.data(), y.data());
   CATCH_REQUIRE(isClose(y, yRef));
 }
 
@@ -151,6 +212,56 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
   float aRef = DotQ4FallbackKernel::apply(DIM, x.data(), y.data(), scaleY.data(), zeroY.data());
 
   CATCH_REQUIRE(isClose(a, aRef));
+}
+
+// to reproduce a zero-point index bug in q4 kernels.
+CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
+  constexpr int NUM_ROW = 32;
+  constexpr int NUM_COL = 32;
+  constexpr int NUMEL = NUM_COL * NUM_ROW;
+
+  std::vector<float> x(NUM_COL);
+  std::vector<float> y(NUM_ROW);
+  std::vector<Q4x2> A(NUMEL / 2);
+  std::vector<float> scaleAFp32(NUMEL / Q4GroupSize);
+  std::vector<UInt8> zeroA(NUMEL / Q4GroupSize / 2);
+  std::vector<Fp16> scaleA(NUMEL / Q4GroupSize);
+
+  lut::Random random(MagicNumber);
+  random.fillUInt8(lut::makeSpan(A));
+  random.fillUInt8(lut::makeSpan(zeroA));
+  random.fill(lut::makeSpan(scaleAFp32));
+  random.fill(lut::makeSpan(x));
+  std::transform(scaleAFp32.begin(), scaleAFp32.end(), scaleA.begin(), lut::cvtss_sh);
+
+  Q4GemvArgs gemvArgs;
+  gemvArgs.A = A.data();
+  gemvArgs.incX = 1;
+  gemvArgs.incY = 1;
+  gemvArgs.M = NUM_ROW;
+  gemvArgs.N = NUM_COL;
+  gemvArgs.scaleA = scaleA.data();
+  gemvArgs.transA = false;
+  gemvArgs.x = x.data();
+  gemvArgs.y = nullptr;
+  gemvArgs.zeroA = zeroA.data();
+
+  float a0 = DotQ4Avx2Kernel::applyRow(gemvArgs, 0);
+  float a1 = DotQ4Avx2Kernel::applyRow(gemvArgs, 1);
+
+  std::vector<float> x2(NUM_COL * 2);
+  std::copy(x.begin(), x.end(), x2.begin());
+  std::copy(x.begin(), x.end(), x2.begin() + NUM_COL);
+
+
+  float a = DotQ4Avx2Kernel::apply(NUM_COL * 2, x2.data(), A.data(), scaleA.data(), zeroA.data());
+  CATCH_REQUIRE(isClose(a, a0 + a1));
+}
+
+CATCH_TEST_CASE("test lymath_q4gemm", "[lymath][api][q4]") {
+  testGemmQ4(true, 1, 32, 32);
+  testGemmQ4(true, 1, 64, 4096);
+  testGemmQ4(true, 64, 64, 64);
 }
 
 void testSgemm(bool transA, bool transB, int M, int N, int K) {

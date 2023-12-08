@@ -64,7 +64,7 @@ void applyDequant<QInt4Group32>(
       (const lymath_q4x2_t *)data->getData<QInt4Group32>(offset),
       (const lymath_float16_t *)data->getSlot(1)->getData<Float16>(
           offset / QInt4Group32::GroupSize),
-      (const int8_t *)data->getSlot(2)->getData<UInt8>(offset / QInt4Group32::GroupSize / 2),
+      (const uint8_t *)data->getSlot(2)->getData<UInt8>(offset / QInt4Group32::GroupSize / 2),
       tgt);
 }
 

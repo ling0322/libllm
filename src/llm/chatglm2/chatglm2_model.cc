@@ -94,7 +94,6 @@ Tensor ChatGLM2Model::forward(StateMap &past, Tensor input) const {
   Tensor x = _embedding->forward(input);
   for (int i = 0; i < _config.numLayers; ++i) {
     x = _blocks[i]->forward(past, x, _rope);
-    F::print(x);
   }
   x = _finalNorm->forward(x);
 

@@ -24,7 +24,6 @@
 #include "lymath/args.h"
 #include "lymath/common.h"
 #include "lymath/q4kernel.h"
-#include "lymath/q8kernel.h"
 #include "lymath/skernel.h"
 
 
@@ -255,6 +254,7 @@ float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCUIn
   PCFp32 px = x;
   PCQ4x2 py = y;
   PCUInt8 pyzp = zpY;
+  uint8_t qzerov2 = 0;
   uint8_t qzero = 0;
   for (int i = 0; i < nb; ++i) {
 #if LL_MSVC
@@ -263,14 +263,16 @@ float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCUIn
     ymmScale = _mm256_set1_ps(_cvtsh_ss(*scaleY));
 #endif
     if (i % 2 == 0) {
-      qzero = *pyzp++;
+      qzerov2 = *pyzp++;
+      qzero = qzerov2 & 0xf;
     } else {
-      qzero = qzero >> 4;
+      qzero = qzerov2 >> 4;
     }
-    zeroPointv32 = _mm256_set1_epi8(qzero & 0xf);
+    zeroPointv32 = _mm256_set1_epi8(qzero);
   
     yint8x32 = _mm256_cvtepu8_epi16(_mm_loadu_si128(reinterpret_cast<const __m128i *>(py)));
-    yint8x32 = _mm256_or_si256(_mm256_slli_epi16(yint8x32, 4), yint8x32);
+    yint8x32odd = _mm256_slli_epi16(yint8x32, 4);
+    yint8x32 = _mm256_or_si256(yint8x32odd, yint8x32);
     yint8x32 = _mm256_and_si256(yint8x32, ymm0xf);
 
     yint8x32 = _mm256_sub_epi8(yint8x32, zeroPointv32);
@@ -325,94 +327,9 @@ float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCUIn
 float DotQ4Avx2Kernel::applyRow(const Q4GemvArgs &args, int row) {
   PCQ4x2 data = args.A + row * args.N / 2;
   PCFp16 scale = args.scaleA + row * args.N / Q4GroupSize;
-  PCUInt8 zeroPoint = args.zeroA + row * args.N / Q4GroupSize;
+  PCUInt8 zeroPoint = args.zeroA + row * args.N / Q4GroupSize / 2;
 
   return apply(args.N, args.x, data, scale, zeroPoint);
-}
-
-void AxpyQ4Avx2Kernel::apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCUInt8 zpX, PFp32 y) {
-  __m256 xv8, yv8, scalev8;
-  __m256i xi8v32, v0xfv32, zeroPointv32;
-  __m128i xi8v16;
-
-  __m256 av8 = _mm256_set1_ps(a);
-
-  v0xfv32 = _mm256_set1_epi8(0xf);
-  
-  int64_t nb = n / 32;
-  assert(n % 32 == 0);
-
-  PCQ4x2 px = x;
-  PCFp16 pxscale = scaleX;
-  PCUInt8 pxzp = zpX;
-  PFp32 py = y;
-  uint8_t qzero = 0;
-  for (int i = 0; i < nb; ++i) {
-#if LL_MSVC
-    scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(*pxscale));
-#else
-    scalev8 = _mm256_set1_ps(_cvtsh_ss(*pxscale));
-#endif
-    if (i % 2 == 0) {
-      qzero = *pxzp++;
-    } else {
-      qzero = qzero >> 4;
-    }
-    zeroPointv32 = _mm256_set1_epi8(qzero & 0xf);
-
-    xi8v32 = _mm256_cvtepu8_epi16(_mm_loadu_si128(reinterpret_cast<const __m128i *>(px)));
-    xi8v32 = _mm256_or_si256(_mm256_slli_epi16(xi8v32, 4), xi8v32);
-    xi8v32 = _mm256_and_si256(xi8v32, v0xfv32);
-
-    // Q - zero_point
-    xi8v32 = _mm256_sub_epi8(xi8v32, zeroPointv32);
-
-    // vecror 8 subblock 0
-    xv8 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm256_extracti128_si256(xi8v32, 0)));
-    xv8 = _mm256_mul_ps(xv8, scalev8);
-    yv8 = _mm256_loadu_ps(py);
-    yv8 = _mm256_fmadd_ps(av8, xv8, yv8);
-    _mm256_storeu_ps(py, yv8);
-    py += 8;
-
-    // vecror 8 subblock 1
-    xi8v16 = _mm256_extracti128_si256(xi8v32, 0);
-    xi8v16 = _mm_srli_si128(xi8v16, 8);
-    xv8 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(xi8v16));
-    xv8 = _mm256_mul_ps(xv8, scalev8);
-    yv8 = _mm256_loadu_ps(py);
-    yv8 = _mm256_fmadd_ps(av8, xv8, yv8);
-    _mm256_storeu_ps(py, yv8);
-    py += 8;
-
-    // vecror 8 subblock 2
-    xi8v16 = _mm256_extracti128_si256(xi8v32, 1);
-    xv8 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(xi8v16));
-    xv8 = _mm256_mul_ps(xv8, scalev8);
-    yv8 = _mm256_loadu_ps(py);
-    yv8 = _mm256_fmadd_ps(av8, xv8, yv8);
-    _mm256_storeu_ps(py, yv8);
-    py += 8;
-
-    // vecror 8 subblock 3
-    xi8v16 = _mm_srli_si128(xi8v16, 8);
-    xv8 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(xi8v16));
-    xv8 = _mm256_mul_ps(xv8, scalev8);
-    yv8 = _mm256_loadu_ps(py);
-    yv8 = _mm256_fmadd_ps(av8, xv8, yv8);
-    _mm256_storeu_ps(py, yv8);
-    py += 8;
-
-    px += 16;
-    pxscale += 1;
-  }
-}
-
-void AxpyQ4Avx2Kernel::applyColumn(const Q4GemvArgs &args, int col, float *y) {
-  PCQ4x2 data = args.A + col * args.N / 2;
-  PCFp16 scale = args.scaleA + col * args.N / Q4GroupSize;
-  PCUInt8 zp = args.zeroA + col * args.N / Q4GroupSize;
-  apply(args.N, args.x[col], data, scale, zp, y);
 }
 
 void DequantQ4Avx2Kernel::apply(int n, PCQ4x2 src, PCFp16 scale, PCUInt8 zero, PFp32 tgt) {

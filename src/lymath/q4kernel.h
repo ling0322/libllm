@@ -22,18 +22,19 @@
 #include <stdint.h>
 #include <memory>
 #include "lymath/args.h"
+#include "lyutil/log.h"
+
 
 namespace lymath {
 
 
-struct AxpyQ4FallbackKernel {
-  static void apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCUInt8 zpX, PFp32 y);
-  static void applyColumn(const Q4GemvArgs &args, int col, PFp32 y);
-};
-
-struct AxpyQ4Avx2Kernel {
-  static void apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCUInt8 zpX, PFp32 y);
-  static void applyColumn(const Q4GemvArgs &args, int col, PFp32 y);
+struct AxpyQ4NotImplKernel {
+  inline static void apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCUInt8 zeroX, PFp32 y) {
+    NOT_IMPL();
+  }
+  static void applyColumn(const Q4GemvArgs &args, int col, PFp32 y) {
+    NOT_IMPL();
+  }
 };
 
 struct DotQ4FallbackKernel {

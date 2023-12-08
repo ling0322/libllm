@@ -75,13 +75,13 @@ class Q4GemmImpl : public Q4Gemm {
   }
 };
 
-typedef GEMVCommon<Q4GemvArgs, AxpyQ4Avx2Kernel, DotQ4Avx2Kernel, Mode::SingleThread>
+typedef GEMVCommon<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4Avx2Kernel, Mode::SingleThread>
         Q4GemvImplAvx2;
-typedef GEMVCommon<Q4GemvArgs, AxpyQ4Avx2Kernel, DotQ4Avx2Kernel, Mode::OMP>
+typedef GEMVCommon<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4Avx2Kernel, Mode::OMP>
         Q4GemvImplAvx2OMP;
-typedef GEMVCommon<Q4GemvArgs, AxpyQ4FallbackKernel, DotQ4FallbackKernel, Mode::SingleThread>
+typedef GEMVCommon<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4FallbackKernel, Mode::SingleThread>
         Q4GemvImplFallback;
-typedef GEMVCommon<Q4GemvArgs, AxpyQ4FallbackKernel, DotQ4FallbackKernel, Mode::OMP>
+typedef GEMVCommon<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4FallbackKernel, Mode::OMP>
         Q4GemvImplFallbackOMP;
 
 typedef Q4GemmImpl<SGEMMImplAvx512, Q4GemvImplAvx2, DequantQ4Avx2> Q4GemmAvx512;
