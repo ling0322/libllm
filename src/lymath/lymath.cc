@@ -124,7 +124,6 @@ const Api *Api::getInstance() {
 
 }  // namespace lymath
 
-using lymath::QGemmNQNInt4AArgs;
 using lymath::Q4GemmArgs;
 using lymath::Api;
 
@@ -174,11 +173,15 @@ void lymath_dequant_q4(
     const lymath_float16_t *scale,
     const uint8_t *zeroPoint,
     float *tgt) {
+  lymath::DataQ4 x(
+    reinterpret_cast<lymath::PCQ4x2>(data),
+    reinterpret_cast<lymath::PCFp16>(scale),
+    reinterpret_cast<lymath::PCUInt8>(zeroPoint));
+
   Api::getInstance()->getDequantQ4()->apply(
       n,
-      reinterpret_cast<lymath::PCQ4x2>(data),
-      reinterpret_cast<lymath::PCFp16>(scale),
-      reinterpret_cast<lymath::PCUInt8>(zeroPoint),
+      x,
+      0,
       tgt);
 }
 
@@ -190,11 +193,15 @@ void lymath_q4gemm(
     int K,
     const float *A,
     int lda,
-    const lymath_q4x2_t *B,
+    const lymath_q4x2_t *dataB,
     const lymath_float16_t *scaleB,
     const uint8_t *zeroPointB,
     float *C,
     int ldc) {
+  lymath::DataQ4 B(
+      reinterpret_cast<lymath::PCQ4x2>(dataB),
+      reinterpret_cast<lymath::PCFp16>(scaleB),
+      reinterpret_cast<lymath::PCUInt8>(zeroPointB));
   Api::getInstance()->getQ4Gemm()->apply(Q4GemmArgs{
       transA,
       transB,
@@ -203,9 +210,7 @@ void lymath_q4gemm(
       K,
       A,
       lda,
-      reinterpret_cast<lymath::PCQ4x2>(B),
-      reinterpret_cast<lymath::PCFp16>(scaleB),
-      reinterpret_cast<lymath::PCUInt8>(zeroPointB),
+      B,
       C,
       ldc});
 }

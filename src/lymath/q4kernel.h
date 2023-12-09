@@ -29,30 +29,27 @@ namespace lymath {
 
 
 struct AxpyQ4NotImplKernel {
-  inline static void apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCUInt8 zeroX, PFp32 y) {
-    NOT_IMPL();
-  }
   static void applyColumn(const Q4GemvArgs &args, int col, PFp32 y) {
     NOT_IMPL();
   }
 };
 
 struct DotQ4FallbackKernel {
-  static float apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCUInt8 zpY);
+  static float apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY);
   static float applyRow(const Q4GemvArgs &args, int row);
 };
 
 struct DotQ4Avx2Kernel {
-  static float apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCUInt8 zpY);
+  static float apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY);
   static float applyRow(const Q4GemvArgs &args, int row);
 };
 
 struct DequantQ4Avx2Kernel {
-  static void apply(int n, PCQ4x2 src, PCFp16 scale, PCUInt8 qzero, PFp32 tgt);
+  static void apply(int n, DataQ4 x, int64_t offsetX, PFp32 y);
 };
 
 struct DequantQ4FallbackKernel {
-  static void apply(int n, PCQ4x2 src, PCFp16 scale, PCUInt8 qzero, PFp32 tgt);
+  static void apply(int n, DataQ4 x, int64_t offsetX, PFp32 y);
 };
 
 }  // namespace lymath

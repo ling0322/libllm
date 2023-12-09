@@ -75,10 +75,7 @@ void refGemmQ4(
     if (transB) {
       for (int i = 0; i < N; ++i) {
         PCFp32 Aj = A + j * lda;
-        PCQ4x2 Bi = reinterpret_cast<PCQ4x2>(B) + i * K / 2;
-        PCFp16 si = scaleB + i * K / Q4GroupSize;
-        PCUInt8 zi = zeroB + i * K / Q4GroupSize / 2;
-        C[j * ldc + i] = DotQ4FallbackKernel::apply(K, Aj, Bi, si, zi);
+        C[j * ldc + i] = DotQ4FallbackKernel::apply(K, Aj, {B, scaleB, zeroB}, i * K);
       }
     } else {
       NOT_IMPL();
@@ -180,15 +177,15 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
   random.fill(lut::makeSpan(scaleXFp32));
   std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), lut::cvtss_sh);
 
-  DequantQ4FallbackKernel::apply(DIM, x.data(), scaleX.data(), zeroX.data(), yRef.data());
-  DequantQ4Avx2Kernel::apply(DIM, x.data(), scaleX.data(), zeroX.data(), y.data());
+  DequantQ4FallbackKernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, yRef.data());
+  DequantQ4Avx2Kernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
   CATCH_REQUIRE(isClose(y, yRef));
 
   // test api.
-  DequantQ4Avx2().apply(DIM, x.data(), scaleX.data(), zeroX.data(), y.data());
+  DequantQ4Avx2().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
   CATCH_REQUIRE(isClose(y, yRef));
 
-  DequantQ4Avx2OMP().apply(DIM, x.data(), scaleX.data(), zeroX.data(), y.data());
+  DequantQ4Avx2OMP().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
   CATCH_REQUIRE(isClose(y, yRef));
 }
 
@@ -208,8 +205,9 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
   random.fill(lut::makeSpan(x));
   std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), lut::cvtss_sh);
 
-  float a = DotQ4Avx2Kernel::apply(DIM, x.data(), y.data(), scaleY.data(), zeroY.data());
-  float aRef = DotQ4FallbackKernel::apply(DIM, x.data(), y.data(), scaleY.data(), zeroY.data());
+  float a = DotQ4Avx2Kernel::apply(DIM, x.data(), {y.data(), scaleY.data(), zeroY.data()}, 0);
+  float aRef = DotQ4FallbackKernel::apply(
+      DIM, x.data(), {y.data(), scaleY.data(), zeroY.data()}, 0);
 
   CATCH_REQUIRE(isClose(a, aRef));
 }
@@ -235,16 +233,14 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   std::transform(scaleAFp32.begin(), scaleAFp32.end(), scaleA.begin(), lut::cvtss_sh);
 
   Q4GemvArgs gemvArgs;
-  gemvArgs.A = A.data();
+  gemvArgs.A = {A.data(), scaleA.data(), zeroA.data()};
   gemvArgs.incX = 1;
   gemvArgs.incY = 1;
   gemvArgs.M = NUM_ROW;
   gemvArgs.N = NUM_COL;
-  gemvArgs.scaleA = scaleA.data();
   gemvArgs.transA = false;
   gemvArgs.x = x.data();
   gemvArgs.y = nullptr;
-  gemvArgs.zeroA = zeroA.data();
 
   float a0 = DotQ4Avx2Kernel::applyRow(gemvArgs, 0);
   float a1 = DotQ4Avx2Kernel::applyRow(gemvArgs, 1);
@@ -254,7 +250,7 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   std::copy(x.begin(), x.end(), x2.begin() + NUM_COL);
 
 
-  float a = DotQ4Avx2Kernel::apply(NUM_COL * 2, x2.data(), A.data(), scaleA.data(), zeroA.data());
+  float a = DotQ4Avx2Kernel::apply(NUM_COL * 2, x2.data(), {A.data(), scaleA.data(), zeroA.data()}, 0);
   CATCH_REQUIRE(isClose(a, a0 + a1));
 }
 

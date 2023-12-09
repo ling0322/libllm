@@ -241,7 +241,7 @@ float SDotAvx2Kernel::applyRow(const SGEMVArgs &args, int row) {
   return apply(args.N, args.A + row * args.lda, args.x);
 }
 
-float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCUInt8 zpY) {
+float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY) {
   __m256 x00, y00, a00, ymmScale;
   __m256i yint8x32, yint8x32odd, yint8x32even, ymm0xf, zeroPointv32;
   __m128i yint8x16;
@@ -252,23 +252,18 @@ float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCUIn
   int64_t nb = n / 32;
 
   PCFp32 px = x;
-  PCQ4x2 py = y;
-  PCUInt8 pyzp = zpY;
+  PCQ4x2 py = y.getData(offsetY);
+  PCUInt8 pyzp = y.getZero(offsetY);
+  PCFp16 scaleY = y.getScale(offsetY);
   uint8_t qzerov2 = 0;
   uint8_t qzero = 0;
-  for (int i = 0; i < nb; ++i) {
+  for (int i = offsetY; i < offsetY + n; i += Q4GroupSize) {
 #if LL_MSVC
-    ymmScale = _mm256_set1_ps(lymath_cvtsh_ss(*scaleY));
+    ymmScale = _mm256_set1_ps(lymath_cvtsh_ss(y.getScaleVal(i)));
 #else
-    ymmScale = _mm256_set1_ps(_cvtsh_ss(*scaleY));
+    ymmScale = _mm256_set1_ps(_cvtsh_ss(y.getScaleVal(i)));
 #endif
-    if (i % 2 == 0) {
-      qzerov2 = *pyzp++;
-      qzero = qzerov2 & 0xf;
-    } else {
-      qzero = qzerov2 >> 4;
-    }
-    zeroPointv32 = _mm256_set1_epi8(qzero);
+    zeroPointv32 = _mm256_set1_epi8(y.getZeroVal(i));
   
     yint8x32 = _mm256_cvtepu8_epi16(_mm_loadu_si128(reinterpret_cast<const __m128i *>(py)));
     yint8x32odd = _mm256_slli_epi16(yint8x32, 4);
@@ -325,14 +320,11 @@ float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCUIn
 }
 
 float DotQ4Avx2Kernel::applyRow(const Q4GemvArgs &args, int row) {
-  PCQ4x2 data = args.A + row * args.N / 2;
-  PCFp16 scale = args.scaleA + row * args.N / Q4GroupSize;
-  PCUInt8 zeroPoint = args.zeroA + row * args.N / Q4GroupSize / 2;
-
-  return apply(args.N, args.x, data, scale, zeroPoint);
+  int64_t offset = row * args.N;
+  return apply(args.N, args.x, args.A, offset);
 }
 
-void DequantQ4Avx2Kernel::apply(int n, PCQ4x2 src, PCFp16 scale, PCUInt8 zero, PFp32 tgt) {
+void DequantQ4Avx2Kernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
   __m256 xv8, scalev8;
   __m256i xi8v32, v0xfv32, zeroPointv32;
   __m128i xi8v16;
@@ -342,24 +334,15 @@ void DequantQ4Avx2Kernel::apply(int n, PCQ4x2 src, PCFp16 scale, PCUInt8 zero, P
   int64_t nb = n / 32;
   assert(n % 32 == 0);
 
-  PCQ4x2 px = src;
-  PCFp16 pxscale = scale;
-  PFp32 py = tgt;
-  PCUInt8 pzp = zero;
-  uint8_t qzero = 0;
-  for (int i = 0; i < nb; ++i) {
+  PCQ4x2 px = x.getData(offsetX);
+  PFp32 py = y;
+  for (int64_t i = offsetX; i < offsetX + n; i += Q4GroupSize) {
 #if LL_MSVC
-    scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(*pxscale));
+    scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(x.getScaleVal(i)));
 #else
-    scalev8 = _mm256_set1_ps(_cvtsh_ss(*pxscale));
+    scalev8 = _mm256_set1_ps(_cvtsh_ss(x.getScaleVal(i)));
 #endif
-    if (i % 2 == 0) {
-      qzero = *pzp++;
-    } else {
-      qzero = qzero >> 4;
-    }
-
-    zeroPointv32 = _mm256_set1_epi8(qzero & 0xf);
+    zeroPointv32 = _mm256_set1_epi8(x.getZeroVal(i));
 
     xi8v32 = _mm256_cvtepu8_epi16(_mm_loadu_si128(reinterpret_cast<const __m128i *>(px)));
     xi8v32 = _mm256_or_si256(_mm256_slli_epi16(xi8v32, 4), xi8v32);
@@ -397,7 +380,6 @@ void DequantQ4Avx2Kernel::apply(int n, PCQ4x2 src, PCFp16 scale, PCUInt8 zero, P
     py += 8;
 
     px += 16;
-    pxscale += 1;
   }
 }
 

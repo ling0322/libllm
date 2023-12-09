@@ -47,8 +47,6 @@ class Q4GemmImpl : public Q4Gemm {
         args.transB ? args.N : args.K,
         args.transB ? args.K : args.N,
         args.B,
-        args.scaleB,
-        args.zeroPointB,
         args.A,
         args.transA ? args.lda : 1,
         args.C,
@@ -56,7 +54,7 @@ class Q4GemmImpl : public Q4Gemm {
     } else {
       int numelB = args.K * args.N;
       lut::c_ptr<float> B = salloc(numelB);
-      TDequantQ4Impl().apply(numelB, args.B, args.scaleB, args.zeroPointB, B.get());
+      TDequantQ4Impl().apply(numelB, args.B, 0, B.get());
 
       int ldb = args.transB ? args.K : args.N;
       TGemmKernel().apply(

@@ -49,4 +49,32 @@ constexpr int Q4GroupSize = 32;
 constexpr int Int4fGroupSize = 32;
 constexpr int Int8bScaleGroupSize = 128;
 
+class DataQ4 {
+ public:
+  constexpr DataQ4(): 
+      _data(nullptr),
+      _scale(nullptr),
+      _zero(nullptr) {}
+  constexpr DataQ4(PCQ4x2 data, PCFp16 scale, PCUInt8 zero) :
+      _data(data),
+      _scale(scale),
+      _zero(zero) {}
+
+  constexpr PCQ4x2 getData(int64_t offset) const { return _data + offset / 2; }
+  constexpr PCFp16 getScale(int64_t offset) const { return _scale + offset / Q4GroupSize; }
+  constexpr PCQ4x2 getZero(int64_t offset) const { return _zero + offset / Q4GroupSize / 2; }
+
+  constexpr Fp16 getScaleVal(int64_t offset) const { return _scale[offset / Q4GroupSize]; }
+  constexpr UInt8 getZeroVal(int64_t offset) const {
+    UInt8 zero = _zero[offset / Q4GroupSize / 2];
+    if ((offset / Q4GroupSize) % 2) zero = zero >> 4;
+    return zero & 0xf;
+  }
+
+ private:
+  PCQ4x2 _data;
+  PCFp16 _scale;
+  PCUInt8 _zero;
+};
+
 }  // namespace lymath

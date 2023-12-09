@@ -53,15 +53,18 @@ void SGemm6x16DefaultKernel::apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_
   }
 }
 
-void DequantQ4FallbackKernel::apply(int n, PCQ4x2 src, PCFp16 scales, PCUInt8 zeros, PFp32 tgt) {
+void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
   CHECK(n % Q4GroupSize == 0);
   int nb = n / Q4GroupSize;
 
+  PCFp16 scales = x.getScale(offsetX);
+  PCUInt8 zeros = x.getZero(offsetX);
+  PCQ4x2 src = x.getData(offsetX);
   for (int i = 0; i < nb; ++i) {
     float scale = lut::cvtsh_ss(scales[i]);
     UInt8 zero = i % 2 == 0 ? zeros[i / 2] & 0xf : zeros[i / 2] >> 4;
     PCQ4x2 p = src + i * Q4GroupSize / 2;
-    PFp32 pt = tgt + i * Q4GroupSize;
+    PFp32 pt = y + i * Q4GroupSize;
     for (int j = 0; j < Q4GroupSize / 2; ++j) {
       *pt++ = scale * (static_cast<int>(*p & 0xf) - zero);
       *pt++ = scale * ((static_cast<int>(*p) >> 4) - zero);
@@ -70,16 +73,18 @@ void DequantQ4FallbackKernel::apply(int n, PCQ4x2 src, PCFp16 scales, PCUInt8 ze
   }
 }
 
-float DotQ4FallbackKernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCUInt8 zerosY) {
+float DotQ4FallbackKernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY) {
   int64_t nb = n / Q4GroupSize;
   assert(n % Q4GroupSize == 0);
 
   float sum = 0.0f;
 
-  PCQ4x2 py = y;
-  for (int64_t i = 0; i < nb; ++i) {
-    float scale = lut::cvtsh_ss(scaleY[i]);
-    UInt8 zero = i % 2 == 0 ? zerosY[i / 2] & 0xf : zerosY[i / 2] >> 4;
+  PCQ4x2 py = y.getData(offsetY);
+  PCFp16 scaleY = y.getScale(offsetY);
+  PCUInt8 zeroY = y.getZero(offsetY);
+  for (int64_t i = offsetY; i < offsetY + n; i += Q4GroupSize) {
+    float scale = lut::cvtsh_ss(y.getScaleVal(i));
+    UInt8 zero = y.getZeroVal(i);
     for (int j = 0; j < Q4GroupSize / 2; ++j) {
       sum += *x++ * scale * (static_cast<int>(*py & 0xf) - zero);
       sum += *x++ * scale * ((static_cast<int>(*py) >> 4) - zero);
@@ -91,11 +96,8 @@ float DotQ4FallbackKernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, P
 }
 
 float DotQ4FallbackKernel::applyRow(const Q4GemvArgs &args, int row) {
-  PCQ4x2 data = args.A + row * args.N / 2;
-  PCFp16 scale = args.scaleA + row * args.N / Q4GroupSize;
-  PCUInt8 zeroPoint = args.zeroA + row * args.N / Q4GroupSize / 2;
-
-  return apply(args.N, args.x, data, scale, zeroPoint);
+  int64_t offset = args.N * row;
+  return apply(args.N, args.x, args.A, offset);
 }
 
 void SAxpyFallbackKernel::apply(int64_t n, float a, PCFp32 x, PFp32 y) {
