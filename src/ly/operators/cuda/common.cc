@@ -38,7 +38,7 @@ PackedSubtensor2DQ4::PackedSubtensor2DQ4(const Tensor &tensor) {
 
   _data = (const uint8_t *)tensor.getDataObject()->getSlot(0)->getRawData();
   _scale = (const __half *)tensor.getDataObject()->getSlot(1)->getRawData();
-  _bias = (const int8_t *)tensor.getDataObject()->getSlot(2)->getRawData();
+  _zero = (const uint8_t *)tensor.getDataObject()->getSlot(2)->getRawData();
 }
 
 Tensor createCudaTensorHalf(lut::Span<const int> shape) {

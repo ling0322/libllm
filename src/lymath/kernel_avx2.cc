@@ -64,9 +64,7 @@
 
 namespace lymath {
 
-#define LL_MSVC (_MSC_VER && !__INTEL_COMPILER)
-
-#if LL_MSVC
+#if LYMATH_MSVC
 inline float lymath_cvtsh_ss(Fp16 sh) {
   __m128h shx8;
   shx8.m128i_u16[0] = sh;
@@ -75,6 +73,14 @@ inline float lymath_cvtsh_ss(Fp16 sh) {
   return ssx8.m128_f32[0];
 }
 #endif
+
+LYMATH_FORCE_INLINE float hsum(__m256 ymm) {
+  __m128 x = _mm256_castps256_ps128(ymm);
+  x = _mm_add_ps(x, _mm256_extractf128_ps(ymm, 1));
+  x = _mm_add_ps(x, _mm_movehl_ps(x, x));
+  x = _mm_add_ps(x, _mm_movehdup_ps(x));
+  return _mm_cvtss_f32(x);
+}
 
 void SGemm6x16Avx2Kernel::apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_t rs_c) {
   // a: kc x MR
@@ -223,13 +229,7 @@ float SDotAvx2Kernel::apply(int64_t n, const float *x, const float *y) {
   }
 
   // unroll a00
-  __m128 r4 = _mm_add_ps(_mm256_extractf128_ps(a00, 1), _mm256_castps256_ps128(a00));
-  __m128 r4h = _mm_movehl_ps(r4, r4);
-  __m128 r2 = _mm_add_ps(r4, r4h);
-  __m128 r2h = _mm_movehdup_ps(r2);
-  __m128 r1 = _mm_add_ps(r2, r2h);
-  float sum = _mm_cvtss_f32(r1);
-
+  float sum = hsum(a00);
   for (int i = 0; i < nr; ++i) {
     sum += *px++ * *py++;
   }
@@ -241,82 +241,85 @@ float SDotAvx2Kernel::applyRow(const SGEMVArgs &args, int row) {
   return apply(args.N, args.A + row * args.lda, args.x);
 }
 
-float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY) {
-  __m256 x00, y00, a00, ymmScale;
-  __m256i yint8x32, yint8x32odd, yint8x32even, ymm0xf, zeroPointv32;
-  __m128i yint8x16;
+LYMATH_FORCE_INLINE __m256i loadNibble32ToByte32(const void *nibbleAddr) {
+  __m256i vbyte = _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)nibbleAddr)); 
+  vbyte = _mm256_or_si256(_mm256_slli_epi16(vbyte, 4), vbyte); 
+  vbyte = _mm256_and_si256(vbyte, _mm256_set1_epi8(0xf));
+  return vbyte;
+}
 
-  a00 = _mm256_setzero_ps();
-  ymm0xf = _mm256_set1_epi8(0xf);
-  
-  int64_t nb = n / 32;
+LYMATH_FORCE_INLINE float half2float(Fp16 half) {
+#if LL_MSVC
+  return lymath_cvtsh_ss(half));
+#else
+  return _cvtsh_ss(half);
+#endif
+}
+
+LYMATH_FORCE_INLINE __m256 extractFloat8FromByte32Block0(__m256i src) {
+  return _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm256_extracti128_si256(src, 0)));
+}
+
+LYMATH_FORCE_INLINE __m256 extractFloat8FromByte32Block1(__m256i src) {
+  return _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm_srli_si128(
+      _mm256_extracti128_si256(src, 0),
+      8)));
+}
+
+LYMATH_FORCE_INLINE __m256 extractFloat8FromByte32Block2(__m256i src) {
+  return _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm256_extracti128_si256(src, 1)));
+}
+
+LYMATH_FORCE_INLINE __m256 extractFloat8FromByte32Block3(__m256i src) {
+  return _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm_srli_si128(
+      _mm256_extracti128_si256(src, 1),
+      8)));
+}
+
+float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY) {
+  __m256 vx, vy, vsum, vscale;
+  __m256i vbytey, vzero;
+
+  vsum = _mm256_setzero_ps();  
+  int64_t groupIdx = offsetY / Q4GroupSize;
+  int64_t nb = n / Q4GroupSize;
+  assert(offsetY % Q4GroupSize == 0 && n % 32 == 0);
 
   PCFp32 px = x;
-  PCQ4x2 py = y.getData(offsetY);
-  PCUInt8 pyzp = y.getZero(offsetY);
-  PCFp16 scaleY = y.getScale(offsetY);
-  uint8_t qzerov2 = 0;
-  uint8_t qzero = 0;
-  for (int i = offsetY; i < offsetY + n; i += Q4GroupSize) {
-#if LL_MSVC
-    ymmScale = _mm256_set1_ps(lymath_cvtsh_ss(y.getScaleVal(i)));
-#else
-    ymmScale = _mm256_set1_ps(_cvtsh_ss(y.getScaleVal(i)));
-#endif
-    zeroPointv32 = _mm256_set1_epi8(y.getZeroVal(i));
-  
-    yint8x32 = _mm256_cvtepu8_epi16(_mm_loadu_si128(reinterpret_cast<const __m128i *>(py)));
-    yint8x32odd = _mm256_slli_epi16(yint8x32, 4);
-    yint8x32 = _mm256_or_si256(yint8x32odd, yint8x32);
-    yint8x32 = _mm256_and_si256(yint8x32, ymm0xf);
-
-    yint8x32 = _mm256_sub_epi8(yint8x32, zeroPointv32);
+  PCQ4x2 py = y.getDataByGroup(groupIdx);
+  for (int i = groupIdx; i < groupIdx + nb; ++i) {
+    vscale = _mm256_set1_ps(half2float(y.getScaleValByGroup(i)));
+    vzero = _mm256_set1_epi8(y.getZeroValByGroup(i));  
+    vbytey = _mm256_sub_epi8(loadNibble32ToByte32(py), vzero);
 
     // subblock 0
-    x00 = _mm256_loadu_ps(px);
-    y00 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm256_extracti128_si256(yint8x32, 0)));
-    y00 = _mm256_mul_ps(y00, ymmScale);
-    a00 = _mm256_fmadd_ps(x00, y00, a00);
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block0(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
     px += 8;
 
     // subblock 1
-    yint8x16 = _mm256_extracti128_si256(yint8x32, 0);
-    yint8x16 = _mm_srli_si128(yint8x16, 8);
-    x00 = _mm256_loadu_ps(px);
-    y00 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(yint8x16));
-    y00 = _mm256_mul_ps(y00, ymmScale);
-    a00 = _mm256_fmadd_ps(x00, y00, a00);
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block1(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
     px += 8;
 
     // subblock 2
-    yint8x16 = _mm256_extracti128_si256(yint8x32, 1);
-    x00 = _mm256_loadu_ps(px);
-    y00 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(yint8x16));
-    y00 = _mm256_mul_ps(y00, ymmScale);
-    a00 = _mm256_fmadd_ps(x00, y00, a00);
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block2(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
     px += 8;
 
     // subblock 3
-    yint8x16 = _mm_srli_si128(yint8x16, 8);
-    x00 = _mm256_loadu_ps(px);
-    y00 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(yint8x16));
-    y00 = _mm256_mul_ps(y00, ymmScale);
-    a00 = _mm256_fmadd_ps(x00, y00, a00);
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block3(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
     px += 8;
 
     py += 16;
-    scaleY += 1;
   }
 
-  // unroll a00
-  __m128 r4 = _mm_add_ps(_mm256_extractf128_ps(a00, 1), _mm256_castps256_ps128(a00));
-  __m128 r4h = _mm_movehl_ps(r4, r4);
-  __m128 r2 = _mm_add_ps(r4, r4h);
-  __m128 r2h = _mm_movehdup_ps(r2);
-  __m128 r1 = _mm_add_ps(r2, r2h);
-  float sum = _mm_cvtss_f32(r1);
-
-  return sum;
+  return hsum(vsum);
 }
 
 float DotQ4Avx2Kernel::applyRow(const Q4GemvArgs &args, int row) {
@@ -325,58 +328,38 @@ float DotQ4Avx2Kernel::applyRow(const Q4GemvArgs &args, int row) {
 }
 
 void DequantQ4Avx2Kernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
-  __m256 xv8, scalev8;
-  __m256i xi8v32, v0xfv32, zeroPointv32;
-  __m128i xi8v16;
-
-  v0xfv32 = _mm256_set1_epi8(0xf);
+  __m256 vx, vscale;
+  __m256i vbytex, vzero;
   
+  int64_t groupIdx = offsetX / Q4GroupSize;
   int64_t nb = n / 32;
-  assert(n % 32 == 0);
+  assert(offsetX % Q4GroupSize == 0 && n % 32 == 0);
 
-  PCQ4x2 px = x.getData(offsetX);
+  PCQ4x2 px = x.getDataByGroup(groupIdx);
   PFp32 py = y;
-  for (int64_t i = offsetX; i < offsetX + n; i += Q4GroupSize) {
-#if LL_MSVC
-    scalev8 = _mm256_set1_ps(lymath_cvtsh_ss(x.getScaleVal(i)));
-#else
-    scalev8 = _mm256_set1_ps(_cvtsh_ss(x.getScaleVal(i)));
-#endif
-    zeroPointv32 = _mm256_set1_epi8(x.getZeroVal(i));
-
-    xi8v32 = _mm256_cvtepu8_epi16(_mm_loadu_si128(reinterpret_cast<const __m128i *>(px)));
-    xi8v32 = _mm256_or_si256(_mm256_slli_epi16(xi8v32, 4), xi8v32);
-    xi8v32 = _mm256_and_si256(xi8v32, v0xfv32);
-
-    // uint4 range [0, 15] to int4 [-8, 7]
-    xi8v32 = _mm256_sub_epi8(xi8v32, zeroPointv32);
+  for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
+    vscale = _mm256_set1_ps(half2float(x.getScaleValByGroup(i)));
+    vzero = _mm256_set1_epi8(x.getZeroValByGroup(i));
+    vbytex = _mm256_sub_epi8(loadNibble32ToByte32(px), vzero);
 
     // vecror 8 subblock 0
-    xv8 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm256_extracti128_si256(xi8v32, 0)));
-    xv8 = _mm256_mul_ps(xv8, scalev8);
-    _mm256_storeu_ps(py, xv8);
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block0(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
     py += 8;
 
     // vecror 8 subblock 1
-    xi8v16 = _mm256_extracti128_si256(xi8v32, 0);
-    xi8v16 = _mm_srli_si128(xi8v16, 8);
-    xv8 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(xi8v16));
-    xv8 = _mm256_mul_ps(xv8, scalev8);
-    _mm256_storeu_ps(py, xv8);
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block1(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
     py += 8;
 
     // vecror 8 subblock 2
-    xi8v16 = _mm256_extracti128_si256(xi8v32, 1);
-    xv8 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(xi8v16));
-    xv8 = _mm256_mul_ps(xv8, scalev8);
-    _mm256_storeu_ps(py, xv8);
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block2(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
     py += 8;
 
     // vecror 8 subblock 3
-    xi8v16 = _mm_srli_si128(xi8v16, 8);
-    xv8 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(xi8v16));
-    xv8 = _mm256_mul_ps(xv8, scalev8);
-    _mm256_storeu_ps(py, xv8);
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block3(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
     py += 8;
 
     px += 16;

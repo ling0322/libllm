@@ -51,13 +51,22 @@ struct PackedSubtensor2DQ4 {
 
   const half *_scale;
   const uint8_t *_data;
-  const int8_t *_bias;
+  const uint8_t *_zero;
 
   __device__ int getNumRow() const { return _numRow; }
   __device__ int getNumCol() const { return _numCol; }
-  __device__ const half *getScale() const { return _scale; }
-  __device__ const uint8_t *getData() const { return _data; }
-  __device__ const int8_t *getBias() const { return _bias; }
+  __device__ const half *getScale(int groupIdx) const { return _scale + groupIdx; }
+  __device__ const uint8_t *getData(int groupIdx) const { return _data + groupIdx * 16; }
+  __device__ const uint8_t *getBias(int groupIdx) const { return _zero + groupIdx / 2; }
+
+  __device__ half getScaleValue(int groupIdx) const { return _scale[groupIdx]; }
+  __device__ uint8_t getZeroValue(int groupIdx) const {
+    uint8_t zero = _zero[groupIdx / 2];
+    if (groupIdx % 2) {
+      zero = zero >> 4;
+    }
+    return zero & 0xf;
+  }
 
   PackedSubtensor2DQ4(const Tensor &tensor);
 };

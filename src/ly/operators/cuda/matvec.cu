@@ -87,23 +87,22 @@ __global__ void mat_vec_kernel_q4g32(half* y, const half *__restrict__ x, Packed
 
   int row = blockIdx.x * blockDim.y + threadIdx.y;
   if (row >= A.getNumRow()) return;
-\
+
   constexpr int Vec = 8;
   constexpr int WrapSize = 32;
   constexpr int GroupSize = 32;
 
   int groupPerRow = numCol / GroupSize;
   constexpr int bytesPerGroup = GroupSize / 2;
-  const half *__restrict__ pscale = A.getScale() + row * groupPerRow;
-  const int8_t *__restrict__ pzeros = A.getBias() + row * groupPerRow;
-  const uint8_t *__restrict__ pdata = A.getData() + row * groupPerRow * bytesPerGroup;
-
+  const half *__restrict__ pscale = A.getScale(0) + row * groupPerRow;
+  const uint8_t *__restrict__ pzeros = A.getBias(0) + row * groupPerRow / 2;
+  const uint8_t *__restrict__ pdata = A.getData(0) + row * groupPerRow * bytesPerGroup;
 
   float sum = 0;
   int groupIdx = threadIdx.x;
   for (int i = groupIdx; i < groupPerRow; i += WrapSize) {
     float scale = float(pscale[i]);
-    float qzero = float(pzeros[i]);
+    float qzero = float(0xf & (pzeros[i >> 1] >> ((i & 1) << 2)));
     uint32_t packA[4];
     load16byteCS<uint32_t[4]>(&pdata[i * bytesPerGroup], &packA);
     
@@ -113,14 +112,14 @@ __global__ void mat_vec_kernel_q4g32(half* y, const half *__restrict__ x, Packed
       half packX[Vec];
       load16byte<half[Vec]>(&x[i * GroupSize + j * Vec], &packX);
 
-      sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[1]); packAv8 = packAv8 >> 4;
       sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[0]); packAv8 = packAv8 >> 4;
-      sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[3]); packAv8 = packAv8 >> 4;
+      sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[1]); packAv8 = packAv8 >> 4;
       sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[2]); packAv8 = packAv8 >> 4;
-      sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[5]); packAv8 = packAv8 >> 4;
+      sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[3]); packAv8 = packAv8 >> 4;
       sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[4]); packAv8 = packAv8 >> 4;
-      sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[7]); packAv8 = packAv8 >> 4;
+      sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[5]); packAv8 = packAv8 >> 4;
       sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[6]); packAv8 = packAv8 >> 4;
+      sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[7]); packAv8 = packAv8 >> 4;
     }
   }
 

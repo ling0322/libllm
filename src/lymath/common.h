@@ -21,6 +21,15 @@
 
 #include <stdint.h>
 
+#define LYMATH_MSVC (_MSC_VER && !__INTEL_COMPILER)
+
+#if LYMATH_MSVC
+#define LYMATH_FORCE_INLINE __forceinline
+#else
+#define LYMATH_FORCE_INLINE __attribute__((always_inline)) inline
+#endif
+
+
 namespace lymath {
 
 // executing mode.
@@ -60,15 +69,13 @@ class DataQ4 {
       _scale(scale),
       _zero(zero) {}
 
-  constexpr PCQ4x2 getData(int64_t offset) const { return _data + offset / 2; }
-  constexpr PCFp16 getScale(int64_t offset) const { return _scale + offset / Q4GroupSize; }
-  constexpr PCQ4x2 getZero(int64_t offset) const { return _zero + offset / Q4GroupSize / 2; }
+  constexpr PCQ4x2 getDataByGroup(int64_t groupIdx) const { return _data + groupIdx * 16; }
+  constexpr PCFp16 getScaleByGroup(int64_t groupIdx) const { return _scale + groupIdx; }
+  constexpr PCQ4x2 getZeroByGroup(int64_t groupIdx) const { return _zero + groupIdx / 2; }
 
-  constexpr Fp16 getScaleVal(int64_t offset) const { return _scale[offset / Q4GroupSize]; }
-  constexpr UInt8 getZeroVal(int64_t offset) const {
-    UInt8 zero = _zero[offset / Q4GroupSize / 2];
-    if ((offset / Q4GroupSize) % 2) zero = zero >> 4;
-    return zero & 0xf;
+  constexpr Fp16 getScaleValByGroup(int64_t groupIdx) const { return _scale[groupIdx]; }
+  constexpr UInt8 getZeroValByGroup(int64_t groupIdx) const {
+    return (_zero[groupIdx >> 1] >> ((groupIdx & 1) << 2)) & 0xf;
   }
 
  private:

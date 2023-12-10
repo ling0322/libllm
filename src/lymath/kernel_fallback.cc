@@ -54,12 +54,13 @@ void SGemm6x16DefaultKernel::apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_
 }
 
 void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
-  CHECK(n % Q4GroupSize == 0);
-  int nb = n / Q4GroupSize;
+  int64_t groupIdx = offsetX / Q4GroupSize;
+  int64_t nb = n / 32;
+  assert(offsetX % Q4GroupSize == 0 && n % 32 == 0);
 
-  PCFp16 scales = x.getScale(offsetX);
-  PCUInt8 zeros = x.getZero(offsetX);
-  PCQ4x2 src = x.getData(offsetX);
+  PCFp16 scales = x.getScaleByGroup(groupIdx);
+  PCUInt8 zeros = x.getZeroByGroup(groupIdx);
+  PCQ4x2 src = x.getDataByGroup(groupIdx);
   for (int i = 0; i < nb; ++i) {
     float scale = lut::cvtsh_ss(scales[i]);
     UInt8 zero = i % 2 == 0 ? zeros[i / 2] & 0xf : zeros[i / 2] >> 4;
@@ -74,17 +75,18 @@ void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
 }
 
 float DotQ4FallbackKernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY) {
-  int64_t nb = n / Q4GroupSize;
-  assert(n % Q4GroupSize == 0);
+  int64_t groupIdx = offsetY / Q4GroupSize;
+  int64_t nb = n / 32;
+  assert(offsetY % Q4GroupSize == 0 && n % 32 == 0);
 
   float sum = 0.0f;
 
-  PCQ4x2 py = y.getData(offsetY);
-  PCFp16 scaleY = y.getScale(offsetY);
-  PCUInt8 zeroY = y.getZero(offsetY);
-  for (int64_t i = offsetY; i < offsetY + n; i += Q4GroupSize) {
-    float scale = lut::cvtsh_ss(y.getScaleVal(i));
-    UInt8 zero = y.getZeroVal(i);
+  PCQ4x2 py = y.getDataByGroup(groupIdx);
+  PCFp16 scaleY = y.getScaleByGroup(groupIdx);
+  PCUInt8 zeroY = y.getZeroByGroup(groupIdx);
+  for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
+    float scale = lut::cvtsh_ss(y.getScaleValByGroup(i));
+    UInt8 zero = y.getZeroValByGroup(i);
     for (int j = 0; j < Q4GroupSize / 2; ++j) {
       sum += *x++ * scale * (static_cast<int>(*py & 0xf) - zero);
       sum += *x++ * scale * ((static_cast<int>(*py) >> 4) - zero);
