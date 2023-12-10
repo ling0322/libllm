@@ -38,47 +38,17 @@ struct SGEMVArgs {
   int incY;
 };
 
-struct QGEMVInt4AArgs {
-  typedef float VecType;
-
-  bool transA;
-  int M;
-  int N;
-  const Q4x2 *A;
-  const Fp16 *scaleA;
-  const float *x;
-  int incX;
-  float *y;
-  int incY;
-};
-
 struct Q4GemvArgs {
   typedef float VecType;
 
   bool transA;
   int M;
   int N;
-  PCQ4x2 A;
-  PCFp16 scaleA;
-  PCInt8 zeroPointA;
+  DataQ4 A;
   PCFp32 x;
   int incX;
   PFp32 y;
   int incY;
-};
-
-struct QGemmNQNInt4AArgs {
-  bool transA;
-  bool transB;
-  int M;
-  int N;
-  int K;
-  PCFp32 A;
-  int lda;
-  PCQ4x2 B;
-  PCFp16 scaleB;
-  PFp32 C;
-  int ldc;
 };
 
 struct Q4GemmArgs {
@@ -89,9 +59,7 @@ struct Q4GemmArgs {
   int K;
   PCFp32 A;
   int lda;
-  PCQ4x2 B;
-  PCFp16 scaleB;
-  PCInt8 zeroPointB;
+  DataQ4 B;
   PFp32 C;
   int ldc;
 };

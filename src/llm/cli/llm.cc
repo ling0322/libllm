@@ -44,22 +44,36 @@ void printChatStat(const ChatOutput &chatOutput) {
 
 int main(int argc, char **argv) {
   std::string configPath;
+  std::string deviceType = "auto";
 
   const char *usage = 
       "Command line interface for libllm.\n"
-      "Usage: llm --config <libllm-config-file>";
+      "Usage: llm -config <libllm-config-file> [-device (cpu|gpu|cuda)]";
 
   lut::Flags flags(usage);
   flags.define("-config", &configPath, "filename of libllm config file.");
+  flags.define("-device", &deviceType, "device of the model. (cpu|cuda|auto)");
   flags.parse(argc, argv);
 
   if (configPath.empty()) {
     flags.printUsage();
     return 1;
   }
+
+  llm::DeviceType device = llm::DeviceType::AUTO;
+  if (deviceType == "auto")
+    device = llm::DeviceType::AUTO;
+  else if (deviceType == "cuda")
+    device = llm::DeviceType::CUDA;
+  else if (deviceType == "cpu")
+    device = llm::DeviceType::CPU;
+  else {
+    printf("invalid device");
+    return 1;
+  }
   
   llm::init();
-  std::shared_ptr<llm::Model> model = llm::Model::create(configPath);
+  std::shared_ptr<llm::Model> model = llm::Model::create(configPath, device);
   std::shared_ptr<PromptBulder> promptBuilder = PromptBulder::create(model->getName());
   DialogManager dialogManager(model, promptBuilder);
   for (; ; ) {

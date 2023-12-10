@@ -48,22 +48,22 @@ Tensor createRandomQ4Tensor2D(int numRow, int numCol) {
   std::vector<uint8_t> data(numel / 2);
   std::vector<float> scaleFloat(numel / groupSize);
   std::vector<uint16_t> scale(numel / groupSize);
-  std::vector<int8_t> bias(numel / groupSize);
+  std::vector<uint8_t> zero(numel / groupSize / 2);
 
   int magicNumber = 0x322;
   lut::Random random(magicNumber);
   random.fillUInt8(lut::makeSpan(data));
-  random.fillInt8(lut::makeSpan(bias), -2, 18);
+  random.fillUInt8(lut::makeSpan(zero));
   random.fill(lut::makeSpan(scaleFloat), 0, 0.1);
   std::transform(scaleFloat.begin(), scaleFloat.end(), scale.begin(), lut::cvtss_sh);
 
   auto tensorData = CpuTensorData::create({
       {numel, DType::kQInt4Group32},
       {numel / groupSize, DType::kFloat16},
-      {numel / groupSize, DType::kInt8}});
+      {numel / groupSize / 2, DType::kUInt8}});
   memcpy(tensorData->getSlot(0)->getRawData(), data.data(), data.size());
   memcpy(tensorData->getSlot(1)->getRawData(), scale.data(), scale.size() * sizeof(uint16_t));
-  memcpy(tensorData->getSlot(2)->getRawData(), bias.data(), bias.size());
+  memcpy(tensorData->getSlot(2)->getRawData(), zero.data(), zero.size());
 
   std::initializer_list<int> shape{numRow, numCol};
   auto tensorShape = std::make_shared<TensorShape>(shape);
@@ -244,6 +244,21 @@ CATCH_TEST_CASE("test matmul q4", "[cuda][operators][matmul]") {
   CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
 }
 
+CATCH_TEST_CASE("test q4 matmul (gemv)", "[cuda][operators][matmul]") {
+  Tensor Aq = createRandomQ4Tensor2D(8000, 4096);
+  Tensor x = F::rand({4096, 1}, DType::kFloat);
+  Tensor xr = F::matmul(x.transpose(0, 1), Aq.transpose(0, 1));
+
+  Aq = F::to(Device::getCuda(), Aq);
+  x = F::to(Device::getCuda(), x);
+  x = F::cast(x, DType::kFloat16);
+  x = F::matmul(x.transpose(0, 1), Aq.transpose(0, 1));
+  x = F::cast(x, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+
+  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 5e-2f));
+}
+
 CATCH_TEST_CASE("test scale", "[cuda][operators][scale]") {
   Tensor a = F::rand({2, 5, 10}, DType::kFloat);
   Tensor xr = F::mul(a.transpose(2, 1).slice(1, {1, 9}), 0.1f);
@@ -400,12 +415,17 @@ CATCH_TEST_CASE("test attention", "[cuda][operators][attention]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
+#define CONCAT2(l, r) l ## r
+#define CONCAT(l, r) CONCAT2(l, r)
 
+#define LOG_TIME(stmt, message) \
+  double CONCAT(t0, __LINE__) = lut::now(); \
+  stmt; \
+  LOG(INFO) << message <<  ": " << (lut::now() - CONCAT(t0, __LINE__)) * 1000 << "ms";
 
-CATCH_TEST_CASE("benchmark GEMV", "[benchmark][cuda][operators][gemm]") {
+CATCH_TEST_CASE("benchmark gemv", "[cuda][operators][matmul]") {
   Tensor Aq = createRandomQ4Tensor2D(8000, 4096);
   Tensor x = F::rand({4096, 1}, DType::kFloat);
-  F::print(x);
   Tensor xrq = F::matmul(x.transpose(0, 1), Aq.transpose(0, 1));
 
   Aq = F::to(Device::getCuda(), Aq);
@@ -414,43 +434,20 @@ CATCH_TEST_CASE("benchmark GEMV", "[benchmark][cuda][operators][gemm]") {
 
   Tensor A = ly::op::cuda::dequantQ4ToHalf(Aq);
 
-  double t0 = lut::now();
-  F::matmul(A, x);
-  LOG(INFO) << "F::matmul(A, x): " << (lut::now() - t0) * 1000 << "ms";
+  LOG_TIME(F::matmul(A, x), "First call F::matmul(A, x)");
+  LOG_TIME(Tensor x0 = F::matmul(A, x), "Second call F::matmul(A, x)");
+  LOG_TIME(Tensor x1 = ly::op::cuda::gemvHalf(A, x), "ly::op::cuda::gemvHalf(A, x)");
+  LOG_TIME(Tensor xq = ly::op::cuda::gemvQ4(Aq, x), "lly::op::cuda::gemvQ4(Aq, x)");
 
-
-  t0 = lut::now();
-  Tensor xr = F::matmul(A, x);
-  LOG(INFO) << "F::matmul(A, x): " << (lut::now() - t0) * 1000 << "ms";
-
-
-  t0 = lut::now();
-  Tensor x1 = ly::op::cuda::gemvHalf(A, x);
-  LOG(INFO) << "ly::op::cuda::gemvHalf(A, x): " << (lut::now() - t0) * 1000 << "ms";
-
-  t0 = lut::now();
-  Tensor xq = ly::op::cuda::gemvQ4(Aq, x);
-  LOG(INFO) << "ly::op::cuda::gemvQ4(Aa, x): " << (lut::now() - t0) * 1000 << "ms";
-
-  x = F::cast(x1, DType::kFloat);
-  x = F::to(Device::getCpu(), x);
-
-  xr = F::cast(xr, DType::kFloat);
-  xr = F::to(Device::getCpu(), xr);
-
+  x0 = F::cast(x0, DType::kFloat);
+  x1 = F::cast(x1, DType::kFloat);
   xq = F::cast(xq, DType::kFloat);
+
+  x0 = F::to(Device::getCpu(), x0);
+  x1 = F::to(Device::getCpu(), x1);
   xq = F::to(Device::getCpu(), xq);
 
-  A = F::cast(A, DType::kFloat);
-  A = F::to(Device::getCpu(), A);
-
-  F::print(A);
-  F::print(xq);
-  F::print(xrq);
-  F::print(x);
-  F::print(xr);
-
-  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 5e-2f));
+  CATCH_REQUIRE(F::allClose(x0, xrq.transpose(0, 1), 1e-5f, 5e-2f));
+  CATCH_REQUIRE(F::allClose(x1, xrq.transpose(0, 1), 1e-5f, 5e-2f));
   CATCH_REQUIRE(F::allClose(xq, xrq.transpose(0, 1), 1e-5f, 5e-2f));
 }
-

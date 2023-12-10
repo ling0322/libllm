@@ -36,13 +36,13 @@ void dequantTensor2DQ4(PackedSubtensor2DQ4 qtensor,
 
   for (int elemOffset = idx; elemOffset < numQ4x2; elemOffset += gridDim.x * blockDim.x) {
     int elemGroup = elemOffset / 16;
-    uint8_t q4elem = qtensor.getData()[elemOffset];
-    half scale = qtensor.getScale()[elemGroup];
-    int8_t bias = qtensor.getBias()[elemGroup];
+    uint8_t q4elem = qtensor.getData(0)[elemOffset];
+    half scale = qtensor.getScaleValue(elemGroup);
+    int8_t zero = qtensor.getZeroValue(elemGroup);
 
-    destData[elemOffset * 2] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem >> 4) - bias));
+    destData[elemOffset * 2] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem & 0xf) - zero));
     destData[elemOffset * 2 + 1] = __hmul(
-        scale, __int2half_rd(static_cast<int>(q4elem & 0xf) - bias));
+        scale, __int2half_rd(static_cast<int>(q4elem >> 4) - zero));
   }
 }
 

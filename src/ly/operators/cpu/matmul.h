@@ -32,11 +32,6 @@ Tensor bmmFp32(const Tensor &A, const Tensor &B);
 Tensor bmmNx2Fp32(const Tensor &A, const Tensor &B);
 Tensor gemmFp32(const Tensor &A, const Tensor &B);
 
-// q4sym
-Tensor matmulFp32Q4SymFp32(const Tensor &A, const Tensor &B);
-Tensor gemmFp32Q4SymFp32(const Tensor &A, const Tensor &B);
-Tensor bmmNx2Fp32Q4SymFp32(const Tensor &A, const Tensor &B);
-
 // q4
 Tensor matmulFp32Q4Fp32(const Tensor &A, const Tensor &B);
 Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B);

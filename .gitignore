@@ -8,6 +8,8 @@ transformers
 __pycache__
 *.model
 *.bin
+*.1
+*.2
 *.egg-info
 *.so
 *.dll

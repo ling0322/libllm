@@ -323,8 +323,6 @@ Tensor CPUOperators::matmul(Tensor A, Tensor B) {
   DType typeB = B.getDType();
   if (typeA == DType::kFloat && typeB == DType::kFloat) {
     return matmulFp32(A, B);
-  } else if (typeA == DType::kFloat && typeB == DType::kQInt4SymGroup32) {
-    return matmulFp32Q4SymFp32(A, B);
   } else if (typeA == DType::kFloat && typeB == DType::kQInt4Group32) {
     return matmulFp32Q4Fp32(A, B);
   } else {

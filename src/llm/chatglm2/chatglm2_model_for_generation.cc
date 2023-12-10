@@ -23,6 +23,8 @@
 #include "llm/common/constants.h"
 
 using ly::Tensor;
+namespace F = ly::functional;
+
 
 namespace libllm {
 namespace chatglm2 {
@@ -64,7 +66,8 @@ ly::Tensor ChatGLM2ModelForGeneration::buildInput(
 }
 
 Tensor ChatGLM2ModelForGeneration::forward(ly::StateMap &past, Tensor input) const {
-  return _model->forward(past, input);
+  Tensor x = _model->forward(past, input);
+  return x;
 }
 
 Tensor ChatGLM2ModelForGeneration::forwardHidden(Tensor hidden) const {

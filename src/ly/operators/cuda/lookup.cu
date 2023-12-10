@@ -54,16 +54,14 @@ void lookupQ4Kernel2D(PackedSubtensor2DQ4 embd,
     assert(row < embd.getNumRow());
 
     int rowGroup = row * embd.getNumCol() / 32;
-    int rowOffset = row * embd.getNumCol() / 2;
-    int elemOffset = rowOffset + x;
     int elemGroup = rowGroup + x / 16;
 
-    uint8_t q4elem = embd.getData()[elemOffset];
-    half scale = embd.getScale()[elemGroup];
-    int8_t bias = embd.getBias()[elemGroup];
+    uint8_t q4elem = embd.getData(rowGroup)[x];
+    half scale = embd.getScaleValue(elemGroup);
+    int8_t zero = embd.getZeroValue(elemGroup);
 
-    dst[z][y][x * 2] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem >> 4) - bias));
-    dst[z][y][x * 2+ 1] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem & 0xf) - bias));
+    dst[z][y][x * 2] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem & 0xf) - zero));
+    dst[z][y][x * 2+ 1] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem >> 4) - zero));
   }
 }
 

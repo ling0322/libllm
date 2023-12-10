@@ -57,16 +57,6 @@ template<typename T>
 void applyDequant(int64_t offset, int n, const internal::TensorData *data, float *tgt);
 
 template<>
-void applyDequant<QInt4SymGroup32>(
-  int64_t offset, int n, const internal::TensorData *data, float *tgt) {
-  lymath_dequant_q4sym(
-      n,
-      (const lymath_q4x2_t *)data->getData<QInt4SymGroup32>(offset),
-      (const lymath_float16_t *)data->getSlot(1)->getData<Float16>(offset / QInt4SymGroup32::GroupSize),
-      tgt);
-}
-
-template<>
 void applyDequant<QInt4Group32>(
   int64_t offset, int n, const internal::TensorData *data, float *tgt) {
   lymath_dequant_q4(
@@ -74,7 +64,7 @@ void applyDequant<QInt4Group32>(
       (const lymath_q4x2_t *)data->getData<QInt4Group32>(offset),
       (const lymath_float16_t *)data->getSlot(1)->getData<Float16>(
           offset / QInt4Group32::GroupSize),
-      (const int8_t *)data->getSlot(2)->getData<Int8>(offset / QInt4Group32::GroupSize),
+      (const uint8_t *)data->getSlot(2)->getData<UInt8>(offset / QInt4Group32::GroupSize / 2),
       tgt);
 }
 
@@ -117,9 +107,6 @@ Tensor lookup(const Tensor &table, const Tensor &indices) {
       return lookupFp32(
           Subtensor<const float>::fromTensor(table),
           Subtensor<const LongType>::fromTensor(indices));
-    case DType::kQInt4SymGroup32:
-      return lookupQuantized<QInt4SymGroup32>(
-          table, Subtensor<const LongType>::fromTensor(indices));
     case DType::kQInt4Group32:
       return lookupQuantized<QInt4Group32>(table, Subtensor<const LongType>::fromTensor(indices));
     default:

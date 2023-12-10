@@ -22,19 +22,20 @@
 #include <omp.h>
 #include "lymath/common.h"
 #include "lymath/q4kernel.h"
+#include "lyutil/log.h"
 
 namespace lymath {
 
 class DequantQ4 {
  public:
   virtual ~DequantQ4() = default;
-  virtual void apply(int n, PCQ4x2 src, PCFp16 scale, PCInt8 zeroPoint, PFp32 tgt) const = 0;
+  virtual void apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) const = 0;
 };
 
 template<class TKernel, Mode MODE>
 class DequantQ4Impl : public DequantQ4 {
  public:
-  void apply(int n, PCQ4x2 src, PCFp16 scale, PCInt8 zeroPoint, PFp32 tgt) const override {
+  void apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) const override {
     CHECK(n % Q4GroupSize == 0);
     int nb = (n + DequantMinElemPerThread - 1) / DequantMinElemPerThread;
 
@@ -47,13 +48,12 @@ class DequantQ4Impl : public DequantQ4 {
         int ne = (i == nb - 1) ? nr : DequantMinElemPerThread;
         TKernel::apply(
             ne,
-            src + i * DequantMinElemPerThread / 2,
-            scale + i * DequantMinElemPerThread / Q4GroupSize,
-            zeroPoint + i * DequantMinElemPerThread / Q4GroupSize,
-            tgt + i * DequantMinElemPerThread);
+            x,
+            i * DequantMinElemPerThread,
+            y + i * DequantMinElemPerThread);
       }
     } else {
-      TKernel::apply(n, src, scale, zeroPoint, tgt);
+      TKernel::apply(n, x, 0, y);
     }
   }
 };

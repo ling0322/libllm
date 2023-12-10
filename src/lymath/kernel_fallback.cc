@@ -22,8 +22,6 @@
 #include <algorithm>
 #include "lymath/common.h"
 #include "lymath/q4kernel.h"
-#include "lymath/q4sym_kernel.h"
-#include "lymath/q8kernel.h"
 #include "lymath/skernel.h"
 #include "lymath/util.h"
 #include "lyutil/half.h"
@@ -55,133 +53,53 @@ void SGemm6x16DefaultKernel::apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_
   }
 }
 
-void DequantQ4SymFallbackKnl::apply(int n, PCQ4x2 src, PCFp16 scale, PFp32 tgt) {
-  CHECK(n % Q4GroupSize == 0);
-  int nb = n / Q4GroupSize;
+void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
+  int64_t groupIdx = offsetX / Q4GroupSize;
+  int64_t nb = n / 32;
+  assert(offsetX % Q4GroupSize == 0 && n % 32 == 0);
 
+  PCFp16 scales = x.getScaleByGroup(groupIdx);
+  PCUInt8 zeros = x.getZeroByGroup(groupIdx);
+  PCQ4x2 src = x.getDataByGroup(groupIdx);
   for (int i = 0; i < nb; ++i) {
-    float s = lut::cvtsh_ss(scale[i]);
+    float scale = lut::cvtsh_ss(scales[i]);
+    UInt8 zero = i % 2 == 0 ? zeros[i / 2] & 0xf : zeros[i / 2] >> 4;
     PCQ4x2 p = src + i * Q4GroupSize / 2;
-    PFp32 pt = tgt + i * Q4GroupSize;
+    PFp32 pt = y + i * Q4GroupSize;
     for (int j = 0; j < Q4GroupSize / 2; ++j) {
-      *pt++ = s * (static_cast<int>(*p >> 4) - 8);
-      *pt++ = s * ((static_cast<int>(*p) & 0xf) - 8);
+      *pt++ = scale * (static_cast<int>(*p & 0xf) - zero);
+      *pt++ = scale * ((static_cast<int>(*p) >> 4) - zero);
       ++p;
     }
   }
 }
 
-void DequantQ4FallbackKernel::apply(int n, PCQ4x2 src, PCFp16 scale, PCInt8 zero, PFp32 tgt) {
-  CHECK(n % Q4GroupSize == 0);
-  int nb = n / Q4GroupSize;
-
-  for (int i = 0; i < nb; ++i) {
-    float s = lut::cvtsh_ss(scale[i]);
-    Int8 zeroPoint = zero[i];
-    PCQ4x2 p = src + i * Q4GroupSize / 2;
-    PFp32 pt = tgt + i * Q4GroupSize;
-    for (int j = 0; j < Q4GroupSize / 2; ++j) {
-      *pt++ = s * (static_cast<int>(*p >> 4) - zeroPoint);
-      *pt++ = s * ((static_cast<int>(*p) & 0xf) - zeroPoint);
-      ++p;
-    }
-  }
-}
-
-float DotQ4SymFallbackKernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY) {
-  int64_t nb = n / Q4GroupSize;
-  assert(n % Q4GroupSize == 0);
+float DotQ4FallbackKernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY) {
+  int64_t groupIdx = offsetY / Q4GroupSize;
+  int64_t nb = n / 32;
+  assert(offsetY % Q4GroupSize == 0 && n % 32 == 0);
 
   float sum = 0.0f;
 
-  const uint8_t *py = y;
-  for (int64_t i = 0; i < nb; ++i) {
-    float scale = lut::cvtsh_ss(scaleY[i]);
+  PCQ4x2 py = y.getDataByGroup(groupIdx);
+  PCFp16 scaleY = y.getScaleByGroup(groupIdx);
+  PCUInt8 zeroY = y.getZeroByGroup(groupIdx);
+  for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
+    float scale = lut::cvtsh_ss(y.getScaleValByGroup(i));
+    UInt8 zero = y.getZeroValByGroup(i);
     for (int j = 0; j < Q4GroupSize / 2; ++j) {
-      sum += *x++ * scale * (static_cast<int>(*py >> 4) - 8);
-      sum += *x++ * scale * ((static_cast<int>(*py) & 0xf) - 8);
+      sum += *x++ * scale * (static_cast<int>(*py & 0xf) - zero);
+      sum += *x++ * scale * ((static_cast<int>(*py) >> 4) - zero);
       ++py;
     }
-  }
-
-  return sum;
-}
-
-float DotQ4FallbackKernel::apply(int64_t n, PCFp32 x, PCQ4x2 y, PCFp16 scaleY, PCInt8 zpY) {
-  int64_t nb = n / Q4GroupSize;
-  assert(n % Q4GroupSize == 0);
-
-  float sum = 0.0f;
-
-  PCQ4x2 py = y;
-  PCInt8 pyzp = zpY;
-  for (int64_t i = 0; i < nb; ++i) {
-    float scale = lut::cvtsh_ss(scaleY[i]);
-    Int8 zp = *pyzp;
-    for (int j = 0; j < Q4GroupSize / 2; ++j) {
-      sum += *x++ * scale * (static_cast<int>(*py >> 4) - zp);
-      sum += *x++ * scale * ((static_cast<int>(*py) & 0xf) - zp);
-      ++py;
-    }
-    
-    ++pyzp;
   }
 
   return sum;
 }
 
 float DotQ4FallbackKernel::applyRow(const Q4GemvArgs &args, int row) {
-  PCQ4x2 data = args.A + row * args.N / 2;
-  PCFp16 scale = args.scaleA + row * args.N / Q4GroupSize;
-  PCInt8 zeroPoint = args.zeroPointA + row * args.N / Q4GroupSize;
-
-  return apply(args.N, args.x, data, scale, zeroPoint);
-}
-
-void AxpyQ4SymFallbackKernel::apply(int64_t n, float a, PCQ4x2 x, PCFp16 xscale, PFp32 y) {
-  int64_t nb = n / Q4GroupSize;
-  assert(n % Q4GroupSize == 0);
-
-  const uint8_t *px = x;
-  float *py = y;
-  for (int64_t i = 0; i < nb; ++i) {
-    float scale = lut::cvtsh_ss(xscale[i]);
-    for (int j = 0; j < Q4GroupSize / 2; ++j) {
-      *py++ += a * scale * (static_cast<int>(*px >> 4) - 8);
-      *py++ += a * scale * ((static_cast<int>(*px) & 0xf) - 8);
-      ++px;
-    }
-  }
-}
-
-void AxpyQ4SymFallbackKernel::applyColumn(const QGEMVInt4AArgs &args, int col, float *y) {
-  PCQ4x2 data = args.A + col * args.N / 2;
-  PCFp16 scale = args.scaleA + col * args.N / 32;
-  apply(args.N, args.x[col], data, scale, y);
-}
-
-void AxpyQ4FallbackKernel::apply(int64_t n, float a, PCQ4x2 x, PCFp16 scaleX, PCInt8 zpX, PFp32 y) {
-  int64_t nb = n / Q4GroupSize;
-  assert(n % Q4GroupSize == 0);
-
-  const uint8_t *px = x;
-  float *py = y;
-  for (int64_t i = 0; i < nb; ++i) {
-    float scale = lut::cvtsh_ss(scaleX[i]);
-    int8_t zeroPoint = zpX[i];
-    for (int j = 0; j < Q4GroupSize / 2; ++j) {
-      *py++ += a * scale * (static_cast<int>(*px >> 4) - zeroPoint);
-      *py++ += a * scale * ((static_cast<int>(*px) & 0xf) - zeroPoint);
-      ++px;
-    }
-  }
-}
-
-void AxpyQ4FallbackKernel::applyColumn(const Q4GemvArgs &args, int col, float *y) {
-  PCQ4x2 data = args.A + col * args.N / 2;
-  PCFp16 scale = args.scaleA + col * args.N / Q4GroupSize;
-  PCInt8 zp = args.zeroPointA + col * args.N / Q4GroupSize;
-  apply(args.N, args.x[col], data, scale, zp, y);
+  int64_t offset = args.N * row;
+  return apply(args.N, args.x, args.A, offset);
 }
 
 void SAxpyFallbackKernel::apply(int64_t n, float a, PCFp32 x, PFp32 y) {
@@ -191,29 +109,6 @@ void SAxpyFallbackKernel::apply(int64_t n, float a, PCFp32 x, PFp32 y) {
     *py = a * *px;
     ++px;
     ++py;
-  }
-}
-
-// real_value = A * quantized_value + B
-void DequantInt8BFallbackKernel::apply(
-    int64_t n, const uint8_t *data, const float *scaleZp, int64_t offset, float *tgt) {
-  int64_t hBegin = offset % Int8bScaleGroupSize;
-  int64_t tEnd = (offset + n - 1) % Int8bScaleGroupSize + 1;
-  int64_t nb = (n + Int8bScaleGroupSize - 1) / Int8bScaleGroupSize + (hBegin < tEnd ? 0 : 1);
-
-  const float *pscaleZp = scaleZp;
-  const uint8_t *pdata = data + offset;
-  float *ptgt = tgt;
-  for (int i = 0; i < nb; ++i) {
-    float scale = *pscaleZp++;
-    float zeroPoint = *pscaleZp++;
-
-    int64_t begin = i == 0 ? hBegin : 0;
-    int64_t end = i == nb - 1 ? tEnd : Int8bScaleGroupSize;
-    assert(end - begin > 0);
-    for (int64_t j = begin; j < end; ++j) {
-      *ptgt++ = scale * (*pdata++) + zeroPoint;
-    }
   }
 }
 
