@@ -250,7 +250,7 @@ LYMATH_FORCE_INLINE __m256i loadNibble32ToByte32(const void *nibbleAddr) {
 
 LYMATH_FORCE_INLINE float half2float(Fp16 half) {
 #if LYMATH_MSVC
-  return lymath_cvtsh_ss(half));
+  return lymath_cvtsh_ss(half);
 #else
   return _cvtsh_ss(half);
 #endif
