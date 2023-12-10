@@ -415,8 +415,15 @@ CATCH_TEST_CASE("test attention", "[cuda][operators][attention]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
+#define CONCAT2(l, r) l ## r
+#define CONCAT(l, r) CONCAT2(l, r)
 
-CATCH_TEST_CASE("benchmark GEMV", "[benchmark][cuda][operators][gemm]") {
+#define LOG_TIME(stmt, message) \
+  double CONCAT(t0, __LINE__) = lut::now(); \
+  stmt; \
+  LOG(INFO) << message <<  ": " << (lut::now() - CONCAT(t0, __LINE__)) * 1000 << "ms";
+
+CATCH_TEST_CASE("benchmark gemv", "[cuda][operators][matmul]") {
   Tensor Aq = createRandomQ4Tensor2D(8000, 4096);
   Tensor x = F::rand({4096, 1}, DType::kFloat);
   Tensor xrq = F::matmul(x.transpose(0, 1), Aq.transpose(0, 1));
@@ -427,37 +434,20 @@ CATCH_TEST_CASE("benchmark GEMV", "[benchmark][cuda][operators][gemm]") {
 
   Tensor A = ly::op::cuda::dequantQ4ToHalf(Aq);
 
-  double t0 = lut::now();
-  F::matmul(A, x);
-  LOG(INFO) << "F::matmul(A, x): " << (lut::now() - t0) * 1000 << "ms";
+  LOG_TIME(F::matmul(A, x), "First call F::matmul(A, x)");
+  LOG_TIME(Tensor x0 = F::matmul(A, x), "Second call F::matmul(A, x)");
+  LOG_TIME(Tensor x1 = ly::op::cuda::gemvHalf(A, x), "ly::op::cuda::gemvHalf(A, x)");
+  LOG_TIME(Tensor xq = ly::op::cuda::gemvQ4(Aq, x), "lly::op::cuda::gemvQ4(Aq, x)");
 
-  t0 = lut::now();
-  Tensor xr = F::matmul(A, x);
-  LOG(INFO) << "F::matmul(A, x): " << (lut::now() - t0) * 1000 << "ms";
-
-  t0 = lut::now();
-  Tensor x1 = ly::op::cuda::gemvHalf(A, x);
-  LOG(INFO) << "ly::op::cuda::gemvHalf(A, x): " << (lut::now() - t0) * 1000 << "ms";
-
-  t0 = lut::now();
-  Tensor xq = ly::op::cuda::gemvQ4(Aq, x);
-  LOG(INFO) << "ly::op::cuda::gemvQ4(Aa, x): " << (lut::now() - t0) * 1000 << "ms";
-
-  x = F::cast(x1, DType::kFloat);
-  x = F::to(Device::getCpu(), x);
-
-  xr = F::cast(xr, DType::kFloat);
-  xr = F::to(Device::getCpu(), xr);
-
+  x0 = F::cast(x0, DType::kFloat);
+  x1 = F::cast(x1, DType::kFloat);
   xq = F::cast(xq, DType::kFloat);
+
+  x0 = F::to(Device::getCpu(), x0);
+  x1 = F::to(Device::getCpu(), x1);
   xq = F::to(Device::getCpu(), xq);
 
-  A = F::cast(A, DType::kFloat);
-  A = F::to(Device::getCpu(), A);
-
-  F::print(xq);
-  F::print(xrq.transpose(0, 1));
-
-  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 5e-2f));
+  CATCH_REQUIRE(F::allClose(x0, xrq.transpose(0, 1), 1e-5f, 5e-2f));
+  CATCH_REQUIRE(F::allClose(x1, xrq.transpose(0, 1), 1e-5f, 5e-2f));
   CATCH_REQUIRE(F::allClose(xq, xrq.transpose(0, 1), 1e-5f, 5e-2f));
 }
