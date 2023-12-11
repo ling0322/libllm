@@ -41,6 +41,7 @@ class BPEModel : public Vocab,
 
   // implement interface Vocab
   int findToken(const std::string &token) const override;
+  int findControlToken(const std::string &name) const override;
   const std::string &getTokenPiece(int token_id) const override;
   const std::string &getTokenString(int token_id) const override;
   int getVocabSize() const override;
@@ -69,6 +70,7 @@ class BPEModel : public Vocab,
   static constexpr int16_t kMagicNumber = 0x55aa;
 
   std::unordered_map<std::string, const TokenInfo *> _tokenDict;
+  std::unordered_map<std::string, const TokenInfo *> _controlTokenDict;
   std::vector<TokenInfo> _tokens;
 
   // standalone tokens for byte.

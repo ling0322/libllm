@@ -18,24 +18,25 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import configparser
+import sys
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
 from spm_exporter import TokenizerExporter
 from torch import nn
 
-class ChatGLM2Exporter(ModelExporter):
+class ChatGLMExporter(ModelExporter):
     def __init__(self, writer: TensorWriter) -> None:
         super().__init__(writer)
 
-    def export_chatglm2_embedding(self, ctx, chatglm2_embd):
+    def export_chatglm_embedding(self, ctx, chatglm2_embd):
         self.export_embedding(ctx, chatglm2_embd.word_embeddings)
 
     def export_rope(self, ctx: Context, model):
         rope = model.rotary_pos_emb(model.seq_length)
         self._write(ctx.with_subname("rope").with_quant(Quant.NONE), rope)
 
-    def export_chatglm2(self, ctx: Context, model):
-        self.export_chatglm2_embedding(ctx.with_subname("embd"), model.embedding)
+    def export_chatglm(self, ctx: Context, model):
+        self.export_chatglm_embedding(ctx.with_subname("embd"), model.embedding)
         self.export_rope(ctx, model)
         for idx, layer in enumerate(model.encoder.layers):
             self.export_glm_block(ctx.with_subname(f"block{idx}"), layer)
@@ -64,11 +65,11 @@ class ChatGLM2Exporter(ModelExporter):
         self._write(ctx.with_subname("weight").with_quant(Quant.NONE), module.weight)
 
     @classmethod
-    def generate_config(cls, chatglm2_config) -> configparser.ConfigParser:
+    def generate_config(cls, chatglm2_config, model_name) -> configparser.ConfigParser:
         config = configparser.ConfigParser()
-        config["chatglm2"] = {}
+        config[model_name] = {}
         
-        chatglm2_section = config["chatglm2"]
+        chatglm2_section = config[model_name]
         chatglm2_section["hidden_size"] = str(chatglm2_config.hidden_size)
         chatglm2_section["vocab_size"] = str(chatglm2_config.padded_vocab_size)
         chatglm2_section["kv_channels"] = str(chatglm2_config.kv_channels)
@@ -85,9 +86,9 @@ class ChatGLM2Exporter(ModelExporter):
         return config
 
     @classmethod
-    def export(cls, chatglm2_model, output_prefix: str, quant: Quant) -> configparser.ConfigParser:
-        model = chatglm2_model.base_model
-        config = chatglm2_model.config
+    def export(cls, chatglm_model, output_prefix: str, quant: Quant) -> configparser.ConfigParser:
+        model = chatglm_model.base_model
+        config = chatglm_model.config
 
         assert config.rmsnorm == True
         assert config.add_qkv_bias == True
@@ -99,15 +100,14 @@ class ChatGLM2Exporter(ModelExporter):
         if quant != Quant.NONE:
             quant_name = str(quant.name).lower()
 
-        ctx = Context("chatglm2", quant=quant)
+        ctx = Context("chatglm", quant=quant)
         bin_filename = f"{output_prefix}.{quant_name}.bin"
         with TensorWriter(bin_filename) as writer:
-            exporter = ChatGLM2Exporter(writer)
-            exporter.export_chatglm2(ctx, model)        
+            exporter = ChatGLMExporter(writer)
+            exporter.export_chatglm(ctx, model)        
 
-        ini_config = cls.generate_config(config)
+        ini_config = cls.generate_config(config, model_name)
         ini_config["model"] = {}
-        ini_config["model"]["type"] = "chatglm2"
         ini_config["model"]["model_file"] = path.basename(bin_filename)
 
         return ini_config
@@ -116,23 +116,39 @@ if __name__ == '__main__':
     from transformers import AutoTokenizer, AutoModel
     import argparse
 
-    parser = argparse.ArgumentParser(description='export ChatGLM2 model from huggingface to libllm format.')
-    parser.add_argument('--name', type=str, help='the ChatGLM2 model name in huggingface.', default="THUDM/chatglm2-6b")
-    parser.add_argument('--quantization', type=Quant.parse, help='quantization type, "q4" or "q4sym" or "none"', default=Quant.Q4)
-    parser.add_argument('--output', type=str, help='output file name.', default="chatglm2")
+    parser = argparse.ArgumentParser(description='export ChatGLM model from huggingface to libllm format.')
+    parser.add_argument('-huggingface_name', type=str, help='the ChatGLM model name in huggingface.', default="THUDM/chatglm3-6b")
+    parser.add_argument('-chatglm_version', type=int, help='version of the ChatGLM model, for example, 3 for chatglm3.', default=0)
+    parser.add_argument('-quantization', type=Quant.parse, help='quantization type, "q4" or "none"', default=Quant.Q4)
+    parser.add_argument('-output_dir', type=str, help='output directory name, files will be written to this directory with prefix <name>.', default=".")
     args = parser.parse_args()
     
-    model_name = args.name
-    output_prefix = args.output
+    huggingface_name = args.huggingface_name
+    model_name = "chatglm"
+    model_version = args.chatglm_version
+    if model_version == 0:
+        if huggingface_name[: 6] == "THUDM/":
+            name = huggingface_name[6: ].split("-")[0]
+            if name == "chatglm2":
+                model_version = 2
+            elif name == "chatglm3":
+                model_version = 3
+    if model_version == 0:
+        print("Unable to infer model version from huggingface_name, please specify it by -name. For example, -name chatglm3-6b")
+        sys.exit(1)
+
+    model_type = model_name + str(model_version)
+    output_prefix = path.join(args.output_dir, model_type)
     quant = args.quantization
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-    model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(huggingface_name, trust_remote_code=True)
+    model = AutoModel.from_pretrained(huggingface_name, trust_remote_code=True)
     model = model.eval()
 
-    config = ChatGLM2Exporter.export(model, output_prefix, quant)
-    tokenizer_conifg = TokenizerExporter.export(model_name, output_prefix)
+    config = ChatGLMExporter.export(model, output_prefix, quant)
+    tokenizer_conifg = TokenizerExporter.export(huggingface_name, output_prefix)
     tokenizer_conifg.update_config(config, "tokenizer")
+    config["model"]["type"] = model_type
 
     with open(output_prefix + ".config", "w") as fp:
         config.write(fp)

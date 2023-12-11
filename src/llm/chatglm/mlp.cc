@@ -17,47 +17,50 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "llm/chatglm/mlp.h"
 
 #include "ly/ly.h"
-#include "lyutil/ini_config.h"
-#include "llm/common/model_for_generation.h"
-#include "llm/chatglm2/chatglm2_config.h"
-#include "llm/chatglm2/glm_block.h"
+#include "lyutil/error.h"
 
 namespace libllm {
-namespace chatglm2 {
+namespace chatglm {
 
-// The ChatGLM2 model.
-class ChatGLM2Model : public ly::nn::Module {
- public:
-  // create ChatGLM2 Model.
-  static std::unique_ptr<ChatGLM2Model> create(const ly::Context &ctx, ChatGLM2Config config);
+namespace F = ly::functional;
 
-  // implement interface nn::Module
-  void initParameters(const ly::StateMap &state_dict) override;
+using ly::Context;
+using ly::Tensor;
 
-  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
-  ly::Tensor forwardHidden(ly::Tensor hiddenState) const;
+std::unique_ptr<MLP> MLP::create(const Context &ctx, ChatGlmConfig config) {
+  std::unique_ptr<MLP> layer{new MLP()};
+  layer->setCtx(ctx);
 
- private:
-  ChatGLM2Config _config;
+  layer->_ffnHiddenSize = config.ffnHiddenSize;
+  layer->_hiddenSize = config.hiddenSize;
+  return layer;
+}
 
-  static constexpr char ChatGlm2[] = "chatglm2";
-  static constexpr char Embd[] = "embd";
-  static constexpr char RoPE[] = "rope";
-  static constexpr char Block[] = "block";
-  static constexpr char FinalNorm[] = "final_norm";
-  static constexpr char OutputWeight[] = "output_weight";
+void MLP::initParameters(const ly::StateMap &stateDict) {
+  const Context &ctx = getCtx();
 
-  std::unique_ptr<ly::nn::Embedding> _embedding;
-  std::vector<std::unique_ptr<GLMBlock>> _blocks;
-  std::unique_ptr<ly::nn::RMSNorm> _finalNorm;
-  ly::Tensor _rope;
-  ly::Tensor _output;
+  _dense1Weight = stateDict.getTensor(ctx.name("dense1_weight"));
+  _dense2Weight = stateDict.getTensor(ctx.name("dense2_weight"));
 
-  ChatGLM2Model();
-};
+  _dense1Weight.throwIfInvalidShape({_ffnHiddenSize * 2, _hiddenSize});
+  _dense2Weight.throwIfInvalidShape({_hiddenSize, _ffnHiddenSize});
 
-}  // namespace chatglm2
+  _dense1Weight = moveAndCastFloat(_dense1Weight, ctx);
+  _dense2Weight = moveAndCastFloat(_dense2Weight, ctx);
+}
+
+ly::Tensor MLP::forward(const ly::Tensor &input) const {
+  CHECK(!_dense1Weight.empty());
+
+  Tensor x = F::matmul(input, _dense1Weight.transpose(0, 1));
+  x = F::swiglu(x);
+  x = F::matmul(x, _dense2Weight.transpose(0, 1));
+
+  return x;
+}
+
+}  // namespace chatglm
 }  // namespace libllm

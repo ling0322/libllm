@@ -103,7 +103,6 @@ class Quantization:
             tensor = torch.cat((tensor, pad_value))
         tensor = tensor.reshape(-1, 2)
         tensor = tensor[:, 0].type(torch.uint8) + tensor[:, 1].type(torch.uint8) * 16
-        print(tensor)
         return tensor
 
     @classmethod

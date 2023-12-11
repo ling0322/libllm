@@ -19,32 +19,33 @@
 
 #pragma once
 
-#include "ly/ly.h"
+#include <memory>
 #include "lyutil/ini_config.h"
-#include "llm/chatglm2/chatglm2_config.h"
-#include "llm/chatglm2/mlp.h"
-#include "llm/chatglm2/self_attention.h"
 
 namespace libllm {
-namespace chatglm2 {
-    
-class GLMBlock : public ly::nn::Module {
- public:
-  static std::unique_ptr<GLMBlock> create(const ly::Context &ctx, ChatGLM2Config config);
+namespace chatglm {
 
-  // implement interface nn::Module
-  void initParameters(const ly::StateMap &state_dict) override;
+struct ChatGlmConfig {
+  // config section in ini
+  static constexpr char kSection[] = "chatglm";
 
-  ly::Tensor forward(ly::StateMap &past, ly::Tensor input, ly::Tensor roPE) const;
+  int hiddenSize;
+  int vocabSize;
+  int kvChannels;
+  int seqLength;
+  int hiddenSizePerAttentionHead;
+  int multiQueryGroupNum;
+  float normEps;
+  int ffnHiddenSize;
+  int numLayers;
 
- private:
-  std::unique_ptr<ly::nn::RMSNorm> _inputNorm;
-  std::unique_ptr<ly::nn::RMSNorm> _attnNorm;
-  std::unique_ptr<SelfAttention> _attn;
-  std::unique_ptr<MLP> _mlp;
+  int symbolGMask;
+  int symbolSOP;
+  int symbolEOS;
 
-  GLMBlock() = default;
+  ChatGlmConfig();
+  static ChatGlmConfig loadConfig(const lut::IniConfig &ini);
 };
 
-}  // namespace chatglm2
+}  // namespace chatglm
 }  // namespace libllm

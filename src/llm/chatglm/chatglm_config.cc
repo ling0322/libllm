@@ -17,15 +17,15 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "llm/chatglm2/chatglm2_config.h"
+#include "llm/chatglm/chatglm_config.h"
 
 
 namespace libllm {
-namespace chatglm2 {
+namespace chatglm {
 
-constexpr char ChatGLM2Config::kSection[];
+constexpr char ChatGlmConfig::kSection[];
 
-ChatGLM2Config::ChatGLM2Config()
+ChatGlmConfig::ChatGlmConfig()
     : hiddenSize(0),
       vocabSize(0),
       kvChannels(0),
@@ -38,10 +38,10 @@ ChatGLM2Config::ChatGLM2Config()
       symbolSOP(0),
       symbolEOS(0) {}
 
-ChatGLM2Config ChatGLM2Config::loadConfig(const lut::IniConfig &ini) {
+ChatGlmConfig ChatGlmConfig::loadConfig(const lut::IniConfig &ini) {
   const lut::IniSection &section = ini.getSection(kSection);
 
-  ChatGLM2Config config;
+  ChatGlmConfig config;
   config.hiddenSize = section.getInt("hidden_size");
   config.vocabSize = section.getInt("vocab_size");
   config.kvChannels = section.getInt("kv_channels");
@@ -58,5 +58,5 @@ ChatGLM2Config ChatGLM2Config::loadConfig(const lut::IniConfig &ini) {
   return config;
 }
 
-}  // namespace chatglm2
+}  // namespace chatglm
 }  // namespace libllm

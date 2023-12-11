@@ -19,33 +19,45 @@
 
 #pragma once
 
-#include <memory>
+#include "ly/ly.h"
 #include "lyutil/ini_config.h"
+#include "llm/common/model_for_generation.h"
+#include "llm/chatglm/chatglm_config.h"
+#include "llm/chatglm/glm_block.h"
 
 namespace libllm {
-namespace chatglm2 {
+namespace chatglm {
 
-struct ChatGLM2Config {
-  // config section in ini
-  static constexpr char kSection[] = "chatglm2";
+// The ChatGLM2 model.
+class ChatGlmModel : public ly::nn::Module {
+ public:
+  // create ChatGLM2 Model.
+  static std::unique_ptr<ChatGlmModel> create(const ly::Context &ctx, ChatGlmConfig config);
 
-  int hiddenSize;
-  int vocabSize;
-  int kvChannels;
-  int seqLength;
-  int hiddenSizePerAttentionHead;
-  int multiQueryGroupNum;
-  float normEps;
-  int ffnHiddenSize;
-  int numLayers;
+  // implement interface nn::Module
+  void initParameters(const ly::StateMap &state_dict) override;
 
-  int symbolGMask;
-  int symbolSOP;
-  int symbolEOS;
+  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
+  ly::Tensor forwardHidden(ly::Tensor hiddenState) const;
 
-  ChatGLM2Config();
-  static ChatGLM2Config loadConfig(const lut::IniConfig &ini);
+ private:
+  ChatGlmConfig _config;
+
+  static constexpr char ChatGlm2[] = "chatglm";
+  static constexpr char Embd[] = "embd";
+  static constexpr char RoPE[] = "rope";
+  static constexpr char Block[] = "block";
+  static constexpr char FinalNorm[] = "final_norm";
+  static constexpr char OutputWeight[] = "output_weight";
+
+  std::unique_ptr<ly::nn::Embedding> _embedding;
+  std::vector<std::unique_ptr<GLMBlock>> _blocks;
+  std::unique_ptr<ly::nn::RMSNorm> _finalNorm;
+  ly::Tensor _rope;
+  ly::Tensor _output;
+
+  ChatGlmModel();
 };
 
-}  // namespace chatglm2
+}  // namespace chatglm
 }  // namespace libllm

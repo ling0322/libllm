@@ -36,8 +36,7 @@ class LlamaModelForGeneration : public ModelForGeneration {
   // implements interface ModelForGeneration
   ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const override;
   ly::Tensor forwardHidden(ly::Tensor hidden) const override;
-  ly::Tensor buildInput(const lytok::Tokenizer &tokenizer,
-                          const std::string &query) const override;
+  ly::Tensor buildInput(const std::vector<ly::LongType> &prompt) const override;
   int getEosId() const override;
   const char *getName() const override;
   ly::Device getDevice() const override;

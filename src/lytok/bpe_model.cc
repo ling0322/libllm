@@ -80,6 +80,7 @@ void BPEModel::initModel() {
       // flag == 0 means it's a normal token (not control token, unknown token
       // or unused token)
       _tokenDict[info.tokenPiece] = &info;
+      LOG(INFO) << "normal token found: " <<  info.id << ", " << info.tokenString << ", " << info.tokenString;
     } else if (info.flag & kByte) {
       // single byte token
       CHECK(info.tokenPiece.size() == 1);
@@ -90,6 +91,9 @@ void BPEModel::initModel() {
         throw lut::AbortedError("bad format (too many unknown tokens)");
       }
       _unkId = info.id;
+    } else if (info.flag & kControl) {
+      LOG(INFO) << "control token found: " <<  info.tokenPiece << ", " << info.tokenString; 
+      _controlTokenDict[info.tokenString] = &info;
     }
   }
 
@@ -157,6 +161,15 @@ int BPEModel::findToken(const std::string &token) const {
   auto it = _tokenDict.find(token);
   if (it == _tokenDict.end()) {
     return getUnkId();
+  }
+
+  return it->second->id;
+}
+
+int BPEModel::findControlToken(const std::string &name) const {
+  auto it = _controlTokenDict.find(name);
+  if (it == _controlTokenDict.end()) {
+    throw lut::AbortedError("control token not found: " + name);
   }
 
   return it->second->id;

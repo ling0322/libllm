@@ -65,12 +65,22 @@ class IniSection {
  public:
   friend class IniConfig;
 
-  // get a value by section and key.
   std::string getString(const std::string &key) const;
   int getInt(const std::string &key) const;
   bool getBool(const std::string &key) const;
   float getFloat(const std::string &key) const;
   Path getPath(const std::string &key) const;
+
+  /// @brief Get string list by key in section. Each element in the list is separate by ",".
+  /// Speace will be kept between separators.
+  /// @param key key of the string list field.
+  /// @return the string list.
+  std::vector<std::string> getStringArray(const std::string &key) const;
+
+  /// @brief Get integer list by key in section. Each element in the list is separate by ",".
+  /// @param key key of the integer list field.
+  /// @return the integer list.
+  std::vector<int> getIntArray(const std::string &key) const;
 
   // returns true if the key exists.
   bool hasKey(const std::string &key);

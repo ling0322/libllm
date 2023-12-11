@@ -41,7 +41,7 @@ class Generator {
             std::shared_ptr<ModelForGeneration> model,
             std::shared_ptr<lytok::Tokenizer> tokenizer);
 
-  void setPrompt(const std::string &query);
+  void forwardPrompt(const std::vector<ly::LongType> &prompt);
 
   // generate the next word (token). Returns nullptr if the generation is finished.
   const char *nextToken();

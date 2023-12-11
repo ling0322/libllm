@@ -8,7 +8,7 @@
 #include <mutex>
 #include "ly/ly.h"
 #include "llm/api/model_factory.h"
-#include "llm/chatglm2/chatglm2_model.h"
+#include "llm/chatglm/chatglm_model.h"
 #include "llm/common/generator.h"
 #include "llm/common/model_for_generation.h"
 #include "lytok/lytok.h"
@@ -20,8 +20,8 @@ using libllm::Generator;
 using libllm::GenerationConfig;
 using libllm::ModelFactory;
 using libllm::ModelForGeneration;
-using libllm::chatglm2::ChatGLM2Config;
-using libllm::chatglm2::ChatGLM2Model;
+using libllm::chatglm::ChatGlmConfig;
+using libllm::chatglm::ChatGlmModel;
 using lytok::Tokenizer;
 using lut::IniConfig;
 
@@ -40,7 +40,7 @@ struct llm_compl_opt_t {
   int top_k;
   float top_p;
   float temperature;
-  std::string prompt;
+  std::vector<ly::LongType> prompt;
 
   llm_compl_opt_t();
 };
@@ -51,6 +51,11 @@ struct llm_compl_t {
 
 struct llm_chunk_t {
   std::string text;
+};
+
+struct llm_prompt_t {
+  std::weak_ptr<Tokenizer> tokenizer;
+  std::vector<ly::LongType> inputs;
 };
 
 namespace {
@@ -134,6 +139,51 @@ void llm_destroy() {
   }
 }
 
+llm_prompt_t *llm_prompt_init(llm_model_t *model) {
+  return runAndCatch<llm_prompt_t *>([model](){
+    if (!model) throw lut::InvalidArgError("model");
+    if (!model->tokenizer) throw lut::InvalidArgError("model->tokenizer");
+
+    llm_prompt_t *prompt = new llm_prompt_t();
+    prompt->tokenizer = model->tokenizer;
+    return prompt;
+  }, nullptr);
+}
+
+LIBLLM_STATUS llm_prompt_append_text(llm_prompt_t *prompt, const char *text) {
+  return runAndCatch([prompt, text](){
+    if (!prompt) throw lut::InvalidArgError("prompt");
+    if (!text) throw lut::InvalidArgError("text");
+
+    std::shared_ptr<lytok::Tokenizer> tokenizer = prompt->tokenizer.lock();
+    if (!tokenizer) throw lut::AbortedError("tokenizer expired.");
+
+    std::vector<int> inputIds = tokenizer->encode(text);
+    prompt->inputs.insert(prompt->inputs.end(), inputIds.begin(), inputIds.end());
+
+    return LIBLLM_OK;
+  });
+}
+
+LIBLLM_STATUS llm_prompt_append_special_token(llm_prompt_t *prompt, const char *name) {
+  return runAndCatch([prompt, name](){
+    if (!prompt) throw lut::InvalidArgError("prompt");
+    if (!name) throw lut::InvalidArgError("name");
+
+    std::shared_ptr<lytok::Tokenizer> tokenizer = prompt->tokenizer.lock();
+    if (!tokenizer) throw lut::AbortedError("tokenizer expired.");
+
+    int tokenId = tokenizer->getVocab()->findControlToken(name);
+    prompt->inputs.push_back(tokenId);
+
+    return LIBLLM_OK;
+  });
+}
+
+void llm_prompt_destroy(llm_prompt_t *prompt) {
+  delete prompt;
+}
+
 llm_model_opt_t *llm_model_opt_init(const char *config_file) {
   return runAndCatch<llm_model_opt_t *>([config_file](){
     if (!config_file)
@@ -191,7 +241,7 @@ llm_compl_t *llm_model_complete(llm_model_t *m, llm_compl_opt_t *o) {
     if (!o) throw lut::InvalidArgError("o");
     if (!m) throw lut::InvalidArgError("m");
 
-    if (o->prompt == "") throw lut::InvalidArgError("prompt");
+    if (o->prompt.empty()) throw lut::InvalidArgError("prompt is empty");
     if ((!m->model_for_generation) || (!m->tokenizer)) throw lut::InvalidArgError("model");
 
     GenerationConfig config;
@@ -201,7 +251,7 @@ llm_compl_t *llm_model_complete(llm_model_t *m, llm_compl_opt_t *o) {
 
     std::unique_ptr<llm_compl_t> c = std::make_unique<llm_compl_t>();
     c->generator = std::make_shared<Generator>(config, m->model_for_generation, m->tokenizer);
-    c->generator->setPrompt(o->prompt);
+    c->generator->forwardPrompt(o->prompt);
     
     return c.release();
   }, nullptr);
@@ -240,11 +290,11 @@ LIBLLM_STATUS llm_compl_opt_set_temperature(llm_compl_opt_t *o, float temperatur
   });
 }
 
-LIBLLM_STATUS llm_compl_opt_set_prompt(llm_compl_opt_t *o, const char *prompt) {
+LIBLLM_STATUS llm_compl_opt_set_prompt(llm_compl_opt_t *o, llm_prompt_t *prompt) {
   return runAndCatch([o, prompt](){
     if (!o) throw lut::InvalidArgError("o");
     if (!prompt) throw lut::InvalidArgError("prompt");
-    o->prompt = prompt;
+    o->prompt = prompt->inputs;
   });
 }
 

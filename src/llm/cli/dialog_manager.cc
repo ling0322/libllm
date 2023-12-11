@@ -31,9 +31,8 @@ ChatOutput::ChatOutput() :
     promptDuration(0.0),
     answerDuration(0.0) {}
 
-std::string ChatGLM2PromptBuilder::buildPrompt(
-    lut::Span<const QA> history,
-    const std::string &question) {
+llm::Prompt ChatGLM2PromptBuilder::buildPrompt(lut::Span<const QA> history,
+                                               const std::string &question) {
   std::string prompt;
 
   int round = 1;
@@ -43,10 +42,37 @@ std::string ChatGLM2PromptBuilder::buildPrompt(
   }
   prompt += lut::sprintf("[Round %d]\n\n问：%s\n\n答：", round, question);
 
-  return prompt;
+  llm::Prompt hPrompt;
+  hPrompt.appendText(prompt);
+  return hPrompt;
 }
 
 std::string ChatGLM2PromptBuilder::getStopSeq() {
+  return "";
+}
+
+llm::Prompt ChatGLM3PromptBuilder::buildPrompt(lut::Span<const QA> history,
+                                               const std::string &question) {
+  llm::Prompt prompt;
+  prompt.appendSpecialToken("<|system|>");
+  prompt.appendText("\nYou are ChatGLM3, a large language model trained by Zhipu.AI. "
+                    "Follow the user's instructions carefully. Respond using markdown.\n");
+
+  for (const QA &qa : history) {
+    prompt.appendSpecialToken("<|user|>");
+    prompt.appendText(lut::sprintf("\n%s\n", qa.question));
+    prompt.appendSpecialToken("<|assistant|>");
+    prompt.appendText(lut::sprintf("\n%s\n", qa.answer));
+  }
+
+  prompt.appendSpecialToken("<|user|>");
+  prompt.appendText(lut::sprintf("\n%s\n", question));
+  prompt.appendSpecialToken("<|assistant|>");
+
+  return prompt;
+}
+
+std::string ChatGLM3PromptBuilder::getStopSeq() {
   return "";
 }
 
@@ -62,10 +88,12 @@ const char *llama2Prompt =
     "Q: %s\n"
     "A: ";
 
-std::string LlamaPromptBuilder::buildPrompt(
-    lut::Span<const QA> history,
-    const std::string &question) {
-  return lut::sprintf(llama2Prompt, question);;
+llm::Prompt LlamaPromptBuilder::buildPrompt(lut::Span<const QA> history,
+                                            const std::string &question) {
+  llm::Prompt prompt;
+  prompt.appendText(lut::sprintf(llama2Prompt, question));
+
+  return prompt;
 }
 
 std::string LlamaPromptBuilder::getStopSeq() {
@@ -75,6 +103,7 @@ std::string LlamaPromptBuilder::getStopSeq() {
 std::shared_ptr<PromptBulder> PromptBulder::create(const std::string &modelName) {
   if (modelName == "llama") return std::make_shared<LlamaPromptBuilder>();
   if (modelName == "chatglm2") return std::make_shared<ChatGLM2PromptBuilder>();
+  if (modelName == "chatglm3") return std::make_shared<ChatGLM3PromptBuilder>();
 
   throw lut::AbortedError("unexpected model name: " + modelName);
   return nullptr;
@@ -90,7 +119,7 @@ ChatOutput DialogManager::chat(
     std::function<void(const std::string &)> onTokenCallback) {
   ChatOutput output;
 
-  std::string prompt = _promptBuilder->buildPrompt(_history, question);
+  llm::Prompt prompt = _promptBuilder->buildPrompt(_history, question);
   llm::CompletionConfig config;
   config.setTopK(1);
 

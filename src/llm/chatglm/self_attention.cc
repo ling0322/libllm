@@ -17,7 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "llm/chatglm2/self_attention.h"
+#include "llm/chatglm/self_attention.h"
 
 #include "ly/ly.h"
 #include "lyutil/error.h"
@@ -30,11 +30,11 @@ using ly::nn::Linear;
 namespace F = ly::functional;
 
 namespace libllm {
-namespace chatglm2 {
+namespace chatglm {
 
 std::unique_ptr<SelfAttention> SelfAttention::create(
     const ly::Context &ctx,
-    ChatGLM2Config config) {
+    ChatGlmConfig config) {
   std::unique_ptr<SelfAttention> layer{new SelfAttention()};
   layer->setCtx(ctx);
 
@@ -143,5 +143,5 @@ Tensor SelfAttention::forward(StateMap &past, Tensor input, Tensor roPE) const {
   return x;
 }
 
-}  // namespace chatglm2
+}  // namespace chatglm
 }  // namespace libllm

@@ -17,7 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "llm/chatglm2/glm_block.h"
+#include "llm/chatglm/glm_block.h"
 
 #include "lyutil/time.h"
 #include "ly/ly.h"
@@ -30,9 +30,9 @@ using ly::nn::RMSNorm;
 namespace F = ly::functional;
 
 namespace libllm {
-namespace chatglm2 {
+namespace chatglm {
     
-std::unique_ptr<GLMBlock> GLMBlock::create(const Context &ctx, ChatGLM2Config config) {
+std::unique_ptr<GLMBlock> GLMBlock::create(const Context &ctx, ChatGlmConfig config) {
   std::unique_ptr<GLMBlock> layer{new GLMBlock()};
   layer->setCtx(ctx);
 
@@ -75,5 +75,5 @@ Tensor GLMBlock::forward(StateMap &past, Tensor input, Tensor roPE) const {
   return x;
 }
 
-}  // namespace chatglm2
+}  // namespace chatglm
 }  // namespace libllm

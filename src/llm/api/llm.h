@@ -40,6 +40,7 @@ typedef int32_t LIBLLM_BOOL;
 
 typedef struct llm_model_opt_t llm_model_opt_t;
 typedef struct llm_model_t llm_model_t;
+typedef struct llm_prompt_t llm_prompt_t;
 typedef struct llm_compl_opt_t llm_compl_opt_t;
 typedef struct llm_compl_t llm_compl_t;
 typedef struct llm_chunk_t llm_chunk_t;
@@ -67,6 +68,27 @@ LLMAPI void llm_model_opt_destroy(llm_model_opt_t *opt);
 /// @return if success return LIBLLM_OK, otherwise, return error code.
 LLMAPI LIBLLM_STATUS llm_model_opt_set_device(llm_model_opt_t *opt, int device_type);
 
+/// @brief Create a new instance of prompt from model.
+/// @param model the model that will use the prompt.
+/// @return An instance of llm_prompt_t.
+LLMAPI llm_prompt_t *llm_prompt_init(llm_model_t *model);
+
+/// @brief Append plain text into the prompt.
+/// @param prompt instance of prompt.
+/// @param text text to append.
+/// @return if success return LIBLLM_OK, otherwise, return error code.
+LLMAPI LIBLLM_STATUS llm_prompt_append_text(llm_prompt_t *prompt, const char *text);
+
+/// @brief Append a special (control) token into the prompt.
+/// @param prompt instance of prompt.
+/// @param name name of the special token to append.
+/// @return if success return LIBLLM_OK, otherwise, return error code.
+LLMAPI LIBLLM_STATUS llm_prompt_append_special_token(llm_prompt_t *prompt, const char *name);
+
+/// @brief Destroy the instance of prompt.
+/// @param opt instance of prompt.
+LLMAPI void llm_prompt_destroy(llm_prompt_t *prompt);
+
 LLMAPI llm_model_t *llm_model_init(llm_model_opt_t *opt);
 LLMAPI void llm_model_destroy(llm_model_t *m);
 LLMAPI const char *llm_model_get_name(llm_model_t *m);
@@ -76,7 +98,7 @@ LLMAPI llm_compl_opt_t *llm_compl_opt_init();
 LLMAPI void llm_compl_opt_destroy(llm_compl_opt_t *o);
 LLMAPI LIBLLM_STATUS llm_compl_opt_set_top_p(llm_compl_opt_t *o, float topp);
 LLMAPI LIBLLM_STATUS llm_compl_opt_set_temperature(llm_compl_opt_t *o, float temperature);
-LLMAPI LIBLLM_STATUS llm_compl_opt_set_prompt(llm_compl_opt_t *o, const char *prompt);
+LLMAPI LIBLLM_STATUS llm_compl_opt_set_prompt(llm_compl_opt_t *o, llm_prompt_t *prompt);
 LLMAPI LIBLLM_STATUS llm_compl_opt_set_top_k(llm_compl_opt_t *o, int32_t topk);
 
 LLMAPI void llm_compl_destroy(llm_compl_t *c);

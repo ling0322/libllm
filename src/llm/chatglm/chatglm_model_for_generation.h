@@ -19,32 +19,36 @@
 
 #pragma once
 
-#include "ly/ly.h"
+#include <memory>
 #include "lyutil/ini_config.h"
-#include "llm/chatglm2/chatglm2_config.h"
-#include "llm/chatglm2/self_attention.h"
+#include "llm/common/model_for_generation.h"
+#include "llm/chatglm/chatglm_model.h"
 
 namespace libllm {
-namespace chatglm2 {
-    
-class MLP : public ly::nn::Module {
+namespace chatglm {
+
+class ChatGlmModelForGeneration : public ModelForGeneration {
  public:
-  static std::unique_ptr<MLP> create(const ly::Context &ctx, ChatGLM2Config config);
+  static std::shared_ptr<ChatGlmModelForGeneration> create(
+      const ly::Context &ctx,
+      const lut::IniConfig &config);
 
-  // implement interface nn::Module
-  void initParameters(const ly::StateMap &state_dict) override;
-
-  ly::Tensor forward(const ly::Tensor &input) const;
+  // implements interface ModelForGeneration
+  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const override;
+  ly::Tensor forwardHidden(ly::Tensor hidden) const override;
+  ly::Tensor buildInput(const std::vector<ly::LongType> &prompt) const override;
+  int getEosId() const override;
+  const char *getName() const override;
+  ly::Device getDevice() const override;
 
  private:
-  ly::Tensor _dense1Weight;
-  ly::Tensor _dense2Weight;
+  std::string _modelName;
 
-  int _hiddenSize;
-  int _ffnHiddenSize;
+  std::shared_ptr<ChatGlmModel> _model;
+  ChatGlmConfig _config;
 
-  MLP() = default;
+  ChatGlmModelForGeneration() = default;
 };
 
-}  // namespace chatglm2
+}  // namespace chatglm
 }  // namespace libllm
