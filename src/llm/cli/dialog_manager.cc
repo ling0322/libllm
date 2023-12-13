@@ -54,19 +54,18 @@ std::string ChatGLM2PromptBuilder::getStopSeq() {
 llm::Prompt ChatGLM3PromptBuilder::buildPrompt(lut::Span<const QA> history,
                                                const std::string &question) {
   llm::Prompt prompt;
-  prompt.appendSpecialToken("<|system|>");
-  prompt.appendText("\nYou are ChatGLM3, a large language model trained by Zhipu.AI. "
-                    "Follow the user's instructions carefully. Respond using markdown.\n");
-
   for (const QA &qa : history) {
     prompt.appendSpecialToken("<|user|>");
-    prompt.appendText(lut::sprintf("\n%s\n", qa.question));
+    prompt.appendText("\n");
+    prompt.appendText(lut::sprintf("%s", qa.question));
     prompt.appendSpecialToken("<|assistant|>");
-    prompt.appendText(lut::sprintf("\n%s\n", qa.answer));
+    prompt.appendText("\n");
+    prompt.appendText(lut::sprintf("%s", qa.answer));
   }
 
   prompt.appendSpecialToken("<|user|>");
-  prompt.appendText(lut::sprintf("\n%s\n", question));
+  prompt.appendText("\n");
+  prompt.appendText(lut::sprintf("%s", question));
   prompt.appendSpecialToken("<|assistant|>");
 
   return prompt;

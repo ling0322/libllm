@@ -21,7 +21,7 @@ import configparser
 import sys
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
-from spm_exporter import TokenizerExporter
+from spm_exporter import read_spm_model, Token
 from torch import nn
 
 class ChatGLMExporter(ModelExporter):
@@ -141,14 +141,23 @@ if __name__ == '__main__':
     output_prefix = path.join(args.output_dir, model_type)
     quant = args.quantization
 
-    tokenizer = AutoTokenizer.from_pretrained(huggingface_name, trust_remote_code=True)
     model = AutoModel.from_pretrained(huggingface_name, trust_remote_code=True)
     model = model.eval()
 
     config = ChatGLMExporter.export(model, output_prefix, quant)
-    tokenizer_conifg = TokenizerExporter.export(huggingface_name, output_prefix)
-    tokenizer_conifg.update_config(config, "tokenizer")
     config["model"]["type"] = model_type
+    lytok_model = read_spm_model(huggingface_name)
+    if model_version == 3:
+        tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm3-6b", trust_remote_code=True)
+        special_tokens = tokenizer.tokenizer.special_tokens
+        special_tokens = list(special_tokens.items())
+        special_tokens.sort(key=lambda t: t[1])
+        for name, token_id in special_tokens:
+            print(f"add control token: {token_id} {name}")
+            lytok_model.add_token(Token(token_id, Token.FLAG_CONTROL, piece_display=name, weight=-100.0))
+
+    lytok_model.save(output_prefix + ".tokenizer.bin")
+    lytok_model.get_config().update_config(config, "tokenizer")
 
     with open(output_prefix + ".config", "w") as fp:
         config.write(fp)

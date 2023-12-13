@@ -80,7 +80,6 @@ void BPEModel::initModel() {
       // flag == 0 means it's a normal token (not control token, unknown token
       // or unused token)
       _tokenDict[info.tokenPiece] = &info;
-      LOG(INFO) << "normal token found: " <<  info.id << ", " << info.tokenString << ", " << info.tokenString;
     } else if (info.flag & kByte) {
       // single byte token
       CHECK(info.tokenPiece.size() == 1);
@@ -92,7 +91,6 @@ void BPEModel::initModel() {
       }
       _unkId = info.id;
     } else if (info.flag & kControl) {
-      LOG(INFO) << "control token found: " <<  info.tokenPiece << ", " << info.tokenString; 
       _controlTokenDict[info.tokenString] = &info;
     }
   }

@@ -22,7 +22,7 @@ import torch
 import configparser
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
-from spm_exporter import TokenizerExporter
+from spm_exporter import read_spm_model
 from torch import nn
 
 class Llama2Exporter(ModelExporter):
@@ -125,19 +125,20 @@ if __name__ == '__main__':
 
 
     parser = argparse.ArgumentParser(description='export llama model from huggingface to libllm format.')
-    parser.add_argument('--name', type=str, help='the llama model name in huggingface.', default="meta-llama/Llama-2-7b-hf")
-    parser.add_argument('--quantization', type=Quant.parse, help='quantization type, "q4" or "q4sym" or "none"', default=Quant.Q4)
-    parser.add_argument('--output', type=str, help='output file name.', default="llama2")
+    parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default="meta-llama/Llama-2-7b-hf")
+    parser.add_argument('-quantization', type=Quant.parse, help='quantization type, "q4" or "q4sym" or "none"', default=Quant.Q4)
+    parser.add_argument('-output', type=str, help='output file name.', default="llama2")
     args = parser.parse_args()
 
-    tokenizer = AutoTokenizer.from_pretrained(args.name, trust_remote_code=True)
-    model = LlamaForCausalLM.from_pretrained(args.name, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(args.huggingface_name, trust_remote_code=True)
+    model = LlamaForCausalLM.from_pretrained(args.huggingface_name, trust_remote_code=True)
     model = model.eval()
 
     output_prefix = args.output
     config = Llama2Exporter.export(model, output_prefix, args.quantization)
-    tokenizer_conifg = TokenizerExporter.export(args.name, output_prefix)
-    tokenizer_conifg.update_config(config, "tokenizer")
+    lytok_model = read_spm_model(args.huggingface_name)
+    lytok_model.save(output_prefix + ".tokenizer.bin")
+    lytok_model.get_config().update_config(config, "tokenizer")
 
     with open(output_prefix + ".config", "w") as fp:
         config.write(fp)

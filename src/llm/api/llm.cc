@@ -159,7 +159,10 @@ LIBLLM_STATUS llm_prompt_append_text(llm_prompt_t *prompt, const char *text) {
     if (!tokenizer) throw lut::AbortedError("tokenizer expired.");
 
     std::vector<int> inputIds = tokenizer->encode(text);
-    prompt->inputs.insert(prompt->inputs.end(), inputIds.begin(), inputIds.end());
+    for (int tokenId : inputIds) {
+      prompt->inputs.push_back(tokenId);
+      LOG(DEBUG) << "token " << tokenizer->getVocab()->getTokenString(tokenId) << " -> " << tokenId;
+    }
 
     return LIBLLM_OK;
   });
@@ -175,6 +178,7 @@ LIBLLM_STATUS llm_prompt_append_special_token(llm_prompt_t *prompt, const char *
 
     int tokenId = tokenizer->getVocab()->findControlToken(name);
     prompt->inputs.push_back(tokenId);
+    LOG(DEBUG) << "control token " << name << " -> " << tokenId;
 
     return LIBLLM_OK;
   });

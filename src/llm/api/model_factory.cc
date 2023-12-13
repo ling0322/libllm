@@ -32,7 +32,8 @@ std::shared_ptr<ModelForGeneration> ModelFactory::createModel(
     const lut::IniConfig &config) {
   std::string modelType = config.getSection(ModelSection).getString(ModelTypeField);
 
-  LOG(INFO) << "initialize " << modelType << " model, device = " << ctx.getDevice().getName();
+  LOG(INFO) << "model_type = " << modelType;
+  LOG(INFO) << "device = " << ctx.getDevice().getName();
 
   if (modelType == "chatglm2" || modelType == "chatglm3")
     return chatglm::ChatGlmModelForGeneration::create(ctx, config);

@@ -70,7 +70,12 @@ def _capi_rstr(name, argtypes):
 llm_init = _capi_rerr("llm_init", ())
 llm_destroy = _capi("llm_destroy", None, ())
 llm_get_last_error_message = _capi("llm_get_last_error_message", c_char_p, ())
-    
+
+llm_prompt_init = _capi_rptr("llm_prompt_init", (c_void_p,))
+llm_prompt_append_text = _capi_rerr("llm_prompt_append_text", (c_void_p, c_char_p))
+llm_prompt_append_special_token = _capi_rerr("llm_prompt_append_special_token", (c_void_p, c_char_p))
+llm_prompt_destroy = _capi("llm_prompt_destroy", None, (c_void_p,))
+
 llm_model_opt_init = _capi_rptr("llm_model_opt_init", (c_char_p,))
 llm_model_opt_destroy = _capi("llm_model_opt_destroy", None, (c_void_p,))
 llm_model_opt_set_device = _capi_rerr("llm_model_opt_set_device", (c_void_p, c_int32))
@@ -84,7 +89,7 @@ llm_compl_opt_init = _capi_rptr("llm_compl_opt_init", ())
 llm_compl_opt_destroy = _capi("llm_compl_opt_destroy", None, (c_void_p, ))
 llm_compl_opt_set_top_p = _capi_rerr("llm_compl_opt_set_top_p", (c_void_p, c_float))
 llm_compl_opt_set_temperature = _capi_rerr("llm_compl_opt_set_temperature", (c_void_p, c_float))
-llm_compl_opt_set_prompt = _capi_rerr("llm_compl_opt_set_prompt", (c_void_p, c_char_p))
+llm_compl_opt_set_prompt = _capi_rerr("llm_compl_opt_set_prompt", (c_void_p, c_void_p))
 llm_compl_opt_set_top_k = _capi_rerr("llm_compl_opt_set_top_k", (c_void_p, c_int32))
 
 llm_compl_destroy = _capi("llm_compl_destroy", None, (c_void_p, ))

@@ -150,7 +150,7 @@ IniSection::IniSection(const Path &iniDir) : _iniDir(iniDir) {}
 std::string IniSection::getString(const std::string &key) const {
   auto it = _kvTable.find(key);
   if (it == _kvTable.end()) {
-    throw AbortedError(lut::sprintf("key not found (ini_session=%s): %s", _name, key));
+    THROW(Aborted, lut::sprintf("key not found (ini_session=%s): %s", _name, key));
   }
 
   return it->second;
