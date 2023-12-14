@@ -22,6 +22,12 @@
 #include <exception>
 #include <string>
 
+#define THROW(exType, msg) { \
+  std::string msg_ = msg; \
+  LOG(ERROR) << "an " << #exType << " exception was thrown: " << msg_; \
+  throw exType ## Error(msg_); \
+}
+
 namespace lut {
 
 enum class ErrorCode : int {

@@ -19,37 +19,37 @@
 
 #pragma once
 
-#include <memory>
-#include "lyutil/ini_config.h"
-#include "llm/common/model_for_generation.h"
-#include "llm/chatglm2/chatglm2_model.h"
+#include "ly/ly.h"
+#include "llm/chatglm/chatglm_config.h"
 
 namespace libllm {
-namespace chatglm2 {
+namespace chatglm {
 
-class ChatGLM2ModelForGeneration : public ModelForGeneration {
+class SelfAttention : public ly::nn::Module {
  public:
-  static std::shared_ptr<ChatGLM2ModelForGeneration> create(
-      const ly::Context &ctx,
-      const lut::IniConfig &config);
+  static std::unique_ptr<SelfAttention> create(const ly::Context &ctx, ChatGlmConfig config);
 
-  // implements interface ModelForGeneration
-  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const override;
-  ly::Tensor forwardHidden(ly::Tensor hidden) const override;
-  ly::Tensor buildInput(const lytok::Tokenizer &tokenizer,
-                          const std::string &query) const override;
-  int getEosId() const override;
-  const char *getName() const override;
-  ly::Device getDevice() const override;
+  // implement interface nn::Module
+  void initParameters(const ly::StateMap &state_dict) override;
+
+  ly::Tensor forward(ly::StateMap &past, ly::Tensor input, ly::Tensor roPE) const;
 
  private:
-  static const char *_modelName;
+  std::unique_ptr<ly::nn::Linear> _qkvProj;
+  ly::Tensor _denseWeight;
 
-  std::shared_ptr<ChatGLM2Model> _model;
-  ChatGLM2Config _config;
+  int _kvProjDim;
+  int _qProjDim;
+  int _hiddenSizePerHead;
 
-  ChatGLM2ModelForGeneration() = default;
+  std::string _namePastK;
+  std::string _namePastV;
+  std::string _namePastLength;
+
+  SelfAttention() = default;
+
+  int getCtxLength(ly::StateMap *past) const;
 };
 
-}  // namespace chatglm2
+}  // namespace chatglm
 }  // namespace libllm

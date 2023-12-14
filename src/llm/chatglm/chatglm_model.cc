@@ -17,7 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "llm/chatglm2/chatglm2_model.h"
+#include "llm/chatglm/chatglm_model.h"
 
 #include "ly/ly.h"
 #include "lyutil/error.h"
@@ -33,20 +33,19 @@ using ly::nn::RMSNorm;
 namespace F = ly::functional;
 
 namespace libllm {
-namespace chatglm2 {
+namespace chatglm {
 
-constexpr char ChatGLM2Model::ChatGlm2[];
-constexpr char ChatGLM2Model::Embd[];
-constexpr char ChatGLM2Model::RoPE[];
-constexpr char ChatGLM2Model::Block[];
-constexpr char ChatGLM2Model::FinalNorm[];
-constexpr char ChatGLM2Model::OutputWeight[];
+constexpr char ChatGlmModel::ChatGlm2[];
+constexpr char ChatGlmModel::Embd[];
+constexpr char ChatGlmModel::RoPE[];
+constexpr char ChatGlmModel::Block[];
+constexpr char ChatGlmModel::FinalNorm[];
+constexpr char ChatGlmModel::OutputWeight[];
 
-ChatGLM2Model::ChatGLM2Model() {}
+ChatGlmModel::ChatGlmModel() {}
 
-std::unique_ptr<ChatGLM2Model> ChatGLM2Model::create(const Context &rootCtx,
-                                                     ChatGLM2Config config) {
-  std::unique_ptr<ChatGLM2Model> model{new ChatGLM2Model()};
+std::unique_ptr<ChatGlmModel> ChatGlmModel::create(const Context &rootCtx, ChatGlmConfig config) {
+  std::unique_ptr<ChatGlmModel> model{new ChatGlmModel()};
   Context ctx = rootCtx.withName(ChatGlm2);
   model->setCtx(ctx);
 
@@ -65,7 +64,7 @@ std::unique_ptr<ChatGLM2Model> ChatGLM2Model::create(const Context &rootCtx,
   return model;
 }
 
-void ChatGLM2Model::initParameters(const StateMap &stateDict) {
+void ChatGlmModel::initParameters(const StateMap &stateDict) {
   const Context &ctx = getCtx();
 
   _embedding->initParameters(stateDict);
@@ -86,11 +85,11 @@ void ChatGLM2Model::initParameters(const StateMap &stateDict) {
   _output = moveAndCastFloat(_output, ctx);
 }
 
-ly::Tensor ChatGLM2Model::forwardHidden(ly::Tensor hiddenState) const {
+ly::Tensor ChatGlmModel::forwardHidden(ly::Tensor hiddenState) const {
   return F::matmul(hiddenState, _output.transpose(0, 1));
 }
 
-Tensor ChatGLM2Model::forward(StateMap &past, Tensor input) const {
+Tensor ChatGlmModel::forward(StateMap &past, Tensor input) const {
   Tensor x = _embedding->forward(input);
   for (int i = 0; i < _config.numLayers; ++i) {
     x = _blocks[i]->forward(past, x, _rope);
@@ -100,5 +99,5 @@ Tensor ChatGLM2Model::forward(StateMap &past, Tensor input) const {
   return x;
 }
 
-}  // namespace chatglm2
+}  // namespace chatglm
 }

@@ -90,6 +90,8 @@ void BPEModel::initModel() {
         throw lut::AbortedError("bad format (too many unknown tokens)");
       }
       _unkId = info.id;
+    } else if (info.flag & kControl) {
+      _controlTokenDict[info.tokenString] = &info;
     }
   }
 
@@ -157,6 +159,15 @@ int BPEModel::findToken(const std::string &token) const {
   auto it = _tokenDict.find(token);
   if (it == _tokenDict.end()) {
     return getUnkId();
+  }
+
+  return it->second->id;
+}
+
+int BPEModel::findControlToken(const std::string &name) const {
+  auto it = _controlTokenDict.find(name);
+  if (it == _controlTokenDict.end()) {
+    throw lut::AbortedError("control token not found: " + name);
   }
 
   return it->second->id;

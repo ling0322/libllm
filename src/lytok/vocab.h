@@ -36,6 +36,11 @@ class Vocab {
   // vocabulary.
   virtual int findToken(const std::string &piece) const = 0;
 
+  /// @brief find control token id by string. Exception will be thrown of the control token not exist.
+  /// @param name name of the control token.
+  /// @return id of the token.
+  virtual int findControlToken(const std::string &name) const = 0;
+
   // get token bytes by token id. The token id should fall within the range of (0, vocab_size).
   // If the id is unknown token, control token or unused token, an empty string will be returned.
   // To get the display form of a token, please use token_string.

@@ -108,7 +108,7 @@ std::unique_ptr<ReadableFile> ReadableFile::open(const std::string &filename) {
   std::unique_ptr<ReadableFile> fp{new ReadableFile()};
   fp->_fp = fopen(filename.c_str(), "rb");
   if (fp->_fp == nullptr) {
-    throw AbortedError(lut::sprintf("failed to open file %s", filename));
+    THROW(Aborted, lut::sprintf("failed to open file %s", filename));
   }
 
   return fp;

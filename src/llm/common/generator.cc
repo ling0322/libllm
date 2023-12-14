@@ -42,8 +42,8 @@ Generator::Generator(
         _model(model),
         _currentToken(-1) {}
 
-void Generator::setPrompt(const std::string &query) {
-  Tensor inputs = _model->buildInput(*_tokenizer, query);
+void Generator::forwardPrompt(const std::vector<ly::LongType> &prompt) {
+  Tensor inputs = _model->buildInput(prompt);
   inputs = F::to(_model->getDevice(), inputs);
 
   Tensor hiddenState = _model->forward(_past, inputs);

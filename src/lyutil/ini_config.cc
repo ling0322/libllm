@@ -150,7 +150,7 @@ IniSection::IniSection(const Path &iniDir) : _iniDir(iniDir) {}
 std::string IniSection::getString(const std::string &key) const {
   auto it = _kvTable.find(key);
   if (it == _kvTable.end()) {
-    throw AbortedError(lut::sprintf("key not found (ini_session=%s): %s", _name, key));
+    THROW(Aborted, lut::sprintf("key not found (ini_session=%s): %s", _name, key));
   }
 
   return it->second;
@@ -179,6 +179,24 @@ Path IniSection::getPath(const std::string &key) const {
   } else {
     return path;
   }
+}
+
+std::vector<std::string> IniSection::getStringArray(const std::string &key) const {
+  std::string s = getString(key);
+  std::vector<std::string> values = lut::split(s, ",");
+  return values;
+}
+
+std::vector<int> IniSection::getIntArray(const std::string &key) const {
+  std::string s = getString(key);
+  std::vector<std::string> values = lut::split(s, ",");
+  std::vector<int> intValues;
+
+  for (const std::string &value : values) {
+    intValues.push_back(lut::atoi(value));
+  }
+
+  return intValues;
 }
 
 } // namespace lut

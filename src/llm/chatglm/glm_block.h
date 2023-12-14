@@ -20,14 +20,17 @@
 #pragma once
 
 #include "ly/ly.h"
-#include "llm/chatglm2/chatglm2_config.h"
+#include "lyutil/ini_config.h"
+#include "llm/chatglm/chatglm_config.h"
+#include "llm/chatglm/mlp.h"
+#include "llm/chatglm/self_attention.h"
 
 namespace libllm {
-namespace chatglm2 {
-
-class SelfAttention : public ly::nn::Module {
+namespace chatglm {
+    
+class GLMBlock : public ly::nn::Module {
  public:
-  static std::unique_ptr<SelfAttention> create(const ly::Context &ctx, ChatGLM2Config config);
+  static std::unique_ptr<GLMBlock> create(const ly::Context &ctx, ChatGlmConfig config);
 
   // implement interface nn::Module
   void initParameters(const ly::StateMap &state_dict) override;
@@ -35,21 +38,13 @@ class SelfAttention : public ly::nn::Module {
   ly::Tensor forward(ly::StateMap &past, ly::Tensor input, ly::Tensor roPE) const;
 
  private:
-  std::unique_ptr<ly::nn::Linear> _qkvProj;
-  ly::Tensor _denseWeight;
+  std::unique_ptr<ly::nn::RMSNorm> _inputNorm;
+  std::unique_ptr<ly::nn::RMSNorm> _attnNorm;
+  std::unique_ptr<SelfAttention> _attn;
+  std::unique_ptr<MLP> _mlp;
 
-  int _kvProjDim;
-  int _qProjDim;
-  int _hiddenSizePerHead;
-
-  std::string _namePastK;
-  std::string _namePastV;
-  std::string _namePastLength;
-
-  SelfAttention() = default;
-
-  int getCtxLength(ly::StateMap *past) const;
+  GLMBlock() = default;
 };
 
-}  // namespace chatglm2
+}  // namespace chatglm
 }  // namespace libllm

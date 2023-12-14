@@ -91,6 +91,58 @@ class TokenizerConfig:
         config[section]["add_prefix_space"] = str(self.add_prefix_space).lower()
         config[section]["split_by_unicode"] = str(self.split_by_unicode).lower()
 
+class LytokModel:
+    MAGIC_NUMBER = 0x55aa
+
+    def __init__(self):
+        self._vocab = []
+        self._bin_model_file = None
+    
+    def add_token(self, token: Token) -> None:
+        if token.token_id != len(self._vocab):
+            raise Exception("token_id and vocab_size mismatch")
+        self._vocab.append(token)
+
+    def save(self, filename: str) -> None:
+        """save the sentencepiece model as lytok format"""
+        self._bin_model_file = path.basename(filename)
+        print(f"save lytok model: {filename}")
+
+        with open(filename, 'wb') as fp:
+            fp.write(b'LLsp')
+            fp.write(struct.pack('<l', len(self._vocab)))
+            fp.write(struct.pack('<h', self.MAGIC_NUMBER))
+            for token in self._vocab:
+                piece_display = Util.truncate_display(token.piece_display)
+
+                fp.write(struct.pack('<b', token.flag))
+                fp.write(struct.pack('<B', len(token.piece)))
+                fp.write(token.piece)
+                fp.write(struct.pack('<B', len(piece_display)))
+                fp.write(piece_display)
+                fp.write(struct.pack('<f', token.weight))
+            fp.write(struct.pack('<h', self.MAGIC_NUMBER))
+
+    def save_text_model(self, filename: str) -> None:
+        """save the sentencepiece model as lytok format"""
+        with open(filename, 'w', encoding="utf-8") as fp:
+            for token in self._vocab:
+                piece_display = cls.truncate_display(token.piece_display)
+                piece_display = piece_display.decode("utf-8")
+                piece = token.piece.decode()
+                fp.write(f"{token.token_id}\t0x{token.flag:02x}\t{token.weight}\t{piece}\t{piece_display}\n")
+
+    def get_vocab(self):
+        return self._vocab
+    
+    def get_config(self) -> TokenizerConfig:
+        if self._bin_model_file is None:
+            raise Exception("get_config() called before save()")\
+
+        config =  TokenizerConfig(add_prefix_space=True, split_by_unicode=True)
+        config.model_file = self._bin_model_file
+        return config
+
 class SentencePieceModelReader:
     def __init__(self, name: str) -> None:
         from transformers import AutoTokenizer
@@ -98,9 +150,9 @@ class SentencePieceModelReader:
         tokenizer = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
         self._sp = SentencePieceProcessor(model_file=tokenizer.vocab_file)
 
-    def to_lytok_model(self) -> List[Token]:
+    def to_lytok_model(self) -> LytokModel:
         """convert the sentencepiece model to lytok tokenizer format."""
-        vocab: List[Token] = []
+        lytok_model = LytokModel()
         for token_id in range(self._sp.vocab_size()):
             flag = 0
             piece = b''
@@ -127,86 +179,14 @@ class SentencePieceModelReader:
             piece = piece
             piece_display = piece_display
             
-            vocab.append(Token(token_id, flag, piece, piece_display, self._sp.GetScore(token_id)))
+            lytok_model.add_token(Token(token_id, flag, piece, piece_display, self._sp.GetScore(token_id)))
         
-        return vocab
+        return lytok_model
     
     def encode_as_pieces(self, s: str) -> List[str]:
         return self._sp.EncodeAsPieces(s)
 
-    def tokenizer_config(self) -> TokenizerConfig:
-        return TokenizerConfig(
-            add_prefix_space=True,
-            split_by_unicode=True)
 
-class TransformersBpeModelReader:
-    """model reader for the BPE tokenizer from transformers"""
-
-    def __init__(self, name: str) -> None:
-        from transformers import GPT2Tokenizer
-        self._tokenizer = GPT2Tokenizer.from_pretrained(name)
-
-    def _to_byte(self, s: str) -> bytes:
-        """convert unicode string to bytes according to the char to byte mapping table"""
-        b = b''
-        byte_decoder = self._tokenizer.byte_decoder
-        for ch in s:
-            assert ch in byte_decoder, "invalid character"
-            byte_ord = byte_decoder[ch]
-            b += byte_ord.to_bytes(1, 'little')
-        
-        return b
-
-    def to_lytok_model(self) -> List[Token]:
-        """convert the BPE model to lytok tokenizer format."""
-        pieces: Dict[bytes, Token] = {}
-
-        # text and flag
-        for piece, piece_id in self._tokenizer.encoder.items():
-            byte_piece = self._to_byte(piece)
-            pieces[piece] = Token(piece_id, flag=0, piece=byte_piece, piece_display=piece)
-        
-        # weight
-        for piece_pair, rank in self._tokenizer.bpe_ranks.items():
-            piece = piece_pair[0] + piece_pair[1]
-            if pieces[piece].weight is not None:
-                print(f'pair for {piece} already exists')
-            pieces[piece].weight = -rank
-
-        # vocab
-        vocab: List[Token] = []
-        for token_id in range(self._tokenizer.vocab_size):
-            vocab.append(Token.unused(token_id))
-        
-        for token in pieces.values():
-            if not vocab[token.token_id].is_unused():
-                raise Exception(f"duplicated token id {token.token_id}")
-            vocab[token.token_id] = token
-
-        # special symbols
-        for token_id, piece in zip(self._tokenizer.all_special_ids, self._tokenizer.all_special_tokens):
-            vocab[token_id] = Token(
-                token_id,
-                Token.FLAG_CONTROL,
-                piece=b"",
-                piece_display=piece,
-                weight=0)
-        vocab[self._tokenizer.unk_token_id].flag |= Token.FLAG_UNK
-
-        # update weight None to 0
-        for token in vocab:
-            if token.weight is None:
-                token.weight = 0
-
-        return vocab
-    
-    def encode_as_pieces(self, s: str) -> List[str]:
-        return self._tokenizer.tokenize(s)
-
-    def tokenizer_config(self) -> TokenizerConfig:
-        return TokenizerConfig(
-            add_prefix_space=False,
-            split_by_unicode=False)
 
 class Util:
     @classmethod
@@ -244,90 +224,9 @@ class Util:
 
         return bs
 
-class TokenizerExporter:
-    MAGIC_NUMBER = 0x55aa
-
-    @classmethod
-    def write_tokenizer_model(cls, vocab: List[Token], filename: str) -> None:
-        """save the sentencepiece model as lytok format"""
-        with open(filename, 'wb') as fp:
-            fp.write(b'LLsp')
-            fp.write(struct.pack('<l', len(vocab)))
-            fp.write(struct.pack('<h', cls.MAGIC_NUMBER))
-            for token in vocab:
-                piece_display = Util.truncate_display(token.piece_display)
-
-                fp.write(struct.pack('<b', token.flag))
-                fp.write(struct.pack('<B', len(token.piece)))
-                fp.write(token.piece)
-                fp.write(struct.pack('<B', len(piece_display)))
-                fp.write(piece_display)
-                fp.write(struct.pack('<f', token.weight))
-            fp.write(struct.pack('<h', cls.MAGIC_NUMBER))
-
-    @classmethod
-    def write_text_tokenizer_model(cls, vocab: List[Token], filename: str) -> None:
-        """save the sentencepiece model as lytok format"""
-        with open(filename, 'w', encoding="utf-8") as fp:
-            for token in vocab:
-                piece_display = cls.truncate_display(token.piece_display)
-                piece_display = piece_display.decode("utf-8")
-                piece = token.piece.decode()
-                fp.write(f"{token.token_id}\t0x{token.flag:02x}\t{token.weight}\t{piece}\t{piece_display}\n")
-
-
-    @classmethod
-    def export(cls,
-               model_path_or_name: str,
-               output_prefix: str,
-               model_type: str = "spm",
-               export_test_cases: bool = False) -> TokenizerConfig:
-        """Export tokenizer to lytok format"""
-        model = None
-        if model_type == "spm":
-            model = SentencePieceModelReader(model_path_or_name)
-        elif model_type == "transformers":
-            model = TransformersBpeModelReader(model_path_or_name)
-        else:
-            raise NotImplementedError(f"tokenizer type {model_type}")
-
-
-        output_model = f'{output_prefix}.tokenizer.bin'
-        output_test_cases = f'{output_prefix}.tokenizer.test_cases.txt'
-        
-        cls.write_tokenizer_model(model.to_lytok_model(), output_model)
-        if export_test_cases:
-            TestCaseExporter.run(model.encode_as_pieces, output_test_cases)
-
-        tokenizer_config = model.tokenizer_config()
-        tokenizer_config.model_file = path.basename(output_model)
-        return tokenizer_config
-
-    @classmethod
-    def run(cls, argv: List[str]):
-        """Export huggingface/transformers BPE tokenizer with arguments"""
-        parser = argparse.ArgumentParser(description='export SentencePiece or huggingface-transformers BPE model to tokenify tokenizer format.')
-        parser.add_argument('-t', type=str, help='tokenizer model type. "spm" for SentencePiece BPE model, "transformers" for huggingface/transformers BPE model.')
-        parser.add_argument('-i', type=str, help='tokenizer model name or path.')
-        parser.add_argument('-o', type=str, help='output prefix for tokenify tokenizer.')
-        args = parser.parse_args(argv)
-
-        model_type = args.t
-        model_name = args.i
-        output_prefix = args.o
-        if not model_name:
-            print("ERROR: invalid model path or name.")
-            parser.print_usage()
-            sys.exit(1)
-
-        ini_conifg = configparser.ConfigParser()
-
-        config = cls.export(model_name, output_prefix, model_type, True)
-        config.update_config(ini_conifg, "tokenizer")
-
-        output_config = f'{output_prefix}.tokenizer.config'
-        with open(output_config, 'w', encoding='utf-8') as fp:
-            ini_conifg.write(fp, space_around_delimiters=False)
-
-if __name__ == '__main__':
-    TokenizerExporter.run(sys.argv[1: ])
+def read_spm_model(model_path_or_name: str) -> LytokModel:
+    print("read sentencepiece model from " + model_path_or_name)
+    spm_model = SentencePieceModelReader(model_path_or_name)
+    lytok_model = spm_model.to_lytok_model()
+    print(f"vocab_size={len(lytok_model.get_vocab())}")
+    return lytok_model

@@ -22,7 +22,7 @@
 #include "lyutil/error.h"
 #include "lyutil/strings.h"
 #include "llm/common/constants.h"
-#include "llm/chatglm2/chatglm2_model_for_generation.h"
+#include "llm/chatglm/chatglm_model_for_generation.h"
 #include "llm/llama/llama_model_for_generation.h"
 
 namespace libllm {
@@ -32,10 +32,11 @@ std::shared_ptr<ModelForGeneration> ModelFactory::createModel(
     const lut::IniConfig &config) {
   std::string modelType = config.getSection(ModelSection).getString(ModelTypeField);
 
-  LOG(INFO) << "initialize " << modelType << " model, device = " << ctx.getDevice().getName();
+  LOG(INFO) << "model_type = " << modelType;
+  LOG(INFO) << "device = " << ctx.getDevice().getName();
 
-  if (modelType == "chatglm2")
-    return chatglm2::ChatGLM2ModelForGeneration::create(ctx, config);
+  if (modelType == "chatglm2" || modelType == "chatglm3")
+    return chatglm::ChatGlmModelForGeneration::create(ctx, config);
 
   if (modelType == "llama")
     return llama::LlamaModelForGeneration::create(ctx, config);

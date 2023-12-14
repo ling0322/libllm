@@ -66,12 +66,9 @@ Tensor LlamaModelForGeneration::forwardHidden(Tensor hidden) const {
   return _model->forwardHidden(hidden);
 }
 
-Tensor LlamaModelForGeneration::buildInput(const lytok::Tokenizer &tokenizer,
-                                           const std::string &query) const {
-  std::vector<int> tokenIds = tokenizer.encode(query);
-
+Tensor LlamaModelForGeneration::buildInput(const std::vector<ly::LongType> &prompt) const {
   std::vector<ly::LongType> inputData{_bosId};
-  inputData.insert(inputData.end(), tokenIds.begin(), tokenIds.end());
+  inputData.insert(inputData.end(), prompt.begin(), prompt.end());
 
   int len = inputData.size();
   Tensor inputs = Tensor::create<ly::LongType>({1, len}, inputData);

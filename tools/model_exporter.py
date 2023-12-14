@@ -48,8 +48,8 @@ class Quant(Enum):
         quant = quant.lower()
         if quant == "q4":
             return Quant.Q4
-        elif quant == "q4sym":
-            return Quant.Q4SYM
+        elif quant == "none":
+            return Quant.NONE
         else:
             raise NotImplementedError("unsupported quantization type: " + quant)
 
@@ -103,7 +103,6 @@ class Quantization:
             tensor = torch.cat((tensor, pad_value))
         tensor = tensor.reshape(-1, 2)
         tensor = tensor[:, 0].type(torch.uint8) + tensor[:, 1].type(torch.uint8) * 16
-        print(tensor)
         return tensor
 
     @classmethod

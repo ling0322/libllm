@@ -46,9 +46,8 @@ class ModelForGeneration {
   //   <float>(N, L, V): logits. V is vocabulary size.
   virtual ly::Tensor forwardHidden(ly::Tensor hiddenState) const = 0;
 
-  // build model input from the prompt and tokenizer.
-  virtual ly::Tensor buildInput(const lytok::Tokenizer &tokenizer,
-                                  const std::string &query) const = 0;
+  // build model input from the prompt token-ids.
+  virtual ly::Tensor buildInput(const std::vector<ly::LongType> &prompt) const = 0;
 
   // get the end-of-sentence symbol id.
   virtual int getEosId() const = 0;

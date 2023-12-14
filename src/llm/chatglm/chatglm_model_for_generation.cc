@@ -17,7 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "llm/chatglm2/chatglm2_model_for_generation.h"
+#include "llm/chatglm/chatglm_model_for_generation.h"
 
 #include "lyutil/strings.h"
 #include "llm/common/constants.h"
@@ -27,18 +27,18 @@ namespace F = ly::functional;
 
 
 namespace libllm {
-namespace chatglm2 {
+namespace chatglm {
 
-const char *ChatGLM2ModelForGeneration::_modelName = "chatglm2";
 
-std::shared_ptr<ChatGLM2ModelForGeneration> ChatGLM2ModelForGeneration::create(
+std::shared_ptr<ChatGlmModelForGeneration> ChatGlmModelForGeneration::create(
     const ly::Context &ctx,
     const lut::IniConfig &config) {
-  std::shared_ptr<ChatGLM2ModelForGeneration> model{new ChatGLM2ModelForGeneration()};
+  std::shared_ptr<ChatGlmModelForGeneration> model{new ChatGlmModelForGeneration()};
 
-  ChatGLM2Config chatglm2Config = ChatGLM2Config::loadConfig(config);
-  model->_model = ChatGLM2Model::create(ctx, chatglm2Config);
-  model->_config = chatglm2Config;
+  ChatGlmConfig ChatGlmConfig = ChatGlmConfig::loadConfig(config);
+  model->_model = ChatGlmModel::create(ctx, ChatGlmConfig);
+  model->_config = ChatGlmConfig;
+  model->_modelName = config.getSection(ModelSection).getString(ModelTypeField);
 
   // initialize parameters.
   ly::StateMap stateMap;
@@ -49,42 +49,35 @@ std::shared_ptr<ChatGLM2ModelForGeneration> ChatGLM2ModelForGeneration::create(
   return model;
 }
 
-ly::Tensor ChatGLM2ModelForGeneration::buildInput(
-    const lytok::Tokenizer &tokenizer,
-    const std::string &query) const {
-  std::vector<int> tokenIds = tokenizer.encode(query);
+ly::Tensor ChatGlmModelForGeneration::buildInput(const std::vector<ly::LongType> &prompt) const {
   std::vector<ly::LongType> inputData{_config.symbolGMask, _config.symbolSOP};
-  const lytok::Vocab *vocab = tokenizer.getVocab();
-  for (int tokenId : tokenIds) {
-    LOG(DEBUG) << lut::sprintf("'%s' -> %d", vocab->getTokenString(tokenId), tokenId);
-    inputData.push_back(tokenId);
-  }
+  inputData.insert(inputData.end(), prompt.begin(), prompt.end());
 
   int len = inputData.size();
   Tensor inputs = Tensor::create<ly::LongType>({1, len}, inputData);
   return inputs;
 }
 
-Tensor ChatGLM2ModelForGeneration::forward(ly::StateMap &past, Tensor input) const {
+Tensor ChatGlmModelForGeneration::forward(ly::StateMap &past, Tensor input) const {
   Tensor x = _model->forward(past, input);
   return x;
 }
 
-Tensor ChatGLM2ModelForGeneration::forwardHidden(Tensor hidden) const {
+Tensor ChatGlmModelForGeneration::forwardHidden(Tensor hidden) const {
   return _model->forwardHidden(hidden);
 }
 
-int ChatGLM2ModelForGeneration::getEosId() const {
+int ChatGlmModelForGeneration::getEosId() const {
   return _config.symbolEOS;
 }
 
-const char *ChatGLM2ModelForGeneration::getName() const {
-  return _modelName;
+const char *ChatGlmModelForGeneration::getName() const {
+  return _modelName.c_str();
 }
 
-ly::Device ChatGLM2ModelForGeneration::getDevice() const {
+ly::Device ChatGlmModelForGeneration::getDevice() const {
   return _model->getCtx().getDevice();
 }
 
-}  // namespace chatglm2
+}  // namespace chatglm
 }  // namespace libllm
