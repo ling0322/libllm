@@ -34,6 +34,11 @@ class Module {
   // load the module states from `state_dict`
   virtual void initParameters(const StateMap &stateDict) = 0;
 
+  /// @brief Initialize the module with random weights.
+  /// @param generator Random number generator.
+  /// @param quantType weight quantization type, DType::kFloat for no quantization.
+  virtual void initParameters(lut::Random *generator, DType quantType);
+
   /// @brief Move tensor to ctx.getDevice(), then if dtype of tensor is float, then cast it to
   ///        ctx.getFloatDType().
   /// @param tensor the input tensor.

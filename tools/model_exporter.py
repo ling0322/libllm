@@ -40,7 +40,6 @@ DTYPE_INT8 = 6
 
 class Quant(Enum):
     NONE = 0
-    Q4SYM = 1
     Q4 = 2
 
     @classmethod

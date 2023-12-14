@@ -20,7 +20,7 @@
 #include "catch2/catch_amalgamated.hpp"
 
 #include "ly/functional.h"
-#include "ly.h"
+#include "ly/ly.h"
 
 using namespace llyn;
  

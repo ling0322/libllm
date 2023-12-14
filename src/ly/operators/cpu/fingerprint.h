@@ -19,32 +19,21 @@
 
 #pragma once
 
-#include "ly/context.h"
-#include "ly/nn/module.h"
+#include "ly/tensor.h"
 
 namespace ly {
-namespace nn {
+namespace op {
+namespace cpu {
 
-class RMSNorm : public Module {
- public:
-  static constexpr char Weight[] = "weight";
+/// Extract fingerprint vector from a tensor. This method is used in unittest to quick compate two
+/// tensors.
+Tensor fingerprint(Tensor A);
 
-  static std::unique_ptr<RMSNorm> create(const Context &ctx, int dModel, float eps);
+Tensor fingerprint1D(Tensor A);
+Tensor fingerprint2D(Tensor A);
+Tensor fingerprint3D(Tensor A);
+Tensor fingerprint4D(Tensor A);
 
-  Tensor forward(const Tensor &input) const;
-
-  // implement interface nn::Module
-  void initParameters(const StateMap &state_dict) override;
-  void initParameters(lut::Random *generator, DType quantType) override;
-
- private:
-  Tensor _weight;
-
-  int _dModel;
-  float _eps;
-
-  RMSNorm() = default;
-};
-
-}  // namespace nn
-}  // namespace ly
+}  // cpu
+}  // op
+}  // ly

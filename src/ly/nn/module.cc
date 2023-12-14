@@ -37,5 +37,9 @@ Tensor Module::moveAndCastFloat(const Tensor &tensor, const Context &ctx) {
   return x;
 }
 
+void Module::initParameters(lut::Random *generator, DType quantType) {
+  NOT_IMPL();
+}
+
 }  // namespace nn
 }  // namespace ly

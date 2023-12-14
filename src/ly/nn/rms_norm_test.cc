@@ -17,34 +17,40 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "../../../third_party/catch2/catch_amalgamated.hpp"
 
-#include "ly/context.h"
-#include "ly/nn/module.h"
+#include "ly/ly.h"
+#include "ly/internal/common.h"
+#include "ly/operators/cpu/fingerprint.h"
+#include "lyutil/random.h"
+
+namespace F = ly::functional;
 
 namespace ly {
 namespace nn {
 
-class RMSNorm : public Module {
- public:
-  static constexpr char Weight[] = "weight";
+void testRmsNorm(Device device, DType quantType, Tensor fingerprint) {
+  constexpr int DIM = 512;
+  lut::Random rand(internal::RandomSeed);
 
-  static std::unique_ptr<RMSNorm> create(const Context &ctx, int dModel, float eps);
+  Context ctx;
+  ctx.setDevice(device);
+  ctx.setFloatDType(F::getDefaultFloatType(device));
+  std::shared_ptr<RMSNorm> layer = RMSNorm::create(ctx, DIM, 1e-5);
+  layer->initParameters(&rand, quantType);
 
-  Tensor forward(const Tensor &input) const;
+  Tensor x = F::rand({2, DIM}, DType::kFloat, Device::getCpu(), &rand);
+  x = layer->forward(x);
 
-  // implement interface nn::Module
-  void initParameters(const StateMap &state_dict) override;
-  void initParameters(lut::Random *generator, DType quantType) override;
+  CATCH_REQUIRE(F::allClose(op::cpu::fingerprint(x), fingerprint));
+}
 
- private:
-  Tensor _weight;
+CATCH_TEST_CASE("test nn::RmsNorm", "[ly][nn][rms_norm]") {
+  testRmsNorm(Device::getCpu(), DType::kFloat, Tensor::create<float>({8}, {
+    -0.0659, -0.8178, -0.1703, 0.0363, 0.9171, -0.3605, -0.3002, -0.1001
+  }));
+}
 
-  int _dModel;
-  float _eps;
-
-  RMSNorm() = default;
-};
 
 }  // namespace nn
 }  // namespace ly

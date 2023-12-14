@@ -17,34 +17,14 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#pragma once 
 
-#include "ly/context.h"
-#include "ly/nn/module.h"
+#include <stdint.h>
 
 namespace ly {
-namespace nn {
+namespace internal {
 
-class RMSNorm : public Module {
- public:
-  static constexpr char Weight[] = "weight";
+constexpr int64_t RandomSeed = 106033;
 
-  static std::unique_ptr<RMSNorm> create(const Context &ctx, int dModel, float eps);
-
-  Tensor forward(const Tensor &input) const;
-
-  // implement interface nn::Module
-  void initParameters(const StateMap &state_dict) override;
-  void initParameters(lut::Random *generator, DType quantType) override;
-
- private:
-  Tensor _weight;
-
-  int _dModel;
-  float _eps;
-
-  RMSNorm() = default;
-};
-
-}  // namespace nn
+}  // namespace internal
 }  // namespace ly

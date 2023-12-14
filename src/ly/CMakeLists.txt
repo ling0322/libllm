@@ -15,6 +15,7 @@ set(ly_SOURCES
     "operators/cpu/copy.cc"
     "operators/cpu/cpu_operators.cc"
     "operators/cpu/cpu_tensor_data.cc"
+    "operators/cpu/fingerprint.cc"
     "operators/cpu/lookup.cc"
     "operators/cpu/matmul.cc"
     "operators/cpu/mul.cc"
@@ -74,5 +75,6 @@ if (CUDA_ENABLED)
 
     set(ly_test_SOURCES
         "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc"
+        "${CMAKE_CURRENT_LIST_DIR}/nn/rms_norm_test.cc"
         PARENT_SCOPE)
 endif()
