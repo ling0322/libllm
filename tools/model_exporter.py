@@ -48,8 +48,8 @@ class Quant(Enum):
         quant = quant.lower()
         if quant == "q4":
             return Quant.Q4
-        elif quant == "q4sym":
-            return Quant.Q4SYM
+        elif quant == "none":
+            return Quant.NONE
         else:
             raise NotImplementedError("unsupported quantization type: " + quant)
 
