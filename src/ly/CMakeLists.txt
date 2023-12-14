@@ -19,6 +19,7 @@ set(ly_SOURCES
     "operators/cpu/matmul.cc"
     "operators/cpu/mul.cc"
     "operators/cpu/print.cc"
+    "operators/cpu/rand.cc"
     "operators/cpu/swiglu.cc"
     "operators/cpu/tensor.cc"
     "operators/cpu/view.cc"

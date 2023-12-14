@@ -19,39 +19,17 @@
 
 #pragma once
 
-#include "ly/context.h"
-#include "ly/state_map.h"
+#include "ly/tensor.h"
 #include "lyutil/random.h"
 
 namespace ly {
-namespace nn {
+namespace op {
+namespace cpu {
 
-// base class for all nn modules.
-class Module {
- public:
-  virtual ~Module() = default;
+Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min, float max);
+Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, float max);
+Tensor randQ4(lut::Span<const int> shape, lut::Random *generator, float min, float max);
 
-  // load the module states from `state_dict`
-  virtual void initParameters(const StateMap &stateDict) = 0;
-
-  /// @brief Move tensor to ctx.getDevice(), then if dtype of tensor is float, then cast it to
-  ///        ctx.getFloatDType().
-  /// @param tensor the input tensor.
-  /// @param ctx Context for a module.
-  /// @return tensor after move device and cast float.
-  Tensor moveAndCastFloat(const Tensor &tensor, const Context &ctx);
-
-  /// @brief Get context of current module.
-  /// @return reference of Context.
-  const Context &getCtx() const { return _ctx; }
-
-  /// @brief Set the context of current module.
-  /// @param ctx reference of Context.
-  void setCtx(const Context &ctx) { _ctx = ctx; }
-
- private:
-  Context _ctx;
-};
-
-}  // namespace nn
-}  // namespace ly
+}  // cpu
+}  // op
+}  // ly

@@ -77,8 +77,14 @@ Tensor createTensorLike(Tensor input) {
   return getOperators(input.getDevice().getType())->createTensorLike(input);
 }
 
-Tensor rand(std::initializer_list<int> shape, DType dtype, Device device) {
-  return getOperators(device.getType())->rand(shape, dtype);
+Tensor rand(lut::Span<const int> shape, DType dtype, Device device, lut::Random *generator,
+            float min, float max) {
+  if (generator) {
+    return getOperators(device.getType())->rand(shape, dtype, generator, min, max);
+  } else {
+    lut::Random random;
+    return getOperators(device.getType())->rand(shape, dtype, &random, min, max);
+  }
 }
 
 Tensor zeros(lut::Span<const int> shape, DType dtype, Device device) {

@@ -125,6 +125,11 @@ DType Operators::getDefaultFloatType() {
   NOT_IMPL();
 }
 
+Tensor Operators::rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min,
+                       float max) {
+  NOT_IMPL();
+}
+
 Operators *gOperatorsForDevice[Device::NumDeviceType] = {
   nullptr,
   nullptr

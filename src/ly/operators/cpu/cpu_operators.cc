@@ -32,6 +32,7 @@
 #include "ly/operators/cpu/matmul.h"
 #include "ly/operators/cpu/mul.h"
 #include "ly/operators/cpu/print.h"
+#include "ly/operators/cpu/rand.h"
 #include "ly/operators/cpu/subtensor.h"
 #include "ly/operators/cpu/subtensor_list.h"
 #include "ly/operators/cpu/swiglu.h"
@@ -292,17 +293,9 @@ Tensor CPUOperators::createTensorLike(Tensor input) {
   return createTensor(input.getShape(), input.getDType());
 }
 
-Tensor CPUOperators::rand(std::initializer_list<int> shape, DType dtype) {
-  Tensor tensor = createTensor(shape, dtype);
-  switch (dtype) {
-    case DType::kFloat:
-      randFp32(&tensor);
-      break;
-    default:
-      CHECK(false) << "unsupported dtype for Rand";
-  }
-
-  return tensor;
+Tensor CPUOperators::rand(lut::Span<const int> shape, DType dtype, lut::Random *generator,
+                          float min, float max) {
+  return op::cpu::rand(shape, dtype, generator, min, max);
 }
 
 Tensor CPUOperators::zeros(lut::Span<const int> shape, DType dtype) {

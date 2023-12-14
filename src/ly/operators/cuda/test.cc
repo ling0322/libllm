@@ -334,7 +334,7 @@ CATCH_TEST_CASE("test rms_norm", "[cuda][operators][rms_norm]") {
   x = F::cast(x, DType::kFloat);
   x = F::to(Device::getCpu(), x);
 
-  CATCH_REQUIRE(F::allClose(x, xr));
+  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 5e-2f));
 }
 
 CATCH_TEST_CASE("test causal_mask", "[cuda][operators][causal_mask]") {

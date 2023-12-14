@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include "ly/device.h"
 #include "ly/tensor.h"
+#include "lyutil/random.h"
 
 namespace ly {
 namespace internal {
@@ -54,6 +55,8 @@ class Operators {
   virtual Tensor swiglu(Tensor A);
   virtual Tensor toDevice(Tensor tensor, Device device);
   virtual Tensor cast(Tensor tensor, DType dtype);
+  virtual Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min,
+                      float max);
 
   virtual DType getDefaultFloatType();
 };
