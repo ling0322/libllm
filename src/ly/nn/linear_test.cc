@@ -32,31 +32,39 @@ namespace F = ly::functional;
 namespace ly {
 namespace nn {
 
-class RmsNormTester : public ModuleTester {
+class LinearTester : public ModuleTester {
  public:
-  static constexpr int FeatureDim = 512;
+  static constexpr int InputDim = 128;
+  static constexpr int OutputDim = 64;
 
-  RmsNormTester(Device device, DType weightType) : ModuleTester(device, weightType) {}
+  LinearTester(Device device, DType weightType) : ModuleTester(device, weightType) {}
 
   void run() {
-    std::shared_ptr<RMSNorm> layer = RMSNorm::create(getCtx(), FeatureDim, 1e-5);
+    std::shared_ptr<Linear> layer = Linear::create(getCtx(), InputDim, OutputDim);
     randomInit(layer);
 
-    Tensor x = randFloatTensor({2, 3, FeatureDim});
+    Tensor x = randFloatTensor({2, 3, InputDim});
     x = layer->forward(x);
 
-    std::vector<float> xr = {-0.0659, 0.6089, -0.2864, -0.3371, 0.9171, -0.3605, -1.1276, 1.0056};
+    std::vector<float> xr;
+    if (getWeightType() == DType::kQInt4Group32) {
+      xr = {-3.5781, -0.2490, 1.2383, 2.2852, 1.6934, 0.7793, 3.3672, 0.2537};
+    } else {
+      xr = {-1.5742, -3.1250, 3.6074, -6.2383, -1.4316, 0.4773, 4.7812, -4.0547};
+    }
     CATCH_REQUIRE(allClose(op::cpu::fingerprint(toCpu(x)), xr));
   }
 };
 
-CATCH_TEST_CASE("test nn::RmsNorm", "[ly][nn][rms_norm]") {
-  RmsNormTester(Device::getCpu(), DType::kFloat).run();
+CATCH_TEST_CASE("test nn::Linear", "[ly][nn][linear]") {
+  LinearTester(Device::getCpu(), DType::kFloat).run();
+  LinearTester(Device::getCpu(), DType::kQInt4Group32).run();
 }
 
 #ifdef LLYN_CUDA_ENABLED
-CATCH_TEST_CASE("test nn::RmsNorm", "[ly][nn][rms_norm][cuda]") {
-  RmsNormTester(Device::getCuda(), DType::kFloat).run();
+CATCH_TEST_CASE("test nn::Linear", "[ly][nn][linear][cuda]") {
+  LinearTester(Device::getCuda(), DType::kFloat).run();
+  LinearTester(Device::getCuda(), DType::kQInt4Group32).run();
 }
 #endif
 

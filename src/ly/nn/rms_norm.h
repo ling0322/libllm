@@ -35,7 +35,7 @@ class RMSNorm : public Module {
 
   // implement interface nn::Module
   void initParameters(const StateMap &state_dict) override;
-  void initParameters(lut::Random *generator, DType quantType) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
 
  private:
   Tensor _weight;

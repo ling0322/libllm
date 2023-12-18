@@ -55,31 +55,19 @@ float getFingerprintElem(Tensor A, int d0) {
 
 float getFingerprintElem(Tensor A, int d0, int d1) {
   CHECK(A.getDim() == 2);
-  if (d0 > 0) {
-    d0 = std::min(d0, A.getShape(0) - 1);
-  } else {
-    d0 = std::max(d0, -A.getShape(0));
-  }
+  d0 = d0 > 0 ? std::min(d0, A.getShape(0) - 1) : std::max(d0, -A.getShape(0));
   return getFingerprintElem(A.subtensor(d0), d1);
 }
 
 float getFingerprintElem(Tensor A, int d0, int d1, int d2) {
   CHECK(A.getDim() == 3);
-  if (d0 > 0) {
-    d0 = std::min(d0, A.getShape(0) - 1);
-  } else {
-    d0 = std::max(d0, -A.getShape(0));
-  }
+  d0 = d0 > 0 ? std::min(d0, A.getShape(0) - 1) : std::max(d0, -A.getShape(0));
   return getFingerprintElem(A.subtensor(d0), d1, d2);
 }
 
 float getFingerprintElem(Tensor A, int d0, int d1, int d2, int d3) {
   CHECK(A.getDim() == 4);
-  if (d0 > 0) {
-    d0 = std::min(d0, A.getShape(0) - 1);
-  } else {
-    d0 = std::max(d0, -A.getShape(0));
-  }
+  d0 = d0 > 0 ? std::min(d0, A.getShape(0) - 1) : std::max(d0, -A.getShape(0));
   return getFingerprintElem(A.subtensor(d0), d1, d2, d3);
 }
 
@@ -95,7 +83,6 @@ Tensor fingerprint1D(Tensor A) {
   sC.elem(5) = getFingerprintElem(A, -3);
   sC.elem(6) = getFingerprintElem(A, -2);
   sC.elem(7) = getFingerprintElem(A, -1);
-
 
   return C;
 }

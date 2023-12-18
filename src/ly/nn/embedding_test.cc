@@ -32,31 +32,40 @@ namespace F = ly::functional;
 namespace ly {
 namespace nn {
 
-class RmsNormTester : public ModuleTester {
+class EmbeddingTester : public ModuleTester {
  public:
-  static constexpr int FeatureDim = 512;
+  static constexpr int HiddenSize = 128;
+  static constexpr int VocabSize = 64;
 
-  RmsNormTester(Device device, DType weightType) : ModuleTester(device, weightType) {}
+  EmbeddingTester(Device device, DType weightType) : ModuleTester(device, weightType) {}
 
   void run() {
-    std::shared_ptr<RMSNorm> layer = RMSNorm::create(getCtx(), FeatureDim, 1e-5);
+    std::shared_ptr<Embedding> layer = Embedding::create(getCtx(), HiddenSize, VocabSize);
     randomInit(layer);
 
-    Tensor x = randFloatTensor({2, 3, FeatureDim});
+    Tensor x = Tensor::create<LongType>({1, 8}, {1, 2, 5, 9, 19, 23, 29, 63});
+    x = toTargetDevice(x);
     x = layer->forward(x);
 
-    std::vector<float> xr = {-0.0659, 0.6089, -0.2864, -0.3371, 0.9171, -0.3605, -1.1276, 1.0056};
+    std::vector<float> xr;
+    if (getWeightType() == DType::kQInt4Group32) {
+      xr = {0.0796, -0.4395, 0.0169, 0.0, 0.1360, -4.7607e-03, 0.2422, -0.1010};
+    } else {
+      xr = {-0.8596, 0.7052, -0.9062, -0.2155, -0.5044, 0.7694, -0.9440, -0.0745};
+    }
     CATCH_REQUIRE(allClose(op::cpu::fingerprint(toCpu(x)), xr));
   }
 };
 
-CATCH_TEST_CASE("test nn::RmsNorm", "[ly][nn][rms_norm]") {
-  RmsNormTester(Device::getCpu(), DType::kFloat).run();
+CATCH_TEST_CASE("test nn::Embedding", "[ly][nn][embedding]") {
+  EmbeddingTester(Device::getCpu(), DType::kFloat).run();
+  EmbeddingTester(Device::getCpu(), DType::kQInt4Group32).run();
 }
 
 #ifdef LLYN_CUDA_ENABLED
-CATCH_TEST_CASE("test nn::RmsNorm", "[ly][nn][rms_norm][cuda]") {
-  RmsNormTester(Device::getCuda(), DType::kFloat).run();
+CATCH_TEST_CASE("test nn::Embedding (cuda)", "[ly][nn][embedding][cuda]") {
+  EmbeddingTester(Device::getCuda(), DType::kFloat).run();
+  EmbeddingTester(Device::getCuda(), DType::kQInt4Group32).run();
 }
 #endif
 

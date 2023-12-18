@@ -17,44 +17,34 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "ly/nn/embedding.h"
-#include "ly/functional.h"
+#pragma once
 
-namespace ly {
-namespace nn {
+#include "ly/ly.h"
+#include "llm/chatglm/chatglm_config.h"
+#include "ly/nn/test_helper.h"
 
-namespace F = functional;
+namespace libllm {
+namespace chatglm {
 
-constexpr char Embedding::kWeight[];
+class TestCommon {
+ public:
+  static ChatGlmConfig getConfig() {
+    ChatGlmConfig config;
+    config.ffnHiddenSize = 512;
+    config.hiddenSize = 256;
+    config.hiddenSizePerAttentionHead = 64;
+    config.kvChannels = 64;
+    config.multiQueryGroupNum = 2;
+    config.normEps = 1e-5;
+    config.numLayers = 2;
+    config.seqLength = 8192;
+    config.symbolEOS = 2;
+    config.symbolGMask = 98;
+    config.symbolSOP = 99;
+    config.vocabSize = 100;
 
-std::unique_ptr<Embedding> Embedding::create(const Context &ctx, int dModel, int vocabSize) {
-  std::unique_ptr<Embedding> layer{new Embedding()};
-  layer->setCtx(ctx);
-
-  layer->_dModel = dModel;
-  layer->_vocabSize = vocabSize;
-
-  return layer;
-}
-
-void Embedding::initParameters(const StateMap &stateDict) {
-  std::string nameW = getCtx().name(kWeight);
-
-  _wte = stateDict.getTensor(nameW);
-  _wte.throwIfInvalidShape({_vocabSize, _dModel});
-  _wte = moveAndCastFloat(_wte, getCtx());
-}
-
-void Embedding::initParameters(lut::Random *generator, DType weightType) {
-  _wte = F::rand({_vocabSize, _dModel}, weightType, Device::getCpu(), generator);
-  _wte = moveAndCastFloat(_wte, getCtx());
-}
-
-Tensor Embedding::forward(const Tensor &input) const {
-  Tensor x = F::lookup(_wte, input);
-
-  return x;
-}
-
-}  // namespace nn
-}  // namespace ly
+    return config;
+  }
+};
+}  // namespace chatglm
+}  // namespace libllm

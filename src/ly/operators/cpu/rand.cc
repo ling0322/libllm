@@ -41,6 +41,9 @@ Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, f
   return x;
 }
 
+
+
+
 Tensor randQ4(lut::Span<const int> shape, lut::Random *generator, float min, float max) {
   constexpr int groupSize = ly::QInt4Group32::GroupSize;
   CHECK(shape.back() % groupSize == 0);
@@ -51,14 +54,36 @@ Tensor randQ4(lut::Span<const int> shape, lut::Random *generator, float min, flo
     numel *= shape[d];
   }
 
+  std::vector<float> dataFloat(numel);
+  generator->fill(lut::makeSpan(dataFloat), min, max);
+
   std::vector<uint8_t> data(numel / 2);
-  std::vector<float> scaleFloat(numel / groupSize);
   std::vector<uint16_t> scale(numel / groupSize);
   std::vector<uint8_t> zero(numel / groupSize / 2);
 
+  int nb = numel / groupSize;
+  for (int i = 0; i < nb; ++i) {
+    int begin = i * groupSize;
+    int end = (i + 1) * groupSize;
+
+    float minVal = *std::min_element(dataFloat.begin() + begin, dataFloat.begin() + end);
+    float maxVal = *std::max_element(dataFloat.begin() + begin, dataFloat.begin() + end);
+
+    float scale = (maxVal - minVal) / 15.0;
+    float zeroFp32 = roundf(-minVal / scale);
+    int8_t zero = static_cast<int8_t>(zeroFp32);
+    CHECK(zero >= 0 && zero <= 15);
+
+    for (int j = 0; j < 16; j += 2) {
+      uint8_t dh = dataFloat
+      data[(begin + j) / 2] = 
+    }
+
+  }
+
   generator->fillUInt8(lut::makeSpan(data));
   generator->fillUInt8(lut::makeSpan(zero));
-  generator->fill(lut::makeSpan(scaleFloat), 0, max / 15);
+  generator->fill(lut::makeSpan(scaleFloat), max / 16.0f, max / 15.0f);
   std::transform(scaleFloat.begin(), scaleFloat.end(), scale.begin(), lut::cvtss_sh);
 
   auto tensorData = CpuTensorData::create({

@@ -144,7 +144,7 @@ Tensor swiglu(Tensor input) {
   return getOperators(input.getDevice().getType())->swiglu(input);
 }
 
-Tensor to(Device device, Tensor tensor, bool castFloat) {
+Tensor to(Device device, Tensor tensor) {
   Device::Type src = tensor.getDevice().getType();
   Device::Type tgt = device.getType();
 

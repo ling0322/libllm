@@ -174,7 +174,7 @@ Tensor swiglu(Tensor input);
 /// @param device target device.
 /// @param castFloat if cast the float type.
 /// @return the tensor in device.
-Tensor to(Device device, Tensor tensor, bool castFloat = true);
+Tensor to(Device device, Tensor tensor);
 
 /// @brief Cast tensor to another data type.
 /// @param tensor Source tensor.

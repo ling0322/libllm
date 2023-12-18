@@ -52,6 +52,16 @@ void MLP::initParameters(const ly::StateMap &stateDict) {
   _dense2Weight = moveAndCastFloat(_dense2Weight, ctx);
 }
 
+void MLP::initParameters(lut::Random *generator, ly::DType weightType) {
+  _dense1Weight = F::rand(
+      {_ffnHiddenSize * 2, _hiddenSize}, weightType, ly::Device::getCpu(), generator, -0.1, 0.1);
+  _dense1Weight = moveAndCastFloat(_dense1Weight, getCtx());
+
+  _dense2Weight = F::rand(
+      {_hiddenSize, _ffnHiddenSize}, weightType, ly::Device::getCpu(), generator, -0.1, 0.1);
+  _dense2Weight = moveAndCastFloat(_dense2Weight, getCtx());
+}
+
 ly::Tensor MLP::forward(const ly::Tensor &input) const {
   CHECK(!_dense1Weight.empty());
 

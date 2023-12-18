@@ -75,6 +75,9 @@ if (CUDA_ENABLED)
 
     set(ly_test_SOURCES
         "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc"
+        "${CMAKE_CURRENT_LIST_DIR}/nn/test_helper.cc"
+        "${CMAKE_CURRENT_LIST_DIR}/nn/embedding_test.cc"
+        "${CMAKE_CURRENT_LIST_DIR}/nn/linear_test.cc"
         "${CMAKE_CURRENT_LIST_DIR}/nn/rms_norm_test.cc"
         PARENT_SCOPE)
 endif()

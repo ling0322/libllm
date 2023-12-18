@@ -24,7 +24,7 @@
 namespace ly {
 namespace internal {
 
-constexpr int64_t RandomSeed = 106033;
+
 
 }  // namespace internal
 }  // namespace ly

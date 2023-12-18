@@ -31,6 +31,7 @@ class SelfAttention : public ly::nn::Module {
 
   // implement interface nn::Module
   void initParameters(const ly::StateMap &state_dict) override;
+  void initParameters(lut::Random *generator, ly::DType weightType) override;
 
   ly::Tensor forward(ly::StateMap &past, ly::Tensor input, ly::Tensor roPE) const;
 

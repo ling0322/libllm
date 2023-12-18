@@ -36,8 +36,8 @@ class Module {
 
   /// @brief Initialize the module with random weights.
   /// @param generator Random number generator.
-  /// @param quantType weight quantization type, DType::kFloat for no quantization.
-  virtual void initParameters(lut::Random *generator, DType quantType);
+  /// @param quantType weight data type. For example, DType::kQ4 for Q4 quantization.
+  virtual void initParameters(lut::Random *generator, DType weightType);
 
   /// @brief Move tensor to ctx.getDevice(), then if dtype of tensor is float, then cast it to
   ///        ctx.getFloatDType().

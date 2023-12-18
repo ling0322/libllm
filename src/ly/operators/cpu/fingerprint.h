@@ -25,7 +25,7 @@ namespace ly {
 namespace op {
 namespace cpu {
 
-/// Extract fingerprint vector from a tensor. This method is used in unittest to quick compate two
+/// Extract fingerprint vector from a tensor. This method is used in unittest to quickly compare two
 /// tensors.
 Tensor fingerprint(Tensor A);
 

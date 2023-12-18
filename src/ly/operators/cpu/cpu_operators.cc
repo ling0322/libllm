@@ -466,7 +466,11 @@ Tensor CPUOperators::toDevice(Tensor tensor, Device device) {
 }
 
 Tensor CPUOperators::cast(Tensor tensor, DType dtype) {
-  NOT_IMPL();
+  if (tensor.getDType() == dtype) {
+    return tensor;
+  } else {
+    NOT_IMPL();
+  }
 }
 
 DType CPUOperators::getDefaultFloatType() {

@@ -33,7 +33,7 @@ if(WIN32)
 endif(WIN32)
 if(UNIX)
   add_definitions( "-DCATCH_AMALGAMATED_CUSTOM_MAIN -DCATCH_CONFIG_PREFIX_ALL" )
-  set(CMAKE_CXX_FLAGS "-O3 -g")
+  set(CMAKE_CXX_FLAGS "-O0 -g")
 endif(UNIX)
 
 add_subdirectory("src")
