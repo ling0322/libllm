@@ -21,6 +21,7 @@
 
 #include "ly/context.h"
 #include "ly/state_map.h"
+#include "lyutil/random.h"
 
 namespace ly {
 namespace nn {
@@ -32,6 +33,11 @@ class Module {
 
   // load the module states from `state_dict`
   virtual void initParameters(const StateMap &stateDict) = 0;
+
+  /// @brief Initialize the module with random weights.
+  /// @param generator Random number generator.
+  /// @param quantType weight data type. For example, DType::kQ4 for Q4 quantization.
+  virtual void initParameters(lut::Random *generator, DType weightType);
 
   /// @brief Move tensor to ctx.getDevice(), then if dtype of tensor is float, then cast it to
   ///        ctx.getFloatDType().

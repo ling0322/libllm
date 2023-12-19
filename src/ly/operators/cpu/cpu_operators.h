@@ -50,7 +50,6 @@ class CPUOperators : public internal::Operators {
   Tensor add(Tensor a, Tensor b) override;
   Tensor createTensor(std::initializer_list<int> shape, DType dtype) override;
   Tensor createTensorLike(Tensor input) override;
-  Tensor rand(std::initializer_list<int> shape, DType dtype) override;
   Tensor zeros(lut::Span<const int> shape, DType dtype) override;
   bool allClose(Tensor A, Tensor B, float rtol, float atol) override;
   void print(Tensor tensor) override;
@@ -64,6 +63,8 @@ class CPUOperators : public internal::Operators {
   Tensor swiglu(Tensor A) override;
   Tensor toDevice(Tensor tensor, Device device) override;
   Tensor cast(Tensor tensor, DType dtype) override;
+  Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min,
+              float max) override;
 
   DType getDefaultFloatType() override;
 

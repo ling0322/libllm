@@ -54,6 +54,14 @@ void GLMBlock::initParameters(const StateMap &stateMap) {
   _mlp->initParameters(stateMap);
 }
 
+
+void GLMBlock::initParameters(lut::Random *generator, ly::DType weightType) {
+  _attn->initParameters(generator, weightType);
+  _inputNorm->initParameters(generator, weightType);
+  _attnNorm->initParameters(generator, weightType);
+  _mlp->initParameters(generator, weightType);
+}
+
 Tensor GLMBlock::forward(StateMap &past, Tensor input, Tensor roPE) const {
   Tensor residual = input;
 

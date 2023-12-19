@@ -21,10 +21,10 @@
 
 #include "ly/functional.h"
 
+namespace F = ly::functional;
+
 namespace ly {
 namespace nn {
-
-namespace F = functional;
 
 constexpr char RMSNorm::Weight[];
 
@@ -43,6 +43,11 @@ void RMSNorm::initParameters(const StateMap &stateDict) {
 
   _weight = stateDict.getTensor(nameW);
   _weight.throwIfInvalidShape({_dModel});
+  _weight = moveAndCastFloat(_weight, getCtx());
+}
+
+void RMSNorm::initParameters(lut::Random *generator, DType _) {
+  _weight = F::rand({_dModel}, DType::kFloat, Device::getCpu(), generator);
   _weight = moveAndCastFloat(_weight, getCtx());
 }
 

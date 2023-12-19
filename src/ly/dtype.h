@@ -25,12 +25,6 @@
 
 namespace ly {
 
-struct QInt4SymGroup32 {
-  static constexpr int GroupSize = 32;
-  uint8_t int4x2;
-};
-static_assert(sizeof(QInt4SymGroup32) == 1, "invalid size of QInt4SymGroup32");
-
 struct QInt4Group32 {
   static constexpr int GroupSize = 32;
   uint8_t int4x2;

@@ -17,44 +17,19 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "ly/nn/embedding.h"
-#include "ly/functional.h"
+#pragma once
+
+#include "ly/tensor.h"
+#include "lyutil/random.h"
 
 namespace ly {
-namespace nn {
+namespace op {
+namespace cpu {
 
-namespace F = functional;
+Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min, float max);
+Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, float max);
+Tensor randQ4(lut::Span<const int> shape, lut::Random *generator, float min, float max);
 
-constexpr char Embedding::kWeight[];
-
-std::unique_ptr<Embedding> Embedding::create(const Context &ctx, int dModel, int vocabSize) {
-  std::unique_ptr<Embedding> layer{new Embedding()};
-  layer->setCtx(ctx);
-
-  layer->_dModel = dModel;
-  layer->_vocabSize = vocabSize;
-
-  return layer;
-}
-
-void Embedding::initParameters(const StateMap &stateDict) {
-  std::string nameW = getCtx().name(kWeight);
-
-  _wte = stateDict.getTensor(nameW);
-  _wte.throwIfInvalidShape({_vocabSize, _dModel});
-  _wte = moveAndCastFloat(_wte, getCtx());
-}
-
-void Embedding::initParameters(lut::Random *generator, DType weightType) {
-  _wte = F::rand({_vocabSize, _dModel}, weightType, Device::getCpu(), generator);
-  _wte = moveAndCastFloat(_wte, getCtx());
-}
-
-Tensor Embedding::forward(const Tensor &input) const {
-  Tensor x = F::lookup(_wte, input);
-
-  return x;
-}
-
-}  // namespace nn
-}  // namespace ly
+}  // cpu
+}  // op
+}  // ly

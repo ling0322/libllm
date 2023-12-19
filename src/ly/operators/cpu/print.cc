@@ -23,7 +23,7 @@ namespace ly {
 namespace op {
 namespace cpu {
 
-constexpr int kPrintEdgeItems = 3;
+constexpr int kPrintEdgeItems = 4;
 
 template<typename T>
 void printValue(T value);

@@ -19,6 +19,7 @@
 
 #include "ly/nn/linear.h"
 
+#include <math.h>
 #include "ly/functional.h"
 #include "lyutil/error.h"
 
@@ -60,6 +61,15 @@ void Linear::initParameters(const StateMap &stateDict) {
   _w = moveAndCastFloat(_w, ctx);
   _b = moveAndCastFloat(_b, ctx);
 
+}
+
+void Linear::initParameters(lut::Random *generator, DType weightType) {
+  float xs = sqrtf(6.0f / (_outFeatures + _inFeatures));
+  _w = F::rand({_outFeatures, _inFeatures}, weightType, Device::getCpu(), generator, -xs, xs);
+  _w = moveAndCastFloat(_w, getCtx());
+
+  _b = F::rand({_outFeatures}, DType::kFloat, Device::getCpu(), generator);
+  _b = moveAndCastFloat(_b, getCtx());
 }
 
 Tensor Linear::forward(const Tensor &input) const {

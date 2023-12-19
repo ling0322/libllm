@@ -21,6 +21,7 @@
 
 #include "ly/tensor.h"
 #include "lyutil/span.h"
+#include "lyutil/random.h"
 
 namespace ly {
 namespace functional {
@@ -88,16 +89,22 @@ Tensor gelu(Tensor input);
 //   dtype: data type of the new tensor.
 // Returns:
 //   the tensor with specified shape and dtype.
-Tensor createTensor(std::initializer_list<int> shape,
-                    DType dtype,
+Tensor createTensor(std::initializer_list<int> shape, DType dtype, 
                     Device device = Device::getCpu());
+
+/// @brief Generate a tensor filled with random numbers in range [min, max)
+/// @param shape shape of the tensor to generated.
+/// @param dtype data type of the tensor.
+/// @param device device of the tensor.
+/// @param generator random number generator. nullptr for using a default one,
+/// @param min minimal value for random number generator.
+/// @param max maximum value for random number generator.
+/// @return Generated random tensor.
+Tensor rand(lut::Span<const int> shape, DType dtype, Device device = Device::getCpu(), 
+            lut::Random *generator = nullptr, float min = -1.0f, float max = 1.0f);
 
 // returns a uninitialized tensor with the same shape and dtype as input
 Tensor createTensorLike(Tensor input);
-
-// Returns a tensor filled with random numbers from a uniform distribution on
-// the interval [0, 1) 
-Tensor rand(std::initializer_list<int> shape, DType dtype, Device device = Device::getCpu());
 
 // Returns a tensor filled with 0
 Tensor zeros(lut::Span<const int> shape, DType dtype, Device device = Device::getCpu());
@@ -167,7 +174,7 @@ Tensor swiglu(Tensor input);
 /// @param device target device.
 /// @param castFloat if cast the float type.
 /// @return the tensor in device.
-Tensor to(Device device, Tensor tensor, bool castFloat = true);
+Tensor to(Device device, Tensor tensor);
 
 /// @brief Cast tensor to another data type.
 /// @param tensor Source tensor.

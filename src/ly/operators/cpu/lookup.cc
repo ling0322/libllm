@@ -53,9 +53,6 @@ Tensor lookupFp32(Subtensor<const float> table, Subtensor<const LongType> indice
   return output;
 }
 
-template<typename T>
-void applyDequant(int64_t offset, int n, const internal::TensorData *data, float *tgt);
-
 template<>
 void applyDequant<QInt4Group32>(
   int64_t offset, int n, const internal::TensorData *data, float *tgt) {
@@ -68,9 +65,12 @@ void applyDequant<QInt4Group32>(
       tgt);
 }
 
+template void applyDequant<QInt4Group32>(
+    int64_t offset, int n, const internal::TensorData *data, float *tgt);
+
 template<typename T>
 Tensor lookupQuantized(const Tensor &embd, Subtensor<const LongType> indices) {
-  CHECK(embd.getDim() == 2 && embd.getShape(1) % QInt4SymGroup32::GroupSize == 0);
+  CHECK(embd.getDim() == 2 && embd.getShape(1) % T::GroupSize == 0);
 
   int vocabSize = embd.getShape(0);
   int embdDim = embd.getShape(1);

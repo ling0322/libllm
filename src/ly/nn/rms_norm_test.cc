@@ -17,44 +17,47 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "ly/nn/embedding.h"
-#include "ly/functional.h"
+#include "../../../third_party/catch2/catch_amalgamated.hpp"
+
+#include <array>
+#include "ly/ly.h"
+#include "ly/nn/test_helper.h"
+#include "ly/operators/cpu/fingerprint.h"
+#include "lyutil/random.h"
+#include "lyutil/span.h"
+
+namespace F = ly::functional;
 
 namespace ly {
 namespace nn {
 
-namespace F = functional;
+class RmsNormTester : public ModuleTester {
+ public:
+  static constexpr int FeatureDim = 512;
 
-constexpr char Embedding::kWeight[];
+  RmsNormTester(Device device, DType weightType) : ModuleTester(device, weightType) {}
 
-std::unique_ptr<Embedding> Embedding::create(const Context &ctx, int dModel, int vocabSize) {
-  std::unique_ptr<Embedding> layer{new Embedding()};
-  layer->setCtx(ctx);
+  void run() {
+    std::shared_ptr<RMSNorm> layer = RMSNorm::create(getCtx(), FeatureDim, 1e-5);
+    randomInit(layer);
 
-  layer->_dModel = dModel;
-  layer->_vocabSize = vocabSize;
+    Tensor x = generateTensor({2, 3, FeatureDim});
+    x = layer->forward(x);
 
-  return layer;
+    std::vector<float> xr = {-0.0659, 0.6089, -0.2864, -0.3371, 0.9171, -0.3605, -1.1276, 1.0056};
+    CATCH_REQUIRE(allClose(op::cpu::fingerprint(toCpu(x)), xr));
+  }
+};
+
+CATCH_TEST_CASE("test nn::RmsNorm", "[ly][nn][rms_norm]") {
+  RmsNormTester(Device::getCpu(), DType::kFloat).run();
 }
 
-void Embedding::initParameters(const StateMap &stateDict) {
-  std::string nameW = getCtx().name(kWeight);
-
-  _wte = stateDict.getTensor(nameW);
-  _wte.throwIfInvalidShape({_vocabSize, _dModel});
-  _wte = moveAndCastFloat(_wte, getCtx());
+#ifdef LLYN_CUDA_ENABLED
+CATCH_TEST_CASE("test nn::RmsNorm", "[ly][nn][rms_norm][cuda]") {
+  RmsNormTester(Device::getCuda(), DType::kFloat).run();
 }
-
-void Embedding::initParameters(lut::Random *generator, DType weightType) {
-  _wte = F::rand({_vocabSize, _dModel}, weightType, Device::getCpu(), generator);
-  _wte = moveAndCastFloat(_wte, getCtx());
-}
-
-Tensor Embedding::forward(const Tensor &input) const {
-  Tensor x = F::lookup(_wte, input);
-
-  return x;
-}
+#endif
 
 }  // namespace nn
 }  // namespace ly

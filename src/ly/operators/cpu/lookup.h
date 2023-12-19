@@ -26,6 +26,9 @@ namespace ly {
 namespace op {
 namespace cpu {
 
+template<typename T>
+void applyDequant(int64_t offset, int n, const internal::TensorData *data, float *tgt);
+
 Tensor lookup(const Tensor &table, const Tensor &indices);
 Tensor lookupInt4AFp32(const Tensor &embd, Subtensor<const LongType> indices);
 Tensor lookupFp32(Subtensor<const float> table, Subtensor<const LongType> indices);

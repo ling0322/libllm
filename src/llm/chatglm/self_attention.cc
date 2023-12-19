@@ -19,6 +19,7 @@
 
 #include "llm/chatglm/self_attention.h"
 
+#include <math.h>
 #include "ly/ly.h"
 #include "lyutil/error.h"
 #include "lyutil/time.h"
@@ -60,6 +61,14 @@ void SelfAttention::initParameters(const ly::StateMap &stateDict) {
   int dModel = _qProjDim;
   _denseWeight = stateDict.getTensor(getCtx().name("dense_weight"));
   _denseWeight.throwIfInvalidShape({dModel, dModel});
+  _denseWeight = moveAndCastFloat(_denseWeight, getCtx());
+}
+
+void SelfAttention::initParameters(lut::Random *g, ly::DType weightType) {
+  _qkvProj->initParameters(g, weightType);
+
+  float xs = sqrtf(6.0f / (_qProjDim + _qProjDim));
+  _denseWeight = F::rand({_qProjDim, _qProjDim}, weightType, ly::Device::getCpu(), g, -xs, xs);
   _denseWeight = moveAndCastFloat(_denseWeight, getCtx());
 }
 

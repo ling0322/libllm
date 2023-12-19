@@ -19,6 +19,7 @@
 
 #include "llm/chatglm/mlp.h"
 
+#include <math.h>
 #include "ly/ly.h"
 #include "lyutil/error.h"
 
@@ -50,6 +51,18 @@ void MLP::initParameters(const ly::StateMap &stateDict) {
 
   _dense1Weight = moveAndCastFloat(_dense1Weight, ctx);
   _dense2Weight = moveAndCastFloat(_dense2Weight, ctx);
+}
+
+void MLP::initParameters(lut::Random *generator, ly::DType weightType) {
+  ly::Device dCpu = ly::Device::getCpu();
+
+  float xs = sqrtf(6.0f / (_ffnHiddenSize * 2 + _hiddenSize));
+  _dense1Weight = F::rand({_ffnHiddenSize * 2, _hiddenSize}, weightType, dCpu, generator, -xs, xs);
+  _dense1Weight = moveAndCastFloat(_dense1Weight, getCtx());
+
+  xs = sqrtf(6.0f / (_ffnHiddenSize + _hiddenSize));
+  _dense2Weight = F::rand({_hiddenSize, _ffnHiddenSize}, weightType, dCpu, generator, -xs, xs);
+  _dense2Weight = moveAndCastFloat(_dense2Weight, getCtx());
 }
 
 ly::Tensor MLP::forward(const ly::Tensor &input) const {

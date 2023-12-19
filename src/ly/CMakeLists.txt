@@ -11,14 +11,17 @@ set(ly_SOURCES
     "operators/common/matmul.cc"
     "operators/cpu/apply_rotary_pos_emb.cc"
     "operators/cpu/attention.cc"
+    "operators/cpu/cast.cc"
     "operators/cpu/cat.cc"
     "operators/cpu/copy.cc"
     "operators/cpu/cpu_operators.cc"
     "operators/cpu/cpu_tensor_data.cc"
+    "operators/cpu/fingerprint.cc"
     "operators/cpu/lookup.cc"
     "operators/cpu/matmul.cc"
     "operators/cpu/mul.cc"
     "operators/cpu/print.cc"
+    "operators/cpu/rand.cc"
     "operators/cpu/swiglu.cc"
     "operators/cpu/tensor.cc"
     "operators/cpu/view.cc"
@@ -48,6 +51,13 @@ if(UNIX)
   target_link_options(ly PUBLIC "-fopenmp")
 endif(UNIX)
 
+set(ly_test_SOURCES
+    "${CMAKE_CURRENT_LIST_DIR}/operators/cpu/test.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/nn/test_helper.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/nn/embedding_test.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/nn/linear_test.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/nn/rms_norm_test.cc")
+
 if (CUDA_ENABLED)
     set(cudnn_LIBRARIES "${CUDNN_ROOT}/lib/libcudnn_ops_infer_static.a")
     set(lyextcuda_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_ROOT}/include)
@@ -72,6 +82,10 @@ if (CUDA_ENABLED)
     target_compile_features(lyextcuda PRIVATE cxx_std_14)
 
     set(ly_test_SOURCES
-        "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc"
-        PARENT_SCOPE)
+        ${ly_test_SOURCES}
+        "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc")
 endif()
+
+set(ly_test_SOURCES
+    ${ly_test_SOURCES}
+    PARENT_SCOPE)

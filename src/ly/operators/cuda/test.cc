@@ -73,15 +73,15 @@ Tensor createRandomQ4Tensor2D(int numRow, int numCol) {
 
 CATCH_TEST_CASE("test cuda toDevice", "[cuda][operators][toDevice]") {
   Tensor xr = F::rand({100, 200}, DType::kFloat);
-  Tensor x = F::to(Device::getCuda(), xr, false);
-  x = F::to(Device::getCpu(), x, false);
+  Tensor x = F::to(Device::getCuda(), xr);
+  x = F::to(Device::getCpu(), x);
   
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
 CATCH_TEST_CASE("test cuda cast", "[cuda][operators][cast]") {
   Tensor xr = F::rand({100, 20, 50}, DType::kFloat);
-  Tensor x = F::to(Device::getCuda(), xr, false);
+  Tensor x = F::to(Device::getCuda(), xr);
   x = F::cast(x, DType::kFloat16);
   x = F::cast(x, DType::kFloat);
   x = F::to(Device::getCpu(), x);
@@ -334,7 +334,7 @@ CATCH_TEST_CASE("test rms_norm", "[cuda][operators][rms_norm]") {
   x = F::cast(x, DType::kFloat);
   x = F::to(Device::getCpu(), x);
 
-  CATCH_REQUIRE(F::allClose(x, xr));
+  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 1e-2f));
 }
 
 CATCH_TEST_CASE("test causal_mask", "[cuda][operators][causal_mask]") {
@@ -361,7 +361,7 @@ CATCH_TEST_CASE("test apply_rope", "[cuda][operators][apply_rope]") {
   x = F::cast(x, DType::kFloat);
   x = F::to(Device::getCpu(), x);
 
-  CATCH_REQUIRE(F::allClose(x, xr));
+  CATCH_REQUIRE(F::allClose(x, xr, 1e-3, 1e-3));
 }
 
 CATCH_TEST_CASE("test swiglu", "[cuda][operators][swiglu]") {

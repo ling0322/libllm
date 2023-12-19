@@ -17,15 +17,18 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "catch2/catch_amalgamated.hpp"
+#include "../../../../third_party/catch2/catch_amalgamated.hpp"
 
 #include "ly/functional.h"
-#include "ly.h"
+#include "ly/operators/cpu/fingerprint.h"
+#include "ly/ly.h"
 
-using namespace llyn;
  
 namespace F = ly::functional;
-namespace lu = ly::util;
+
+namespace ly {
+namespace op {
+namespace cpu {
 
 Tensor RefMatMulFp32(const Tensor &A, const Tensor &B) {
   CATCH_REQUIRE(A.getDType() == B.getDType());
@@ -68,9 +71,6 @@ void testGEMM(int m, int k, int n, bool transa, bool transb) {
 
   Tensor C = F::matmul(A, B);
   Tensor C_ref = RefMatMulFp32(A, B);
-
-  F::print(C);
-  F::print(C_ref);
 
   CATCH_REQUIRE(F::allClose(C, C_ref));
 }
@@ -122,7 +122,8 @@ int gemvTestShapes[][2] = {
   {2, 8},
   {50, 10},
   {1, 1},
-  {1024, 3}
+  {1024, 3},
+  {0, 0}
 };
 
 CATCH_TEST_CASE("float32 GEMV BVT", "[core][nn][gemv]") {
@@ -138,7 +139,7 @@ CATCH_TEST_CASE("float32 GEMV BVT", "[core][nn][gemv]") {
 }
 
 CATCH_TEST_CASE("test embedding lookup", "[core][nn][operators]") {
-  Context ctx = getCtxForCPU();
+  Context ctx = Context::getCpu();
 
   Tensor wte = Tensor::create<float>({5, 2}, {
       0.1f, 0.2f,
@@ -163,10 +164,8 @@ CATCH_TEST_CASE("test embedding lookup", "[core][nn][operators]") {
   CATCH_REQUIRE(F::allClose(F::lookup(wte, input), output));
 }
 
-
-
 CATCH_TEST_CASE("test softmax", "[core][nn][operators]") {
-  Context ctx = getCtxForCPU();
+  Context ctx = Context::getCpu();
 
   Tensor input = Tensor::create<float>({3}, {0.1f, 0.2f, 0.3f});
   Tensor output = Tensor::create<float>({3}, {0.3006f, 0.3322f, 0.3672f});
@@ -178,6 +177,19 @@ CATCH_TEST_CASE("test softmax", "[core][nn][operators]") {
   CATCH_REQUIRE(F::allClose(F::softmax(input), output));
 }
 
-CATCH_TEST_CASE("test cuda toDevice", "[cuda][operators][toDevice]") {
-  Tensor xCpu = F::rand({100, 200}, DType::kFloat);
+CATCH_TEST_CASE("test rand q4", "[ly][operators][cpu][rand]") {
+  constexpr uint64_t seed = 12345;
+
+  lut::Random r(seed);
+  Tensor x = F::rand({128, 32}, DType::kFloat, Device::getCpu(), &r);
+  x = F::cast(x, DType::kQInt4Group32);
+  x = F::cast(x, DType::kFloat);
+
+  CATCH_REQUIRE(F::allClose(op::cpu::fingerprint(x), Tensor::create<float>({8}, {
+    -0.3929, -0.3768, -1.0137, 0.8755, -0.9678, -0.8955, 0.0, 0.2485
+  })));
 }
+
+}  // cpu
+}  // op
+}  // ly

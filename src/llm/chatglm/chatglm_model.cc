@@ -19,6 +19,7 @@
 
 #include "llm/chatglm/chatglm_model.h"
 
+#include <math.h>
 #include "ly/ly.h"
 #include "lyutil/error.h"
 #include "lyutil/strings.h"
@@ -83,6 +84,32 @@ void ChatGlmModel::initParameters(const StateMap &stateDict) {
 
   _rope = moveAndCastFloat(_rope, ctx);
   _output = moveAndCastFloat(_output, ctx);
+}
+
+void ChatGlmModel::initParameters(lut::Random *generator, ly::DType weightType) {
+  Context ctx = getCtx();
+
+  _embedding->initParameters(generator, weightType);
+  _finalNorm->initParameters(generator, weightType);
+
+  _rope = F::rand({_config.seqLength, 1, _config.kvChannels / 2},
+                  ly::DType::kFloat,  // roPE must be float
+                  ly::Device::getCpu(),
+                  generator);
+  _rope = moveAndCastFloat(_rope, ctx);
+
+  float xs = sqrtf(6.0f / (_config.vocabSize + _config.hiddenSize));
+  _output = F::rand({_config.vocabSize, _config.hiddenSize},
+                     weightType,
+                     ly::Device::getCpu(),
+                     generator,
+                     -xs,
+                     xs);
+  _output = moveAndCastFloat(_output, ctx);
+
+  for (int i = 0; i < _config.numLayers; ++i) {
+    _blocks[i]->initParameters(generator, weightType);
+  }
 }
 
 ly::Tensor ChatGlmModel::forwardHidden(ly::Tensor hiddenState) const {
