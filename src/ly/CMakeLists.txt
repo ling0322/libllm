@@ -52,7 +52,7 @@ if(UNIX)
 endif(UNIX)
 
 set(ly_test_SOURCES
-    "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/operators/cpu/test.cc"
     "${CMAKE_CURRENT_LIST_DIR}/nn/test_helper.cc"
     "${CMAKE_CURRENT_LIST_DIR}/nn/embedding_test.cc"
     "${CMAKE_CURRENT_LIST_DIR}/nn/linear_test.cc"
@@ -83,8 +83,8 @@ if (CUDA_ENABLED)
     target_compile_features(lyextcuda PRIVATE cxx_std_14)
 
     set(ly_test_SOURCES
+        "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc"
         ${ly_test_SOURCES}
-        "${CMAKE_CURRENT_LIST_DIR}/operators/cpu/test.cc"
         PARENT_SCOPE)
 endif()
 
