@@ -12,15 +12,11 @@ env:
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
     - uses: actions/checkout@v3
-
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
-
     - name: Test
-      run: ctest --verbose --test-dir ${{github.workspace}}/build/src/llm
+      run: ctest --verbose -C ${{env.BUILD_TYPE}} --test-dir ${{github.workspace}}/build/src/llm
