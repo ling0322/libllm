@@ -58,7 +58,9 @@ set(llm_test_SOURCES
     ${lymath_test_SOURCES}
     ${ly_test_SOURCES}
     "cli/test_main.cc"
+    "chatglm/chatglm_model_test.cc"
     "chatglm/glm_block_test.cc"
+    "chatglm/mlp_test.cc"
     "chatglm/self_attention_test.cc"
     "../../third_party/catch2/catch_amalgamated.cpp")
 

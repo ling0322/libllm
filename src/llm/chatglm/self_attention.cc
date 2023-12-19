@@ -68,8 +68,7 @@ void SelfAttention::initParameters(lut::Random *g, ly::DType weightType) {
   _qkvProj->initParameters(g, weightType);
 
   float xs = sqrtf(6.0f / (_qProjDim + _qProjDim));
-  LOG(INFO) << "xs = " << xs;
-  _denseWeight = F::rand({_qProjDim, _qProjDim}, weightType, ly::Device::getCpu(), g, -0.1, 0.1);
+  _denseWeight = F::rand({_qProjDim, _qProjDim}, weightType, ly::Device::getCpu(), g, -xs, xs);
   _denseWeight = moveAndCastFloat(_denseWeight, getCtx());
 }
 

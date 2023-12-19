@@ -42,24 +42,24 @@ class SelfAttnetionTester : public ly::nn::ModuleTester {
     std::shared_ptr<SelfAttention> layer = SelfAttention::create(getCtx(), config);
     randomInit(layer);
 
-    ly::Tensor x = randFloatTensor({1, 20, config.hiddenSize});
-    ly::Tensor roPE = randFloatTensor({256, 1, config.hiddenSizePerAttentionHead / 2});
+    ly::Tensor x = generateTensor({1, 20, config.hiddenSize});
+    ly::Tensor roPE = generateTensor({256, 1, config.hiddenSizePerAttentionHead / 2});
 
     ly::StateMap past;
     x = layer->forward(past, x, roPE);
 
     std::vector<float> xr0, xr1;
     if (getWeightType() == ly::DType::kQInt4Group32) {
-      xr0 = {0.0450, 0.3328, 0.0659, 0.1888, 0.1116, 0.2878, 0.5171, -0.4473};
-      xr1 = {0.2280, 0.2035, 0.2007, 0.1946, 0.0179, 0.2151, 0.2145, -0.2549};
+      xr0 = {0.9316, -0.0872, -0.5942, -0.4963, -0.0253, -0.0969, -0.4287, 0.3093};
+      xr1 = {1.5869, -0.6855, -0.4663, -0.6177, 2.1515e-03, -0.1796, -0.3826, 0.2196};
     } else {
-      xr0 = {0.8604, -0.0639, -0.5186, -0.4915, 9.9182e-03, -0.1903, -0.3486, 0.3245};
-      xr1 = {1.4004, -0.6431, -0.4546, -0.5449, 0.0305, -0.2681, -0.3118, 0.2439};
+      xr0 = {0.9316, -0.0690, -0.5620, -0.5322, 0.0108, -0.2059, -0.3772, 0.3516};
+      xr1 = {1.5160, -0.6959, -0.4921, -0.5905, 0.0328, -0.2900, -0.3377, 0.2644};
     }
     CATCH_REQUIRE(allClose(ly::op::cpu::fingerprint(toCpu(x)), xr0));
 
     // forward next token.
-    x = randFloatTensor({1, 1, config.hiddenSize});
+    x = generateTensor({1, 1, config.hiddenSize});
     x = layer->forward(past, x, roPE);
     CATCH_REQUIRE(allClose(ly::op::cpu::fingerprint(toCpu(x)), xr1));
   }

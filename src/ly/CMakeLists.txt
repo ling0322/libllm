@@ -11,6 +11,7 @@ set(ly_SOURCES
     "operators/common/matmul.cc"
     "operators/cpu/apply_rotary_pos_emb.cc"
     "operators/cpu/attention.cc"
+    "operators/cpu/cast.cc"
     "operators/cpu/cat.cc"
     "operators/cpu/copy.cc"
     "operators/cpu/cpu_operators.cc"
@@ -74,6 +75,7 @@ if (CUDA_ENABLED)
     target_compile_features(lyextcuda PRIVATE cxx_std_14)
 
     set(ly_test_SOURCES
+        "${CMAKE_CURRENT_LIST_DIR}/operators/cpu/test.cc"
         "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc"
         "${CMAKE_CURRENT_LIST_DIR}/nn/test_helper.cc"
         "${CMAKE_CURRENT_LIST_DIR}/nn/embedding_test.cc"

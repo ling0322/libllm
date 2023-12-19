@@ -43,7 +43,7 @@ class ModuleTester {
   /// generator. Then move it to target device and cast to default float type of that device.
   /// @param shape shape of the tensor to generate.
   /// @return generated random tensor.
-  Tensor randFloatTensor(lut::Span<const Tensor::ShapeType> shape, float scale = 1.0);
+  Tensor generateTensor(lut::Span<const Tensor::ShapeType> shape, float scale = 1.0);
 
   /// @brief Initialize a module with the internal rendom number generator. The weight in module
   /// will be initialized as type `_weightType` in device `_device`.

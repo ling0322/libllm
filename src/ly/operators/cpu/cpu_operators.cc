@@ -26,6 +26,7 @@
 #include "lymath/lymath.h"
 #include "ly/operators/cpu/apply_rotary_pos_emb.h"
 #include "ly/operators/cpu/attention.h"
+#include "ly/operators/cpu/cast.h"
 #include "ly/operators/cpu/cat.h"
 #include "ly/operators/cpu/copy.h"
 #include "ly/operators/cpu/lookup.h"
@@ -466,11 +467,7 @@ Tensor CPUOperators::toDevice(Tensor tensor, Device device) {
 }
 
 Tensor CPUOperators::cast(Tensor tensor, DType dtype) {
-  if (tensor.getDType() == dtype) {
-    return tensor;
-  } else {
-    NOT_IMPL();
-  }
+  return cpu::cast(tensor, dtype);
 }
 
 DType CPUOperators::getDefaultFloatType() {

@@ -31,7 +31,7 @@ ModuleTester::ModuleTester(Device device, DType weightType) :
     _weightType(weightType),
     _random(RandomSeed) {}
 
-Tensor ModuleTester::randFloatTensor(lut::Span<const Tensor::ShapeType> shape, float scale) {
+Tensor ModuleTester::generateTensor(lut::Span<const Tensor::ShapeType> shape, float scale) {
   Tensor x = F::rand(shape, DType::kFloat, Device::getCpu(), &_random, -scale, scale);
   return toTargetDevice(x);
 }

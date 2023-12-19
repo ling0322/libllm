@@ -42,7 +42,7 @@ class RmsNormTester : public ModuleTester {
     std::shared_ptr<RMSNorm> layer = RMSNorm::create(getCtx(), FeatureDim, 1e-5);
     randomInit(layer);
 
-    Tensor x = randFloatTensor({2, 3, FeatureDim});
+    Tensor x = generateTensor({2, 3, FeatureDim});
     x = layer->forward(x);
 
     std::vector<float> xr = {-0.0659, 0.6089, -0.2864, -0.3371, 0.9171, -0.3605, -1.1276, 1.0056};

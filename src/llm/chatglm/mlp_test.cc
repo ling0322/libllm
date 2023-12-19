@@ -22,51 +22,50 @@
 #include <array>
 #include "ly/ly.h"
 #include "ly/nn/test_helper.h"
-#include "ly/internal/common.h"
 #include "ly/operators/cpu/fingerprint.h"
 #include "lyutil/random.h"
 #include "lyutil/span.h"
+#include "llm/chatglm/mlp.h"
+#include "llm/chatglm/test_common.h"
 
 namespace F = ly::functional;
 
-namespace ly {
-namespace nn {
+namespace libllm {
+namespace chatglm {
 
-class LinearTester : public ModuleTester {
+class MlpTester : public ly::nn::ModuleTester {
  public:
-  static constexpr int InputDim = 128;
-  static constexpr int OutputDim = 64;
-
-  LinearTester(Device device, DType weightType) : ModuleTester(device, weightType) {}
+  MlpTester(ly::Device device, ly::DType weightType) : ModuleTester(device, weightType) {}
 
   void run() {
-    std::shared_ptr<Linear> layer = Linear::create(getCtx(), InputDim, OutputDim);
+    ChatGlmConfig config = TestCommon::getConfig();
+    std::shared_ptr<MLP> layer = MLP::create(getCtx(), config);
     randomInit(layer);
 
-    Tensor x = generateTensor({2, 3, InputDim});
+    ly::Tensor x = generateTensor({1, 20, config.hiddenSize});
     x = layer->forward(x);
 
     std::vector<float> xr;
-    if (getWeightType() == DType::kQInt4Group32) {
-      xr = {-0.4558, -1.0580, 0.2993, -0.7953, -0.9781, 0.5980, 0.2308, 0.1132};
+    if (getWeightType() == ly::DType::kQInt4Group32) {
+      xr = {1.1253e-03, -0.0551, -0.0888, 0.0923, -0.0283, -0.1506, 8.7433e-03, 0.0915};
     } else {
-      xr = {-0.4829, -1.0068, 0.3118, -0.7295, -1.0000, 0.4971, 0.3013, 0.0405};
+      xr = {-0.0114, -0.0648, -0.0796, 0.0816, -0.0117, -0.1505, 1.0281e-03, 0.0742};
     }
-    CATCH_REQUIRE(allClose(op::cpu::fingerprint(toCpu(x)), xr));
+    CATCH_REQUIRE(allClose(ly::op::cpu::fingerprint(toCpu(x)), xr));
   }
 };
 
-CATCH_TEST_CASE("test nn::Linear", "[ly][nn][linear]") {
-  LinearTester(Device::getCpu(), DType::kFloat).run();
-  LinearTester(Device::getCpu(), DType::kQInt4Group32).run();
+CATCH_TEST_CASE("test chatglm::MLP", "[llm][chatglm]") {
+  MlpTester(ly::Device::getCpu(), ly::DType::kFloat).run();
+  MlpTester(ly::Device::getCpu(), ly::DType::kQInt4Group32).run();
 }
 
 #ifdef LLYN_CUDA_ENABLED
-CATCH_TEST_CASE("test nn::Linear", "[ly][nn][linear][cuda]") {
-  LinearTester(Device::getCuda(), DType::kFloat).run();
-  LinearTester(Device::getCuda(), DType::kQInt4Group32).run();
+CATCH_TEST_CASE("test chatglm::MLP (cuda)", "[llm][chatglm][cuda]") {
+  MlpTester(ly::Device::getCuda(), ly::DType::kFloat).run();
+  MlpTester(ly::Device::getCuda(), ly::DType::kQInt4Group32).run();
 }
 #endif
 
-}  // namespace nn
-}  // namespace ly
+}  // namespace chatglm
+}  // namespace libllm

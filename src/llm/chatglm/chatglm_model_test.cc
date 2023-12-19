@@ -25,7 +25,7 @@
 #include "ly/operators/cpu/fingerprint.h"
 #include "lyutil/random.h"
 #include "lyutil/span.h"
-#include "llm/chatglm/glm_block.h"
+#include "llm/chatglm/chatglm_model.h"
 #include "llm/chatglm/test_common.h"
 
 namespace F = ly::functional;
@@ -33,47 +33,49 @@ namespace F = ly::functional;
 namespace libllm {
 namespace chatglm {
 
-class GlmBlockTester : public ly::nn::ModuleTester {
+class ChatGlmTester : public ly::nn::ModuleTester {
  public:
-  GlmBlockTester(ly::Device device, ly::DType weightType) : ModuleTester(device, weightType) {}
+  ChatGlmTester(ly::Device device, ly::DType weightType) : ModuleTester(device, weightType) {}
 
   void run() {
     ChatGlmConfig config = TestCommon::getConfig();
-    std::shared_ptr<GLMBlock> layer = GLMBlock::create(getCtx(), config);
+    std::shared_ptr<ChatGlmModel> layer = ChatGlmModel::create(getCtx(), config);
     randomInit(layer);
 
-    ly::Tensor x = generateTensor({1, 20, config.hiddenSize});
-    ly::Tensor roPE = generateTensor({256, 1, config.hiddenSizePerAttentionHead / 2});
+    ly::Tensor x = ly::Tensor::create<ly::LongType>({1, 7}, {3, 6, 7, 99, 23, 1, 2});
+    x = toTargetDevice(x);
 
     ly::StateMap past;
-    x = layer->forward(past, x, roPE);
+    x = layer->forward(past, x);
 
     std::vector<float> xr0, xr1;
     if (getWeightType() == ly::DType::kQInt4Group32) {
-      xr0 = {0.5889, -2.1953, 0.0465, -0.1042, 0.0484, -0.0375, -0.1042, 0.8555};
-      xr1 = {1.2363, -1.1816, 0.3521, -1.3564, 0.7534, 0.1021, -0.4507, 0.3972};
+      xr0 = {0.1185, 2.4578e-03, -0.4412, 0.0960, -0.0273, 0.4065, -0.2928, 0.5571};
+      xr1 = {0.0405, -0.3672, 0.2031, 0.2551, -0.1559, 0.5679, 0.9341, 0.3237};
     } else {
-      xr0 = {0.4910, -2.1172, 0.0845, -0.0580, 0.0892, -0.1219, -0.1042, 0.8716};
-      xr1 = {1.1953, -1.1631, 0.3333, -1.3271, 0.8140, -0.0444, -0.4258, 0.4353};
+      xr0 = {0.1182, -0.0625, -0.3939, 0.1281, -0.0249, 0.4091, -0.3467, 0.6563};
+      xr1 = {0.1365, -0.3726, 0.2412, 0.2542, -0.1584, 0.6069, 0.7427, 0.3916};
     }
     CATCH_REQUIRE(allClose(ly::op::cpu::fingerprint(toCpu(x)), xr0));
 
     // forward next token.
-    x = generateTensor({1, 1, config.hiddenSize});
-    x = layer->forward(past, x, roPE);
+    x = ly::Tensor::create<ly::LongType>({1, 1}, {5});
+    x = toTargetDevice(x);
+
+    x = layer->forward(past, x);
     CATCH_REQUIRE(allClose(ly::op::cpu::fingerprint(toCpu(x)), xr1));
   }
 };
 
-CATCH_TEST_CASE("test chatglm::GLMBlock", "[llm][chatglm]") {
-  GlmBlockTester(ly::Device::getCpu(), ly::DType::kFloat).run();
-  GlmBlockTester(ly::Device::getCpu(), ly::DType::kQInt4Group32).run();
+CATCH_TEST_CASE("test chatglm::ChatGlmModel", "[llm][chatglm]") {
+  ChatGlmTester(ly::Device::getCpu(), ly::DType::kFloat).run();
+  ChatGlmTester(ly::Device::getCpu(), ly::DType::kQInt4Group32).run();
 }
 
 #ifdef LLYN_CUDA_ENABLED
-CATCH_TEST_CASE("test chatglm::GLMBlock (cuda)", "[llm][chatglm][cuda]") {
-  GlmBlockTester(ly::Device::getCuda(), ly::DType::kFloat).run();
-  GlmBlockTester(ly::Device::getCuda(), ly::DType::kQInt4Group32).run();
+CATCH_TEST_CASE("test chatglm::ChatGlmModel (cuda)", "[llm][chatglm][cuda]") {
+  ChatGlmTester(ly::Device::getCuda(), ly::DType::kFloat).run();
+  ChatGlmTester(ly::Device::getCuda(), ly::DType::kQInt4Group32).run();
 }
 #endif
 
