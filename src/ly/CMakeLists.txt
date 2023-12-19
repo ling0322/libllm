@@ -51,6 +51,14 @@ if(UNIX)
   target_link_options(ly PUBLIC "-fopenmp")
 endif(UNIX)
 
+set(ly_test_SOURCES
+    "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/nn/test_helper.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/nn/embedding_test.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/nn/linear_test.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/nn/rms_norm_test.cc"
+    PARENT_SCOPE)
+
 if (CUDA_ENABLED)
     set(cudnn_LIBRARIES "${CUDNN_ROOT}/lib/libcudnn_ops_infer_static.a")
     set(lyextcuda_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_ROOT}/include)
@@ -73,13 +81,10 @@ if (CUDA_ENABLED)
     add_library(lyextcuda STATIC ${lyextcuda_SOURCES})
     target_include_directories(lyextcuda PRIVATE .. ${lyextcuda_INCDIR})
     target_compile_features(lyextcuda PRIVATE cxx_std_14)
+
+    set(ly_test_SOURCES
+        ${ly_test_SOURCES}
+        "${CMAKE_CURRENT_LIST_DIR}/operators/cpu/test.cc"
+        PARENT_SCOPE)
 endif()
 
-set(ly_test_SOURCES
-    "${CMAKE_CURRENT_LIST_DIR}/operators/cpu/test.cc"
-    "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc"
-    "${CMAKE_CURRENT_LIST_DIR}/nn/test_helper.cc"
-    "${CMAKE_CURRENT_LIST_DIR}/nn/embedding_test.cc"
-    "${CMAKE_CURRENT_LIST_DIR}/nn/linear_test.cc"
-    "${CMAKE_CURRENT_LIST_DIR}/nn/rms_norm_test.cc"
-    PARENT_SCOPE)
