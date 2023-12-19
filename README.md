@@ -35,14 +35,23 @@ $ make -j
 
 ## Run libllm command line
 
-```c++
-$ build/src/libllm/llm/llm --ini tools/chatglm2.config 
-INFO 2023-10-20T08:58:55Z lymath.cc:44] lymath: Use Avx512 backend.
-INFO 2023-10-20T08:58:55Z state_map.cc:58] read state map from tools/chatglm2.q4.bin
-INFO 2023-10-20T08:58:58Z state_map.cc:68] reading ... 100.0%
-INFO 2023-10-20T08:58:58Z state_map.cc:69] 200 tensors read.
+```bash
+$ ./src/llm/llm -config ../model/chatglm3-6b-libllm-q4/chatglm3.config 
+INFO 2023-12-19T08:56:47Z lymath.cc:42] lymath: Use Avx512 backend.
+INFO 2023-12-19T08:56:48Z cuda_operators.cc:46] cuda numDevices = 1
+INFO 2023-12-19T08:56:48Z cuda_operators.cc:47] cuda:0 maxThreadsPerMultiProcessor = 2048
+INFO 2023-12-19T08:56:48Z cuda_operators.cc:49] cuda:0 multiProcessorCount = 20
+INFO 2023-12-19T08:56:48Z llm.cc:123] OMP max_threads = 20
+INFO 2023-12-19T08:56:48Z bpe_model.cc:34] read tokenizer from ../model/chatglm3-6b-libllm-q4/chatglm3.tokenizer.bin
+INFO 2023-12-19T08:56:48Z model_factory.cc:35] model_type = chatglm3
+INFO 2023-12-19T08:56:48Z model_factory.cc:36] device = cuda
+INFO 2023-12-19T08:56:48Z state_map.cc:58] read state map from ../model/chatglm3-6b-libllm-q4/chatglm3.q4.bin
+INFO 2023-12-19T08:56:51Z state_map.cc:68] reading ... 100.0%
+INFO 2023-12-19T08:56:51Z state_map.cc:69] 200 tensors read.
 > 你好
- 你好👋！我是人工智能助手 ChatGLM2-6B，很高兴见到你，欢迎问我任何问题。
+ 
+ 你好👋！我是人工智能助手 ChatGLM3-6B，很高兴见到你，欢迎问我任何问题。
+(29 token, time=0.92s, 31.75ms per token)
 > 
 ```
 
@@ -51,10 +60,10 @@ INFO 2023-10-20T08:58:58Z state_map.cc:69] 200 tensors read.
 ### Python
 
 ```python
-import libllm
+from libllm import Model, SpecialToken
 
-model = libllm.Model("model/chatglm2-6b-libllm-q4/chatglm2.config")
-prompt = "[Round 1]\n\n问：你好\n\n答："
+model = Model("model/chatglm3-6b-libllm-q4/chatglm3.config")
+prompt = [SpecialToken("<|user|>"), "\n", "你好", SpecialToken("<|assistant|>")]
 
 for chunk in model.complete(prompt):
     print(chunk.text, end="", flush=True)
@@ -68,7 +77,7 @@ Here is an example of exporting ChatGLM2 model from huggingface.
 
 ```bash
 $ cd tools
-$ python chatglm2_exporter.py
+$ python chatglm_exporter.py
 ```
 
-Then 3 files will be exported: `chatglm2.config`, `chatglm2.q4.bin` and `chatglm2.tokenizer.bin`
+Then 3 files will be exported: `chatglm3.config`, `chatglm3.q4.bin` and `chatglm3.tokenizer.bin`
