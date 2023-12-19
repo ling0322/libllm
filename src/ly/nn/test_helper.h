@@ -21,7 +21,6 @@
 
 #include "ly/ly.h"
 #include "ly/nn/test_helper.h"
-#include "ly/internal/common.h"
 #include "ly/operators/cpu/fingerprint.h"
 #include "lyutil/random.h"
 #include "lyutil/span.h"
