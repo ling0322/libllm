@@ -21,3 +21,6 @@ jobs:
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Test
+      run: ctest --test-dir ${{github.workspace}}/build/src/llm

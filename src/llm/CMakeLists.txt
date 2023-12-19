@@ -69,3 +69,6 @@ target_include_directories(unittest PRIVATE ${libllm_INCDIRS})
 target_link_directories(unittest PUBLIC "${CUDNN_ROOT}/lib/" "${CUDNN_ROOT}/lib/x64")
 target_link_libraries(unittest ${libllm_LIBADD})
 target_link_options(unittest PUBLIC "-fopenmp")
+
+enable_testing()
+add_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)
