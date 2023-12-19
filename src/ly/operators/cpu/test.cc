@@ -122,7 +122,8 @@ int gemvTestShapes[][2] = {
   {2, 8},
   {50, 10},
   {1, 1},
-  {1024, 3}
+  {1024, 3},
+  {0, 0}
 };
 
 CATCH_TEST_CASE("float32 GEMV BVT", "[core][nn][gemv]") {
