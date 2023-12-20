@@ -235,8 +235,6 @@ class TensorWriter:
 
         if ctx.quant == Quant.NONE:
             self._write_tensor(tensor)
-        elif ctx.quant == Quant.Q4SYM:
-            self._write_tensor_q4sym(tensor)
         elif ctx.quant == Quant.Q4:
             self._write_tensor_q4(tensor)
         else:
