@@ -133,7 +133,7 @@ bool DType::isFloat() const {
 int DType::getGroupSize() const {
   switch (_dtype) {
     case DType::kQ4:
-      return 32;
+      return 128;
     default:
       NOT_IMPL();
   }

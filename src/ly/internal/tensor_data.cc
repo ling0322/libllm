@@ -39,11 +39,11 @@ void TensorData::throwIfInvalid() {
       break;
     case DType::kQ4:
       if (getSlot(1)->getDType() != DType::kFloat16 || getSlot(2)->getDType() != DType::kUInt8) 
-        throw lut::AbortedError("invalid q4 tensor data type.");
+        THROW(Aborted, "invalid q4 tensor data type.");
       if (getNumEl() / getDType().getGroupSize() != getSlot(1)->getNumEl())
-        throw lut::AbortedError("tensor data and scale size mismatch.");
+        THROW(Aborted, "tensor data and scale size mismatch.");
       if ((getNumEl() / getDType().getGroupSize() + 1) / 2 != getSlot(2)->getNumEl())
-        throw lut::AbortedError("tensor data and zero-point size mismatch.");
+        THROW(Aborted, "tensor data and zero-point size mismatch.");
       break;
   }
 }

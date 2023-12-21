@@ -27,21 +27,24 @@ namespace ly {
 namespace op {
 namespace cuda {
 
+// 8 * word
+union OWORD {
+  uint4 vec;
+  uint32_t u[4];
+  half h[8];
+};
+
 int divUp(int a, int b) {
     return (a - 1) / b + 1;
-} 
-
-// load with cache streaming.
-__forceinline__ __device__ void load16byteCS(const void *src, void *dest) {
-  uint4 d = __ldcs((const uint4 *)src);
-  *((uint4 *)dest) = d;
 }
 
-template<typename T>
-__forceinline__ __device__ void load16byte(const void *src, T *dest) {
-  static_assert(sizeof(T) == 16, "T is not a 16 byte struct");
-  uint4 d = *((const uint4 *)src);
-  *((uint4 *)dest) = d;
+// load with cache streaming.
+__forceinline__ __device__ uint4 ldcsv4u32(const void *src) {
+  return __ldcs((const uint4 *)src);
+}
+
+__forceinline__ __device__ uint4 ldgv4u32(const void *src) {
+  return *((const uint4 *)src);
 }
 
 __device__ __forceinline__ float wrapReduceSum(float sum) {
@@ -64,14 +67,13 @@ __global__ void mat_vec_kernel(half* y, const half *__restrict__ x, const half *
 
   float sum = 0;
   for (int i = startIdx; i < n; i += Vec * WrapSize) {
-    half packA[Vec];
-    half packX[Vec];
-    load16byteCS(&A[row * lda + i], &packA);
-    load16byte<half[Vec]>(&x[i], &packX);
-
+    OWORD packA;
+    OWORD packX;
+    packA.vec = ldcsv4u32(&A[row * lda + i]);
+    packX.vec = ldgv4u32(&x[i]);
     #pragma unroll
     for (int j = 0; j < Vec; j++)
-      sum += float(packA[j]) * float(packX[j]);
+      sum += float(packA.h[j]) * float(packX.h[j]);
   }
 
   sum = wrapReduceSum(sum);
@@ -81,49 +83,44 @@ __global__ void mat_vec_kernel(half* y, const half *__restrict__ x, const half *
 
 __global__ void mat_vec_kernel_q4g32(half* y, const half *__restrict__ x, PackedSubtensor2DQ4 A) {
   int numCol = A.getNumCol();
-  int lda = A.getNumCol();
-
   int row = blockIdx.x * blockDim.y + threadIdx.y;
   if (row >= A.getNumRow()) return;
 
   constexpr int VecX = 8;
-  constexpr int VecA = 16;
+  constexpr int VecA = 4;
   constexpr int WrapSize = 32;
 
   int groupPerRow = numCol / Q4::GroupSize;
   constexpr int bytesPerGroup = Q4::GroupSize / 2;
   int rowGroupIdx = row * groupPerRow;
-  const uint8_t *__restrict__ pdata = A.getData(row * groupPerRow);
+  const uint8_t *pdata = A.getData(row * groupPerRow);
 
   float sum = 0;
   int groupIdx = threadIdx.x;
+  OWORD packA;  // VecA * uint32
+  OWORD packX;  // VecX * half
   for (int i = groupIdx; i < groupPerRow; i += WrapSize) {
     float scale = float(A.getScaleValue(rowGroupIdx + i));
     float qzero = float(A.getZeroValue(rowGroupIdx + i));
 
     // 128 elements
     #pragma unroll
-    for (int k = 0; k < 1; ++k) {
-      uint32_t packA[VecA];
-      load16byteCS(&pdata[i * bytesPerGroup], &packA[0]);
-      load16byteCS(&pdata[i * bytesPerGroup + 16], &packA[4]);
-      load16byteCS(&pdata[i * bytesPerGroup + 32], &packA[8]);
-      load16byteCS(&pdata[i * bytesPerGroup + 48], &packA[12]);
+    for (int k = 0; k < Q4::GroupSize / (VecA * VecX); ++k) {
+      packA.vec = ldcsv4u32(&pdata[i * bytesPerGroup + k * sizeof(packA)]);
 
       // 32 elements
       #pragma unroll
       for (int j = 0; j < VecA; ++j) {
-        uint32_t packAv8 = packA[j];
-        half packX[VecX];
-        load16byte<half[VecX]>(&x[i * Q4::GroupSize + k * (VecA * VecX) + j * VecX], &packX);
+        uint32_t packAv8 = packA.u[j];
+        packX.vec = ldgv4u32(&x[i * Q4::GroupSize + k * (VecA * VecX) + j * VecX]);
 
         // 8 elements
         #pragma unroll
         for (int el = 0; el < VecX; ++el) {
-          sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[el]);
+          sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX.h[el]);
           packAv8 = packAv8 >> 4;
         }
-      }
+      }      
     }
   }
 

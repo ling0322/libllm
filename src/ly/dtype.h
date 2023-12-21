@@ -57,8 +57,8 @@ class DType {
   static constexpr int16_t kLong = 2;
   static constexpr int16_t kUInt8 = 3;
   static constexpr int16_t kFloat16 = 4;
+  static constexpr int16_t kQ4 = 5;
   static constexpr int16_t kInt8 = 6;
-  static constexpr int16_t kQ4 = 7;
 
   // get DType from type T
   template <typename T>

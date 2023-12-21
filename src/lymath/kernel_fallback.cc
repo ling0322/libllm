@@ -58,17 +58,13 @@ void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
   int64_t nb = n / GroupSizeQ4;
   assert(offsetX % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
 
-  PCFp16 scales = x.getScaleByGroup(groupIdx);
-  PCUInt8 zeros = x.getZeroByGroup(groupIdx);
-  PCQ4x2 src = x.getDataByGroup(groupIdx);
-  for (int i = 0; i < nb; ++i) {
-    float scale = lut::cvtsh_ss(scales[i]);
-    UInt8 zero = i % 2 == 0 ? zeros[i / 2] & 0xf : zeros[i / 2] >> 4;
-    PCQ4x2 p = src + i * GroupSizeQ4 / 2;
-    PFp32 pt = y + i * GroupSizeQ4;
+  for (int i = groupIdx; i < groupIdx + nb; ++i) {
+    float scale = lut::cvtsh_ss(x.getScaleValByGroup(i));
+    UInt8 zero = x.getZeroValByGroup(i);
+    PCQ4x2 p = x.getDataByGroup(i);
     for (int j = 0; j < GroupSizeQ4 / 2; ++j) {
-      *pt++ = scale * (static_cast<int>(*p & 0xf) - zero);
-      *pt++ = scale * ((static_cast<int>(*p) >> 4) - zero);
+      *y++ = scale * (static_cast<int>(*p & 0xf) - zero);
+      *y++ = scale * ((static_cast<int>(*p) >> 4) - zero);
       ++p;
     }
   }

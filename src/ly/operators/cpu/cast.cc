@@ -53,6 +53,8 @@ Tensor castQ4ToFp32(Tensor A) {
 }
 
 Tensor castFp32ToQ4(Tensor A) {
+  CHECK(A.getDim() == 2);
+  CHECK(A.getShape(1) % Q4::GroupSize == 0);
   CHECK(A.isContiguous()) << "unable to cast a non-contiguous tensor to Q4";
 
   int64_t numel = A.getNumEl();

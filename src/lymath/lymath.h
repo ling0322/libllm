@@ -58,6 +58,7 @@ void lymath_dequant_q4(
     const lymath_q4x2_t *data,
     const lymath_float16_t *scale,
     const uint8_t *zeroPoint,
+    int offset,
     float *tgt);
 
 // GEMM: A is a float32 matrix, B is a matrix with 4-bit asymmetric quantization. C is a float32

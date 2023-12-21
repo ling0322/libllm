@@ -49,11 +49,11 @@ class DequantQ4Impl : public DequantQ4 {
         TKernel::apply(
             ne,
             x,
-            i * DequantMinElemPerThread,
+            offsetX + i * DequantMinElemPerThread,
             y + i * DequantMinElemPerThread);
       }
     } else {
-      TKernel::apply(n, x, 0, y);
+      TKernel::apply(n, x, offsetX, y);
     }
   }
 };

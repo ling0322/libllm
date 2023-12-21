@@ -54,7 +54,7 @@ void CpuTensorData::readSlot(lut::ReadableFile *fp, int slotIdx) {
 
   slot.dtype = fp->readValue<int16_t>();
   if (!slot.dtype.isValid())
-    throw lut::AbortedError("invalid dtype.");
+    THROW(Aborted, "invalid dtype.");
 
   slot.numel = fp->readValue<int64_t>();
   if (slot.numel > MaxNumEl)

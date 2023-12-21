@@ -58,10 +58,10 @@ void applyDequant<Q4>(
   int64_t offset, int n, const internal::TensorData *data, float *tgt) {
   lymath_dequant_q4(
       n,
-      (const lymath_q4x2_t *)data->getData<Q4>(offset),
-      (const lymath_float16_t *)data->getSlot(1)->getData<Float16>(
-          offset / Q4::GroupSize),
-      (const uint8_t *)data->getSlot(2)->getData<UInt8>(offset / Q4::GroupSize / 2),
+      (const lymath_q4x2_t *)data->getData<Q4>(),
+      (const lymath_float16_t *)data->getSlot(1)->getData<Float16>(),
+      (const uint8_t *)data->getSlot(2)->getData<UInt8>(),
+      offset,
       tgt);
 }
 
