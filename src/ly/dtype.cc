@@ -32,7 +32,7 @@ constexpr int16_t DType::kFloat;
 constexpr int16_t DType::kLong;
 constexpr int16_t DType::kUInt8;
 constexpr int16_t DType::kFloat16;
-constexpr int16_t DType::kQInt4Group32;
+constexpr int16_t DType::kQ4;
 constexpr int16_t DType::kInt8;
 
 DType::DType(int16_t dtype) : _dtype(dtype) {}
@@ -54,8 +54,8 @@ DType DType::getTypeImpl<Float16>() {
   return DType::kFloat16;
 }
 template<>
-DType DType::getTypeImpl<QInt4Group32>() {
-  return DType::kQInt4Group32;
+DType DType::getTypeImpl<Q4>() {
+  return DType::kQ4;
 }
 template<>
 DType DType::getTypeImpl<Int8>() {
@@ -73,7 +73,7 @@ template DType DType::getTypeImpl<float>();
 template DType DType::getTypeImpl<int64_t>();
 template DType DType::getTypeImpl<UInt8>();
 template DType DType::getTypeImpl<Float16>();
-template DType DType::getTypeImpl<QInt4Group32>();
+template DType DType::getTypeImpl<Q4>();
 template DType DType::getTypeImpl<Int8>();
 
 
@@ -85,7 +85,7 @@ int64_t DType::getTotalSize(int64_t numel) const {
       return 2 * numel;
     case DType::kLong:
       return 8 * numel;
-    case DType::kQInt4Group32:
+    case DType::kQ4:
       CHECK(numel % 2 == 0);
       return numel / 2;
     case DType::kInt8:
@@ -103,7 +103,7 @@ bool DType::isValid() const {
     case DType::kFloat16:
     case DType::kLong:
     case DType::kUInt8:
-    case DType::kQInt4Group32:
+    case DType::kQ4:
     case DType::kInt8:
       return true;
     default:
@@ -113,7 +113,7 @@ bool DType::isValid() const {
 
 bool DType::isQuantized() const {
   switch (_dtype) {
-    case DType::kQInt4Group32:
+    case DType::kQ4:
       return true;
     default:
       return false;
@@ -132,7 +132,7 @@ bool DType::isFloat() const {
 
 int DType::getGroupSize() const {
   switch (_dtype) {
-    case DType::kQInt4Group32:
+    case DType::kQ4:
       return 32;
     default:
       NOT_IMPL();
@@ -149,7 +149,7 @@ std::string DType::toString() const {
       return "int64";
     case DType::kUInt8:
       return "uint8";
-    case DType::kQInt4Group32:
+    case DType::kQ4:
       return "q4";
     case DType::kInt8:
       return "int8";

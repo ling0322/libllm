@@ -25,11 +25,11 @@
 
 namespace ly {
 
-struct QInt4Group32 {
-  static constexpr int GroupSize = 32;
+struct Q4 {
+  static constexpr int GroupSize = 128;
   uint8_t int4x2;
 };
-static_assert(sizeof(QInt4Group32) == 1, "invalid size of QInt4Group32");
+static_assert(sizeof(Q4) == 1, "invalid size of Q4");
 
 struct Float16 {
   uint16_t v;
@@ -57,8 +57,8 @@ class DType {
   static constexpr int16_t kLong = 2;
   static constexpr int16_t kUInt8 = 3;
   static constexpr int16_t kFloat16 = 4;
-  static constexpr int16_t kQInt4Group32 = 5;
   static constexpr int16_t kInt8 = 6;
+  static constexpr int16_t kQ4 = 7;
 
   // get DType from type T
   template <typename T>

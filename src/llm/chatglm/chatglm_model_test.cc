@@ -49,7 +49,7 @@ class ChatGlmTester : public ly::nn::ModuleTester {
     x = layer->forward(past, x);
 
     std::vector<float> xr0, xr1;
-    if (getWeightType() == ly::DType::kQInt4Group32) {
+    if (getWeightType() == ly::DType::kQ4) {
       xr0 = {0.1185, 2.4578e-03, -0.4412, 0.0960, -0.0273, 0.4065, -0.2928, 0.5571};
       xr1 = {0.0405, -0.3672, 0.2031, 0.2551, -0.1559, 0.5679, 0.9341, 0.3237};
     } else {
@@ -69,13 +69,13 @@ class ChatGlmTester : public ly::nn::ModuleTester {
 
 CATCH_TEST_CASE("test chatglm::ChatGlmModel", "[llm][chatglm]") {
   ChatGlmTester(ly::Device::getCpu(), ly::DType::kFloat).run();
-  ChatGlmTester(ly::Device::getCpu(), ly::DType::kQInt4Group32).run();
+  ChatGlmTester(ly::Device::getCpu(), ly::DType::kQ4).run();
 }
 
 #ifdef LLYN_CUDA_ENABLED
 CATCH_TEST_CASE("test chatglm::ChatGlmModel (cuda)", "[llm][chatglm][cuda]") {
   ChatGlmTester(ly::Device::getCuda(), ly::DType::kFloat).run();
-  ChatGlmTester(ly::Device::getCuda(), ly::DType::kQInt4Group32).run();
+  ChatGlmTester(ly::Device::getCuda(), ly::DType::kQ4).run();
 }
 #endif
 

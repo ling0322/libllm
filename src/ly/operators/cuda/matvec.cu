@@ -32,9 +32,7 @@ int divUp(int a, int b) {
 } 
 
 // load with cache streaming.
-template<typename T>
-__forceinline__ __device__ void load16byteCS(const void *src, T *dest) {
-  static_assert(sizeof(T) == 16, "T is not a 16 byte struct");
+__forceinline__ __device__ void load16byteCS(const void *src, void *dest) {
   uint4 d = __ldcs((const uint4 *)src);
   *((uint4 *)dest) = d;
 }
@@ -68,7 +66,7 @@ __global__ void mat_vec_kernel(half* y, const half *__restrict__ x, const half *
   for (int i = startIdx; i < n; i += Vec * WrapSize) {
     half packA[Vec];
     half packX[Vec];
-    load16byteCS<half[Vec]>(&A[row * lda + i], &packA);
+    load16byteCS(&A[row * lda + i], &packA);
     load16byte<half[Vec]>(&x[i], &packX);
 
     #pragma unroll
@@ -88,12 +86,12 @@ __global__ void mat_vec_kernel_q4g32(half* y, const half *__restrict__ x, Packed
   int row = blockIdx.x * blockDim.y + threadIdx.y;
   if (row >= A.getNumRow()) return;
 
-  constexpr int Vec = 8;
+  constexpr int VecX = 8;
+  constexpr int VecA = 16;
   constexpr int WrapSize = 32;
-  constexpr int GroupSize = 32;
 
-  int groupPerRow = numCol / GroupSize;
-  constexpr int bytesPerGroup = GroupSize / 2;
+  int groupPerRow = numCol / Q4::GroupSize;
+  constexpr int bytesPerGroup = Q4::GroupSize / 2;
   int rowGroupIdx = row * groupPerRow;
   const uint8_t *__restrict__ pdata = A.getData(row * groupPerRow);
 
@@ -102,19 +100,29 @@ __global__ void mat_vec_kernel_q4g32(half* y, const half *__restrict__ x, Packed
   for (int i = groupIdx; i < groupPerRow; i += WrapSize) {
     float scale = float(A.getScaleValue(rowGroupIdx + i));
     float qzero = float(A.getZeroValue(rowGroupIdx + i));
-    uint32_t packA[4];
-    load16byteCS<uint32_t[4]>(&pdata[i * bytesPerGroup], &packA);
-    
-    #pragma unroll
-    for (int j = 0; j < GroupSize / Vec; ++j) {
-      uint32_t packAv8 = packA[j];
-      half packX[Vec];
-      load16byte<half[Vec]>(&x[i * GroupSize + j * Vec], &packX);
 
+    // 128 elements
+    #pragma unroll
+    for (int k = 0; k < 1; ++k) {
+      uint32_t packA[VecA];
+      load16byteCS(&pdata[i * bytesPerGroup], &packA[0]);
+      load16byteCS(&pdata[i * bytesPerGroup + 16], &packA[4]);
+      load16byteCS(&pdata[i * bytesPerGroup + 32], &packA[8]);
+      load16byteCS(&pdata[i * bytesPerGroup + 48], &packA[12]);
+
+      // 32 elements
       #pragma unroll
-      for (int el = 0; el < 8; ++el) {
-        sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[el]);
-        packAv8 = packAv8 >> 4;
+      for (int j = 0; j < VecA; ++j) {
+        uint32_t packAv8 = packA[j];
+        half packX[VecX];
+        load16byte<half[VecX]>(&x[i * Q4::GroupSize + k * (VecA * VecX) + j * VecX], &packX);
+
+        // 8 elements
+        #pragma unroll
+        for (int el = 0; el < VecX; ++el) {
+          sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX[el]);
+          packAv8 = packAv8 >> 4;
+        }
       }
     }
   }
@@ -140,6 +148,7 @@ Tensor gemvHalf(const Tensor &A, const Tensor &B) {
 
 Tensor gemvQ4(const Tensor &A, const Tensor &x) {
   CHECK(A.getShape(1) == x.getShape(0) && x.getShape(1) == 1);
+  CHECK(x.getShape(0) % Q4::GroupSize == 0);
   int n = A.getShape(1);
   int d = A.getShape(0);
 
@@ -156,4 +165,3 @@ Tensor gemvQ4(const Tensor &A, const Tensor &x) {
 }  // cuda
 }  // op
 }  // ly
-

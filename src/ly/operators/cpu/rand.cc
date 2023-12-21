@@ -50,7 +50,7 @@ Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, flo
   switch (int16_t(dtype)) {
     case DType::kFloat:
       return randFp32(shape, generator, min, max);
-    case DType::kQInt4Group32:
+    case DType::kQ4:
       return randQ4(shape, generator, min, max);
     default:
       NOT_IMPL();

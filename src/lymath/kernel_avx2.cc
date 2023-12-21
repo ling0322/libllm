@@ -281,36 +281,125 @@ float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY) {
   __m256i vbytey, vzero;
 
   vsum = _mm256_setzero_ps();  
-  int64_t groupIdx = offsetY / Q4GroupSize;
-  int64_t nb = n / Q4GroupSize;
-  assert(offsetY % Q4GroupSize == 0 && n % 32 == 0);
+  int64_t groupIdx = offsetY / GroupSizeQ4;
+  int64_t nb = n / GroupSizeQ4;
+  assert(offsetY % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
 
   PCFp32 px = x;
   PCQ4x2 py = y.getDataByGroup(groupIdx);
   for (int i = groupIdx; i < groupIdx + nb; ++i) {
     vscale = _mm256_set1_ps(half2float(y.getScaleValByGroup(i)));
     vzero = _mm256_set1_epi8(y.getZeroValByGroup(i));  
+
+    // block 0
     vbytey = _mm256_sub_epi8(loadNibble32ToByte32(py), vzero);
 
-    // subblock 0
+    // block 0:0
     vy = _mm256_mul_ps(extractFloat8FromByte32Block0(vbytey), vscale);
     vx = _mm256_loadu_ps(px);
     vsum = _mm256_fmadd_ps(vx, vy, vsum);
     px += 8;
 
-    // subblock 1
+    // block 0:1
     vy = _mm256_mul_ps(extractFloat8FromByte32Block1(vbytey), vscale);
     vx = _mm256_loadu_ps(px);
     vsum = _mm256_fmadd_ps(vx, vy, vsum);
     px += 8;
 
-    // subblock 2
+    // block 0:2
     vy = _mm256_mul_ps(extractFloat8FromByte32Block2(vbytey), vscale);
     vx = _mm256_loadu_ps(px);
     vsum = _mm256_fmadd_ps(vx, vy, vsum);
     px += 8;
 
-    // subblock 3
+    // block 0:3
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block3(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    py += 16;
+
+    // block 1
+    vbytey = _mm256_sub_epi8(loadNibble32ToByte32(py), vzero);
+
+    // block 1:0
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block0(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    // block 1:1
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block1(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    // block 1:2
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block2(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    // block 1:3
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block3(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    py += 16;
+
+    // block 2
+    vbytey = _mm256_sub_epi8(loadNibble32ToByte32(py), vzero);
+
+    // block 2:0
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block0(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    // block 2:1
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block1(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    // block 2:2
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block2(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    // block 2:3
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block3(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    py += 16;
+
+    // block 3
+    vbytey = _mm256_sub_epi8(loadNibble32ToByte32(py), vzero);
+
+    // block 3:0
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block0(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    // block 3:1
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block1(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    // block 3:2
+    vy = _mm256_mul_ps(extractFloat8FromByte32Block2(vbytey), vscale);
+    vx = _mm256_loadu_ps(px);
+    vsum = _mm256_fmadd_ps(vx, vy, vsum);
+    px += 8;
+
+    // block 3:3
     vy = _mm256_mul_ps(extractFloat8FromByte32Block3(vbytey), vscale);
     vx = _mm256_loadu_ps(px);
     vsum = _mm256_fmadd_ps(vx, vy, vsum);
@@ -331,37 +420,79 @@ void DequantQ4Avx2Kernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
   __m256 vx, vscale;
   __m256i vbytex, vzero;
   
-  int64_t groupIdx = offsetX / Q4GroupSize;
-  int64_t nb = n / 32;
-  assert(offsetX % Q4GroupSize == 0 && n % 32 == 0);
+  int64_t groupIdx = offsetX / GroupSizeQ4;
+  int64_t nb = n / GroupSizeQ4;
+  assert(offsetX % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
 
   PCQ4x2 px = x.getDataByGroup(groupIdx);
   PFp32 py = y;
+
   for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
     vscale = _mm256_set1_ps(half2float(x.getScaleValByGroup(i)));
     vzero = _mm256_set1_epi8(x.getZeroValByGroup(i));
-    vbytex = _mm256_sub_epi8(loadNibble32ToByte32(px), vzero);
 
-    // vecror 8 subblock 0
+    // block 0
+    vbytex = _mm256_sub_epi8(loadNibble32ToByte32(px), vzero);
     vx = _mm256_mul_ps(extractFloat8FromByte32Block0(vbytex), vscale);
     _mm256_storeu_ps(py, vx);
     py += 8;
-
-    // vecror 8 subblock 1
     vx = _mm256_mul_ps(extractFloat8FromByte32Block1(vbytex), vscale);
     _mm256_storeu_ps(py, vx);
     py += 8;
-
-    // vecror 8 subblock 2
     vx = _mm256_mul_ps(extractFloat8FromByte32Block2(vbytex), vscale);
     _mm256_storeu_ps(py, vx);
     py += 8;
-
-    // vecror 8 subblock 3
     vx = _mm256_mul_ps(extractFloat8FromByte32Block3(vbytex), vscale);
     _mm256_storeu_ps(py, vx);
     py += 8;
+    px += 16;
 
+    // block 1
+    vbytex = _mm256_sub_epi8(loadNibble32ToByte32(px), vzero);
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block0(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block1(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block2(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block3(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
+    px += 16;
+
+    // block 2
+    vbytex = _mm256_sub_epi8(loadNibble32ToByte32(px), vzero);
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block0(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block1(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block2(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block3(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
+    px += 16;
+
+    // block 3
+    vbytex = _mm256_sub_epi8(loadNibble32ToByte32(px), vzero);
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block0(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block1(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block2(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
+    vx = _mm256_mul_ps(extractFloat8FromByte32Block3(vbytex), vscale);
+    _mm256_storeu_ps(py, vx);
+    py += 8;
     px += 16;
   }
 }

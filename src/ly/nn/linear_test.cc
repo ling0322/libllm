@@ -46,7 +46,7 @@ class LinearTester : public ModuleTester {
     x = layer->forward(x);
 
     std::vector<float> xr;
-    if (getWeightType() == DType::kQInt4Group32) {
+    if (getWeightType() == DType::kQ4) {
       xr = {-0.4558, -1.0580, 0.2993, -0.7953, -0.9781, 0.5980, 0.2308, 0.1132};
     } else {
       xr = {-0.4829, -1.0068, 0.3118, -0.7295, -1.0000, 0.4971, 0.3013, 0.0405};
@@ -57,13 +57,13 @@ class LinearTester : public ModuleTester {
 
 CATCH_TEST_CASE("test nn::Linear", "[ly][nn][linear]") {
   LinearTester(Device::getCpu(), DType::kFloat).run();
-  LinearTester(Device::getCpu(), DType::kQInt4Group32).run();
+  LinearTester(Device::getCpu(), DType::kQ4).run();
 }
 
 #ifdef LLYN_CUDA_ENABLED
 CATCH_TEST_CASE("test nn::Linear", "[ly][nn][linear][cuda]") {
   LinearTester(Device::getCuda(), DType::kFloat).run();
-  LinearTester(Device::getCuda(), DType::kQInt4Group32).run();
+  LinearTester(Device::getCuda(), DType::kQ4).run();
 }
 #endif
 

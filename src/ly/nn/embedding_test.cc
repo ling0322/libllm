@@ -47,7 +47,7 @@ class EmbeddingTester : public ModuleTester {
     x = layer->forward(x);
 
     std::vector<float> xr;
-    if (getWeightType() == DType::kQInt4Group32) {
+    if (getWeightType() == DType::kQ4) {
       xr = {-0.8838, 0.6289, -0.8574, -0.2371, -0.5669, 0.7705, -1.0215, -0.1203};
     } else {
       xr = {-0.8596, 0.7052, -0.9062, -0.2155, -0.5044, 0.7694, -0.9440, -0.0745};
@@ -58,13 +58,13 @@ class EmbeddingTester : public ModuleTester {
 
 CATCH_TEST_CASE("test nn::Embedding", "[ly][nn][embedding]") {
   EmbeddingTester(Device::getCpu(), DType::kFloat).run();
-  EmbeddingTester(Device::getCpu(), DType::kQInt4Group32).run();
+  EmbeddingTester(Device::getCpu(), DType::kQ4).run();
 }
 
 #ifdef LLYN_CUDA_ENABLED
 CATCH_TEST_CASE("test nn::Embedding (cuda)", "[ly][nn][embedding][cuda]") {
   EmbeddingTester(Device::getCuda(), DType::kFloat).run();
-  EmbeddingTester(Device::getCuda(), DType::kQInt4Group32).run();
+  EmbeddingTester(Device::getCuda(), DType::kQ4).run();
 }
 #endif
 

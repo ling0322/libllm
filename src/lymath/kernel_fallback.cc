@@ -54,9 +54,9 @@ void SGemm6x16DefaultKernel::apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_
 }
 
 void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
-  int64_t groupIdx = offsetX / Q4GroupSize;
-  int64_t nb = n / 32;
-  assert(offsetX % Q4GroupSize == 0 && n % 32 == 0);
+  int64_t groupIdx = offsetX / GroupSizeQ4;
+  int64_t nb = n / GroupSizeQ4;
+  assert(offsetX % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
 
   PCFp16 scales = x.getScaleByGroup(groupIdx);
   PCUInt8 zeros = x.getZeroByGroup(groupIdx);
@@ -64,9 +64,9 @@ void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
   for (int i = 0; i < nb; ++i) {
     float scale = lut::cvtsh_ss(scales[i]);
     UInt8 zero = i % 2 == 0 ? zeros[i / 2] & 0xf : zeros[i / 2] >> 4;
-    PCQ4x2 p = src + i * Q4GroupSize / 2;
-    PFp32 pt = y + i * Q4GroupSize;
-    for (int j = 0; j < Q4GroupSize / 2; ++j) {
+    PCQ4x2 p = src + i * GroupSizeQ4 / 2;
+    PFp32 pt = y + i * GroupSizeQ4;
+    for (int j = 0; j < GroupSizeQ4 / 2; ++j) {
       *pt++ = scale * (static_cast<int>(*p & 0xf) - zero);
       *pt++ = scale * ((static_cast<int>(*p) >> 4) - zero);
       ++p;
@@ -75,19 +75,18 @@ void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
 }
 
 float DotQ4FallbackKernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY) {
-  int64_t groupIdx = offsetY / Q4GroupSize;
-  int64_t nb = n / 32;
-  assert(offsetY % Q4GroupSize == 0 && n % 32 == 0);
+  int64_t groupIdx = offsetY / GroupSizeQ4;
+  int64_t nb = n / GroupSizeQ4;
+  assert(offsetY % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
 
   float sum = 0.0f;
 
   PCQ4x2 py = y.getDataByGroup(groupIdx);
-  PCFp16 scaleY = y.getScaleByGroup(groupIdx);
   PCUInt8 zeroY = y.getZeroByGroup(groupIdx);
   for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
     float scale = lut::cvtsh_ss(y.getScaleValByGroup(i));
     UInt8 zero = y.getZeroValByGroup(i);
-    for (int j = 0; j < Q4GroupSize / 2; ++j) {
+    for (int j = 0; j < GroupSizeQ4 / 2; ++j) {
       sum += *x++ * scale * (static_cast<int>(*py & 0xf) - zero);
       sum += *x++ * scale * ((static_cast<int>(*py) >> 4) - zero);
       ++py;

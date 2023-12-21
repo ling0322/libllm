@@ -55,7 +55,9 @@ struct PackedSubtensor2DQ4 {
 
   __device__ int getNumRow() const { return _numRow; }
   __device__ int getNumCol() const { return _numCol; }
-  __device__ const uint8_t *getData(int groupIdx) const { return _data + groupIdx * 16; }
+  __device__ const uint8_t *getData(int groupIdx) const {
+    return _data + groupIdx * (Q4::GroupSize / 2);
+  }
 
   __device__ half getScaleValue(int groupIdx) const { return _scale[groupIdx]; }
   __device__ uint8_t getZeroValue(int groupIdx) const {
