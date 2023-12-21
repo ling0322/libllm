@@ -41,7 +41,7 @@ namespace F = ly::functional;
 
 /// @brief Create a random 2D tensor with Q4 type.
 Tensor createRandomQ4Tensor2D(int numRow, int numCol) {
-  constexpr int groupSize = ly::QInt4Group32::GroupSize;
+  constexpr int groupSize = ly::Q4::GroupSize;
   CHECK(numCol % groupSize == 0);
   int numel = numRow * numCol;
 
@@ -58,7 +58,7 @@ Tensor createRandomQ4Tensor2D(int numRow, int numCol) {
   std::transform(scaleFloat.begin(), scaleFloat.end(), scale.begin(), lut::cvtss_sh);
 
   auto tensorData = CpuTensorData::create({
-      {numel, DType::kQInt4Group32},
+      {numel, DType::kQ4},
       {numel / groupSize, DType::kFloat16},
       {numel / groupSize / 2, DType::kUInt8}});
   memcpy(tensorData->getSlot(0)->getRawData(), data.data(), data.size());
@@ -71,7 +71,7 @@ Tensor createRandomQ4Tensor2D(int numRow, int numCol) {
   return Tensor::create(tensorShape, tensorData);
 }
 
-CATCH_TEST_CASE("test cuda toDevice", "[cuda][operators][toDevice]") {
+CATCH_TEST_CASE("test cuda toDevice", "[ly][op][cuda]") {
   Tensor xr = F::rand({100, 200}, DType::kFloat);
   Tensor x = F::to(Device::getCuda(), xr);
   x = F::to(Device::getCpu(), x);
@@ -79,7 +79,7 @@ CATCH_TEST_CASE("test cuda toDevice", "[cuda][operators][toDevice]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test cuda cast", "[cuda][operators][cast]") {
+CATCH_TEST_CASE("test cuda cast", "[ly][op][cuda]") {
   Tensor xr = F::rand({100, 20, 50}, DType::kFloat);
   Tensor x = F::to(Device::getCuda(), xr);
   x = F::cast(x, DType::kFloat16);
@@ -89,7 +89,7 @@ CATCH_TEST_CASE("test cuda cast", "[cuda][operators][cast]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test cuda copy", "[cuda][operators][copy]") {
+CATCH_TEST_CASE("test cuda copy", "[ly][op][cuda]") {
   Tensor tensor = F::rand({100, 20}, DType::kFloat);
   Tensor x = F::to(Device::getCuda(), tensor);
 
@@ -113,7 +113,7 @@ CATCH_TEST_CASE("test cuda copy", "[cuda][operators][copy]") {
   CATCH_REQUIRE(F::allClose(tensor, x2.transpose(1, 0)));
 }
 
-CATCH_TEST_CASE("test cuda copy (int64_t)", "[cuda][operators][copy]") {
+CATCH_TEST_CASE("test cuda copy (int64_t)", "[ly][op][cuda]") {
   Tensor tensor = Tensor::create<ly::LongType>({2, 5}, {
     1, 2, 3, 4, 5, 6, 7, 8, 9, 0
   });
@@ -130,7 +130,7 @@ CATCH_TEST_CASE("test cuda copy (int64_t)", "[cuda][operators][copy]") {
   CATCH_REQUIRE(std::equal(px, px + x2.getNumEl(), pr));
 }
 
-CATCH_TEST_CASE("test cuda contiguous (copy) 5D", "[cuda][operators][contiguous]") {
+CATCH_TEST_CASE("test cuda contiguous (copy) 5D", "[ly][op][cuda]") {
   Tensor tensor = F::rand({10, 2, 5, 20}, DType::kFloat);
 
   Tensor x = F::to(Device::getCuda(), tensor);
@@ -145,7 +145,7 @@ CATCH_TEST_CASE("test cuda contiguous (copy) 5D", "[cuda][operators][contiguous]
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test lookup half", "[cuda][operators][lookup]") {
+CATCH_TEST_CASE("test lookup half", "[ly][op][cuda]") {
   Tensor embd = F::rand({10, 20}, DType::kFloat);
   Tensor ids = Tensor::create<ly::LongType>({2, 3}, {1, 2, 3, 4, 5, 6});
 
@@ -161,8 +161,8 @@ CATCH_TEST_CASE("test lookup half", "[cuda][operators][lookup]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test lookup q4", "[cuda][operators][lookup]") {
-  Tensor embd = createRandomQ4Tensor2D(10, 64);
+CATCH_TEST_CASE("test lookup q4", "[ly][op][cuda]") {
+  Tensor embd = createRandomQ4Tensor2D(10, 256);
   Tensor ids = Tensor::create<ly::LongType>({2, 3}, {1, 2, 3, 4, 5, 6});
 
   Tensor x = F::to(Device::getCuda(), embd);
@@ -175,7 +175,7 @@ CATCH_TEST_CASE("test lookup q4", "[cuda][operators][lookup]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test matmul gemm", "[cuda][operators][matmul]") {
+CATCH_TEST_CASE("test matmul gemm", "[ly][op][cuda]") {
   Tensor a = F::rand({10, 20}, DType::kFloat);
   Tensor b = F::rand({40, 30}, DType::kFloat);
   Tensor xr = F::matmul(a, b.slice(1, {5, 25}).transpose(1, 0));
@@ -193,7 +193,7 @@ CATCH_TEST_CASE("test matmul gemm", "[cuda][operators][matmul]") {
   CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
 }
 
-CATCH_TEST_CASE("test matmul bmm (gemm)", "[cuda][operators][matmul]") {
+CATCH_TEST_CASE("test matmul bmm (gemm)", "[ly][op][cuda]") {
   Tensor a = F::rand({5, 10, 20}, DType::kFloat);
   Tensor b = F::rand({40, 30}, DType::kFloat);
   Tensor xr = F::matmul(a, b.slice(1, {5, 25}).transpose(1, 0));
@@ -211,7 +211,7 @@ CATCH_TEST_CASE("test matmul bmm (gemm)", "[cuda][operators][matmul]") {
   CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
 }
 
-CATCH_TEST_CASE("test matmul bmm", "[cuda][operators][matmul]") {
+CATCH_TEST_CASE("test matmul bmm", "[ly][op][cuda]") {
   Tensor a = F::rand({5, 10, 5, 20}, DType::kFloat);
   Tensor b = F::rand({10, 30, 20}, DType::kFloat);
   Tensor xr = F::matmul(a, b.slice(1, {5, 25}).transpose(-1, -2));
@@ -229,9 +229,9 @@ CATCH_TEST_CASE("test matmul bmm", "[cuda][operators][matmul]") {
   CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
 }
 
-CATCH_TEST_CASE("test matmul q4", "[cuda][operators][matmul]") {
+CATCH_TEST_CASE("test matmul q4", "[ly][op][cuda]") {
   Tensor a = F::rand({5, 10, 50}, DType::kFloat);
-  Tensor b = createRandomQ4Tensor2D(50, 32);
+  Tensor b = createRandomQ4Tensor2D(50, 128);
   Tensor xr = F::matmul(a, b);
 
   Tensor x = F::to(Device::getCuda(), a);
@@ -244,7 +244,7 @@ CATCH_TEST_CASE("test matmul q4", "[cuda][operators][matmul]") {
   CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
 }
 
-CATCH_TEST_CASE("test q4 matmul (gemv)", "[cuda][operators][matmul]") {
+CATCH_TEST_CASE("test q4 matmul (gemv)", "[ly][op][cuda]") {
   Tensor Aq = createRandomQ4Tensor2D(8000, 4096);
   Tensor x = F::rand({4096, 1}, DType::kFloat);
   Tensor xr = F::matmul(x.transpose(0, 1), Aq.transpose(0, 1));
@@ -259,7 +259,7 @@ CATCH_TEST_CASE("test q4 matmul (gemv)", "[cuda][operators][matmul]") {
   CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 5e-2f));
 }
 
-CATCH_TEST_CASE("test scale", "[cuda][operators][scale]") {
+CATCH_TEST_CASE("test scale", "[ly][op][cuda]") {
   Tensor a = F::rand({2, 5, 10}, DType::kFloat);
   Tensor xr = F::mul(a.transpose(2, 1).slice(1, {1, 9}), 0.1f);
 
@@ -274,7 +274,7 @@ CATCH_TEST_CASE("test scale", "[cuda][operators][scale]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test mul", "[cuda][operators][mul]") {
+CATCH_TEST_CASE("test mul", "[ly][op][cuda]") {
   Tensor a = F::rand({2, 5, 10}, DType::kFloat);
   Tensor b = F::rand({5}, DType::kFloat);
   Tensor xr = F::mul(a.transpose(2, 1).slice(1, {1, 9}), b);
@@ -292,7 +292,7 @@ CATCH_TEST_CASE("test mul", "[cuda][operators][mul]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test softmax", "[cuda][operators][softmax]") {
+CATCH_TEST_CASE("test softmax", "[ly][op][cuda]") {
   Tensor a = F::rand({2, 5, 20}, DType::kFloat);
   Tensor xr = F::softmax(a);
 
@@ -305,7 +305,7 @@ CATCH_TEST_CASE("test softmax", "[cuda][operators][softmax]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test add", "[cuda][operators][add]") {
+CATCH_TEST_CASE("test add", "[ly][op][cuda]") {
   Tensor a = F::rand({2, 5, 10}, DType::kFloat);
   Tensor b = F::rand({10}, DType::kFloat);
   Tensor xr = F::add(a, b);
@@ -321,7 +321,7 @@ CATCH_TEST_CASE("test add", "[cuda][operators][add]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test rms_norm", "[cuda][operators][rms_norm]") {
+CATCH_TEST_CASE("test rms_norm", "[ly][op][cuda]") {
   Tensor a = F::rand({2, 5, 10}, DType::kFloat);
   Tensor b = F::rand({10}, DType::kFloat);
   Tensor xr = F::rmsNorm(a, b, 1e-5);
@@ -337,7 +337,7 @@ CATCH_TEST_CASE("test rms_norm", "[cuda][operators][rms_norm]") {
   CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 1e-2f));
 }
 
-CATCH_TEST_CASE("test causal_mask", "[cuda][operators][causal_mask]") {
+CATCH_TEST_CASE("test causal_mask", "[ly][op][cuda]") {
   constexpr int DIM = 129;
   Tensor xr = F::softmax(F::causalMask(DIM));
   Tensor x = F::softmax(F::causalMask(DIM, Device::getCuda()));
@@ -348,7 +348,7 @@ CATCH_TEST_CASE("test causal_mask", "[cuda][operators][causal_mask]") {
 }
 
 
-CATCH_TEST_CASE("test apply_rope", "[cuda][operators][apply_rope]") {
+CATCH_TEST_CASE("test apply_rope", "[ly][op][cuda]") {
   Tensor a = F::rand({2, 5, 2, 16}, DType::kFloat);
   Tensor b = F::rand({5, 1, 16}, DType::kFloat);
   Tensor xr = F::applyRotaryPosEmb(a, b);
@@ -364,7 +364,7 @@ CATCH_TEST_CASE("test apply_rope", "[cuda][operators][apply_rope]") {
   CATCH_REQUIRE(F::allClose(x, xr, 1e-3, 1e-3));
 }
 
-CATCH_TEST_CASE("test swiglu", "[cuda][operators][swiglu]") {
+CATCH_TEST_CASE("test swiglu", "[ly][op][cuda]") {
   Tensor a = F::rand({2, 10, 16}, DType::kFloat);
   Tensor xr = F::swiglu(a);
 
@@ -377,7 +377,19 @@ CATCH_TEST_CASE("test swiglu", "[cuda][operators][swiglu]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test cat", "[cuda][operators][cat]") {
+CATCH_TEST_CASE("test dequant", "[ly][op][cuda]") {
+  Tensor a = createRandomQ4Tensor2D(5, 256);
+  Tensor xr = F::cast(a, DType::kFloat);
+
+  Tensor x = F::to(Device::getCuda(), a);
+  x = ly::op::cuda::dequantQ4ToHalf(x);
+  x = F::cast(x, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}
+
+CATCH_TEST_CASE("test cat", "[ly][op][cuda]") {
   Tensor a = F::rand({2, 10, 16}, DType::kFloat);
   Tensor b = F::rand({2, 2, 16}, DType::kFloat);
   Tensor xr = F::cat(a, b, 1);
@@ -393,7 +405,7 @@ CATCH_TEST_CASE("test cat", "[cuda][operators][cat]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test attention", "[cuda][operators][attention]") {
+CATCH_TEST_CASE("test attention", "[ly][op][cuda]") {
   Tensor q = F::rand({1, 2, 5, 16}, DType::kFloat);
   Tensor k = F::rand({1, 2, 5, 16}, DType::kFloat);
   Tensor v = F::rand({1, 2, 5, 16}, DType::kFloat);
@@ -423,7 +435,7 @@ CATCH_TEST_CASE("test attention", "[cuda][operators][attention]") {
   stmt; \
   LOG(INFO) << message <<  ": " << (lut::now() - CONCAT(t0, __LINE__)) * 1000 << "ms";
 
-CATCH_TEST_CASE("benchmark gemv", "[cuda][operators][matmul]") {
+CATCH_TEST_CASE("benchmark gemv", "[ly][op][cuda]") {
   Tensor Aq = createRandomQ4Tensor2D(8000, 4096);
   Tensor x = F::rand({4096, 1}, DType::kFloat);
   Tensor xrq = F::matmul(x.transpose(0, 1), Aq.transpose(0, 1));
@@ -437,7 +449,7 @@ CATCH_TEST_CASE("benchmark gemv", "[cuda][operators][matmul]") {
   LOG_TIME(F::matmul(A, x), "First call F::matmul(A, x)");
   LOG_TIME(Tensor x0 = F::matmul(A, x), "Second call F::matmul(A, x)");
   LOG_TIME(Tensor x1 = ly::op::cuda::gemvHalf(A, x), "ly::op::cuda::gemvHalf(A, x)");
-  LOG_TIME(Tensor xq = ly::op::cuda::gemvQ4(Aq, x), "lly::op::cuda::gemvQ4(Aq, x)");
+  LOG_TIME(Tensor xq = ly::op::cuda::gemvQ4(Aq, x), "ly::op::cuda::gemvQ4(Aq, x)");
 
   x0 = F::cast(x0, DType::kFloat);
   x1 = F::cast(x1, DType::kFloat);

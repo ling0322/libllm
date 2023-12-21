@@ -49,9 +49,9 @@ class SelfAttnetionTester : public ly::nn::ModuleTester {
     x = layer->forward(past, x, roPE);
 
     std::vector<float> xr0, xr1;
-    if (getWeightType() == ly::DType::kQInt4Group32) {
-      xr0 = {0.9316, -0.0872, -0.5942, -0.4963, -0.0253, -0.0969, -0.4287, 0.3093};
-      xr1 = {1.5869, -0.6855, -0.4663, -0.6177, 2.1515e-03, -0.1796, -0.3826, 0.2196};
+    if (getWeightType() == ly::DType::kQ4) {
+      xr0 = {0.7993, -0.1409, -0.4656, -0.6050, -0.0488, -0.2223, -0.4678, 0.2935};
+      xr1 = {1.5264, -0.8032, -0.4797, -0.6748, -0.0331, -0.3162, -0.4333, 0.2161};
     } else {
       xr0 = {0.9316, -0.0690, -0.5620, -0.5322, 0.0108, -0.2059, -0.3772, 0.3516};
       xr1 = {1.5160, -0.6959, -0.4921, -0.5905, 0.0328, -0.2900, -0.3377, 0.2644};
@@ -67,13 +67,13 @@ class SelfAttnetionTester : public ly::nn::ModuleTester {
 
 CATCH_TEST_CASE("test chatglm::SelfAttnetion", "[llm][chatglm]") {
   SelfAttnetionTester(ly::Device::getCpu(), ly::DType::kFloat).run();
-  SelfAttnetionTester(ly::Device::getCpu(), ly::DType::kQInt4Group32).run();
+  SelfAttnetionTester(ly::Device::getCpu(), ly::DType::kQ4).run();
 }
 
 #ifdef LLYN_CUDA_ENABLED
 CATCH_TEST_CASE("test chatglm::SelfAttnetion (cuda)", "[llm][chatglm][cuda]") {
   SelfAttnetionTester(ly::Device::getCuda(), ly::DType::kFloat).run();
-  SelfAttnetionTester(ly::Device::getCuda(), ly::DType::kQInt4Group32).run();
+  SelfAttnetionTester(ly::Device::getCuda(), ly::DType::kQ4).run();
 }
 #endif
 

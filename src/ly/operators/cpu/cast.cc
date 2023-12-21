@@ -36,9 +36,9 @@ namespace cpu {
 Tensor cast(Tensor A, DType dtype) {
   if (A.getDType() == dtype) {
     return A;
-  } else if (A.getDType() == DType::kFloat && dtype == DType::kQInt4Group32) {
+  } else if (A.getDType() == DType::kFloat && dtype == DType::kQ4) {
     return castFp32ToQ4(A);
-  } else if (A.getDType() == DType::kQInt4Group32 && dtype == DType::kFloat) {
+  } else if (A.getDType() == DType::kQ4 && dtype == DType::kFloat) {
     return castQ4ToFp32(A);
   } else {
     NOT_IMPL();
@@ -47,25 +47,26 @@ Tensor cast(Tensor A, DType dtype) {
 
 Tensor castQ4ToFp32(Tensor A) {
   Tensor x = op::cpu::tensor(A.getShape(), DType::kFloat);
-  op::cpu::applyDequant<QInt4Group32>(0, A.getNumEl(), A.getDataObject(), x.getData<float>());
+  op::cpu::applyDequant<Q4>(0, A.getNumEl(), A.getDataObject(), x.getData<float>());
 
   return x;
 }
 
 Tensor castFp32ToQ4(Tensor A) {
+  CHECK(A.getDim() == 2);
+  CHECK(A.getShape(1) % Q4::GroupSize == 0);
   CHECK(A.isContiguous()) << "unable to cast a non-contiguous tensor to Q4";
-  constexpr int groupSize = QInt4Group32::GroupSize;
 
   int64_t numel = A.getNumEl();
   const float *dataA = A.getData<float>();
   std::vector<uint8_t> data(numel / 2);
-  std::vector<uint16_t> qscale(numel / groupSize);
-  std::vector<uint8_t> qzero(numel / groupSize / 2);
+  std::vector<uint16_t> qscale(numel / Q4::GroupSize);
+  std::vector<uint8_t> qzero(numel / Q4::GroupSize / 2);
 
-  int nb = numel / groupSize;
+  int nb = numel / Q4::GroupSize;
   for (int i = 0; i < nb; ++i) {
-    int begin = i * groupSize;
-    int end = (i + 1) * groupSize;
+    int begin = i * Q4::GroupSize;
+    int end = (i + 1) * Q4::GroupSize;
 
     float minVal = *std::min_element(dataA + begin, dataA + end);
     float maxVal = *std::max_element(dataA + begin, dataA + end);
@@ -75,7 +76,7 @@ Tensor castFp32ToQ4(Tensor A) {
     CHECK(zeroFp32 >= 0.0f && zeroFp32 <= 15.0f);
     uint8_t zero = static_cast<uint8_t>(zeroFp32);
 
-    for (int j = 0; j < 32; j += 2) {
+    for (int j = 0; j < Q4::GroupSize; j += 2) {
       float dlFp32 = roundf((dataA[begin + j] - minVal) / scale);
       float dhFp32 = roundf((dataA[begin + j + 1] - minVal) / scale);
       CHECK(dlFp32 >= 0.0f && dlFp32 <= 15.0f && dhFp32 >= 0.0f && dhFp32 <= 15.0f);
@@ -96,9 +97,9 @@ Tensor castFp32ToQ4(Tensor A) {
   }
 
   auto tensorData = CpuTensorData::create({
-      {numel, DType::kQInt4Group32},
-      {numel / groupSize, DType::kFloat16},
-      {numel / groupSize / 2, DType::kUInt8}});
+      {numel, DType::kQ4},
+      {numel / Q4::GroupSize, DType::kFloat16},
+      {numel / Q4::GroupSize / 2, DType::kUInt8}});
   memcpy(tensorData->getSlot(0)->getRawData(), data.data(), data.size());
   memcpy(tensorData->getSlot(1)->getRawData(), qscale.data(), qscale.size() * sizeof(uint16_t));
   memcpy(tensorData->getSlot(2)->getRawData(), qzero.data(), qzero.size());

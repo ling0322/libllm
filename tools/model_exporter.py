@@ -107,7 +107,7 @@ class Quantization:
     @classmethod
     def quantize_to_q4(cls, tensor: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """1D tensor to qdata (q4x2), scale (fp16), zero_point (int8) """
-        grouped_data = tensor.reshape(-1, 32)
+        grouped_data = tensor.reshape(-1, 128)
         num_group = grouped_data.shape[0]
 
         min_value = torch.min(grouped_data, 1).values

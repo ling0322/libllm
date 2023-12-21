@@ -36,7 +36,7 @@ template<class TKernel, Mode MODE>
 class DequantQ4Impl : public DequantQ4 {
  public:
   void apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) const override {
-    CHECK(n % Q4GroupSize == 0);
+    CHECK(n % GroupSizeQ4 == 0);
     int nb = (n + DequantMinElemPerThread - 1) / DequantMinElemPerThread;
 
     if (MODE == Mode::OMP && nb > 1) {
@@ -49,11 +49,11 @@ class DequantQ4Impl : public DequantQ4 {
         TKernel::apply(
             ne,
             x,
-            i * DequantMinElemPerThread,
+            offsetX + i * DequantMinElemPerThread,
             y + i * DequantMinElemPerThread);
       }
     } else {
-      TKernel::apply(n, x, 0, y);
+      TKernel::apply(n, x, offsetX, y);
     }
   }
 };

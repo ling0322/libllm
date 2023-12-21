@@ -49,9 +49,9 @@ class GlmBlockTester : public ly::nn::ModuleTester {
     x = layer->forward(past, x, roPE);
 
     std::vector<float> xr0, xr1;
-    if (getWeightType() == ly::DType::kQInt4Group32) {
-      xr0 = {0.5889, -2.1953, 0.0465, -0.1042, 0.0484, -0.0375, -0.1042, 0.8555};
-      xr1 = {1.2363, -1.1816, 0.3521, -1.3564, 0.7534, 0.1021, -0.4507, 0.3972};
+    if (getWeightType() == ly::DType::kQ4) {
+      xr0 = {0.2781, -2.0898, 0.1926, -0.0876, 0.0167, -0.1566, -0.1160, 0.8701};
+      xr1 = {1.1748, -1.2783, 0.3721, -1.3730, 0.7666, -0.1094, -0.4922, 0.4146};
     } else {
       xr0 = {0.4910, -2.1172, 0.0845, -0.0580, 0.0892, -0.1219, -0.1042, 0.8716};
       xr1 = {1.1953, -1.1631, 0.3333, -1.3271, 0.8140, -0.0444, -0.4258, 0.4353};
@@ -67,13 +67,13 @@ class GlmBlockTester : public ly::nn::ModuleTester {
 
 CATCH_TEST_CASE("test chatglm::GLMBlock", "[llm][chatglm]") {
   GlmBlockTester(ly::Device::getCpu(), ly::DType::kFloat).run();
-  GlmBlockTester(ly::Device::getCpu(), ly::DType::kQInt4Group32).run();
+  GlmBlockTester(ly::Device::getCpu(), ly::DType::kQ4).run();
 }
 
 #ifdef LLYN_CUDA_ENABLED
 CATCH_TEST_CASE("test chatglm::GLMBlock (cuda)", "[llm][chatglm][cuda]") {
   GlmBlockTester(ly::Device::getCuda(), ly::DType::kFloat).run();
-  GlmBlockTester(ly::Device::getCuda(), ly::DType::kQInt4Group32).run();
+  GlmBlockTester(ly::Device::getCuda(), ly::DType::kQ4).run();
 }
 #endif
 

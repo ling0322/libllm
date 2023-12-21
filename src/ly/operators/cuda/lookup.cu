@@ -53,8 +53,8 @@ void lookupQ4Kernel2D(PackedSubtensor2DQ4 embd,
     int row = inputs[z][y];
     assert(row < embd.getNumRow());
 
-    int rowGroup = row * embd.getNumCol() / 32;
-    int elemGroup = rowGroup + x / 16;
+    int rowGroup = row * embd.getNumCol() / Q4::GroupSize;
+    int elemGroup = rowGroup + x / (Q4::GroupSize / 2);
 
     uint8_t q4elem = embd.getData(rowGroup)[x];
     half scale = embd.getScaleValue(elemGroup);
@@ -89,7 +89,7 @@ Tensor lookup2DHalf(const Tensor &embdTable, const Tensor &input) {
 }
 
 Tensor lookup2DQ4(const Tensor &embdTable, const Tensor &input) {
-  CHECK(embdTable.getDType() == DType::kQInt4Group32);
+  CHECK(embdTable.getDType() == DType::kQ4);
 
   std::vector<Tensor::ShapeType> shape = input.getShape();
   shape.push_back(embdTable.getShape(1));
@@ -121,7 +121,7 @@ Tensor lookup(const Tensor &embdTable, const Tensor &input) {
 
   if (input.getDim() == 2 && embdTable.getDType() == DType::kFloat16) {
     return lookup2DHalf(embdTable, input);
-  } if (input.getDim() == 2 && embdTable.getDType() == DType::kQInt4Group32) {
+  } if (input.getDim() == 2 && embdTable.getDType() == DType::kQ4) {
     return lookup2DQ4(embdTable, input);
   } else {
     NOT_IMPL();

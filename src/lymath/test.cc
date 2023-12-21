@@ -86,9 +86,9 @@ void refGemmQ4(
 void testGemmQ4(bool transB, int M, int N, int K) {
   std::vector<float> A(M * K);
   std::vector<uint8_t> B(K * N / 2);
-  std::vector<float> scaleBFp32(K * N / Q4GroupSize);
-  std::vector<Fp16> scaleB(K * N / Q4GroupSize);
-  std::vector<UInt8> zeroB(K * N / Q4GroupSize / 2);
+  std::vector<float> scaleBFp32(K * N / GroupSizeQ4);
+  std::vector<Fp16> scaleB(K * N / GroupSizeQ4);
+  std::vector<UInt8> zeroB(K * N / GroupSizeQ4 / 2);
 
   lut::Random random(MagicNumber);
 
@@ -161,12 +161,12 @@ void refSgemm(
 }
 
 CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
-  constexpr int DIM = DequantMinElemPerThread * 2 + Q4GroupSize;
+  constexpr int DIM = DequantMinElemPerThread * 2 + GroupSizeQ4;
 
   std::vector<uint8_t> x(DIM / 2);
-  std::vector<float> scaleXFp32(DIM / Q4GroupSize);
-  std::vector<Fp16> scaleX(DIM / Q4GroupSize);
-  std::vector<UInt8> zeroX(DIM / Q4GroupSize / 2);
+  std::vector<float> scaleXFp32(DIM / GroupSizeQ4);
+  std::vector<Fp16> scaleX(DIM / GroupSizeQ4);
+  std::vector<UInt8> zeroX(DIM / GroupSizeQ4 / 2);
   std::vector<float> y(DIM);
   std::vector<float> yRef(DIM);
 
@@ -181,10 +181,22 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
   DequantQ4Avx2Kernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
   CATCH_REQUIRE(isClose(y, yRef));
 
+  random.fill(lut::makeSpan(y));
+  random.fill(lut::makeSpan(yRef));
+  DequantQ4FallbackKernel::apply(
+      GroupSizeQ4, {x.data(), scaleX.data(), zeroX.data()}, DequantMinElemPerThread, yRef.data());
+  DequantQ4Avx2Kernel::apply(
+      GroupSizeQ4, {x.data(), scaleX.data(), zeroX.data()}, DequantMinElemPerThread, y.data());
+  CATCH_REQUIRE(isClose(lut::makeConstSpan(y).subspan(0, GroupSizeQ4),
+                        lut::makeConstSpan(yRef).subspan(0, GroupSizeQ4)));
+
   // test api.
+  random.fill(lut::makeSpan(y));
+  DequantQ4FallbackKernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, yRef.data());
   DequantQ4Avx2().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
   CATCH_REQUIRE(isClose(y, yRef));
 
+  random.fill(lut::makeSpan(y));
   DequantQ4Avx2OMP().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
   CATCH_REQUIRE(isClose(y, yRef));
 }
@@ -194,9 +206,9 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
 
   std::vector<float> x(DIM);
   std::vector<Q4x2> y(DIM / 2);
-  std::vector<float> scaleYFp32(DIM / Q4GroupSize);
-  std::vector<UInt8> zeroY(DIM / Q4GroupSize / 2);
-  std::vector<Fp16> scaleY(DIM / Q4GroupSize);
+  std::vector<float> scaleYFp32(DIM / GroupSizeQ4);
+  std::vector<UInt8> zeroY(DIM / GroupSizeQ4 / 2);
+  std::vector<Fp16> scaleY(DIM / GroupSizeQ4);
 
   lut::Random random(MagicNumber);
   random.fillUInt8(lut::makeSpan(y));
@@ -215,15 +227,15 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
 // to reproduce a zero-point index bug in q4 kernels.
 CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   constexpr int NUM_ROW = 32;
-  constexpr int NUM_COL = 32;
+  constexpr int NUM_COL = 128;
   constexpr int NUMEL = NUM_COL * NUM_ROW;
 
   std::vector<float> x(NUM_COL);
   std::vector<float> y(NUM_ROW);
   std::vector<Q4x2> A(NUMEL / 2);
-  std::vector<float> scaleAFp32(NUMEL / Q4GroupSize);
-  std::vector<UInt8> zeroA(NUMEL / Q4GroupSize / 2);
-  std::vector<Fp16> scaleA(NUMEL / Q4GroupSize);
+  std::vector<float> scaleAFp32(NUMEL / GroupSizeQ4);
+  std::vector<UInt8> zeroA(NUMEL / GroupSizeQ4 / 2);
+  std::vector<Fp16> scaleA(NUMEL / GroupSizeQ4);
 
   lut::Random random(MagicNumber);
   random.fillUInt8(lut::makeSpan(A));
@@ -255,9 +267,9 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
 }
 
 CATCH_TEST_CASE("test lymath_q4gemm", "[lymath][api][q4]") {
-  testGemmQ4(true, 1, 32, 32);
+  testGemmQ4(true, 1, 32, 128);
   testGemmQ4(true, 1, 64, 4096);
-  testGemmQ4(true, 64, 64, 64);
+  testGemmQ4(true, 64, 64, 256);
 }
 
 void testSgemm(bool transA, bool transB, int M, int N, int K) {

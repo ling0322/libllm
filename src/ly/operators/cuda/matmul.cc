@@ -60,7 +60,7 @@ Tensor MatMul::apply(const Tensor &A, const Tensor &B) {
 
   if (A.getDType() == DType::kFloat16 && B.getDType() == DType::kFloat16) {
     return matmulHalf(A, B);
-  } else if (A.getDType() == DType::kFloat16 && B.getDType() == DType::kQInt4Group32) {
+  } else if (A.getDType() == DType::kFloat16 && B.getDType() == DType::kQ4) {
     return matmulQ4(A, B);
   } else {
     NOT_IMPL();
@@ -68,7 +68,7 @@ Tensor MatMul::apply(const Tensor &A, const Tensor &B) {
 }
 
 Tensor MatMul::matmulQ4(const Tensor &A, const Tensor &B) {
-  CHECK(B.getDType() == DType::kQInt4Group32);
+  CHECK(B.getDType() == DType::kQ4);
   CHECK(A.getDType() == DType::kFloat16);
 
   if (A.getDim() == 2 && B.getDim() == 2) {

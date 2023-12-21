@@ -27,7 +27,7 @@ namespace op {
 namespace cuda {
 
 PackedSubtensor2DQ4::PackedSubtensor2DQ4(const Tensor &tensor) {
-  CHECK(tensor.getDType() == DType::kQInt4Group32);
+  CHECK(tensor.getDType() == DType::kQ4);
   CHECK(tensor.getDevice().getType() == Device::kCuda);
   CHECK(tensor.getStride(1) == 1);
   CHECK(tensor.getOffset_() == 0);

@@ -54,9 +54,7 @@ typedef const uint8_t *PCQ4x2;
 
 constexpr int GEMVMinRowsPerThread = 128;
 constexpr int DequantMinElemPerThread = 1024;
-constexpr int Q4GroupSize = 32;
-constexpr int Int4fGroupSize = 32;
-constexpr int Int8bScaleGroupSize = 128;
+constexpr int GroupSizeQ4 = 128;
 
 class DataQ4 {
  public:
@@ -69,7 +67,9 @@ class DataQ4 {
       _scale(scale),
       _zero(zero) {}
 
-  constexpr PCQ4x2 getDataByGroup(int64_t groupIdx) const { return _data + groupIdx * 16; }
+  constexpr PCQ4x2 getDataByGroup(int64_t groupIdx) const {
+    return _data + groupIdx * GroupSizeQ4 / 2;
+  }
   constexpr PCFp16 getScaleByGroup(int64_t groupIdx) const { return _scale + groupIdx; }
   constexpr PCQ4x2 getZeroByGroup(int64_t groupIdx) const { return _zero + groupIdx / 2; }
 

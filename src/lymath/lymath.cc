@@ -172,6 +172,7 @@ void lymath_dequant_q4(
     const lymath_q4x2_t *data,
     const lymath_float16_t *scale,
     const uint8_t *zeroPoint,
+    int offset,
     float *tgt) {
   lymath::DataQ4 x(
     reinterpret_cast<lymath::PCQ4x2>(data),
@@ -181,7 +182,7 @@ void lymath_dequant_q4(
   Api::getInstance()->getDequantQ4()->apply(
       n,
       x,
-      0,
+      offset,
       tgt);
 }
 

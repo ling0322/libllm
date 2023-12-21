@@ -35,7 +35,7 @@ void dequantTensor2DQ4(PackedSubtensor2DQ4 qtensor,
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
   for (int elemOffset = idx; elemOffset < numQ4x2; elemOffset += gridDim.x * blockDim.x) {
-    int elemGroup = elemOffset / 16;
+    int elemGroup = elemOffset / (Q4::GroupSize / 2);
     uint8_t q4elem = qtensor.getData(0)[elemOffset];
     half scale = qtensor.getScaleValue(elemGroup);
     int8_t zero = qtensor.getZeroValue(elemGroup);
@@ -47,7 +47,7 @@ void dequantTensor2DQ4(PackedSubtensor2DQ4 qtensor,
 }
 
 Tensor dequantQ4ToHalf(const Tensor &qtensor) {
-  CHECK(qtensor.getDType() == DType::kQInt4Group32);
+  CHECK(qtensor.getDType() == DType::kQ4);
   Tensor qT = qtensor;
   bool transQ = qtensor.getStride(0) == 1 && qtensor.getStride(1) != 1;
   if (transQ) qT = qT.transpose(0, 1);
