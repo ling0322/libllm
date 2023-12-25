@@ -25,6 +25,7 @@ using lut::IniConfig;
 using lut::IniSection;
 using ly::Tensor;
 
+namespace F = ly::functional;
 
 namespace libllm {
 namespace llama {
@@ -59,7 +60,8 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::create(
 }
 
 Tensor LlamaModelForGeneration::forward(ly::StateMap &past, Tensor input) const {
-  return _model->forward(past, input);
+  Tensor x = _model->forward(past, input);
+  return x;
 }
 
 Tensor LlamaModelForGeneration::forwardHidden(Tensor hidden) const {
@@ -67,7 +69,7 @@ Tensor LlamaModelForGeneration::forwardHidden(Tensor hidden) const {
 }
 
 Tensor LlamaModelForGeneration::buildInput(const std::vector<ly::LongType> &prompt) const {
-  std::vector<ly::LongType> inputData{_bosId};
+  std::vector<ly::LongType> inputData{};
   inputData.insert(inputData.end(), prompt.begin(), prompt.end());
 
   int len = inputData.size();
