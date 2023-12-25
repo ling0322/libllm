@@ -103,7 +103,7 @@ Tensor Attention::applyRoPE(Tensor input, Tensor roPE) const {
   cos = cos.expand({cos.getShape(0), input.getShape(2), cos.getShape(2)});
   sin = sin.expand({sin.getShape(0), input.getShape(2), sin.getShape(2)});
 
-  return F::add(F::mul(input, cos), F::mul(rotateHalf(input), sin));
+  return F::add(F::mul(input, F::contiguous(cos)), F::mul(rotateHalf(input), F::contiguous(sin)));
 }
 
 ly::Tensor Attention::forward(ly::StateMap &past, ly::Tensor input) const {
@@ -147,7 +147,7 @@ ly::Tensor Attention::forward(ly::StateMap &past, ly::Tensor input) const {
   k = k.transpose(1, 2);
   v = v.transpose(1, 2);
   Tensor x = qLen == 1 ? F::attention(q, k, v)
-                       : F::attention(q, k, v, F::causalMask(q.getShape(2)));
+                       : F::attention(q, k, v, F::causalMask(q.getShape(2), getCtx().getDevice()));
 
   x = F::contiguous(x.transpose(1, 2)).view({N, qLen, _hiddenSize});
   x = F::matmul(x, _outProj.transpose(0, 1));

@@ -125,10 +125,8 @@ void CudaOperators::copy(Tensor src, Tensor dest) {
 
   if (src.isContiguous() && dest.isContiguous()) {
     copyContig(src, dest);
-  } else if (src.getDim() <= 4 && src.getDType() == DType::kFloat16) {
-    _cudnn->copy(src, dest);
   } else {
-    cuda::copy(src, dest);
+    op::cuda::copy(src, dest);
   }
 }
 

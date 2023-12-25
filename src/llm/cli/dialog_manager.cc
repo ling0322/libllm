@@ -75,28 +75,25 @@ std::string ChatGLM3PromptBuilder::getStopSeq() {
   return "";
 }
 
-const char *llama2Prompt = 
-    "Answer following questions:\n"
-    "\n"
-    "Q: What's the Capital city of Washinton state?\n"
-    "A: Olympia.\n"
-    "\n"
-    "Q: Who is the 31th president in US?\n"
-    "A: Herbert Clark Hoover.\n"
-    "\n"
-    "Q: %s\n"
-    "A: ";
-
 llm::Prompt LlamaPromptBuilder::buildPrompt(lut::Span<const QA> history,
                                             const std::string &question) {
+  std::string promptText;
+  for (const QA &qa : history) {
+    promptText += "[INST] " + qa.question + " [/INST]\n";
+    promptText += qa.answer + "\n";
+  }
+  promptText += "[INST] " + question + " [/INST]\n";
+
+  LOG(INFO) << promptText;
+  
   llm::Prompt prompt;
-  prompt.appendText(lut::sprintf(llama2Prompt, question));
+  prompt.appendText(promptText);
 
   return prompt;
 }
 
 std::string LlamaPromptBuilder::getStopSeq() {
-  return "\n";
+  return "";
 }
 
 std::shared_ptr<PromptBulder> PromptBulder::create(const std::string &modelName) {

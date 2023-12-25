@@ -90,7 +90,7 @@ CATCH_TEST_CASE("test cuda cast", "[ly][op][cuda]") {
 }
 
 CATCH_TEST_CASE("test cuda copy", "[ly][op][cuda]") {
-  Tensor tensor = F::rand({100, 20}, DType::kFloat);
+  Tensor tensor = F::rand({2, 5, 20}, DType::kFloat);
   Tensor x = F::to(Device::getCuda(), tensor);
 
   // cudaMemcpy path.
@@ -110,6 +110,7 @@ CATCH_TEST_CASE("test cuda copy", "[ly][op][cuda]") {
 
   x2 = F::cast(x2, DType::kFloat);
   x2 = F::to(Device::getCpu(), x2);
+
   CATCH_REQUIRE(F::allClose(tensor, x2.transpose(1, 0)));
 }
 
