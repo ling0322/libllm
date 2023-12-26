@@ -29,6 +29,7 @@
 #include "ly/operators/cuda/swiglu.h"
 #include "ly/operators/cuda/to_device.h"
 #include "ly/operators/cuda/rms_norm.h"
+#include "ly/operators/cuda/transform.h"
 
 namespace ly {
 namespace op {
@@ -61,7 +62,7 @@ Tensor CudaOperators::matmul(Tensor a, Tensor b) {
 }
 
 Tensor CudaOperators::mul(Tensor input, float other) {
-  return _cudnn->scale(input, other);
+  return op::cuda::transform(input, other, 0.0f);
 }
 
 Tensor CudaOperators::mul(Tensor input, Tensor other) {
