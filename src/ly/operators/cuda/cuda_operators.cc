@@ -20,6 +20,7 @@
 #include "ly/operators/cuda/cuda_operators.h"
 
 #include "ly/operators/cuda/apply_rotary_pos_emb.h"
+#include "ly/operators/cuda/binary_op.h"
 #include "ly/operators/cuda/cast.h"
 #include "ly/operators/cuda/causal_mask.h"
 #include "ly/operators/cuda/copy.h"
@@ -66,7 +67,7 @@ Tensor CudaOperators::mul(Tensor input, float other) {
 }
 
 Tensor CudaOperators::mul(Tensor input, Tensor other) {
-  return _cudnn->applyOp(input, other, CUDNN_OP_TENSOR_MUL);
+  return op::cuda::binaryOp(input, other, BinaryOp::MUL);
 }
 
 Tensor CudaOperators::softmax(Tensor input) {
@@ -74,7 +75,7 @@ Tensor CudaOperators::softmax(Tensor input) {
 }
 
 Tensor CudaOperators::add(Tensor input, Tensor other) {
-  return _cudnn->applyOp(input, other, CUDNN_OP_TENSOR_ADD);
+  return op::cuda::binaryOp(input, other, BinaryOp::ADD);
 }
 
 Tensor CudaOperators::rmsNorm(Tensor input, Tensor weight, float eps) {

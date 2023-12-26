@@ -20,14 +20,19 @@
 #pragma once
 
 #include "ly/tensor.h"
-#include "lyutil/span.h"
 
 namespace ly {
 namespace op {
-namespace common {
+namespace cuda {
 
-Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> shape);
+enum class BinaryOp {
+  ADD,
+  MUL
+};
 
-}  // commoon
+// apply C <- BinaryOp(A, B)
+Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op);
+
+}  // cuda
 }  // op
 }  // ly

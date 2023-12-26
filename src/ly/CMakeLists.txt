@@ -63,6 +63,7 @@ if (CUDA_ENABLED)
     set(lyextcuda_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_ROOT}/include)
     set(lyextcuda_SOURCES
         "operators/cuda/apply_rotary_pos_emb.cu"
+        "operators/cuda/binary_op.cu"
         "operators/cuda/cast.cu"
         "operators/cuda/causal_mask.cu"
         "operators/cuda/copy.cu"
