@@ -76,7 +76,8 @@ if (CUDA_ENABLED)
         "operators/cuda/matvec.cu"
         "operators/cuda/rms_norm.cu"
         "operators/cuda/swiglu.cu"
-        "operators/cuda/to_device.cc")
+        "operators/cuda/to_device.cc"
+        "operators/cuda/transform.cu")
     add_library(lyextcuda STATIC ${lyextcuda_SOURCES})
     target_include_directories(lyextcuda PRIVATE .. ${lyextcuda_INCDIR})
     target_compile_features(lyextcuda PRIVATE cxx_std_14)
