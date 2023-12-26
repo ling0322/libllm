@@ -87,7 +87,7 @@ Tensor bmmNx2Fp32(const Tensor &A, const Tensor &B) {
 
 Tensor bmmFp32(const Tensor &A, const Tensor &B) {
   Tensor xB = B;
-  if (A.getDim() != B.getDim()) xB = common::broadcastTensor(B, A);
+  if (A.getDim() != B.getDim()) xB = common::expandBatchDims(B, A.getShape());
   std::vector<int> shapeC = common::getBmmOutputShape(A, xB);
 
   Tensor tensorC = cpu::tensor(shapeC, DType::kFloat);

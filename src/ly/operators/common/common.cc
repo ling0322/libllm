@@ -23,16 +23,17 @@ namespace ly {
 namespace op {
 namespace common {
 
-Tensor broadcastTensor(const Tensor &input, const Tensor &ref) {
-  if (input.getDim() == ref.getDim()) return input;
-  int nBroadcastDim = ref.getDim() - input.getDim();
+Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> shape) {
+  CHECK(shape.size() >= input.getDim());
+  if (input.getDim() == shape.size()) return input;
+  int nBroadcastDim = static_cast<int>(shape.size()) - input.getDim();
 
   Tensor x = input;
   std::vector<internal::TensorShape::Elem> broadcastShape;
   for (int i = 0; i < nBroadcastDim; ++i) {
     internal::TensorShape::Elem shapeElem;
     shapeElem.stride = 0;
-    shapeElem.shape = ref.getShape(i);
+    shapeElem.shape = shape[i];
     broadcastShape.push_back(shapeElem);
   }
 

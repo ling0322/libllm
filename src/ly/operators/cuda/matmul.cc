@@ -188,7 +188,7 @@ std::vector<const half *> MatMul::getBatch(const Tensor &A, int nBatchDim) {
 
 Tensor MatMul::bmmHalf(const Tensor &A, const Tensor &B) {
   Tensor xB = B;
-  if (A.getDim() != B.getDim()) xB = common::broadcastTensor(B, A);
+  if (A.getDim() != B.getDim()) xB = common::expandBatchDims(B, A.getShape());
 
   std::vector<int> shapeC = common::getBmmOutputShape(A, xB);
   Tensor C = createCudaTensorHalf(shapeC);
