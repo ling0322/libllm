@@ -33,6 +33,8 @@
 #include "ly/operators/cuda/rms_norm.h"
 #include "ly/operators/cuda/transform.h"
 
+#include "ly/functional.h"
+
 namespace ly {
 namespace op {
 namespace cuda {
