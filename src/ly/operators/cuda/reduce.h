@@ -26,11 +26,14 @@ namespace op {
 namespace cuda {
 
 enum class ReduceType {
-  // Sum of exp(x), the input type is fp16, the intermediate and output type is fp32.
-  SUM_EXP_FP16_FP32
+  // Sum of exp(x). FP16_FP32 means the input type if fp16, intermediate and output type is fp32.
+  SUM_EXP_FP16_FP32,
+
+  // Sum of x^2.
+  SUM_SQUARE_FP16_FP32
 };
 
-Tensor reduce(const Tensor &A);
+Tensor reduce(const Tensor &A, ReduceType reduceType);
 Tensor reduceHalfToSingle3D(Tensor A, ReduceType reduceType);
 
 }  // cuda

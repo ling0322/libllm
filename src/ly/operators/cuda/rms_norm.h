@@ -27,7 +27,7 @@ namespace cuda {
 
 class CudnnWrapper;
 
-Tensor rmsNorm(CudnnWrapper *cudnn, const Tensor &tensor, const Tensor &weight, float eps);
+Tensor rmsNorm(const Tensor &tensor, const Tensor &weight, float eps);
 
 }  // cuda
 }  // op

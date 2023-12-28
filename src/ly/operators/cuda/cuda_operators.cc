@@ -82,7 +82,7 @@ Tensor CudaOperators::add(Tensor input, Tensor other) {
 }
 
 Tensor CudaOperators::rmsNorm(Tensor input, Tensor weight, float eps) {
-  return op::cuda::rmsNorm(_cudnn.get(), input, weight, eps);
+  return op::cuda::rmsNorm(input, weight, eps);
 }
 
 Tensor CudaOperators::causalMask(int max_len) {
