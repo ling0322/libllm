@@ -31,6 +31,14 @@
 #include "lyutil/random.h"
 #include "lyutil/time.h"
 
+#define CONCAT2(l, r) l ## r
+#define CONCAT(l, r) CONCAT2(l, r)
+
+#define LOG_TIME(stmt, message) \
+  double CONCAT(t0, __LINE__) = lut::now(); \
+  stmt; \
+  LOG(INFO) << message <<  ": " << (lut::now() - CONCAT(t0, __LINE__)) * 1000 << "ms";
+
 using ly::Tensor;
 using ly::DType;
 using ly::Device;
@@ -101,12 +109,30 @@ CATCH_TEST_CASE("test cuda copy", "[ly][op][cuda]") {
   x2 = F::to(Device::getCpu(), x2);
   CATCH_REQUIRE(F::allClose(tensor, x2));
 
-  // cudnnTransformTensor path.
+  // other path.
   x = F::to(Device::getCuda(), tensor);
   x = F::cast(x, DType::kFloat16);
   x = x.transpose(1, 0);
   x2 = F::createTensorLike(x);
   F::copy(x, x2);
+
+  x2 = F::cast(x2, DType::kFloat);
+  x2 = F::to(Device::getCpu(), x2);
+
+  CATCH_REQUIRE(F::allClose(tensor, x2.transpose(1, 0)));
+}
+
+CATCH_TEST_CASE("benchmark copy", "[ly][op][cuda]") {
+  Tensor tensor = F::rand({2, 4096, 4096}, DType::kFloat);
+  Tensor x = F::to(Device::getCuda(), tensor);
+
+  // other path.
+  x = F::to(Device::getCuda(), tensor);
+  x = F::cast(x, DType::kFloat16);
+  x = x.transpose(1, 0);
+  Tensor x2 = F::createTensorLike(x);
+
+  LOG_TIME(F::copy(x, x2), "F::copy(x, x2)");
 
   x2 = F::cast(x2, DType::kFloat);
   x2 = F::to(Device::getCpu(), x2);
@@ -294,12 +320,38 @@ CATCH_TEST_CASE("test mul", "[ly][op][cuda]") {
 }
 
 CATCH_TEST_CASE("test softmax", "[ly][op][cuda]") {
-  Tensor a = F::rand({2, 5, 20}, DType::kFloat);
+  Tensor a = F::rand({2, 5, 150}, DType::kFloat);
   Tensor xr = F::softmax(a);
 
   Tensor x = F::to(Device::getCuda(), a);
   x = F::cast(x, DType::kFloat16);
   x = F::softmax(x);
+  x = F::cast(x, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}
+
+CATCH_TEST_CASE("benchmark softmax", "[ly][op][cuda]") {
+  Tensor a = F::rand({2, 256, 4096}, DType::kFloat);
+  Tensor xr = F::softmax(a);
+
+  Tensor x = F::to(Device::getCuda(), a);
+  x = F::cast(x, DType::kFloat16);
+  LOG_TIME(x = F::softmax(x), "d=4096 F::softmax(x)");
+  x = F::cast(x, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}
+
+CATCH_TEST_CASE("benchmark softmax large", "[ly][op][cuda]") {
+  Tensor a = F::rand({2, 256, 50000}, DType::kFloat);
+  Tensor xr = F::softmax(a);
+
+  Tensor x = F::to(Device::getCuda(), a);
+  x = F::cast(x, DType::kFloat16);
+  LOG_TIME(x = F::softmax(x), "d=50000 F::softmax(x)");
   x = F::cast(x, DType::kFloat);
   x = F::to(Device::getCpu(), x);
 
@@ -427,14 +479,6 @@ CATCH_TEST_CASE("test attention", "[ly][op][cuda]") {
 
   CATCH_REQUIRE(F::allClose(x, xr));
 }
-
-#define CONCAT2(l, r) l ## r
-#define CONCAT(l, r) CONCAT2(l, r)
-
-#define LOG_TIME(stmt, message) \
-  double CONCAT(t0, __LINE__) = lut::now(); \
-  stmt; \
-  LOG(INFO) << message <<  ": " << (lut::now() - CONCAT(t0, __LINE__)) * 1000 << "ms";
 
 CATCH_TEST_CASE("benchmark gemv", "[ly][op][cuda]") {
   Tensor Aq = createRandomQ4Tensor2D(8000, 4096);

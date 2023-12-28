@@ -75,7 +75,9 @@ if (CUDA_ENABLED)
         "operators/cuda/lookup.cu"
         "operators/cuda/matmul.cc"
         "operators/cuda/matvec.cu"
+        "operators/cuda/reduce.cu"
         "operators/cuda/rms_norm.cu"
+        "operators/cuda/softmax.cu"
         "operators/cuda/swiglu.cu"
         "operators/cuda/to_device.cc"
         "operators/cuda/transform.cu")
