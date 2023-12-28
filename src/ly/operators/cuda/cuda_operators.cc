@@ -27,10 +27,13 @@
 #include "ly/operators/cuda/cudnn_wrapper.h"
 #include "ly/operators/cuda/lookup.h"
 #include "ly/operators/cuda/matmul.h"
+#include "ly/operators/cuda/softmax.h"
 #include "ly/operators/cuda/swiglu.h"
 #include "ly/operators/cuda/to_device.h"
 #include "ly/operators/cuda/rms_norm.h"
 #include "ly/operators/cuda/transform.h"
+
+#include "ly/functional.h"
 
 namespace ly {
 namespace op {
@@ -71,7 +74,7 @@ Tensor CudaOperators::mul(Tensor input, Tensor other) {
 }
 
 Tensor CudaOperators::softmax(Tensor input) {
-  return _cudnn->softmax(input);
+  return op::cuda::softmax(input);
 }
 
 Tensor CudaOperators::add(Tensor input, Tensor other) {
@@ -136,13 +139,10 @@ Tensor CudaOperators::attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
   Tensor scores = matmul(q, k.transpose(-2, -1));
   scores = mul(scores,  1.0f / sqrtf(1.0f * q.getShape(-1)));
 
-  if (!mask.empty()) {
-    scores = add(scores, mask);
-  }
-
+  if (!mask.empty()) scores = add(scores, mask);
   scores = softmax(scores);
-  Tensor outputs = matmul(scores, v);  
 
+  Tensor outputs = matmul(scores, v);  
   return outputs;
 }
 
