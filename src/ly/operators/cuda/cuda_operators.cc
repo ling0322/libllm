@@ -33,8 +33,6 @@
 #include "ly/operators/cuda/rms_norm.h"
 #include "ly/operators/cuda/transform.h"
 
-#include "ly/functional.h"
-
 namespace ly {
 namespace op {
 namespace cuda {
@@ -82,7 +80,7 @@ Tensor CudaOperators::add(Tensor input, Tensor other) {
 }
 
 Tensor CudaOperators::rmsNorm(Tensor input, Tensor weight, float eps) {
-  return op::cuda::rmsNorm(_cudnn.get(), input, weight, eps);
+  return op::cuda::rmsNorm(input, weight, eps);
 }
 
 Tensor CudaOperators::causalMask(int max_len) {

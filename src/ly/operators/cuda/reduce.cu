@@ -35,6 +35,12 @@ __device__ __forceinline__ float mapper<half, float, ReduceType::SUM_EXP_FP16_FP
   return expf(static_cast<float>(x));
 }
 
+template<>
+__device__ __forceinline__ float mapper<half, float, ReduceType::SUM_SQUARE_FP16_FP32>(half x) {
+  float xs = static_cast<float>(x);
+  return xs * xs;
+}
+
 template<typename T>
 __device__ __forceinline__ T wrapReduceSum(T sum) {
   sum += __shfl_down_sync(0xffffffff, sum, 16);
@@ -96,6 +102,9 @@ Tensor reduceHalfToSingle3D(Tensor A, ReduceType reduceType) {
   switch (reduceType) {
     case ReduceType::SUM_EXP_FP16_FP32:
       reduce0Kernel3D<half, float, ReduceType::SUM_EXP_FP16_FP32><<<d, blockSize>>>(A, C);
+      break;
+    case ReduceType::SUM_SQUARE_FP16_FP32:
+      reduce0Kernel3D<half, float, ReduceType::SUM_SQUARE_FP16_FP32><<<d, blockSize>>>(A, C);
       break;
     default:
       NOT_IMPL();

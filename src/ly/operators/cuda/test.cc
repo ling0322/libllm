@@ -390,6 +390,22 @@ CATCH_TEST_CASE("test rms_norm", "[ly][op][cuda]") {
   CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 1e-2f));
 }
 
+CATCH_TEST_CASE("benchmark rms_norm", "[ly][op][cuda]") {
+  Tensor a = F::rand({2, 256, 4096}, DType::kFloat);
+  Tensor b = F::rand({4096}, DType::kFloat);
+  Tensor xr = F::rmsNorm(a, b, 1e-5);
+
+  Tensor x = F::to(Device::getCuda(), a);
+  Tensor y = F::to(Device::getCuda(), b);
+  x = F::cast(x, DType::kFloat16);
+  y = F::cast(y, DType::kFloat16);
+  LOG_TIME(x = F::rmsNorm(x, y, 1e-5), "d=4096 F::rmsNorm(x, y, 1e-5)");
+  x = F::cast(x, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+
+  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 1e-2f));
+}
+
 CATCH_TEST_CASE("test causal_mask", "[ly][op][cuda]") {
   constexpr int DIM = 129;
   Tensor xr = F::softmax(F::causalMask(DIM));

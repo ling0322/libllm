@@ -21,21 +21,23 @@
 
 #include <cuda_fp16.h>
 #include "ly/operators/cuda/cudnn_wrapper.h"
+#include "ly/operators/cuda/reduce.h"
+
 
 namespace ly {
 namespace op {
 namespace cuda {
 
 __global__ void rmsNormKernel3D(PackedSubtensor<const half, 3> inputTensor,
-                                PackedSubtensor<const half, 2> reduceNorm2,
+                                PackedSubtensor<const float, 2> sumSquare,
                                 PackedSubtensor<const half, 1> weight,
                                 PackedSubtensor<half, 3> outputTensor,
                                 float eps) {
   assert(inputTensor.getShape(0) == outputTensor.getShape(0));
   assert(inputTensor.getShape(1) == outputTensor.getShape(1));
   assert(inputTensor.getShape(2) == outputTensor.getShape(2));
-  assert(inputTensor.getShape(0) == reduceNorm2.getShape(0));
-  assert(inputTensor.getShape(1) == reduceNorm2.getShape(1));
+  assert(inputTensor.getShape(0) == sumSquare.getShape(0));
+  assert(inputTensor.getShape(1) == sumSquare.getShape(1));
   assert(inputTensor.getShape(2) == weight.getShape(0));
 
   int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -43,14 +45,13 @@ __global__ void rmsNormKernel3D(PackedSubtensor<const half, 3> inputTensor,
   int z = blockIdx.z * blockDim.z + threadIdx.z;
 
   if (z < inputTensor.getShape(0) && y < inputTensor.getShape(1) && x < inputTensor.getShape(2)) {
-    float norm2 = __half2float(reduceNorm2[z][y]);
-    half rms = __float2half(hsqrt(norm2 * norm2 / __int2float_rd(weight.getShape(0)) + eps));
+    half rms = __float2half(sqrtf(sumSquare[z][y] / __int2float_rd(weight.getShape(0)) + eps));
     outputTensor[z][y][x] = inputTensor[z][y][x] * weight[x] / rms;
   }
 }
 
-Tensor rmsNorm3D(CudnnWrapper *cudnn, const Tensor &tensor, const Tensor &weight, float eps) {
-  Tensor reduceNorm2 = cudnn->reduce(tensor, CUDNN_REDUCE_TENSOR_NORM2);
+Tensor rmsNorm3D(const Tensor &tensor, const Tensor &weight, float eps) {
+  Tensor reduceNorm2 = op::cuda::reduceHalfToSingle3D(tensor, ReduceType::SUM_SQUARE_FP16_FP32);
   CHECK(reduceNorm2.getDim() == 2);
 
   Tensor C = createCudaTensorHalf(tensor.getShape());
@@ -67,12 +68,12 @@ Tensor rmsNorm3D(CudnnWrapper *cudnn, const Tensor &tensor, const Tensor &weight
   return C;
 }
 
-Tensor rmsNorm(CudnnWrapper *cudnn, const Tensor &tensor, const Tensor &weight, float eps) {
+Tensor rmsNorm(const Tensor &tensor, const Tensor &weight, float eps) {
   CHECK(weight.getDim() == 1);
   CHECK(tensor.getShape(-1) == weight.getShape(0));
   CHECK(weight.getDevice().getType() == Device::kCuda);
 
-  if (tensor.getDim() == 3) return rmsNorm3D(cudnn, tensor, weight, eps);
+  if (tensor.getDim() == 3) return rmsNorm3D(tensor, weight, eps);
 
   NOT_IMPL();
 }
