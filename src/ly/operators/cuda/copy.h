@@ -27,7 +27,7 @@ namespace cuda {
 
 // copy operator has multiple implementations. If the sec and dest is contiguous, it will call
 // memcpy directly. If both src and dest are sub-4D tensor with float/half, it will call
-// cudnnTransformTensor. Otherwise, it will fallback here.
+// op::cuda::transform. Otherwise, it will fallback here.
 void copy(const Tensor &src, Tensor &dest);
 
 /// @brief Copy contiguous tensors by cudaMemcpy.

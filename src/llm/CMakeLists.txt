@@ -31,14 +31,12 @@ if(CUDA_ENABLED)
     set(libllm_LIBADD
         ${libllm_LIBADD}
         lyextcuda
-        ${cudnn_LIBRARIES}
         ${cuda_LIBRARIES})
 endif()
 
 add_library(libllm SHARED ${libllm_SOURCES} )
 target_include_directories(libllm PRIVATE ${libllm_INCDIRS})
 target_compile_features(libllm PRIVATE cxx_std_14)
-target_link_directories(libllm PUBLIC "${CUDNN_ROOT}/lib/" "${CUDNN_ROOT}/lib/x64")
 target_link_libraries(libllm ${libllm_LIBADD}  )
 set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
 target_link_options(libllm PUBLIC "-Wl,--no-undefined")
@@ -66,7 +64,6 @@ set(llm_test_SOURCES
 
 add_executable(unittest ${llm_test_SOURCES})
 target_include_directories(unittest PRIVATE ${libllm_INCDIRS})
-target_link_directories(unittest PUBLIC "${CUDNN_ROOT}/lib/" "${CUDNN_ROOT}/lib/x64")
 target_link_libraries(unittest ${libllm_LIBADD})
 target_link_options(unittest PUBLIC "-fopenmp")
 

@@ -25,8 +25,6 @@ namespace ly {
 namespace op {
 namespace cuda {
 
-class CudnnWrapper;
-
 Tensor rmsNorm(const Tensor &tensor, const Tensor &weight, float eps);
 
 }  // cuda

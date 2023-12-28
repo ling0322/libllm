@@ -24,7 +24,6 @@
 #include "ly/operators/cuda/cast.h"
 #include "ly/operators/cuda/causal_mask.h"
 #include "ly/operators/cuda/copy.h"
-#include "ly/operators/cuda/cudnn_wrapper.h"
 #include "ly/operators/cuda/lookup.h"
 #include "ly/operators/cuda/matmul.h"
 #include "ly/operators/cuda/softmax.h"
@@ -45,7 +44,6 @@ bool CudaOperators::isAvailable() {
 
 internal::Operators *CudaOperators::create() {
   std::unique_ptr<CudaOperators> op{new CudaOperators()};
-  op->_cudnn = CudnnWrapper::create();
   op->_matmul = MatMul::create();
 
   LOG(INFO) << "cuda numDevices = " << getCudaDeviceCount();
