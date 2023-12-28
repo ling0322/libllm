@@ -145,7 +145,7 @@ CATCH_TEST_CASE("test cuda copy (int64_t)", "[ly][op][cuda]") {
     1, 2, 3, 4, 5, 6, 7, 8, 9, 0
   });
 
-  // cudaMemcpy path (cudnnTransformTensor path is not supported for int16_t)
+  // cudaMemcpy path (op::cuda::transform path is not supported for int16_t)
   Tensor x = F::to(Device::getCuda(), tensor);
   Tensor x2 = F::createTensorLike(x);
   F::copy(x, x2);

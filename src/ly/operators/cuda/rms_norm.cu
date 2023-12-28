@@ -20,7 +20,7 @@
 #include "ly/operators/cuda/rms_norm.h"
 
 #include <cuda_fp16.h>
-#include "ly/operators/cuda/cudnn_wrapper.h"
+#include "ly/operators/cuda/common.h"
 #include "ly/operators/cuda/reduce.h"
 
 

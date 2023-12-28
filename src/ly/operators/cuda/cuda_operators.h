@@ -25,7 +25,6 @@ namespace ly {
 namespace op {
 namespace cuda {
 
-class CudnnWrapper;
 class MatMul;
 
 /// @brief Implementation of Operator interface with cuda device.
@@ -60,7 +59,6 @@ class CudaOperators : public internal::Operators {
   DType getDefaultFloatType() override;
 
  private:
-  std::shared_ptr<CudnnWrapper> _cudnn;
   std::shared_ptr<MatMul> _matmul;
 
   CudaOperators() = default;

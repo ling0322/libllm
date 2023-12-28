@@ -59,8 +59,7 @@ set(ly_test_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/nn/rms_norm_test.cc")
 
 if (CUDA_ENABLED)
-    set(cudnn_LIBRARIES "${CUDNN_ROOT}/lib/libcudnn_ops_infer_static.a")
-    set(lyextcuda_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_ROOT}/include)
+    set(lyextcuda_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS})
     set(lyextcuda_SOURCES
         "operators/cuda/apply_rotary_pos_emb.cu"
         "operators/cuda/binary_op.cu"
@@ -70,7 +69,6 @@ if (CUDA_ENABLED)
         "operators/cuda/common.cc"
         "operators/cuda/cuda_operators.cc"
         "operators/cuda/cuda_tensor_data.cc"
-        "operators/cuda/cudnn_wrapper.cc"
         "operators/cuda/dequant.cu"
         "operators/cuda/lookup.cu"
         "operators/cuda/matmul.cc"

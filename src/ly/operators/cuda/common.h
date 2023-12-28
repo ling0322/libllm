@@ -71,7 +71,7 @@ struct PackedSubtensor2DQ4 {
   PackedSubtensor2DQ4(const Tensor &tensor);
 };
 
-/// @brief Automatically call destroy method on destruction for cudnn handles.
+/// @brief Automatically call destroy method on destruction for handles.
 /// @tparam T 
 template<typename T>
 using auto_handle = lut::c_ptr<typename std::remove_pointer<T>::type>;

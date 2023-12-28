@@ -11,14 +11,14 @@ Welcome to libLLM, an open-source project designed for efficient inference of la
 - Optimized for everyday devices: libLLM has been optimized to run smoothly on common personal computers, ensuring the powerful capabilities of large language models are accessible to a wider range of users.
 - C++ code: Written in standard C++14, it is simple and efficient.
 - No external dependencies: The core functionality does not require third-party dependencies (BLAS, SentencePiece, etc.), and the necessary GEMM kernels are implemented internally (avx2, avx512).
-- CUDA support: Supports accelerated inference using CUDA and cuDNN.
+- CUDA support: Supports accelerated inference using CUDA.
 
 ## 特点
 
 - 为日常设备进行优化：libLLM经过优化，可在常见的个人电脑上平稳运行，确保大型语言模型的强大功能面向更广泛的用户。
 - C++代码：采用标准C++14编写，简单高效。
 - 无外部依赖：核心功能无需第三方依赖（BLAS、SentencePiece等），所需的GEMM内核均在内部实现(avx2、avx512)。
-- 支持CUDA：支持使用CUDA和cuDNN加速推理。
+- 支持CUDA：支持使用CUDA加速推理。
 
 ## Supported models:
 
@@ -40,16 +40,14 @@ $ make -j
 
 ### Build with CUDA
 
-NOTE: specify `-DCUDAToolkit_ROOT=<CUDA-DIR>` if there is multiple CUDA versions in your OS. CUDA
-and cuDNN version must be matched.
+NOTE: specify `-DCUDAToolkit_ROOT=<CUDA-DIR>` if there is multiple CUDA versions in your OS.
 
 Recommand versions are:
 - CUDA: 11.7
-- cuDNN: 8.3.3
 
 ```bash
 $ mkdir build && cd build
-$ cmake -DCUDA_ENABLED=ON -DCUDNN_ROOT=<CUDNN-DIR> [-DCUDAToolkit_ROOT=<CUDA-DIR>] ..
+$ cmake -DCUDA_ENABLED=ON [-DCUDAToolkit_ROOT=<CUDA-DIR>] ..
 $ make -j
 ```
 
