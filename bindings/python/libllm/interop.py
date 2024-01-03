@@ -19,7 +19,7 @@
 
 import os
 from os import path
-from ctypes import CDLL, CFUNCTYPE, c_char_p, c_void_p, c_int32, c_float
+from ctypes import CDLL, Structure, CFUNCTYPE, POINTER, c_char_p, c_void_p, c_int32, c_float
 
 if os.name == "posix":
     LIB_NAME = "libllm.so"
@@ -27,8 +27,21 @@ elif os.name == "nt":
     LIB_NAME = "llm.dll"
 _lib = CDLL(path.join(path.dirname(__file__), LIB_NAME))
 
+API_VERSION = 20240101
+
 LL_TRUE = 1
 LL_FALSE = 0
+
+CFUNC_I = CFUNCTYPE(c_int32)
+CFUNC_P = CFUNCTYPE(c_void_p)
+CFUNC_S = CFUNCTYPE(c_char_p)
+CFUNC_IP = CFUNCTYPE(c_int32, c_void_p)
+CFUNC_PP = CFUNCTYPE(c_void_p, c_void_p)
+CFUNC_SP = CFUNCTYPE(c_char_p, c_void_p)
+CFUNC_IPP = CFUNCTYPE(c_int32, c_void_p, c_void_p)
+CFUNC_IPS = CFUNCTYPE(c_int32, c_void_p, c_char_p)
+CFUNC_IPI = CFUNCTYPE(c_int32, c_void_p, c_int32)
+CFUNC_IPF = CFUNCTYPE(c_int32, c_void_p, c_float)
 
 class AutoPtr:
     def __init__(self, p: c_void_p, deleter) -> None:
@@ -41,63 +54,87 @@ class AutoPtr:
     def get(self):
         return self._ptr
 
-def _capi(name, restype, argtypes, return_checker=None):
-    prototype = CFUNCTYPE(restype, *argtypes)
-    if return_checker is None:
-        return prototype((name, _lib))
-    else:
-        api_func = prototype((name, _lib))
-        def _invoke(*args):
-            rptr = api_func(*args)
-            if return_checker(rptr) == False:
-                error_message = llm_get_last_error_message().decode("utf-8")
-                raise Exception(error_message)
-            return rptr 
-        return _invoke
-    
-def _capi_rptr(name, argtypes):
-    """api that returns a pointer."""
-    return _capi(name, c_void_p, argtypes, lambda r: r is not None)
+class Api(Structure):
+    _fields_ = [
+        ("init", CFUNC_I),
+        ("destroy", CFUNC_I),
+        ("getLastErrorMessage", CFUNC_S),
 
-def _capi_rerr(name, argtypes):
-    """api that returns a error code."""
-    return _capi(name, c_int32, argtypes, lambda r: r == 0)
+        ("createModel", CFUNC_P),
+        ("destroyModel", CFUNC_IP),
+        ("setModelConfig", CFUNC_IPS),
+        ("setModelDevice", CFUNC_IPI),
+        ("loadModel", CFUNC_IP),
+        ("getModelName", CFUNC_PP),
 
-def _capi_rstr(name, argtypes):
-    """api that returns a error code."""
-    return _capi(name, c_char_p, argtypes, lambda r: r is not None)
+        ("createPrompt", CFUNC_PP),
+        ("destroyPrompt", CFUNC_IP),
+        ("appendText", CFUNC_IPS),
+        ("appendControlToken", CFUNC_IPS),
 
-llm_init = _capi_rerr("llm_init", ())
-llm_destroy = _capi("llm_destroy", None, ())
-llm_get_last_error_message = _capi("llm_get_last_error_message", c_char_p, ())
+        ("createCompletion", CFUNC_PP),
+        ("destroyCompletion", CFUNC_IP),
+        ("setPrompt", CFUNC_IPP),
+        ("setTopP", CFUNC_IPF),
+        ("setTopK", CFUNC_IPI),
+        ("setTemperature", CFUNC_IPF),
+        ("startCompletion", CFUNC_IP),
+        ("isActive", CFUNC_IP),
+        ("getNextChunk", CFUNC_IPP),
 
-llm_prompt_init = _capi_rptr("llm_prompt_init", (c_void_p,))
-llm_prompt_append_text = _capi_rerr("llm_prompt_append_text", (c_void_p, c_char_p))
-llm_prompt_append_special_token = _capi_rerr("llm_prompt_append_special_token", (c_void_p, c_char_p))
-llm_prompt_destroy = _capi("llm_prompt_destroy", None, (c_void_p,))
+        ("createChunk", CFUNC_P),
+        ("destroyChunk", CFUNC_IP),
+        ("getChunkText", CFUNC_SP)]
 
-llm_model_opt_init = _capi_rptr("llm_model_opt_init", (c_char_p,))
-llm_model_opt_destroy = _capi("llm_model_opt_destroy", None, (c_void_p,))
-llm_model_opt_set_device = _capi_rerr("llm_model_opt_set_device", (c_void_p, c_int32))
+get_api = CFUNCTYPE(POINTER(Api), c_int32)(("llmGetApi", _lib))
+get_api_version = CFUNCTYPE(c_int32)(("llmGetApiVersion", _lib))
+_api = get_api(API_VERSION)
+if _api is None:
+    raise Exception(f"libllm library version mismatch: {API_VERSION} expected, but {get_api_version()} found")
 
-llm_model_init = _capi_rptr("llm_model_init", (c_void_p,))
-llm_model_destroy = _capi("llm_model_destroy", None, (c_void_p, ))
-llm_model_get_name = _capi_rstr("llm_model_destroy", (c_void_p, ))
-llm_model_complete = _capi_rptr("llm_model_complete", (c_void_p, c_void_p))
+def _api_wrapper(f, return_checker):
+    def _invoke(*args):
+        return_val = f(*args)
+        if return_checker(return_val) == False:
+            error_message = _api.getLastErrorMessage().decode("utf-8")
+            raise Exception(error_message)
+        return return_val 
+    return _invoke
 
-llm_compl_opt_init = _capi_rptr("llm_compl_opt_init", ())
-llm_compl_opt_destroy = _capi("llm_compl_opt_destroy", None, (c_void_p, ))
-llm_compl_opt_set_top_p = _capi_rerr("llm_compl_opt_set_top_p", (c_void_p, c_float))
-llm_compl_opt_set_temperature = _capi_rerr("llm_compl_opt_set_temperature", (c_void_p, c_float))
-llm_compl_opt_set_prompt = _capi_rerr("llm_compl_opt_set_prompt", (c_void_p, c_void_p))
-llm_compl_opt_set_top_k = _capi_rerr("llm_compl_opt_set_top_k", (c_void_p, c_int32))
+def _rc(f):
+    return _api_wrapper(f, lambda r: r == 0)
 
-llm_compl_destroy = _capi("llm_compl_destroy", None, (c_void_p, ))
-llm_compl_is_active = _capi("llm_compl_is_active", c_int32, (c_void_p, ))
-llm_compl_next_chunk = _capi_rptr("llm_compl_next_chunk", (c_void_p, ))
+def _rp(f):
+    return _api_wrapper(f, lambda r: r is not None)
 
-llm_chunk_get_text = _capi_rstr("llm_chunk_get_text", (c_void_p, ))
-llm_chunk_destroy = _capi("llm_chunk_destroy", None, (c_void_p, ))
+init = _rc(_api.contents.init)
+destroy = _rc(_api.contents.destroy)
+get_last_error_message = _api.contents.getLastErrorMessage
 
-# ensure the llm library is initialized.
-llm_init()
+create_model = _rp(_api.contents.createModel)
+destroy_model = _rc(_api.contents.destroyModel)
+set_model_config = _rc(_api.contents.setModelConfig)
+set_model_device = _rc(_api.contents.setModelDevice)
+load_model = _rc(_api.contents.loadModel)
+get_model_name = _rp(_api.contents.getModelName)
+
+create_prompt = _rp(_api.contents.createPrompt)
+destroy_prompt = _rc(_api.contents.destroyPrompt)
+append_text = _rc(_api.contents.appendText)
+append_control_token = _rc(_api.contents.appendControlToken)
+
+create_completion = _rp(_api.contents.createCompletion)
+destroy_completion = _rc(_api.contents.destroyCompletion)
+set_prompt = _rc(_api.contents.setPrompt)
+set_top_p = _rc(_api.contents.setTopP)
+set_top_k = _rc(_api.contents.setTopK)
+set_temperature = _rc(_api.contents.setTemperature)
+start_completion = _rc(_api.contents.startCompletion)
+is_active = _api.contents.isActive
+get_next_chunk = _rc(_api.contents.getNextChunk)
+
+create_chunk = _rp(_api.contents.createChunk)
+destroy_chunk = _rc(_api.contents.destroyChunk)
+get_chunk_text = _rp(_api.contents.getChunkText)
+
+init()

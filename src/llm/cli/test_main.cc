@@ -18,13 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "catch2/catch_amalgamated.hpp"
+#include "lyutil/error.h"
+#include "lyutil/log.h"
 #include "llm/api/llm.h"
 
 int main(int argc, char **argv) {
-  llm_init();
+  CHECK(llmGetApi(LLM_API_VERSION));
+  CHECK(llmGetApi(LLM_API_VERSION)->init() == LLM_OK);
 
   int result = Catch::Session().run(argc, argv);
-  llm_destroy();
+  CHECK(llmGetApi(LLM_API_VERSION)->destroy() == LLM_OK);
 
   return result;
 }

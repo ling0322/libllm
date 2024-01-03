@@ -71,9 +71,17 @@ int main(int argc, char **argv) {
     printf("invalid device");
     return 1;
   }
-  
-  llm::init();
-  std::shared_ptr<llm::Model> model = llm::Model::create(configPath, device);
+
+  const llmApi_t *api = llmGetApi(LLM_API_VERSION);
+  CHECK(api);
+
+  if (api->init() != LLM_OK) {
+    printf("init libllm failed: %s\n", api->getLastErrorMessage());
+    return 1;
+  }
+
+  llm::ModelFactory modelFactory(api);
+  std::shared_ptr<llm::Model> model = modelFactory.createModel(configPath, device);
   std::shared_ptr<PromptBulder> promptBuilder = PromptBulder::create(model->getName());
   DialogManager dialogManager(model, promptBuilder);
   for (; ; ) {

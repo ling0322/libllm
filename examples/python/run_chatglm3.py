@@ -17,10 +17,10 @@
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-from libllm import Model, SpecialToken
+from libllm import Model, ControlToken
 
 model = Model("model/chatglm3-6b-libllm-q4/chatglm3.config")
-prompt = [SpecialToken("<|user|>"), "\n", "你好", SpecialToken("<|assistant|>")]
+prompt = [ControlToken("<|user|>"), "\n", "你好", ControlToken("<|assistant|>")]
 
 for chunk in model.complete(prompt):
     print(chunk.text, end="", flush=True)

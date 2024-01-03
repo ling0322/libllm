@@ -25,16 +25,16 @@ from .interop import AutoPtr, LL_TRUE
 
 class Completion:
     """A completion task that given a llm Model and complete the input prompt."""
-    def __init__(self, compl_c_ptr: AutoPtr) -> None:
-        self._compl_c_ptr = compl_c_ptr
+    def __init__(self, comp_c_ptr: AutoPtr) -> None:
+        self._pcomp = comp_c_ptr
+        self._pchunk = AutoPtr(interop.create_chunk(), interop.destroy_chunk)
 
     def __iter__(self):
         utf8_decoder = codecs.getincrementaldecoder("utf-8")()
-        while interop.llm_compl_is_active(self._compl_c_ptr.get()) == LL_TRUE:
-            chunk_c_ptr = AutoPtr(interop.llm_compl_next_chunk(self._compl_c_ptr.get()),
-                                  interop.llm_chunk_destroy)
-            chunk_token = interop.llm_chunk_get_text(chunk_c_ptr.get())
-            chunk_text = utf8_decoder.decode(chunk_token)
+        while interop.is_active(self._pcomp.get()) == LL_TRUE:
+            interop.get_next_chunk(self._pcomp.get(), self._pchunk.get())
+            piece = interop.get_chunk_text(self._pchunk.get())
+            chunk_text = utf8_decoder.decode(piece)
             if chunk_text:
                 yield Chunk(text=chunk_text)
 
@@ -48,16 +48,14 @@ class Device(IntEnum):
     CUDA = 0x0100
     AUTO = 0x1f00
 
-class SpecialToken:
-    """Represents a special token in the prompt, for example <|user|>. Similiar to control tokens in
-    sentencepiece model, the special token won't be generated from normal text. Pass it with
-    SpecialToken(<token-name>) is the only way to append it into input prompt."""
+class ControlToken:
+    """Represents a control token in the prompt, for example <|user|>."""
     def __init__(self, token_name: str) -> None:
         self._name = token_name
 
 class Model:
     """Model in libllm."""
-    def __init__(self, config_file, device: Device = Device.AUTO) -> None:
+    def __init__(self, config_file: str, device: Device = Device.AUTO) -> None:
         """Create an instance of Model from the libLLM model config file. When device is
         Device.AUTO, it will automatically choose the best device to load. Otherwise load model to
         the specified device.
@@ -65,54 +63,47 @@ class Model:
             config_file (str): config of the libLLM model.
             device (Device): target computation device.
         """
-        model_opt_ptr = AutoPtr(interop.llm_model_opt_init(config_file.encode("utf-8")),
-                                interop.llm_model_opt_destroy)
-        interop.llm_model_opt_set_device(model_opt_ptr.get(), int(device))
-        self._model_c_ptr = AutoPtr(interop.llm_model_init(model_opt_ptr.get()),
-                                    interop.llm_model_destroy)
+        self._pmodel = AutoPtr(interop.create_model(), interop.destroy_model)
+        interop.set_model_config(self._pmodel.get(), config_file.encode("utf-8"))
+        interop.set_model_device(self._pmodel.get(), int(device))
+        interop.load_model(self._pmodel.get())
 
     @property
     def name(self):
-        model_name = interop.llm_model_get_name(self._model_instance)
+        model_name = interop.get_model_name(self._pmodel.get())
         return model_name.decode("utf-8")
 
-    def complete(self, prompt: Union[str, List[Union[str, SpecialToken]]], top_k: int = 50,
+    def complete(self, prompt: Union[str, List[Union[str, ControlToken]]], top_k: int = 50,
                  top_p: float = 0.8, temperature: float = 1.0) -> None:
         """Compelete the prompt with given generation settings. The prompt could be either a string
         or a list of [string|SpecialToken] (when special_token is need).
         """
-        prompt_ptr = self._prepare_prompt(prompt)
-        compl_opt = AutoPtr(interop.llm_compl_opt_init(), interop.llm_compl_opt_destroy)
-        interop.llm_compl_opt_set_top_k(compl_opt.get(), top_k)
-        interop.llm_compl_opt_set_top_p(compl_opt.get(), top_p)
-        interop.llm_compl_opt_set_temperature(compl_opt.get(), temperature)
-        interop.llm_compl_opt_set_prompt(compl_opt.get(), prompt_ptr.get())
+        pprompt = self._prepare_prompt(prompt)
+        pcomp = AutoPtr(interop.create_completion(self._pmodel.get()), interop.destroy_completion)
+        interop.set_top_k(pcomp.get(), top_k)
+        interop.set_top_p(pcomp.get(), top_p)
+        interop.set_temperature(pcomp.get(), temperature)
+        interop.set_prompt(pcomp.get(), pprompt.get())
 
-        compl_c_ptr = AutoPtr(interop.llm_model_complete(self._model_c_ptr.get(), compl_opt.get()),
-                              interop.llm_compl_destroy)
-        return Completion(compl_c_ptr)
+        interop.start_completion(pcomp.get())
+        return Completion(pcomp)
 
-    def _prepare_prompt(self, prompt: Union[str, List[Union[str, SpecialToken]]]):
-        prompt_ptr = AutoPtr(interop.llm_prompt_init(self._model_c_ptr.get()),
-                             interop.llm_prompt_destroy)
+    def _prepare_prompt(self, prompt: Union[str, List[Union[str, ControlToken]]]):
+        pprompt = AutoPtr(interop.create_prompt(self._pmodel.get()), interop.destroy_prompt)
         if isinstance(prompt, str):
-            interop.llm_prompt_append_text(prompt_ptr.get(), prompt.encode("utf-8"))
+            interop.append_text(pprompt.get(), prompt.encode("utf-8"))
         elif isinstance(prompt, list):
             for block in prompt:
                 if isinstance(block, str):
-                    interop.llm_prompt_append_text(prompt_ptr.get(), block.encode("utf-8"))
-                elif isinstance(block, SpecialToken):
-                    interop.llm_prompt_append_special_token(prompt_ptr.get(), 
-                                                            block._name.encode("utf-8"))
+                    interop.append_text(pprompt.get(), block.encode("utf-8"))
+                elif isinstance(block, ControlToken):
+                    interop.append_control_token(pprompt.get(), block._name.encode("utf-8"))
                 else:
                     raise NotImplementedError()
         else:
             raise NotImplementedError()
         
-        return prompt_ptr
-
-            
-
+        return pprompt
 
 class Chunk:
     """a chunk of text generated by llm (in Completion)."""
