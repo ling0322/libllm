@@ -78,10 +78,10 @@ INFO 2023-12-19T08:56:51Z state_map.cc:69] 200 tensors read.
 ### Python
 
 ```python
-from libllm import Model, SpecialToken
+from libllm import Model, ControlToken
 
 model = Model("model/chatglm3-6b-libllm-q4/chatglm3.config")
-prompt = [SpecialToken("<|user|>"), "\n", "你好", SpecialToken("<|assistant|>")]
+prompt = [ControlToken("<|user|>"), "\n", "你好", ControlToken("<|assistant|>")]
 
 for chunk in model.complete(prompt):
     print(chunk.text, end="", flush=True)
