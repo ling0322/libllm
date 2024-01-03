@@ -25,40 +25,36 @@ using libllm::chatglm::ChatGlmModel;
 using lytok::Tokenizer;
 using lut::IniConfig;
 
-struct llm_model_opt_t {
+
+struct llmModel_t {
+  ly::Context ctx;
+  std::shared_ptr<ModelForGeneration> model_for_generation;
+  std::shared_ptr<Tokenizer> tokenizer;
   std::string configFile;
   int device;
 };
 
-struct llm_model_t {
-  ly::Context ctx;
-  std::shared_ptr<ModelForGeneration> model_for_generation;
-  std::shared_ptr<Tokenizer> tokenizer;
-};
-
-struct llm_compl_opt_t {
+struct llmCompletion_t {
   int top_k;
   float top_p;
   float temperature;
   std::vector<ly::LongType> prompt;
-
-  llm_compl_opt_t();
-};
-
-struct llm_compl_t {
+  std::weak_ptr<ModelForGeneration> model_for_generation;
+  std::weak_ptr<Tokenizer> tokenizer;
   std::shared_ptr<Generator> generator;
 };
 
-struct llm_chunk_t {
+struct llmChunk_t {
   std::string text;
 };
 
-struct llm_prompt_t {
+struct llmPrompt_t {
   std::weak_ptr<Tokenizer> tokenizer;
   std::vector<ly::LongType> inputs;
 };
 
-namespace {
+namespace libllm {
+namespace api {
 
 thread_local int gErrorCode = static_cast<int>(lut::ErrorCode::OK);
 thread_local char gErrorMessage[512] = "";
@@ -75,13 +71,13 @@ void setErrorCodeAndMessage(const lut::Error &e) {
   snprintf(gErrorMessage, sizeof(gErrorMessage), "%s", what.c_str());
 }
 
-LIBLLM_STATUS runAndCatch(std::function<void()> &&f) {
+llmStatus_t runAndCatch(std::function<void()> &&f) {
   try {
     f();
-    return LIBLLM_OK;
+    return LLM_OK;
   } catch (const lut::Error &e) {
     setErrorCodeAndMessage(e);
-    return static_cast<LIBLLM_STATUS>(e.getCode());
+    return static_cast<llmStatus_t>(e.getCode());
   }
 }
 
@@ -97,11 +93,11 @@ T runAndCatch(std::function<T()> &&c, T default_value) {
 
 ly::Device getDeviceFromApi(int apiDevice) {
   switch (apiDevice) {
-    case LIBLLM_DEVICE_CPU:
+    case LLM_DEVICE_CPU:
       return ly::Device::getCpu();
-    case LIBLLM_DEVICE_CUDA:
+    case LLM_DEVICE_CUDA:
       return ly::Device::getCuda();
-    case LIBLLM_DEVICE_AUTO:
+    case LLM_DEVICE_AUTO:
       if (ly::Device::isCudaAvailable()) {
         return ly::Device::getCuda();
       } else {
@@ -112,9 +108,9 @@ ly::Device getDeviceFromApi(int apiDevice) {
   }
 }
 
-}  // anonymous namespace
+// -- api implementation ----------
 
-LIBLLM_STATUS llm_init() {
+llmStatus_t init() {
   if (!gInitialized.exchange(true)) {
     try {
       lut::setLogLevel(lut::LogSeverity::kINFO);
@@ -122,35 +118,101 @@ LIBLLM_STATUS llm_init() {
 
       LOG(INFO) << "OMP max_threads = " << omp_get_max_threads();
 
-      return LIBLLM_OK;
+      return LLM_OK;
     } catch (const lut::Error &e) {
       gInitialized = false;
       setErrorCodeAndMessage(e);
-      return static_cast<LIBLLM_STATUS>(e.getCode());;
+      return static_cast<llmStatus_t>(e.getCode());;
     }
   }
 
-  return LIBLLM_OK;
+  return LLM_OK;
 }
 
-void llm_destroy() {
+llmStatus_t destroy() {
   if (gInitialized.exchange(false)) {
     ly::destroy();
   }
+
+  return LLM_OK;
 }
 
-llm_prompt_t *llm_prompt_init(llm_model_t *model) {
-  return runAndCatch<llm_prompt_t *>([model](){
-    if (!model) throw lut::InvalidArgError("model");
-    if (!model->tokenizer) throw lut::InvalidArgError("model->tokenizer");
+const char *getLastErrorMessage() {
+  return gErrorMessage;
+}
 
-    llm_prompt_t *prompt = new llm_prompt_t();
+llmModel_t *createModel() {
+  llmModel_t *model = new llmModel_t();
+  model->device = LLM_DEVICE_AUTO;
+  return model;
+}
+
+llmStatus_t destroyModel(llmModel_t *model) {
+  delete model;
+  return LLM_OK;
+}
+
+llmStatus_t setModelConfig(llmModel_t *model, const char *filename) {
+  return runAndCatch([model, filename](){
+    if (!model) throw lut::InvalidArgError("model");
+    if (!filename) throw lut::InvalidArgError("filename");
+
+    model->configFile = filename;
+    return LLM_OK;
+  });
+}
+
+llmStatus_t setModelDevice(llmModel_t *model, int32_t device) {
+  return runAndCatch([model, device](){
+    if (!model) throw lut::InvalidArgError("model");
+
+    model->device = device;
+    return LLM_OK;
+  });
+}
+
+llmStatus_t loadModel(llmModel_t *model) {
+  return runAndCatch([model](){
+    if (!model) throw lut::InvalidArgError("model");
+    if (model->configFile.empty()) throw lut::InvalidArgError("model_config not set");
+
+    std::unique_ptr<IniConfig> ini = IniConfig::read(model->configFile);
+
+    model->ctx.setDevice(getDeviceFromApi(model->device));
+    model->ctx.setFloatDType(ly::functional::getDefaultFloatType(model->ctx.getDevice()));
+    model->tokenizer = Tokenizer::create(ini->getSection("tokenizer"));
+    model->model_for_generation = ModelFactory::createModel(model->ctx, *ini);
+  
+    return LLM_OK;
+  });
+}
+
+const char *getModelName(llmModel_t *model) {
+  return runAndCatch<const char *>([model](){
+    if (!model) throw lut::InvalidArgError("m");
+    if (!model->model_for_generation) throw lut::InvalidArgError("model");
+
+    return model->model_for_generation->getName();
+  }, nullptr);
+}
+
+llmPrompt_t *createPrompt(llmModel_t *model) {
+  return runAndCatch<llmPrompt_t *>([model](){
+    if (!model) throw lut::InvalidArgError("model");
+    if (!model->tokenizer) throw lut::InvalidArgError("model not initialized");
+
+    llmPrompt_t *prompt = new llmPrompt_t();
     prompt->tokenizer = model->tokenizer;
     return prompt;
   }, nullptr);
 }
 
-LIBLLM_STATUS llm_prompt_append_text(llm_prompt_t *prompt, const char *text) {
+llmStatus_t destroyPrompt(llmPrompt_t *prompt) {
+  delete prompt;
+  return LLM_OK;
+}
+
+llmStatus_t appendText(llmPrompt_t *prompt, const char *text) {
   return runAndCatch([prompt, text](){
     if (!prompt) throw lut::InvalidArgError("prompt");
     if (!text) throw lut::InvalidArgError("text");
@@ -164,11 +226,11 @@ LIBLLM_STATUS llm_prompt_append_text(llm_prompt_t *prompt, const char *text) {
       LOG(DEBUG) << "token " << tokenizer->getVocab()->getTokenString(tokenId) << " -> " << tokenId;
     }
 
-    return LIBLLM_OK;
+    return LLM_OK;
   });
 }
 
-LIBLLM_STATUS llm_prompt_append_special_token(llm_prompt_t *prompt, const char *name) {
+llmStatus_t appendControlToken(llmPrompt_t *prompt, const char *name) {
   return runAndCatch([prompt, name](){
     if (!prompt) throw lut::InvalidArgError("prompt");
     if (!name) throw lut::InvalidArgError("name");
@@ -180,172 +242,172 @@ LIBLLM_STATUS llm_prompt_append_special_token(llm_prompt_t *prompt, const char *
     prompt->inputs.push_back(tokenId);
     LOG(DEBUG) << "control token " << name << " -> " << tokenId;
 
-    return LIBLLM_OK;
+    return LLM_OK;
   });
 }
 
-void llm_prompt_destroy(llm_prompt_t *prompt) {
-  delete prompt;
-}
+llmCompletion_t *createCompletion(llmModel_t *model) {
+  return runAndCatch<llmCompletion_t *>([model](){
+    if (!model) throw lut::InvalidArgError("model");
+    if (!model->model_for_generation) throw lut::InvalidArgError("model not initialized");
 
-llm_model_opt_t *llm_model_opt_init(const char *config_file) {
-  return runAndCatch<llm_model_opt_t *>([config_file](){
-    if (!config_file)
-      throw lut::InvalidArgError("config_file");
-
-    llm_model_opt_t *opt = new llm_model_opt_t();
-    opt->configFile = config_file;
-    opt->device = LIBLLM_DEVICE_AUTO;
-    return opt;
+    std::unique_ptr<llmCompletion_t> comp = std::make_unique<llmCompletion_t>();
+    comp->model_for_generation = model->model_for_generation;
+    comp->tokenizer = model->tokenizer;
+    comp->temperature = 1.0f;
+    comp->top_k = 50;
+    comp->top_p = 0.8f;
+    
+    return comp.release();
   }, nullptr);
 }
 
-void llm_model_opt_destroy(llm_model_opt_t *opt) {
-  delete opt;
+llmStatus_t destroyCompletion(llmCompletion_t *comp) {
+  delete comp;
+  return LLM_OK;
 }
 
-LIBLLM_STATUS llm_model_opt_set_device(llm_model_opt_t *opt, int device_type) {
-  return runAndCatch([opt, device_type](){
-    if (!opt) throw lut::InvalidArgError("opt");
+llmStatus_t setPrompt(llmCompletion_t *comp, llmPrompt_t *prompt) {
+  return runAndCatch([comp, prompt](){
+    if (!comp) throw lut::InvalidArgError("comp");
+    if (!prompt) throw lut::InvalidArgError("prompt");
+    if (comp->generator) throw lut::InvalidArgError("completion already started");
+    if (prompt->inputs.empty()) throw lut::InvalidArgError("prompt is empty");
 
-    opt->device = device_type;
-    return LIBLLM_OK;
+    comp->prompt = prompt->inputs;
+    return LLM_OK;
   });
 }
 
-llm_model_t *llm_model_init(llm_model_opt_t *opt) {
-  return runAndCatch<llm_model_t *>([opt](){
-    std::unique_ptr<llm_model_t> model = std::make_unique<llm_model_t>();
-    if (!opt) throw lut::InvalidArgError("opt");
+llmStatus_t setTopP(llmCompletion_t *comp, float topP) {
+  return runAndCatch([comp, topP](){
+    if (!comp) throw lut::InvalidArgError("comp");
+    if (comp->generator) throw lut::InvalidArgError("completion already started");
 
-    if (opt->configFile == "")
-      throw lut::InvalidArgError("config_file is empty");
-    std::unique_ptr<IniConfig> ini = IniConfig::read(opt->configFile);
-
-    model->ctx.setDevice(getDeviceFromApi(opt->device));
-    model->ctx.setFloatDType(ly::functional::getDefaultFloatType(model->ctx.getDevice()));
-    model->tokenizer = Tokenizer::create(ini->getSection("tokenizer"));
-    model->model_for_generation = ModelFactory::createModel(model->ctx, *ini);
-  
-    return model.release();
-  }, nullptr);
+    comp->top_p = topP;
+    return LLM_OK;
+  });
 }
 
-const char *llm_model_get_name(llm_model_t *m) {
-  return runAndCatch<const char *>([m](){
-    if (!m) throw lut::InvalidArgError("m");
-    if (!m->model_for_generation) throw lut::InvalidArgError("m");
+llmStatus_t setTopK(llmCompletion_t *comp, int32_t topK) {
+  return runAndCatch([comp, topK](){
+    if (!comp) throw lut::InvalidArgError("comp");
+    if (comp->generator) throw lut::InvalidArgError("completion already started");
 
-    return m->model_for_generation->getName();
-  }, nullptr);
+    comp->top_k = topK;
+    return LLM_OK;
+  });
 }
 
-llm_compl_t *llm_model_complete(llm_model_t *m, llm_compl_opt_t *o) {
-  return runAndCatch<llm_compl_t *>([m, o](){
-    if (!o) throw lut::InvalidArgError("o");
-    if (!m) throw lut::InvalidArgError("m");
+llmStatus_t setTemperature(llmCompletion_t *comp, float temperature) {
+  return runAndCatch([comp, temperature](){
+    if (!comp) throw lut::InvalidArgError("comp");
+    if (comp->generator) throw lut::InvalidArgError("completion already started");
 
-    if (o->prompt.empty()) throw lut::InvalidArgError("prompt is empty");
-    if ((!m->model_for_generation) || (!m->tokenizer)) throw lut::InvalidArgError("model");
+    comp->temperature = temperature;
+    return LLM_OK;
+  });
+}
+
+llmStatus_t startCompletion(llmCompletion_t *comp) {
+  return runAndCatch([comp](){
+    if (!comp) throw lut::InvalidArgError("comp");
+    if (comp->generator) throw lut::InvalidArgError("completion already started");
+    if (comp->prompt.empty()) throw lut::InvalidArgError("prompt is empty");
+
+    std::shared_ptr<ModelForGeneration> model = comp->model_for_generation.lock();
+    std::shared_ptr<Tokenizer> tokenizer = comp->tokenizer.lock();
+
+    if (!model) throw lut::InvalidArgError("model had been destroyed");
+    if (!tokenizer) throw lut::InvalidArgError("tokenizer had been destroyed");
 
     GenerationConfig config;
-    config.temperature = o->temperature;
-    config.topK = o->top_k;
-    config.topP = o->top_p;
+    config.temperature = comp->temperature;
+    config.topK = comp->top_k;
+    config.topP = comp->top_p;
 
-    std::unique_ptr<llm_compl_t> c = std::make_unique<llm_compl_t>();
-    c->generator = std::make_shared<Generator>(config, m->model_for_generation, m->tokenizer);
-    c->generator->forwardPrompt(o->prompt);
-    
-    return c.release();
-  }, nullptr);
-}
-
-void llm_model_destroy(llm_model_t *m) {
-  delete m;
-}
-
-llm_compl_opt_t::llm_compl_opt_t() :
-    top_k(50),
-    top_p(0.8f),
-    temperature(1.0f) {}
-
-llm_compl_opt_t *llm_compl_opt_init() {
-  return new llm_compl_opt_t();
-}
-
-void llm_compl_opt_destroy(llm_compl_opt_t *o) {
-  delete o;
-}
-
-LIBLLM_STATUS llm_compl_opt_set_top_p(llm_compl_opt_t *o, float topp) {
-  return runAndCatch([o, topp](){
-    if (!o) throw lut::InvalidArgError("o");
-    if (topp > 1.0f) throw lut::InvalidArgError("topp");
-    o->top_p = topp;
+    comp->generator = std::make_shared<Generator>(config, model, tokenizer);
+    comp->generator->forwardPrompt(comp->prompt);
+    return LLM_OK;
   });
 }
 
-LIBLLM_STATUS llm_compl_opt_set_temperature(llm_compl_opt_t *o, float temperature) {
-  return runAndCatch([o, temperature](){
-    if (!o) throw lut::InvalidArgError("o");
-    if (temperature <= 0.0f) throw lut::InvalidArgError("temperature");
-    o->temperature = temperature;
-  });
+llmBool_t isActive(llmCompletion_t *comp) {
+  return runAndCatch<llmBool_t>([comp](){
+    if (!comp) throw lut::InvalidArgError("comp");
+    if (!comp->generator) throw lut::InvalidArgError("completion not started");
+
+    return !comp->generator->stopped();
+  }, false);
 }
 
-LIBLLM_STATUS llm_compl_opt_set_prompt(llm_compl_opt_t *o, llm_prompt_t *prompt) {
-  return runAndCatch([o, prompt](){
-    if (!o) throw lut::InvalidArgError("o");
-    if (!prompt) throw lut::InvalidArgError("prompt");
-    o->prompt = prompt->inputs;
-  });
-}
+llmStatus_t getNextChunk(llmCompletion_t *comp, llmChunk_t *chunk) {
+  return runAndCatch([comp, chunk](){
+    if (!comp) throw lut::InvalidArgError("comp");
+    if (!comp->generator) throw lut::InvalidArgError("completion not started");
+    if (comp->generator->stopped()) throw lut::AbortedError("completion stopped");
 
-LIBLLM_STATUS llm_compl_opt_set_top_k(llm_compl_opt_t *o, int32_t topk) {
-  return runAndCatch([o, topk](){
-    if (!o) throw lut::InvalidArgError("o");
-    if (topk <= 0) throw lut::InvalidArgError("topk");
-    o->top_k = topk;
-  });
-}
-
-LIBLLM_STATUS llm_compl_is_active(llm_compl_t *c) {
-  return runAndCatch<LIBLLM_BOOL>([c](){
-    if (!c) throw lut::InvalidArgError("c");
-    return c->generator->stopped() ? LIBLLM_FALSE : LIBLLM_TRUE;
-  }, LIBLLM_FALSE);
-}
-
-void llm_compl_destroy(llm_compl_t *c) {
-  delete c;
-}
-
-llm_chunk_t *llm_compl_next_chunk(llm_compl_t *c) {  
-  return runAndCatch<llm_chunk_t *>([c](){
-    if (!c) throw lut::InvalidArgError("c");
-    if (c->generator->stopped()) throw lut::AbortedError("call next() on stopped completion.");
-
-    const char *token = c->generator->nextToken();
+    const char *token = comp->generator->nextToken();
     if (!token) throw lut::AbortedError("unexpected empty token");
 
-    std::unique_ptr<llm_chunk_t> chunk = std::make_unique<llm_chunk_t>();
     chunk->text = token;
-    return chunk.release();
+    return LLM_OK;
+  });
+}
+
+llmChunk_t *createChunk() {
+  return new llmChunk_t();
+}
+
+llmStatus_t destroyChunk(llmChunk_t *chunk) {
+  delete chunk;
+  return LLM_OK;
+}
+
+const char *getChunkText(llmChunk_t *chunk) {
+  return runAndCatch<const char *>([chunk](){
+    if (!chunk) throw lut::InvalidArgError("chunk");
+    return chunk->text.c_str();
   }, nullptr);
 }
 
-const char *llm_chunk_get_text(llm_chunk_t *c) {
-  return runAndCatch<const char *>([c](){
-    if (!c) throw lut::InvalidArgError("c");
-    return c->text.c_str();
-  }, nullptr);
+
+llmApi_t gApi{
+  init,
+  destroy,
+  getLastErrorMessage,
+  createModel,
+  destroyModel,
+  setModelConfig,
+  setModelDevice,
+  loadModel,
+  getModelName,
+  createPrompt,
+  destroyPrompt,
+  appendText,
+  appendControlToken,
+  createCompletion,
+  destroyCompletion,
+  setPrompt,
+  setTopP,
+  setTopK,
+  setTemperature,
+  startCompletion,
+  isActive,
+  getNextChunk,
+  createChunk,
+  destroyChunk,
+  getChunkText
+};
+
+}  // namespace api
+}  // namespace libllm
+
+LLMAPI const llmApi_t *llmGetApi(int32_t version) {
+  if (version == LLM_API_VERSION) return &libllm::api::gApi;
+  return nullptr;
 }
 
-void llm_chunk_destroy(llm_chunk_t *c) {
-  delete c;
-}
-
-const char *llm_get_last_error_message() {
-  return gErrorMessage;
+LLMAPI int32_t llmGetApiVersion() {
+  return LLM_API_VERSION;
 }

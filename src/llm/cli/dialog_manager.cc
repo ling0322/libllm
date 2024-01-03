@@ -31,8 +31,11 @@ ChatOutput::ChatOutput() :
     promptDuration(0.0),
     answerDuration(0.0) {}
 
-llm::Prompt ChatGLM2PromptBuilder::buildPrompt(lut::Span<const QA> history,
-                                               const std::string &question) {
+
+std::shared_ptr<llm::Prompt> ChatGLM2PromptBuilder::buildPrompt(
+    std::shared_ptr<llm::Model> model,
+    lut::Span<const QA> history,
+    const std::string &question) {
   std::string prompt;
 
   int round = 1;
@@ -42,31 +45,33 @@ llm::Prompt ChatGLM2PromptBuilder::buildPrompt(lut::Span<const QA> history,
   }
   prompt += lut::sprintf("[Round %d]\n\n问：%s\n\n答：", round, question);
 
-  llm::Prompt hPrompt;
-  hPrompt.appendText(prompt);
-  return hPrompt;
+  std::shared_ptr<llm::Prompt> pPrompt = model->createPrompt();
+  pPrompt->appendText(prompt);
+  return pPrompt;
 }
 
 std::string ChatGLM2PromptBuilder::getStopSeq() {
   return "";
 }
 
-llm::Prompt ChatGLM3PromptBuilder::buildPrompt(lut::Span<const QA> history,
-                                               const std::string &question) {
-  llm::Prompt prompt;
+std::shared_ptr<llm::Prompt> ChatGLM3PromptBuilder::buildPrompt(
+    std::shared_ptr<llm::Model> model,
+    lut::Span<const QA> history,
+    const std::string &question) {
+  std::shared_ptr<llm::Prompt> prompt = model->createPrompt();
   for (const QA &qa : history) {
-    prompt.appendSpecialToken("<|user|>");
-    prompt.appendText("\n");
-    prompt.appendText(lut::sprintf("%s", qa.question));
-    prompt.appendSpecialToken("<|assistant|>");
-    prompt.appendText("\n");
-    prompt.appendText(lut::sprintf("%s", qa.answer));
+    prompt->appendControlToken("<|user|>");
+    prompt->appendText("\n");
+    prompt->appendText(lut::sprintf("%s", qa.question));
+    prompt->appendControlToken("<|assistant|>");
+    prompt->appendText("\n");
+    prompt->appendText(lut::sprintf("%s", qa.answer));
   }
 
-  prompt.appendSpecialToken("<|user|>");
-  prompt.appendText("\n");
-  prompt.appendText(lut::sprintf("%s", question));
-  prompt.appendSpecialToken("<|assistant|>");
+  prompt->appendControlToken("<|user|>");
+  prompt->appendText("\n");
+  prompt->appendText(lut::sprintf("%s", question));
+  prompt->appendControlToken("<|assistant|>");
 
   return prompt;
 }
@@ -75,8 +80,10 @@ std::string ChatGLM3PromptBuilder::getStopSeq() {
   return "";
 }
 
-llm::Prompt LlamaPromptBuilder::buildPrompt(lut::Span<const QA> history,
-                                            const std::string &question) {
+std::shared_ptr<llm::Prompt> LlamaPromptBuilder::buildPrompt(
+    std::shared_ptr<llm::Model> model,
+    lut::Span<const QA> history,
+    const std::string &question) {
   std::string promptText;
   for (const QA &qa : history) {
     promptText += "[INST] " + qa.question + " [/INST]\n";
@@ -86,10 +93,9 @@ llm::Prompt LlamaPromptBuilder::buildPrompt(lut::Span<const QA> history,
 
   LOG(INFO) << promptText;
   
-  llm::Prompt prompt;
-  prompt.appendText(promptText);
-
-  return prompt;
+  std::shared_ptr<llm::Prompt> pPrompt = model->createPrompt();
+  pPrompt->appendText(promptText);
+  return pPrompt;
 }
 
 std::string LlamaPromptBuilder::getStopSeq() {
@@ -115,20 +121,20 @@ ChatOutput DialogManager::chat(
     std::function<void(const std::string &)> onTokenCallback) {
   ChatOutput output;
 
-  llm::Prompt prompt = _promptBuilder->buildPrompt(_history, question);
+  std::shared_ptr<llm::Prompt> prompt = _promptBuilder->buildPrompt(_model, _history, question);
   llm::CompletionConfig config;
   config.setTopK(1);
 
   double t0 = lut::now();
-  llm::Completion comp = _model->complete(prompt);
+  std::shared_ptr<llm::Completion> comp = _model->complete(prompt);
   output.promptDuration = lut::now() - t0;
 
   std::string answer;
   std::string stopSeq = _promptBuilder->getStopSeq();
   t0 = lut::now();
   int numToken = 0;
-  while (comp.isActive()) {
-    llm::Chunk chunk = comp.nextChunk();
+  while (comp->isActive()) {
+    llm::Chunk chunk = comp->nextChunk();
     std::string nextToken = chunk.getText();
 
     if (onTokenCallback) onTokenCallback(nextToken);

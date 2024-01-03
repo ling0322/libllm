@@ -55,7 +55,9 @@ class PromptBulder {
   virtual ~PromptBulder() = default;
 
   // build the prompt from history and current question.
-  virtual llm::Prompt buildPrompt(lut::Span<const QA> history, const std::string &question) = 0;
+  virtual std::shared_ptr<llm::Prompt> buildPrompt(std::shared_ptr<llm::Model> model,
+                                                   lut::Span<const QA> history,
+                                                   const std::string &question) = 0;
 
   /// @brief Get the step sequence for generation.
   /// @return the stop sequence in string.
@@ -64,19 +66,25 @@ class PromptBulder {
 
 class ChatGLM2PromptBuilder : public PromptBulder {
  public:
-  llm::Prompt buildPrompt(lut::Span<const QA> history, const std::string &question) override; 
+  std::shared_ptr<llm::Prompt> buildPrompt(std::shared_ptr<llm::Model> model,
+                                           lut::Span<const QA> history,
+                                           const std::string &question) override; 
   std::string getStopSeq() override;
 };
 
 class ChatGLM3PromptBuilder : public PromptBulder {
  public:
-  llm::Prompt buildPrompt(lut::Span<const QA> history, const std::string &question) override; 
+  std::shared_ptr<llm::Prompt> buildPrompt(std::shared_ptr<llm::Model> model,
+                                           lut::Span<const QA> history,
+                                           const std::string &question) override; 
   std::string getStopSeq() override;
 };
 
 class LlamaPromptBuilder : public PromptBulder {
  public:
-  llm::Prompt buildPrompt(lut::Span<const QA> history, const std::string &question) override;
+  std::shared_ptr<llm::Prompt> buildPrompt(std::shared_ptr<llm::Model> model,
+                                           lut::Span<const QA> history,
+                                           const std::string &question) override; 
   std::string getStopSeq() override;
 };
 
