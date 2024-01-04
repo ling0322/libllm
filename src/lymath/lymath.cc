@@ -25,6 +25,7 @@
 #include "lyutil/log.h"
 #include "lyutil/platform.h"
 #include "lymath/args.h"
+#include "lymath/hcvt.h"
 #include "lymath/q4dequant.h"
 #include "lymath/q4gemm.h"
 #include "lymath/sgemm.h"
@@ -68,6 +69,7 @@ class Api {
   const SGEMM *getSgemmOmp() const { return _sgemmOmp.get(); }
   const Q4Gemm *getQ4Gemm() const { return _q4gemm.get(); }
   const DequantQ4 *getDequantQ4() const { return _q4dequant.get(); }
+  const CvtHalfToFloat *getCvtHalfToFloat() const { return _cvtHalfToFloat.get(); }
 
  private:
   static Api *_instance;
@@ -77,6 +79,7 @@ class Api {
   std::unique_ptr<SGEMM> _sgemmOmp;
   std::unique_ptr<Q4Gemm> _q4gemm;
   std::unique_ptr<DequantQ4> _q4dequant;
+  std::unique_ptr<CvtHalfToFloat> _cvtHalfToFloat;
 };
 
 Api *Api::_instance = nullptr;
@@ -94,18 +97,21 @@ void Api::init() {
       _instance->_sgemmOmp = std::make_unique<SGEMMImplAvx512OMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmAvx512OMP>();
       _instance->_q4dequant = std::make_unique<DequantQ4Avx2OMP>();
+      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatAvx2OMP>();
       break;
     case CPUMathBackend::AVX2:
       _instance->_sgemm = std::make_unique<SGEMMImplAvx2>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplAvx2OMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmAvx2OMP>();
       _instance->_q4dequant = std::make_unique<DequantQ4Avx2OMP>();
+      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatAvx2OMP>();
       break;
     case CPUMathBackend::DEFAULT:
       _instance->_sgemm = std::make_unique<SGEMMImplDefault>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplDefaultOMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmFallbackOMP>();
       _instance->_q4dequant = std::make_unique<DequantQ4FallbackOMP>();
+      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatFallbackOMP>();
       break;
     default:
       NOT_IMPL();
@@ -214,4 +220,8 @@ void lymath_q4gemm(
       B,
       C,
       ldc});
+}
+
+void lymath_half2float(int n, const lymath_float16_t *x, float *y) {
+  Api::getInstance()->getCvtHalfToFloat()->apply(n, x, y);
 }

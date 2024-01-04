@@ -43,8 +43,10 @@ typedef int8_t Int8;
 typedef uint8_t UInt8;
 typedef float Fp32;
 
-typedef const float *PCFp32;
+typedef uint16_t *PFp16;
 typedef float *PFp32;
+
+typedef const float *PCFp32;
 typedef const uint16_t *PCFp16;
 typedef const int8_t *PCInt8;
 typedef const UInt8 *PCUInt8;
@@ -53,6 +55,7 @@ typedef uint8_t Q4x2;
 typedef const uint8_t *PCQ4x2;
 
 constexpr int GEMVMinRowsPerThread = 128;
+constexpr int CvtMinElemPerThread = 1024;
 constexpr int DequantMinElemPerThread = 1024;
 constexpr int GroupSizeQ4 = 128;
 

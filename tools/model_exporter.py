@@ -186,9 +186,9 @@ class TensorWriter:
 
 
     def _write_tensor(self, tensor: torch.Tensor):
-        if tensor.dtype == torch.float16:
-            tensor = tensor.float()
-        assert tensor.dtype in {torch.float32, torch.int64}
+        if tensor.dtype == torch.float32:
+            tensor = tensor.to(torch.float16)
+        assert tensor.dtype in {torch.float16, torch.int64}
 
         self._write_tensor_header(tensor.shape)
         self._write_tensor_elem(tensor)
@@ -247,8 +247,11 @@ class ModelExporter:
     def _write(self, ctx: Context, tensor: torch.Tensor):
         self._writer.write_tensor(ctx, tensor)
 
-    def export_embedding(self, ctx: Context, module: nn.Embedding):
-        self._write(ctx.with_subname("weight"), module.weight)
+    def export_embedding(self, ctx: Context, module: nn.Embedding, quant: bool = False):
+        ctx = ctx.with_subname("weight")
+        if not quant:
+            ctx = ctx.with_quant(Quant.NONE)
+        self._write(ctx, module.weight)
 
     def export_layer_norm(self, ctx: Context, module: nn.LayerNorm):
         self._write(ctx.with_subname("weight").with_quant(Quant.NONE), module.weight)
