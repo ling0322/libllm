@@ -23,6 +23,7 @@
 #include <string.h>
 #include <algorithm>
 #include "lyutil/half.h"
+#include "lymath/lymath.h"
 #include "ly/tensor.h"
 #include "ly/operators/cpu/cpu_tensor_data.h"
 #include "ly/operators/cpu/lookup.h"
@@ -40,9 +41,21 @@ Tensor cast(Tensor A, DType dtype) {
     return castFp32ToQ4(A);
   } else if (A.getDType() == DType::kQ4 && dtype == DType::kFloat) {
     return castQ4ToFp32(A);
+  } else if (A.getDType() == DType::kFloat16 && dtype == DType::kFloat) {
+    return castFp16ToFp32(A);
   } else {
     NOT_IMPL();
   }
+}
+
+Tensor castFp16ToFp32(Tensor A) {
+  CHECK(A.isContiguous()) << "unable to cast a non-contiguous half tensor to float";
+  Tensor C = op::cpu::tensor(A.getShape(), DType::kFloat);
+  lymath_half2float(A.getNumEl(),
+                    reinterpret_cast<const lymath_float16_t *>(A.getData<Float16>()),
+                    C.getData<float>());
+  
+  return C;
 }
 
 Tensor castQ4ToFp32(Tensor A) {

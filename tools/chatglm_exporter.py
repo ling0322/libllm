@@ -41,7 +41,7 @@ class ChatGLMExporter(ModelExporter):
         for idx, layer in enumerate(model.encoder.layers):
             self.export_glm_block(ctx.with_subname(f"block{idx}"), layer)
         self.export_rms_norm(ctx.with_subname("final_norm"), model.encoder.final_layernorm)
-        self._write(ctx.with_subname("output_weight"), model.output_layer.weight)
+        self._write(ctx.with_subname("output_weight").with_quant(Quant.NONE), model.output_layer.weight)
 
     def export_linear(self, ctx: Context, module: nn.Linear):
         self._write(ctx.with_subname("weight"), module.weight)

@@ -17,65 +17,22 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// kernels for half type
+
 #pragma once
 
 #include <stdint.h>
+#include <memory>
+#include "lymath/common.h"
 
-typedef uint8_t lymath_q4x2_t;
-typedef uint16_t lymath_float16_t;
+namespace lymath {
 
-void lymath_init();
-void lymath_destroy();
+struct CvtHalfToFloatAvx2Kernel {
+  static void apply(int64_t n, PCFp16 x, PFp32 y);
+};
 
-void lymath_sgemm(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const float *A,
-    int lda,
-    const float *B,
-    int ldb,
-    float *C,
-    int ldc);
+struct CvtHalfToFloatFallbackKernel {
+  static void apply(int64_t n, PCFp16 x, PFp32 y);
+};
 
-void lymath_sgemm_omp(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const float *A,
-    int lda,
-    const float *B,
-    int ldb,
-    float *C,
-    int ldc);
-
-void lymath_dequant_q4(
-    int n,
-    const lymath_q4x2_t *data,
-    const lymath_float16_t *scale,
-    const uint8_t *zeroPoint,
-    int offset,
-    float *tgt);
-
-// GEMM: A is a float32 matrix, B is a matrix with 4-bit asymmetric quantization. C is a float32
-// matrix.
-void lymath_q4gemm(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const float *A,
-    int lda,
-    const lymath_q4x2_t *B,
-    const lymath_float16_t *scaleB,
-    const uint8_t *zeroPointB,
-    float *C,
-    int ldc);
-
-void lymath_half2float(int n, const lymath_float16_t *x, float *y);
-
+}  // namespace lymath

@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <algorithm>
 #include "lymath/common.h"
+#include "lymath/hkernel.h"
 #include "lymath/q4kernel.h"
 #include "lymath/skernel.h"
 #include "lymath/util.h"
@@ -104,6 +105,12 @@ void SAxpyFallbackKernel::apply(int64_t n, float a, PCFp32 x, PFp32 y) {
     *py = a * *px;
     ++px;
     ++py;
+  }
+}
+
+void CvtHalfToFloatFallbackKernel::apply(int64_t n, PCFp16 x, PFp32 y) {
+  for (int i = 0; i < n; ++i) {
+    y[i] = lut::cvtsh_ss(x[i]);
   }
 }
 

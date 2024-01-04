@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include "lymath/args.h"
 #include "lymath/common.h"
+#include "lymath/hkernel.h"
 #include "lymath/q4kernel.h"
 #include "lymath/skernel.h"
 
@@ -494,6 +495,33 @@ void DequantQ4Avx2Kernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
     _mm256_storeu_ps(py, vx);
     py += 8;
     px += 16;
+  }
+}
+
+void CvtHalfToFloatAvx2Kernel::apply(int64_t n, PCFp16 x, PFp32 y) {
+  int nb = n / 8;
+  for (int i = 0; i < nb; ++i) {
+    __m128i x0 = _mm_loadu_si128((const __m128i *)x);
+    __m256 y0 = _mm256_cvtph_ps(x0);
+    _mm256_storeu_ps(y, y0);
+
+    x += 8;
+    y += 8;
+  }
+
+  int nr = n % 8;
+  if (nr == 0) return;
+
+  Fp16 xr[8]; 
+  Fp32 yr[8];
+  for (int i = 0; i < nr; ++i) {
+    xr[i] = x[i];
+  }
+  __m128i x0 = _mm_loadu_si128((const __m128i *)xr);
+  __m256 y0 = _mm256_cvtph_ps(x0);
+  _mm256_storeu_ps(yr, y0);
+  for (int i = 0; i < nr; ++i) {
+    y[i] = yr[i];
   }
 }
 

@@ -22,6 +22,7 @@
 #include <omp.h>
 #include "lymath/common.h"
 #include "lymath/lymath.h"
+#include "lymath/hcvt.h"
 #include "lymath/q4dequant.h"
 #include "lymath/q4kernel.h"
 #include "lymath/skernel.h"
@@ -342,5 +343,26 @@ CATCH_TEST_CASE("test lymath_sgemm", "[lymath][sgemm]") {
     testSgemm(true, false, m, n, k);
     testSgemm(false, true, m, n, k);
     testSgemm(false, false, m, n, k);
+  }
+}
+
+
+void testHalfToFloat(int n) {
+  std::vector<float> y(n);
+  std::vector<float> yr(n);
+  std::vector<uint16_t> x(n);
+
+  lut::Random random(MagicNumber);
+  random.fill(lut::makeSpan(yr));
+  std::transform(yr.begin(), yr.end(), x.begin(), lut::cvtss_sh);
+
+  CvtHalfToFloatAvx2OMP().apply(n, x.data(), y.data());
+  CATCH_REQUIRE(isClose(yr, y, 1e-4, 1e-3));
+}
+
+CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {
+  std::vector<int> ns{1, 50, 200, 800, 1600, 1601, 3200, 3201};
+  for (int n : ns) {
+    testHalfToFloat(n);
   }
 }

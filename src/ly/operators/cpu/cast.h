@@ -29,6 +29,7 @@ namespace cpu {
 Tensor cast(Tensor A, DType dtype);
 Tensor castFp32ToQ4(Tensor A);
 Tensor castQ4ToFp32(Tensor A);
+Tensor castFp16ToFp32(Tensor A);
 
 }  // cpu
 }  // op
