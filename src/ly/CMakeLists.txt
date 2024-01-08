@@ -83,6 +83,12 @@ if (CUDA_ENABLED)
     target_include_directories(lyextcuda PRIVATE .. ${lyextcuda_INCDIR})
     target_compile_features(lyextcuda PRIVATE cxx_std_14)
 
+    set(lyextgemmcublas_SOURCES
+        "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/gemm_cublas.cc")
+    set(lyextgemmcublas_SOURCES
+        ${lyextgemmcublas_SOURCES}
+        PARENT_SCOPE)
+
     set(ly_test_SOURCES
         ${ly_test_SOURCES}
         "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc")

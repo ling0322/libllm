@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2023-2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -19,39 +19,41 @@
 
 #include "ly/operators/cuda/matmul.h"
 
-#include <cublas_v2.h>
+#include <cuda_fp16.hpp>
 #include "ly/dtype.h"
 #include "ly/operators/common/common.h"
 #include "ly/operators/common/matmul.h"
 #include "ly/operators/cuda/common.h"
 #include "ly/operators/cuda/dequant.h"
 #include "ly/operators/cuda/matvec.h"
-
-#define CHECK_CUBLAS_STATUS(x) { \
-      cublasStatus_t status = x; \
-      if (status != CUBLAS_STATUS_SUCCESS) { \
-        LOG(ERROR) << "Error while calling: " << #x; \
-        throw lut::AbortedError(cublasGetStatusString(status)); \
-      } \
-    }
+#include "lyutil/strings.h"
 
 namespace ly {
 namespace op {
 namespace cuda {
 
 std::shared_ptr<MatMul> MatMul::create() {
-  std::shared_ptr<MatMul> mm = std::make_shared<MatMul>();
-  mm->_handle = {nullptr, safeDestroyCublas};
-  CHECK_CUBLAS_STATUS(cublasCreate(mm->_handle.get_pp()));
+  std::shared_ptr<MatMul> mm{new MatMul()};
+  std::function<std::shared_ptr<ly::op::cuda::Gemm>()> factory;
+  std::string err;
+
+  try {
+    mm->_gemmExtLib = lut::SharedLibrary::open("lyextgemmcublas");
+    factory = mm->_gemmExtLib->getFunc<std::shared_ptr<ly::op::cuda::Gemm>()>(
+        "llynCreateCudaOpExtGemm");
+    LOG(INFO) << "Use GEMM from cuBLAS.";
+  } catch (const lut::Error &e) {
+    LOG(DEBUG) << "Load cublas extension failed with message: " << e.what();
+    err = e.what();
+  }
+
+  if (!factory) throw lut::AbortedError(lut::sprintf(
+      "unable to load MatMul operator extension: %s",
+      err));
+  mm->_gemm = factory();
+  if (!mm->_gemm) throw lut::AbortedError("unable to create MatMul operator.");
 
   return mm;
-}
-
-void MatMul::safeDestroyCublas(cublasHandle_t handle) {
-  cublasStatus_t status = cublasDestroy(handle);
-  if (status != CUBLAS_STATUS_SUCCESS) {
-    LOG(ERROR) << "Error while calling cublasDestroy(): " << cublasGetStatusString(status);
-  }
 }
 
 Tensor MatMul::apply(const Tensor &A, const Tensor &B) {
@@ -115,40 +117,6 @@ Tensor MatMul::matmulHalf(const Tensor &A, const Tensor &B) {
   }
 }
 
-Tensor MatMul::gemmHalf(const Tensor &A, const Tensor &B) {
-  CHECK(A.getDim() == B.getDim() && A.getDim() == 2);
-  Tensor C = createCudaTensorHalf({A.getShape(0), B.getShape(1)});
-
-  float alpha = 1.0;
-  float beta = 0.0;
-
-  common::GEMMArgs gemmArgs = common::generateGemmArgs(A, B, C);
-  CHECK_CUBLAS_STATUS(cublasGemmEx(
-      _handle.get(),
-      gemmArgs.transB ? CUBLAS_OP_T : CUBLAS_OP_N,
-      gemmArgs.transA ? CUBLAS_OP_T : CUBLAS_OP_N,
-      gemmArgs.N,
-      gemmArgs.M,
-      gemmArgs.K,
-      &alpha,
-      B.getData<half>(),
-      CUDA_R_16F,
-      gemmArgs.ldb,
-      A.getData<half>(),
-      CUDA_R_16F,
-      gemmArgs.lda,
-      &beta,
-      C.getData<half>(),
-      CUDA_R_16F,
-      gemmArgs.ldc,
-      CUBLAS_COMPUTE_32F,
-      CUBLAS_GEMM_DEFAULT));
-  cudaDeviceSynchronize();
-
-  return C;
-}
-
-
 template<int DIM>
 std::vector<const half *> getBatchImpl(const Tensor &A);
 
@@ -186,7 +154,18 @@ std::vector<const half *> MatMul::getBatch(const Tensor &A, int nBatchDim) {
   NOT_IMPL();
 }
 
-Tensor MatMul::bmmHalf(const Tensor &A, const Tensor &B) {
+Tensor MatMul::bmmToGemmHalf(const Tensor &A, const Tensor &B) {
+  std::vector<int> shape = A.getShape();
+
+  Tensor xA = A.view({-1, A.getShape(-1)});
+  Tensor xC = gemmHalf(xA, B);
+
+  shape.back() = B.getShape(1);
+  return xC.view(shape);
+}
+
+
+Tensor MatMul::bmmHalf(Tensor A, Tensor B) {
   Tensor xB = B;
   if (A.getDim() != B.getDim()) xB = common::expandBatchDims(B, A.getShape());
 
@@ -202,9 +181,9 @@ Tensor MatMul::bmmHalf(const Tensor &A, const Tensor &B) {
   CHECK(batchA.size() == batchB.size() && batchA.size() == batchC.size());
 
   int64_t nb = batchA.size();
-  lut::c_ptr<const void *> arrayA = llynCudaAlloc<const void *>(nb);
-  lut::c_ptr<const void *> arrayB = llynCudaAlloc<const void *>(nb);
-  lut::c_ptr<void *> arrayC = llynCudaAlloc<void *>(nb);
+  lut::c_ptr<const half *> arrayA = llynCudaAlloc<const half *>(nb);
+  lut::c_ptr<const half *> arrayB = llynCudaAlloc<const half *>(nb);
+  lut::c_ptr<half *> arrayC = llynCudaAlloc<half *>(nb);
 
   int64_t nc = sizeof(void *) * nb;
   LL_CHECK_CUDA_STATUS(cudaMemcpy(arrayA.get(), batchA.data(), nc, cudaMemcpyHostToDevice));
@@ -213,41 +192,55 @@ Tensor MatMul::bmmHalf(const Tensor &A, const Tensor &B) {
 
   float alpha = 1.0;
   float beta = 0.0;
-  CHECK_CUBLAS_STATUS(cublasGemmBatchedEx(
-      _handle.get(),
-      gemmArgs.transB ? CUBLAS_OP_T : CUBLAS_OP_N,
-      gemmArgs.transA ? CUBLAS_OP_T : CUBLAS_OP_N,
-      gemmArgs.N,
+  if (lut::ErrorCode::OK != _gemm->hgemmArray(
+      gemmArgs.transA,
+      gemmArgs.transB,
       gemmArgs.M,
+      gemmArgs.N,
       gemmArgs.K,
-      &alpha,
-      arrayB.get(),
-      CUDA_R_16F,
-      gemmArgs.ldb,
+      1.0f,
       arrayA.get(),
-      CUDA_R_16F,
       gemmArgs.lda,
-      &beta,
+      arrayB.get(),
+      gemmArgs.ldb,
+      0.0f,
       arrayC.get(),
-      CUDA_R_16F,
       gemmArgs.ldc,
-      nb,
-      CUBLAS_COMPUTE_32F,
-      CUBLAS_GEMM_DEFAULT));
+      nb));
 
   cudaDeviceSynchronize();
   return C;
 }
 
-Tensor MatMul::bmmToGemmHalf(const Tensor &A, const Tensor &B) {
-  std::vector<int> shape = A.getShape();
+Tensor MatMul::gemmHalf(Tensor A, Tensor B) {
+  CHECK(A.getDim() == B.getDim() && A.getDim() == 2);
+  Tensor C = createCudaTensorHalf({A.getShape(0), B.getShape(1)});
 
-  Tensor xA = A.view({-1, A.getShape(-1)});
-  Tensor xC = gemmHalf(xA, B);
+  float alpha = 1.0;
+  float beta = 0.0;
 
-  shape.back() = B.getShape(1);
-  return xC.view(shape);
+  common::GEMMArgs gemmArgs = common::generateGemmArgs(A, B, C);
+  if (lut::ErrorCode::OK != _gemm->hgemm(
+      gemmArgs.transA,
+      gemmArgs.transB,
+      gemmArgs.M,
+      gemmArgs.N,
+      gemmArgs.K,
+      1.0f,
+      A.getData<half>(),
+      gemmArgs.lda,
+      B.getData<half>(),
+      gemmArgs.ldb,
+      0.0f,
+      C.getData<half>(),
+      gemmArgs.ldc)) {
+    THROW(Aborted, "hgemm failed.");
+  }
+  cudaDeviceSynchronize();
+
+  return C;
 }
+
 
 }  // cuda
 }  // op
