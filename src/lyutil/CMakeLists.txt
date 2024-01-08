@@ -22,7 +22,8 @@ if(UNIX)
     set(lyutil_SOURCES
         ${lyutil_SOURCES}
         "path_linux.cc"
-        "platform_linux.cc")
+        "platform_linux.cc"
+        "shared_library_linux.cc")
 endif(UNIX)
 
 add_library(lyutil STATIC ${lyutil_SOURCES})

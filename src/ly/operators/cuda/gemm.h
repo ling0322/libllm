@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023-2024 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,19 +17,53 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "catch2/catch_amalgamated.hpp"
-#include "lyutil/error.h"
-#include "lyutil/log.h"
-#include "llm/api/llm.h"
+#pragma once
 
-int main(int argc, char **argv) {
-  CHECK(llmGetApi(LLM_API_VERSION));
-  if (llmGetApi(LLM_API_VERSION)->init() != LLM_OK) {
-    LOG(FATAL) << llmGetApi(LLM_API_VERSION)->getLastErrorMessage();
-  }
+#include <cuda_runtime.h>
+#include <cuda_fp16.h>
+#include "ly/tensor.h"
+#include "ly/operators/cuda/common.h"
 
-  int result = Catch::Session().run(argc, argv);
-  CHECK(llmGetApi(LLM_API_VERSION)->destroy() == LLM_OK);
+namespace ly {
+namespace op {
+namespace cuda {
 
-  return result;
-}
+class Gemm {
+ public:
+  virtual ~Gemm() = default;
+
+  virtual lut::ErrorCode hgemm(
+      bool transA,
+      bool transB,
+      int m,
+      int n,
+      int k,
+      __half alpha,
+      const __half *A, 
+      int lda,
+      const __half *B,
+      int ldb,
+      __half beta,
+      __half *C,
+      int ldc) = 0;
+
+  virtual lut::ErrorCode hgemmArray(
+      bool transA,
+      bool transB,
+      int m,
+      int n,
+      int k,
+      __half alpha,
+      const __half *const *arrayA,
+      int lda,
+      const __half *const *arrayB,
+      int ldb,
+      __half beta,
+      __half *const *arrayC,
+      int ldc,
+      int batchSize) = 0;
+};
+
+}  // cuda
+}  // op
+}  // ly

@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2023-2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -19,6 +19,7 @@
 
 #include "ly/operators/cuda/cuda_operators.h"
 
+#include <math.h>
 #include "ly/operators/cuda/apply_rotary_pos_emb.h"
 #include "ly/operators/cuda/binary_op.h"
 #include "ly/operators/cuda/cast.h"

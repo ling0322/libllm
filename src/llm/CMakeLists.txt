@@ -24,7 +24,6 @@ set(libllm_LIBADD
     ly
     lymath
     lytok
-    lyutil
     OpenMP::OpenMP_CXX)
 
 if(CUDA_ENABLED)
@@ -32,7 +31,17 @@ if(CUDA_ENABLED)
         ${libllm_LIBADD}
         lyextcuda
         ${cuda_LIBRARIES})
+
+    add_library(lyextgemmcublas SHARED ${lyextgemmcublas_SOURCES})
+    target_include_directories(lyextgemmcublas PRIVATE ${libllm_INCDIRS})
+    target_link_libraries(lyextgemmcublas ly lyutil CUDA::cudart_static CUDA::cublas)
+    target_link_options(lyextgemmcublas PUBLIC "-Wl,--no-undefined")
 endif()
+
+set(libllm_LIBADD
+    ${libllm_LIBADD}
+    lyutil
+    OpenMP::OpenMP_CXX)
 
 add_library(libllm SHARED ${libllm_SOURCES} )
 target_include_directories(libllm PRIVATE ${libllm_INCDIRS})
@@ -40,6 +49,7 @@ target_compile_features(libllm PRIVATE cxx_std_14)
 target_link_libraries(libllm ${libllm_LIBADD}  )
 set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
 target_link_options(libllm PUBLIC "-Wl,--no-undefined")
+
 
 set(llm_SOURCES
     "cli/dialog_manager.cc"

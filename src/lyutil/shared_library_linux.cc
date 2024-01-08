@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023-2024 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -21,7 +21,7 @@
 
 #include <functional>
 #include <memory>
-#include <windows.h>
+#include <dlfcn.h>
 
 #include "lyutil/error.h"
 #include "lyutil/log.h"
@@ -38,7 +38,7 @@ class SharedLibrary::Impl {
   void *getFuncPtr(const std::string &filename);
 
  private:
-  HMODULE _module;
+  void *_module;
 
   Impl();
 };
@@ -46,33 +46,30 @@ class SharedLibrary::Impl {
 SharedLibrary::Impl::Impl() : _module(nullptr) {}
 SharedLibrary::Impl::~Impl() {
   if (_module) {
-    FreeLibrary(_module);
+    dlclose(_module);
     _module = nullptr;
   }
 }
 
 std::unique_ptr<SharedLibrary::Impl> SharedLibrary::Impl::open(const std::string &name) {
   std::unique_ptr<Impl> impl{new Impl()};
-  Path filename = std::string(name) + ".dll";
+  Path filename = std::string("lib") + std::string(name) + ".so";
 
   // first try to load the dll from same folder as current module
   Path modulePath = Path::currentModulePath();
   modulePath = modulePath.dirname();
   Path absFilename = modulePath / filename;
 
-  DWORD code =  S_OK;
-  impl->_module = LoadLibraryW(absFilename.wstring().c_str());
+  impl->_module = dlopen(absFilename.string().c_str(), RTLD_NOW);
   if (!impl->_module) {
-    code = GetLastError();
-    LOG(DEBUG) << "Load library " << absFilename.string() << " failed with code " << code
-               << " fall back to system search.";
+    LOG(DEBUG) << "Load library " << absFilename.string() << " failed with message \"" << dlerror()
+               << "\"fall back to system search.";
 
     // fallback to system search
-    impl->_module = LoadLibraryW(filename.wstring().c_str());
+    impl->_module = dlopen(filename.string().c_str(), RTLD_NOW);
     if (!impl->_module) {
-      code = GetLastError();
       throw AbortedError(lut::sprintf(
-          "Load library %s failed with code 0x%x.", absFilename.string(), code));
+          "Load library %s failed with message \"%s\"", absFilename.string(), dlerror()));
     }
   }
 
@@ -81,7 +78,7 @@ std::unique_ptr<SharedLibrary::Impl> SharedLibrary::Impl::open(const std::string
 
 void *SharedLibrary::Impl::getFuncPtr(const std::string &func_name) {
   CHECK(_module) << "call GetRawFuncPtr() on empty SharedLibrary";
-  FARPROC func = GetProcAddress(_module, std::string(func_name).c_str());
+  void *func = dlsym(_module, std::string(func_name).c_str());
   return reinterpret_cast<void *>(func);
 }
 
@@ -98,5 +95,6 @@ std::unique_ptr<SharedLibrary> SharedLibrary::open(const std::string &name) {
 void *SharedLibrary::getFuncPtr(const std::string &name) {
   return _impl->getFuncPtr(name);
 }
+
 
 } // namespace lut
