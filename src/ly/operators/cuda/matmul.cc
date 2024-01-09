@@ -25,6 +25,7 @@
 #include "ly/operators/common/matmul.h"
 #include "ly/operators/cuda/common.h"
 #include "ly/operators/cuda/dequant.h"
+#include "ly/operators/cuda/gemm_cutlass.h"
 #include "ly/operators/cuda/matvec.h"
 #include "lyutil/strings.h"
 
@@ -33,25 +34,53 @@ namespace op {
 namespace cuda {
 
 std::shared_ptr<MatMul> MatMul::create() {
-  std::shared_ptr<MatMul> mm{new MatMul()};
-  std::function<std::shared_ptr<ly::op::cuda::Gemm>()> factory;
-  std::string err;
+  std::shared_ptr<MatMul> mm;
+  std::string err0, err1;
 
   try {
-    mm->_gemmExtLib = lut::SharedLibrary::open("lyextgemmcublas");
-    factory = mm->_gemmExtLib->getFunc<std::shared_ptr<ly::op::cuda::Gemm>()>(
-        "llynCreateCudaOpExtGemm");
+    mm = createCublas();
     LOG(INFO) << "Use GEMM from cuBLAS.";
+    return mm;
   } catch (const lut::Error &e) {
     LOG(DEBUG) << "Load cublas extension failed with message: " << e.what();
-    err = e.what();
+    err0 = e.what();
   }
 
-  if (!factory) throw lut::AbortedError(lut::sprintf(
-      "unable to load MatMul operator extension: %s",
-      err));
+  try {
+    mm = createCutlass();
+    LOG(INFO) << "Use GEMM from cutlass.";
+    return mm;
+  } catch (const lut::Error &e) {
+    LOG(DEBUG) << "Load cublas extension failed with message: " << e.what();
+    err1 = e.what();
+  }
+
+  throw lut::AbortedError("unable to create MatMul operator: " + err0 + "; " + err1);
+}
+
+std::shared_ptr<MatMul> MatMul::createCublas() {
+  std::shared_ptr<MatMul> mm{new MatMul()};
+  
+  mm->_gemmExtLib = lut::SharedLibrary::open("llyngemmextcublas");
+  
+  std::function<std::shared_ptr<ly::op::cuda::Gemm>()> factory;
+  factory = mm->_gemmExtLib->getFunc<std::shared_ptr<ly::op::cuda::Gemm>()>(
+        "llynCreateCudaOpExtGemm");
+
   mm->_gemm = factory();
   if (!mm->_gemm) throw lut::AbortedError("unable to create MatMul operator.");
+
+  return mm;
+}
+
+std::shared_ptr<MatMul> MatMul::createCutlass() {
+  std::shared_ptr<MatMul> mm{new MatMul()};
+
+#ifdef LLYN_CUTLASS_ENABLED
+  mm->_gemm = CutlassGemm::create();
+#else
+  throw lut::AbortedError("Cutlass MatMul operator not enabled.");
+#endif
 
   return mm;
 }
@@ -206,7 +235,9 @@ Tensor MatMul::bmmHalf(Tensor A, Tensor B) {
       0.0f,
       arrayC.get(),
       gemmArgs.ldc,
-      nb));
+      nb)) {
+    THROW(Aborted, "hgemmArray failed.");
+  }
 
   cudaDeviceSynchronize();
   return C;

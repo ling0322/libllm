@@ -24,8 +24,9 @@
 #include "ly/device.h"
 #include "ly/ly.h"
 #include "ly/operators/cpu/cpu_tensor_data.h"
-#include "ly/operators/cuda/matvec.h"
 #include "ly/operators/cuda/dequant.h"
+#include "ly/operators/cuda/matmul.h"
+#include "ly/operators/cuda/matvec.h"
 #include "ly/internal/tensor_shape.h"
 #include "lyutil/half.h"
 #include "lyutil/random.h"
@@ -44,6 +45,7 @@ using ly::DType;
 using ly::Device;
 using ly::internal::TensorShape;
 using ly::op::cpu::CpuTensorData;
+using ly::op::cuda::MatMul;
 
 namespace F = ly::functional;
 
@@ -524,3 +526,65 @@ CATCH_TEST_CASE("benchmark gemv", "[ly][op][cuda]") {
   CATCH_REQUIRE(F::allClose(x1, xrq.transpose(0, 1), 1e-5f, 5e-2f));
   CATCH_REQUIRE(F::allClose(xq, xrq.transpose(0, 1), 1e-5f, 5e-2f));
 }
+
+#ifdef LLYN_CUTLASS_ENABLED
+
+CATCH_TEST_CASE("test matmul gemm (cutlass)", "[ly][op][cuda][cutlass]") {
+  std::shared_ptr<MatMul> mm = MatMul::createCutlass();
+
+  Tensor a = F::rand({10, 20}, DType::kFloat);
+  Tensor b = F::rand({40, 30}, DType::kFloat);
+  Tensor xr = F::matmul(a, b.slice(1, {5, 25}).transpose(1, 0));
+
+  Tensor x = F::to(Device::getCuda(), a);
+  Tensor y = F::to(Device::getCuda(), b);
+  x = F::cast(x, DType::kFloat16);
+  y = F::cast(y, DType::kFloat16);
+  y = y.slice(1, {5, 25});
+  y = y.transpose(1, 0);
+  x = mm->apply(x, y);
+  x = F::cast(x, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+
+  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
+}
+
+CATCH_TEST_CASE("test matmul bmm (cutlass)", "[ly][op][cuda][cutlass]") {
+  std::shared_ptr<MatMul> mm = MatMul::createCutlass();
+
+  Tensor a = F::rand({5, 10, 5, 20}, DType::kFloat);
+  Tensor b = F::rand({10, 30, 20}, DType::kFloat);
+  Tensor xr = F::matmul(a, b.slice(1, {5, 25}).transpose(-1, -2));
+
+  Tensor x = F::to(Device::getCuda(), a);
+  Tensor y = F::to(Device::getCuda(), b);
+  x = F::cast(x, DType::kFloat16);
+  y = F::cast(y, DType::kFloat16);
+  y = y.slice(1, {5, 25});
+  y = y.transpose(-1, -2);
+  x = mm->apply(x, y);
+  x = F::cast(x, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+
+  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
+}
+
+CATCH_TEST_CASE("benchmark cutlass hgemm", "[ly][op][cuda]") {
+  std::shared_ptr<MatMul> mmCutlass = MatMul::createCutlass();
+  std::shared_ptr<MatMul> mmCublas = MatMul::createCublas();
+
+  Tensor A = F::rand({4096, 4096}, DType::kFloat);
+  Tensor B = F::rand({4096, 4096}, DType::kFloat);
+  A = F::to(Device::getCuda(), A);
+  B = F::to(Device::getCuda(), B);
+  A = F::cast(A, DType::kFloat16);
+  B = F::cast(B, DType::kFloat16);
+
+  Tensor Cr = mmCublas->apply(A, B);
+  LOG_TIME(mmCublas->apply(A, B), "mmCublas->apply(A, B)");
+
+  Tensor C = mmCublas->apply(A, B);
+  LOG_TIME(mmCutlass->apply(A, B), "mmCutlass->apply(A, B)");
+}
+
+#endif  // LLYN_CUTLASS_ENABLED
