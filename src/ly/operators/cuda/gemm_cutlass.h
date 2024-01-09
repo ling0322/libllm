@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023-2024 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -19,43 +19,50 @@
 
 #pragma once
 
-#include <cuda_runtime.h>
-#include <cuda_fp16.h>
-#include "ly/tensor.h"
-#include "ly/operators/cuda/common.h"
 #include "ly/operators/cuda/gemm.h"
-#include "lyutil/shared_library.h"
 
 namespace ly {
 namespace op {
 namespace cuda {
 
-class MatMul {
+/// @brief Operators implemented by cuBLAS.
+class CutlassGemm : public Gemm {
  public:
-  static std::shared_ptr<MatMul> create();
-  static std::shared_ptr<MatMul> createCutlass();
-  static std::shared_ptr<MatMul> createCublas();
+  static std::shared_ptr<Gemm> create();
 
-  Tensor apply(const Tensor &A, const Tensor &B);
+  lut::ErrorCode hgemm(
+      bool transA,
+      bool transB,
+      int m,
+      int n,
+      int k,
+      __half alpha,
+      const __half *A, 
+      int lda,
+      const __half *B,
+      int ldb,
+      __half beta,
+      __half *C,
+      int ldc) override;
 
- protected:
-  // _gemmExtLib must be defined before _gemm. Since destruction of _gemm needs the _gemmExtLib.
-  std::shared_ptr<lut::SharedLibrary> _gemmExtLib;
-  std::shared_ptr<Gemm> _gemm;
-
-  Tensor gemmHalf(Tensor A, Tensor B);
-  Tensor bmmHalf(Tensor A, Tensor B);
-
-  Tensor matmulQ4(const Tensor &A, const Tensor &B);
-  Tensor gemmQ4(const Tensor &A, const Tensor &B);
-  Tensor bmmToGemmQ4(const Tensor &A, const Tensor &B);
-
-  Tensor matmulHalf(const Tensor &A, const Tensor &B);
-  Tensor bmmToGemmHalf(const Tensor &A, const Tensor &B);
-
-  std::vector<const half *> getBatch(const Tensor &A, int nBatchDim);
+  lut::ErrorCode hgemmArray(
+      bool transA,
+      bool transB,
+      int m,
+      int n,
+      int k,
+      __half alpha,
+      const __half *const *arrayA,
+      int lda,
+      const __half *const *arrayB,
+      int ldb,
+      __half beta,
+      __half *const *arrayC,
+      int ldc,
+      int batchSize) override;
 };
 
 }  // cuda
 }  // op
 }  // ly
+

@@ -1,11 +1,14 @@
 cmake_minimum_required(VERSION 3.22)
 project(libllm LANGUAGES CXX)
 
-if(CUDA_ENABLED)
+option(LLYN_CUDA "CUDA compute support." OFF)
+option(LLYN_CUTLASS "build MatMul operators with CUTLASS." OFF)
+
+if(LLYN_CUDA)
     add_definitions("-DLLYN_CUDA_ENABLED")
     find_package(CUDAToolkit REQUIRED)
     include_directories(${CUDAToolkit_INCLUDE_DIRS}) 
-    set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 75 80 86)
+    set(CMAKE_CUDA_ARCHITECTURES 61)
     enable_language(CUDA)
     if(WIN32)
         set(cuda_LIBRARIES CUDA::cudart_static)
@@ -13,8 +16,21 @@ if(CUDA_ENABLED)
     if(UNIX)
         set(cuda_LIBRARIES CUDA::cudart_static)
     endif(UNIX)
-endif(CUDA_ENABLED)
+endif()
 
+if(LLYN_CUTLASS)
+    add_definitions("-DLLYN_CUTLASS_ENABLED")
+endif()
+
+if (DEFINED CUTLASS_ROOT)
+    include_directories(${CUTLASS_ROOT}/include)
+    if (NOT EXISTS ${CUTLASS_ROOT}/include/cutlass/blas3.h)
+        message(FATAL_ERROR 
+          "invalid CUTLASS_ROOT \"${CUTLASS_ROOT}\": unable to find file "
+          "${CUTLASS_ROOT}/include/cutlass/blas3.h, please "
+          "enusre CUTLASS_ROOT contains the cutlass \"include\" directory.")
+    endif()
+endif()
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)

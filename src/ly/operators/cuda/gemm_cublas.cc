@@ -80,7 +80,6 @@ lut::ErrorCode CublasGemm::hgemm(
       ldc,
       CUBLAS_COMPUTE_32F,
       CUBLAS_GEMM_DEFAULT);
-  cudaDeviceSynchronize();
 
   if (status == CUBLAS_STATUS_SUCCESS)
     return lut::ErrorCode::OK;
@@ -127,8 +126,6 @@ lut::ErrorCode CublasGemm::hgemmArray(
       batchSize,
       CUBLAS_COMPUTE_32F,
       CUBLAS_GEMM_DEFAULT);
-
-  cudaDeviceSynchronize();
 
   if (status == CUBLAS_STATUS_SUCCESS)
     return lut::ErrorCode::OK;

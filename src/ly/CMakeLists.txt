@@ -5,7 +5,7 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-set(ly_SOURCES
+set(llyn_SOURCES
     "operators/operators.cc"
     "operators/common/common.cc"
     "operators/common/matmul.cc"
@@ -40,27 +40,27 @@ set(ly_SOURCES
     "state_map.cc"
     "tensor.cc")
 
-add_library(ly STATIC ${ly_SOURCES} )
-target_include_directories(ly PRIVATE ..)
-target_compile_features(ly PRIVATE cxx_std_14)
-target_link_libraries(ly lymath lyutil)
+add_library(llyn STATIC ${llyn_SOURCES} )
+target_include_directories(llyn PRIVATE ..)
+target_compile_features(llyn PRIVATE cxx_std_14)
+target_link_libraries(llyn lymath lyutil)
 if(WIN32)
-  target_compile_definitions(ly PUBLIC  "/openmp")
+  target_compile_definitions(llyn PUBLIC  "/openmp")
 endif(WIN32)
 if(UNIX)
-  target_link_options(ly PUBLIC "-fopenmp")
+  target_link_options(llyn PUBLIC "-fopenmp")
 endif(UNIX)
 
-set(ly_test_SOURCES
+set(llyn_test_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/operators/cpu/test.cc"
     "${CMAKE_CURRENT_LIST_DIR}/nn/test_helper.cc"
     "${CMAKE_CURRENT_LIST_DIR}/nn/embedding_test.cc"
     "${CMAKE_CURRENT_LIST_DIR}/nn/linear_test.cc"
     "${CMAKE_CURRENT_LIST_DIR}/nn/rms_norm_test.cc")
 
-if (CUDA_ENABLED)
-    set(lyextcuda_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS})
-    set(lyextcuda_SOURCES
+if (LLYN_CUDA)
+    set(llyncuda_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS})
+    set(llyncuda_SOURCES
         "operators/cuda/apply_rotary_pos_emb.cu"
         "operators/cuda/binary_op.cu"
         "operators/cuda/cast.cu"
@@ -79,21 +79,18 @@ if (CUDA_ENABLED)
         "operators/cuda/swiglu.cu"
         "operators/cuda/to_device.cc"
         "operators/cuda/transform.cu")
-    add_library(lyextcuda STATIC ${lyextcuda_SOURCES})
-    target_include_directories(lyextcuda PRIVATE .. ${lyextcuda_INCDIR})
-    target_compile_features(lyextcuda PRIVATE cxx_std_14)
+    if (LLYN_CUTLASS)
+        set(llyncuda_SOURCES ${llyncuda_SOURCES} "operators/cuda/gemm_cutlass.cu")
+        set(llyn_test_SOURCES ${llyn_test_SOURCES}
+           "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/gemm_cutlass.cu")
+    endif()
+    add_library(llyncuda STATIC ${llyncuda_SOURCES})
+    target_include_directories(llyncuda PRIVATE .. ${llyncuda_INCDIR})
+    target_compile_features(llyncuda PRIVATE cxx_std_14)
 
-    set(lyextgemmcublas_SOURCES
-        "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/gemm_cublas.cc")
-    set(lyextgemmcublas_SOURCES
-        ${lyextgemmcublas_SOURCES}
-        PARENT_SCOPE)
-
-    set(ly_test_SOURCES
-        ${ly_test_SOURCES}
-        "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc")
+    set(llyngemmextcublas_SOURCES "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/gemm_cublas.cc")
+    set(llyngemmextcublas_SOURCES ${llyngemmextcublas_SOURCES} PARENT_SCOPE)
+    set(llyn_test_SOURCES ${llyn_test_SOURCES} "${CMAKE_CURRENT_LIST_DIR}/operators/cuda/test.cc")
 endif()
 
-set(ly_test_SOURCES
-    ${ly_test_SOURCES}
-    PARENT_SCOPE)
+set(llyn_test_SOURCES ${llyn_test_SOURCES} PARENT_SCOPE)

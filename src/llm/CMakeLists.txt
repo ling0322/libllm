@@ -21,21 +21,21 @@ set(libllm_SOURCES
 
 
 set(libllm_LIBADD
-    ly
+    llyn
     lymath
     lytok
     OpenMP::OpenMP_CXX)
 
-if(CUDA_ENABLED)
+if(LLYN_CUDA)
     set(libllm_LIBADD
         ${libllm_LIBADD}
-        lyextcuda
+        llyncuda
         ${cuda_LIBRARIES})
 
-    add_library(lyextgemmcublas SHARED ${lyextgemmcublas_SOURCES})
-    target_include_directories(lyextgemmcublas PRIVATE ${libllm_INCDIRS})
-    target_link_libraries(lyextgemmcublas ly lyutil CUDA::cudart_static CUDA::cublas)
-    target_link_options(lyextgemmcublas PUBLIC "-Wl,--no-undefined")
+    add_library(llyngemmextcublas SHARED ${llyngemmextcublas_SOURCES})
+    target_include_directories(llyngemmextcublas PRIVATE ${libllm_INCDIRS})
+    target_link_libraries(llyngemmextcublas lyutil CUDA::cublas)
+    target_link_options(llyngemmextcublas PUBLIC "-Wl,--no-undefined")
 endif()
 
 set(libllm_LIBADD
@@ -50,6 +50,9 @@ target_link_libraries(libllm ${libllm_LIBADD}  )
 set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
 target_link_options(libllm PUBLIC "-Wl,--no-undefined")
 
+add_library(libllm_static ${libllm_SOURCES} )
+target_include_directories(libllm_static PRIVATE ${libllm_INCDIRS})
+target_compile_features(libllm_static PRIVATE cxx_std_14)
 
 set(llm_SOURCES
     "cli/dialog_manager.cc"
@@ -62,9 +65,8 @@ target_link_options(llm PUBLIC "-fopenmp")
 
 
 set(llm_test_SOURCES
-    ${libllm_SOURCES}
     ${lymath_test_SOURCES}
-    ${ly_test_SOURCES}
+    ${llyn_test_SOURCES}
     "cli/test_main.cc"
     "chatglm/chatglm_model_test.cc"
     "chatglm/glm_block_test.cc"
@@ -74,7 +76,7 @@ set(llm_test_SOURCES
 
 add_executable(unittest ${llm_test_SOURCES})
 target_include_directories(unittest PRIVATE ${libllm_INCDIRS})
-target_link_libraries(unittest ${libllm_LIBADD})
+target_link_libraries(unittest libllm_static ${libllm_LIBADD})
 target_link_options(unittest PUBLIC "-fopenmp")
 
 enable_testing()
