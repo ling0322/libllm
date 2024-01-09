@@ -50,6 +50,9 @@ target_link_libraries(libllm ${libllm_LIBADD}  )
 set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
 target_link_options(libllm PUBLIC "-Wl,--no-undefined")
 
+add_library(libllm_static ${libllm_SOURCES} )
+target_include_directories(libllm_static PRIVATE ${libllm_INCDIRS})
+target_compile_features(libllm_static PRIVATE cxx_std_14)
 
 set(llm_SOURCES
     "cli/dialog_manager.cc"
@@ -73,7 +76,7 @@ set(llm_test_SOURCES
 
 add_executable(unittest ${llm_test_SOURCES})
 target_include_directories(unittest PRIVATE ${libllm_INCDIRS})
-target_link_libraries(unittest libllm)
+target_link_libraries(unittest libllm_static ${libllm_LIBADD})
 target_link_options(unittest PUBLIC "-fopenmp")
 
 enable_testing()
