@@ -26,7 +26,7 @@ set(libllm_LIBADD
     lytok
     OpenMP::OpenMP_CXX)
 
-if(CUDA_ENABLED)
+if(LLYN_CUDA)
     set(libllm_LIBADD
         ${libllm_LIBADD}
         lyextcuda

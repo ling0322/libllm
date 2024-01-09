@@ -47,7 +47,7 @@ Recommand versions are:
 
 ```bash
 $ mkdir build && cd build
-$ cmake -DCUDA_ENABLED=ON [-DCUDAToolkit_ROOT=<CUDA-DIR>] ..
+$ cmake -DLLYN_CUDA=ON [-DCUDAToolkit_ROOT=<CUDA-DIR>] ..
 $ make -j
 ```
 

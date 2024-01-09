@@ -58,7 +58,7 @@ set(ly_test_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/nn/linear_test.cc"
     "${CMAKE_CURRENT_LIST_DIR}/nn/rms_norm_test.cc")
 
-if (CUDA_ENABLED)
+if (LLYN_CUDA)
     set(lyextcuda_INCDIR "${llyn_INCDIR}" ${CUDAToolkit_INCLUDE_DIRS})
     set(lyextcuda_SOURCES
         "operators/cuda/apply_rotary_pos_emb.cu"
