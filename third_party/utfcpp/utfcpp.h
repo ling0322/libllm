@@ -29,7 +29,7 @@ DEALINGS IN THE SOFTWARE.
 #include <stdint.h>
 #include <iterator>
 #include <string>
-#include "../../src/lyutil/error.h"
+#include "../../src/libllm/lut/error.h"
 
 namespace lut
 {
