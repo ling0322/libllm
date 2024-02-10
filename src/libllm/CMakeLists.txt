@@ -142,18 +142,19 @@ set(libllm_LIBADD
     ${CMAKE_DL_LIBS}
     OpenMP::OpenMP_CXX)
 
-add_library(libllm SHARED ${libllm_SOURCES})
-target_include_directories(libllm PRIVATE ${libllm_INCDIR})
-target_compile_features(libllm PRIVATE cxx_std_14)
+add_library(libllmobjects OBJECT ${libllm_SOURCES})
+target_include_directories(libllmobjects PRIVATE ${libllm_INCDIR})
+
+add_library(libllm SHARED $<TARGET_OBJECTS:libllmobjects>)
 target_link_libraries(libllm ${libllm_LIBADD}  )
 set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
 target_link_options(libllm PUBLIC "-Wl,--no-undefined")
 
 add_library(catch2 STATIC  "../../third_party/catch2/catch_amalgamated.cpp")
 
-add_executable(unittest ${unittest_SOURCES})
+add_executable(unittest ${unittest_SOURCES} $<TARGET_OBJECTS:libllmobjects>)
 target_include_directories(unittest PRIVATE .. "../../third_party/")
-target_link_libraries(unittest libllm catch2)
+target_link_libraries(unittest catch2)
 
 add_executable(llm ${llm_SOURCES})
 target_include_directories(llm PRIVATE ..)
