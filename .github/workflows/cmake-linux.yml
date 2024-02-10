@@ -19,4 +19,4 @@ jobs:
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
     - name: Test
-      run: ctest --verbose -C ${{env.BUILD_TYPE}} --test-dir ${{github.workspace}}/build/src/llm
+      run: ctest --verbose -C ${{env.BUILD_TYPE}} --test-dir ${{github.workspace}}/build/src/libllm
