@@ -181,4 +181,4 @@ if (WITH_CUDA)
 endif()
 
 enable_testing()
-#sadd_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)
+add_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)
