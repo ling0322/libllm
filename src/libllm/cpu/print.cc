@@ -29,7 +29,7 @@ template<typename T>
 void printValue(T value);
 
 template<>
-void printValue(float value) {
+inline void printValue(float value) {
   if (std::abs(value) > 100 || std::abs(value) < 0.01) {
     printf("%.4e", value);
   } else {
@@ -38,9 +38,10 @@ void printValue(float value) {
 }
 
 template<>
-void printValue(LongType value) {
+inline void printValue(LongType value) {
   printf("%lld", value);
 }
+
 
 template<typename T>
 void print1D(Subtensor<const T> A) {

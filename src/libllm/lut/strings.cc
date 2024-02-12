@@ -160,7 +160,7 @@ std::string toLower(const std::string &s) {
   return lower;
 }
 
-int atoi(const std::string &s) {
+int parseInt(const std::string &s) {
   char *p = nullptr;
   long v = strtol(s.c_str(), &p, 0);
   if (*p == '\0') {
@@ -170,7 +170,7 @@ int atoi(const std::string &s) {
   }
 }
 
-float atof(const std::string &s) {
+float parseFloat(const std::string &s) {
   char *p = nullptr;
   double v = strtof(s.c_str(), &p);
   if (*p == '\0') {
@@ -178,6 +178,20 @@ float atof(const std::string &s) {
   } else {
     throw AbortedError(sprintf("invalid float string: %s", s));
   }
+}
+
+bool parseBool(const std::string &s) {
+  std::string sl = toLower(s);
+  if (sl == "true" || sl == "1") {
+    return true;
+  } else if (sl == "false" || sl == "0") {
+    return false;
+  } else {
+    throw AbortedError(lut::sprintf("invalid bool value: %s", s));
+  }
+
+  // never reach here.
+  NOT_IMPL();
 }
 
 std::string replace(const std::string &from, const std::string &old, const std::string &repl) {
@@ -212,41 +226,5 @@ std::vector<std::string> splitUtf8(const std::string &s) {
 
   return utf8Chars;
 }
-
-template<>
-std::string stox<std::string>(const std::string &s) {
-  return s;
-}
-
-template<>
-float stox<float>(const std::string &s) {
-  return atof(s);
-}
-
-template<>
-int stox<int>(const std::string &s) {
-  return atoi(s);
-}
-
-template<>
-bool stox<bool>(const std::string &s) {
-  std::string sl = toLower(s);
-  if (sl == "true" || sl == "1") {
-    return true;
-  } else if (sl == "false" || sl == "0") {
-    return false;
-  } else {
-    throw AbortedError(lut::sprintf("invalid bool value: %s", s));
-  }
-
-  // never reach here.
-  NOT_IMPL();
-  return false;
-}
-
-template std::string stox<std::string>(const std::string &s);
-template float stox<float>(const std::string &s);
-template int stox<int>(const std::string &s);
-template bool stox<bool>(const std::string &s);
 
 } // namespace lut

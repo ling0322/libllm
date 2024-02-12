@@ -22,10 +22,18 @@
 #include <stdint.h>
 
 #if defined(_WIN32)
+#ifdef LIBLLM_EXPORTS
 #define LLMAPI __declspec(dllexport)
-#else
+#else   // LIBLLM_EXPORTS
+#define LLMAPI __declspec(dllimport)
+#endif  // LIBLLM_EXPORTS
+#else   // _WIN32
+#ifdef LIBLLM_EXPORTS
+#define LLMAPI __attribute__ ((visibility("default")))
+#else   // LIBLLM_EXPORTS
 #define LLMAPI
-#endif
+#endif  // LIBLLM_EXPORTS`
+#endif  // _WIN32
 
 #ifdef __cplusplus
 extern "C" {

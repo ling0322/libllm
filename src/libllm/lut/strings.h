@@ -44,12 +44,9 @@ std::string replace(const std::string &s, const std::string &old, const std::str
 std::string toLower(const std::string &s);
 
 // string to int, float... throw AbortedException if parsing failed.
-int atoi(const std::string &s);
-float atof(const std::string &s);
-
-// convert string to other type. Currently, it supports: string, float, int, bool.
-template<typename T>
-T stox(const std::string &s);
+int parseInt(const std::string &s);
+float parseFloat(const std::string &s);
+bool parseBool(const std::string &s);
 
 // split s string into utf-8 characters (string),
 std::vector<std::string> splitUtf8(const std::string &s);

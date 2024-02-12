@@ -77,11 +77,5 @@ class Flags::Parser {
   virtual std::string getType() const = 0;
 };
 
-template<typename T>
-T Flags::getArg(int index) {
-  CHECK(index < _positionalArgs.size());
-  return stox<T>(_positionalArgs[index]);
-}
-
 } // namespace lut
 

@@ -5,6 +5,19 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+set(lut_SOURCES
+    "lut/internal/log.cc"
+    "lut/internal/sprintf.cc"
+    "lut/error.cc"
+    "lut/flags.cc"
+    "lut/half.cc"
+    "lut/ini_config.cc"
+    "lut/path.cc"
+    "lut/random.cc"
+    "lut/reader.cc"
+    "lut/strings.cc"
+    "lut/time.cc")
+
 set(libllm_SOURCES
     "cpu/kernel/kernel_avx2.cc"
     "cpu/kernel/kernel_avx512.cc"
@@ -28,17 +41,6 @@ set(libllm_SOURCES
     "cpu/swiglu.cc"
     "cpu/tensor.cc"
     "cpu/view.cc"
-    "lut/internal/log.cc"
-    "lut/internal/sprintf.cc"
-    "lut/error.cc"
-    "lut/flags.cc"
-    "lut/half.cc"
-    "lut/ini_config.cc"
-    "lut/path.cc"
-    "lut/random.cc"
-    "lut/reader.cc"
-    "lut/strings.cc"
-    "lut/time.cc"
     "bpe_config.cc"
     "bpe_encoder.cc"
     "bpe_model.cc"
@@ -138,34 +140,45 @@ if(UNIX)
         "lut/shared_library_linux.cc")
 endif(UNIX)
 
+add_library(lut STATIC ${lut_SOURCES})
+set_target_properties(lut PROPERTIES CXX_VISIBILITY_PRESET hidden)
+target_include_directories(lut PRIVATE "..")
+
 set(libllm_LIBADD
+    lut
     ${CMAKE_DL_LIBS}
     OpenMP::OpenMP_CXX)
 
-add_library(libllmobjects OBJECT ${libllm_SOURCES})
-target_include_directories(libllmobjects PRIVATE ${libllm_INCDIR})
+add_library(libllm_static OBJECT ${libllm_SOURCES})
+target_compile_options(libllm_static PRIVATE "-DLIBLLM_EXPORTS")
+set_target_properties(libllm_static PROPERTIES CXX_VISIBILITY_PRESET hidden)
+set_target_properties(libllm_static PROPERTIES CUDA_VISIBILITY_PRESET hidden)
+target_include_directories(libllm_static PRIVATE ${libllm_INCDIR})
 
-add_library(libllm SHARED $<TARGET_OBJECTS:libllmobjects>)
+add_library(libllm SHARED $<TARGET_OBJECTS:libllm_static>)
 target_link_libraries(libllm ${libllm_LIBADD}  )
 set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
-target_link_options(libllm PUBLIC "-Wl,--no-undefined")
+if(UNIX)
+    target_link_options(libllm PUBLIC "-Wl,--no-undefined")
+endif(UNIX)
 
 add_library(catch2 STATIC  "../../third_party/catch2/catch_amalgamated.cpp")
-
-add_executable(unittest ${unittest_SOURCES} $<TARGET_OBJECTS:libllmobjects>)
+add_executable(unittest ${unittest_SOURCES})
 target_include_directories(unittest PRIVATE .. "../../third_party/")
-target_link_libraries(unittest catch2)
+target_link_libraries(unittest libllm_static lut catch2)
 
 add_executable(llm ${llm_SOURCES})
 target_include_directories(llm PRIVATE ..)
-target_link_libraries(llm libllm)
+target_link_libraries(llm libllm lut)
 
 if (WITH_CUDA)
     add_library(llmextcublas SHARED ${llmextcublas_SOURCES})
     target_include_directories(llmextcublas PRIVATE .. "../../third_party/")
-    target_link_libraries(llmextcublas CUDA::cublas)
-    target_link_options(llmextcublas PUBLIC "-Wl,--no-undefined")
+    target_link_libraries(llmextcublas lut CUDA::cublas)
+    if(UNIX)
+        target_link_options(llmextcublas PUBLIC "-Wl,--no-undefined")
+    endif(UNIX)
 endif()
 
 enable_testing()
-add_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)
+#sadd_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)

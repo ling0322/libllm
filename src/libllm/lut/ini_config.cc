@@ -158,16 +158,16 @@ std::string IniSection::getString(const std::string &key) const {
 
 int IniSection::getInt(const std::string &key) const {
   std::string s = getString(key);
-  return lut::atoi(s);
+  return lut::parseInt(s);
 }
 
 float IniSection::getFloat(const std::string &key) const {
   std::string s = getString(key);
-  return lut::atof(s);
+  return lut::parseFloat(s);
 }
 
 bool IniSection::getBool(const std::string &key) const {
-  return lut::stox<bool>(getString(key));
+  return lut::parseBool(getString(key));
 }
 
 Path IniSection::getPath(const std::string &key) const {
@@ -193,7 +193,7 @@ std::vector<int> IniSection::getIntArray(const std::string &key) const {
   std::vector<int> intValues;
 
   for (const std::string &value : values) {
-    intValues.push_back(lut::atoi(value));
+    intValues.push_back(lut::parseInt(value));
   }
 
   return intValues;

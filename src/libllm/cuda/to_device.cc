@@ -47,12 +47,13 @@ std::shared_ptr<TensorData> createData<Device::kCuda>(
 
 template<Device::Type DEST_DEVICE>
 void copyData(void *dest, const void *src, int64_t n);
+
 template<>
-void copyData<Device::kCpu>(void *dest, const void *src, int64_t n) {
+inline void copyData<Device::kCpu>(void *dest, const void *src, int64_t n) {
   LL_CHECK_CUDA_STATUS(cudaMemcpy(dest, src, n, cudaMemcpyDeviceToHost));
 }
 template<>
-void copyData<Device::kCuda>(void *dest, const void *src, int64_t n) {
+inline void copyData<Device::kCuda>(void *dest, const void *src, int64_t n) {
   LL_CHECK_CUDA_STATUS(cudaMemcpy(dest, src, n, cudaMemcpyHostToDevice));
 }
 
