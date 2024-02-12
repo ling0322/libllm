@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.22)
 project(libllm LANGUAGES CXX)
 
-option(LLYN_CUDA "CUDA compute support." OFF)
-option(LLYN_CUTLASS "build MatMul operators with CUTLASS." OFF)
+option(WITH_CUDA "CUDA compute support." OFF)
+option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
 
-if(LLYN_CUDA)
-    add_definitions("-DLLYN_CUDA_ENABLED")
+if(WITH_CUDA)
+    add_definitions("-DLIBLLM_CUDA_ENABLED")
     find_package(CUDAToolkit REQUIRED)
     include_directories(${CUDAToolkit_INCLUDE_DIRS}) 
     set(CMAKE_CUDA_ARCHITECTURES 61)
@@ -18,8 +18,8 @@ if(LLYN_CUDA)
     endif(UNIX)
 endif()
 
-if(LLYN_CUTLASS)
-    add_definitions("-DLLYN_CUTLASS_ENABLED")
+if(WITH_CUTLASS)
+    add_definitions("-DLIBLLM_CUTLASS_ENABLED")
 endif()
 
 if (DEFINED CUTLASS_ROOT)
@@ -47,4 +47,4 @@ if(UNIX)
   set(CMAKE_CXX_FLAGS "-O3 -g")
 endif(UNIX)
 
-add_subdirectory("src")
+add_subdirectory("src/libllm")
