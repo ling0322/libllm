@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2023 Xiaoyang Chen
+# Copyright (c) 2024 Xiaoyang Chen
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 # and associated documentation files (the "Software"), to deal in the Software without
@@ -17,12 +17,14 @@
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
 import argparse
 import torch
 import configparser
+import sys
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
-from bpe_exporter import read_spm_model
+from bpe_exporter import read_tiktoken_model
 from torch import nn
 
 class Llama2Exporter(ModelExporter):
@@ -116,29 +118,35 @@ class Llama2Exporter(ModelExporter):
 
         return ini_config
 
+def run_qwen(huggingface_name):
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers.generation import GenerationConfig
 
-MODEL_NAME = "meta-llama/Llama-2-7b-hf"
+    # Note: The default behavior now has injection attack prevention off.
+    tokenizer = AutoTokenizer.from_pretrained(huggingface_name, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(huggingface_name, device_map="auto", trust_remote_code=True).eval()
+    response, history = model.chat(tokenizer, "你好", history=None)
+    print(response)
+
+MODEL_NAME = "Qwen/Qwen-1_8B-Chat"
 
 if __name__ == '__main__':
     from transformers import AutoTokenizer
     from transformers.models.llama import LlamaForCausalLM
 
-
     parser = argparse.ArgumentParser(description='export llama model from huggingface to libllm format.')
-    parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default="meta-llama/Llama-2-7b-hf")
+    parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default=MODEL_NAME)
     parser.add_argument('-quantization', type=Quant.parse, help='quantization type, "q4" or "none"', default=Quant.Q4)
-    parser.add_argument('-output', type=str, help='output file name.', default="llama2")
+    parser.add_argument('-output', type=str, help='output file name.', default="qwen")
+    parser.add_argument('-run', action="store_true")
     args = parser.parse_args()
 
-    tokenizer = AutoTokenizer.from_pretrained(args.huggingface_name, trust_remote_code=True)
-    model = LlamaForCausalLM.from_pretrained(args.huggingface_name, trust_remote_code=True)
-    model = model.eval()
+    if args.run:
+        run_qwen(args.huggingface_name)
+        sys.exit(0)
 
     output_prefix = args.output
-    config = Llama2Exporter.export(model, output_prefix, args.quantization)
-    lytok_model = read_spm_model(args.huggingface_name)
-    lytok_model.save(output_prefix + ".tokenizer.bin")
-    lytok_model.get_config().update_config(config, "tokenizer")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+    libllm_tokenizer = read_tiktoken_model(tokenizer.tokenizer)
+    libllm_tokenizer.save(output_prefix + ".tokenizer.bin")
 
-    with open(output_prefix + ".config", "w") as fp:
-        config.write(fp)

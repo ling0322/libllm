@@ -21,7 +21,7 @@ import configparser
 import sys
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
-from spm_exporter import read_spm_model, Token
+from bpe_exporter import read_spm_model, Token
 from torch import nn
 
 class ChatGLMExporter(ModelExporter):
