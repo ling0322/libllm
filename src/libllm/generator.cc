@@ -40,6 +40,9 @@ Generator::Generator(
         _currentToken(-1) {}
 
 void Generator::forwardPrompt(const std::vector<LongType> &prompt) {
+  for (LongType l : prompt) {
+    LOG(INFO) << l;
+  }
   Tensor inputs = _model->buildInput(prompt);
   inputs = F::to(_model->getDevice(), inputs);
 
@@ -73,7 +76,7 @@ const char *Generator::nextToken() {
 }
 
 bool Generator::stopped() const {
-  return _currentToken == _model->getEosId() || _currentToken < 0;
+  return _currentToken == _model->getEotId() || _currentToken < 0;
 }
 
 int Generator::sampleToken(const Tensor &logits) {

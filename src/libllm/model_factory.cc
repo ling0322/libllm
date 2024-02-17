@@ -38,7 +38,7 @@ std::shared_ptr<ModelForGeneration> ModelFactory::createModel(
   if (modelType == "chatglm2" || modelType == "chatglm3")
     return chatglm::ChatGlmModelForGeneration::create(ctx, config);
 
-  if (modelType == "llama")
+  if (modelType == "llama" || modelType == "qwen")
     return llama::LlamaModelForGeneration::create(ctx, config);
   
   throw lut::AbortedError(lut::sprintf("unexpected model type: %s", modelType));

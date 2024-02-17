@@ -43,10 +43,10 @@ LlamaConfig::LlamaConfig() :
     normEps(0.0f),
     numLayers(0),
     vocabSize(0),
-    maxContextLength(0) {}
+    maxContextLength(0),
+    qkvProjBias(false) {}
 
-LlamaConfig LlamaConfig::loadConfig(const lut::IniConfig &iniConfig) {
-  const lut::IniSection &section = iniConfig.getSection(Llama2Section);
+LlamaConfig LlamaConfig::loadConfig(const lut::IniSection &section) {
   LlamaConfig config;
 
   config.hiddenSize = section.getInt("hidden_size");
@@ -56,6 +56,10 @@ LlamaConfig LlamaConfig::loadConfig(const lut::IniConfig &iniConfig) {
   config.numLayers = section.getInt("num_layers");
   config.vocabSize = section.getInt("vocab_size");
   config.maxContextLength = section.getInt("max_ctx_length");
+
+  if (section.hasKey("qkv_proj_bias")) {
+    config.qkvProjBias = section.getBool("qkv_proj_bias");
+  }
 
   return config;
 }
@@ -105,7 +109,8 @@ Attention::Attention() :
     _hiddenSize(0),
     _numHead(0),
     _headDim(0),
-    _maxCtxLen(0) {}
+    _maxCtxLen(0),
+    _hasProjBias(false) {}
 
 std::shared_ptr<Attention> Attention::create(const Context &ctx, const LlamaConfig &config) {
   std::shared_ptr<Attention> layer{new Attention()};
@@ -118,6 +123,7 @@ std::shared_ptr<Attention> Attention::create(const Context &ctx, const LlamaConf
   layer->_numHead = config.numHeads;
   layer->_headDim = config.hiddenSize / config.numHeads;
   layer->_maxCtxLen = config.maxContextLength;
+  layer->_hasProjBias = config.qkvProjBias;
 
   layer->_namePastK = ctx.name("k");
   layer->_namePastV = ctx.name("v");
@@ -141,6 +147,12 @@ void Attention::initParameters(const StateMap &stateDict) {
   _qkvProj = moveAndCastFloat(_qkvProj, ctx);
   _outProj = moveAndCastFloat(_outProj, ctx);
   _roPE = moveAndCastFloat(_roPE, ctx);
+
+  if (_hasProjBias) {
+    _qkvProjBias = stateDict.getTensor(ctx.name("qkv_proj_bias"));
+    _qkvProjBias.throwIfInvalidShape({_hiddenSize * 3});
+    _qkvProjBias = moveAndCastFloat(_qkvProjBias, ctx);
+  }
 }
 
 int Attention::getCtxLength(const StateMap &past) const {
@@ -180,10 +192,14 @@ Tensor Attention::forward(StateMap &past, Tensor input) const {
   CHECK(input.getDim() == 3);
 
   Tensor qkv = F::matmul(input, _qkvProj.transpose(0, 1));
+  if (_hasProjBias) qkv = F::add(qkv, _qkvProjBias);
   
   Tensor q = qkv.slice(-1, {0, _hiddenSize});
   Tensor k = qkv.slice(-1, {_hiddenSize, 2 * _hiddenSize});
   Tensor v = qkv.slice(-1, {2 * _hiddenSize, 3 * _hiddenSize});
+
+  // F::print(F::to(Device::getCpu(), F::cast(F::contiguous(q), DType::kFloat)));
+  // abort();
 
   int N = qkv.getShape(0);
   int qLen = qkv.getShape(1);
@@ -323,17 +339,17 @@ Tensor LlamaModel::forwardHidden(Tensor hidden) const {
 // class LlamaModelForGeneration                                                                  |
 // -----------------------------------------------------------------------------------------------+
 
-const char *LlamaModelForGeneration::_modelName = "llama";
-
-LlamaModelForGeneration::LlamaModelForGeneration() : _bosId(0), _eosId(0) {}
+LlamaModelForGeneration::LlamaModelForGeneration() : _eotId(0) {}
 
 std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::create(
     const Context &ctx,
     const lut::IniConfig &config) {
   std::shared_ptr<LlamaModelForGeneration> model{new LlamaModelForGeneration()};
+  std::string modelType = config.getSection(ModelSection).getString(ModelTypeField);
+  const lut::IniSection &llamaSection = config.getSection(modelType);
 
   // create model
-  LlamaConfig llamaConfig = LlamaConfig::loadConfig(config);
+  LlamaConfig llamaConfig = LlamaConfig::loadConfig(llamaSection);
   model->_model = LlamaModel::create(ctx, llamaConfig);
 
   // initialize parameters
@@ -344,10 +360,8 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::create(
   stateMap.read(modelPath.string());
   model->_model->initParameters(stateMap);
 
-  // get EOS token
-  const lut::IniSection &llamaSection = config.getSection(Llama2Section);
-  model->_eosId = llamaSection.getInt("eos_token_id");
-  model->_bosId = llamaSection.getInt("bos_token_id");
+  model->_eotId = llamaSection.getInt("eot_token_id");
+  model->_modelName = modelType;
 
   return model;
 }
@@ -370,12 +384,12 @@ Tensor LlamaModelForGeneration::buildInput(const std::vector<LongType> &prompt) 
   return inputs;
 }
 
-int LlamaModelForGeneration::getEosId() const {
-  return _eosId;
+int LlamaModelForGeneration::getEotId() const {
+  return _eotId;
 }
 
 const char *LlamaModelForGeneration::getName() const {
-  return _modelName;
+  return _modelName.c_str();
 }
 
 Device LlamaModelForGeneration::getDevice() const {

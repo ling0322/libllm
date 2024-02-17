@@ -228,7 +228,6 @@ llmStatus_t appendText(llmPrompt_t *prompt, const char *text) {
     std::vector<int> inputIds = tokenizer->encode(text);
     for (int tokenId : inputIds) {
       prompt->inputs.push_back(tokenId);
-      LOG(DEBUG) << "token " << tokenizer->getVocab()->getTokenString(tokenId) << " -> " << tokenId;
     }
 
     return LLM_OK;

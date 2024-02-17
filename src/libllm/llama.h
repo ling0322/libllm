@@ -40,10 +40,11 @@ struct LlamaConfig {
   int numLayers;
   int vocabSize;
   int maxContextLength;
+  bool qkvProjBias;
 
   LlamaConfig();
 
-  static LlamaConfig loadConfig(const lut::IniConfig &config);
+  static LlamaConfig loadConfig(const lut::IniSection &section);
 };
 
 class MLP : public Module {
@@ -72,6 +73,7 @@ class Attention : public Module {
 
  private:
   Tensor _qkvProj;
+  Tensor _qkvProjBias;
   Tensor _outProj;
   Tensor _roPE;
 
@@ -83,6 +85,7 @@ class Attention : public Module {
   int _numHead;
   int _headDim;
   int _maxCtxLen;
+  bool _hasProjBias;
 
   Attention();
 
@@ -140,16 +143,14 @@ class LlamaModelForGeneration : public ModelForGeneration {
   Tensor forward(StateMap &past, Tensor input) const override;
   Tensor forwardHidden(Tensor hidden) const override;
   Tensor buildInput(const std::vector<LongType> &prompt) const override;
-  int getEosId() const override;
+  int getEotId() const override;
   const char *getName() const override;
   Device getDevice() const override;
 
  private:
-  static const char *_modelName;
-
   std::shared_ptr<LlamaModel> _model;
-  int _eosId;
-  int _bosId;
+  std::string _modelName;
+  int _eotId;
 
   LlamaModelForGeneration();
 };

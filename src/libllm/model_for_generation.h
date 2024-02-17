@@ -50,8 +50,8 @@ class ModelForGeneration {
   // build model input from the prompt token-ids.
   virtual Tensor buildInput(const std::vector<LongType> &prompt) const = 0;
 
-  // get the end-of-sentence symbol id.
-  virtual int getEosId() const = 0;
+  // get the end-of-text symbol id.
+  virtual int getEotId() const = 0;
 
   // get model name.
   virtual const char *getName() const = 0;

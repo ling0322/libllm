@@ -135,11 +135,7 @@ BPEModel::TokenInfo BPEModel::readRecord(lut::ReadableFile *fp) {
 void BPEModel::checkModel() {
   for (int ch = 0; ch < 256 && _isByteTokenAvailable; ++ch) {
     if (_byteId[ch] == kInvalidToken)
-      throw lut::AbortedError(lut::sprintf("bad format, byte %d not exist in model", ch));
-  }
-
-  if (_unkId == kInvalidToken) {
-    throw lut::AbortedError("bad model (no unknown token)");
+      THROW(Aborted, lut::sprintf("bad format, byte %d not exist in model", ch));
   }
 }
 

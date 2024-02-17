@@ -97,6 +97,7 @@ class LibllmTokenizer:
     def __init__(self):
         self._vocab = []
         self._bin_model_file = None
+        self.config = TokenizerConfig(add_prefix_space=True, split_by_unicode=True)
     
     def add_token(self, token: Token) -> None:
         if token.token_id != len(self._vocab):
@@ -139,9 +140,8 @@ class LibllmTokenizer:
         if self._bin_model_file is None:
             raise Exception("get_config() called before save()")\
 
-        config =  TokenizerConfig(add_prefix_space=True, split_by_unicode=True)
-        config.model_file = self._bin_model_file
-        return config
+        self.config.model_file = self._bin_model_file
+        return self.config
 
 class SentencePieceModelReader:
     def __init__(self, name: str) -> None:
@@ -196,12 +196,13 @@ class TiktokenModelReader:
         """convert the BPE model to lytok tokenizer format."""
         libllm_model = LibllmTokenizer()
         for piece, rank in self._tokenizer._mergeable_ranks.items():
-            libllm_model.add_token(Token(rank, 0, piece, str(piece[2:-1]), -rank))
+            libllm_model.add_token(Token(rank, 0, piece, Util.piece_to_display(piece), -rank))
 
         # special tokens
         for token, token_id in self._tokenizer._special_tokens.items():
             libllm_model.add_token(Token(token_id, Token.FLAG_CONTROL, b'', token, 0))
 
+        libllm_model.config.add_prefix_space = False
         return libllm_model
 
 class Util:
@@ -215,15 +216,22 @@ class Util:
         return e
 
     @classmethod
-    def escape_bytes(cls, s):
-        e = b""
-        for ch in s:
-            if ch <= 32 or ch >= 127:
-                ch = f"\\x{ch:02x}".encode("utf-8")
-            else:
-                ch = ch.to_bytes(1, 'little')
-            e += ch
-        return e
+    def piece_to_display(cls, piece):
+        assert isinstance(piece, bytes)
+        try:
+            piece = piece.decode("utf-8")
+        except:
+            piece = str(piece)[2:-1]
+
+        escaped_piece = ""
+        for ch in piece:
+            if ord(ch) < 32:
+                ch = f"\\x{ord(ch):02x}"
+            elif ch == " ":
+                ch = "\u2581"
+            escaped_piece += ch
+
+        return escaped_piece
 
     @classmethod
     def truncate_display(cls, s: str) -> bytes:

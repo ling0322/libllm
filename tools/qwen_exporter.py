@@ -27,72 +27,69 @@ from model_exporter import Context, ModelExporter, TensorWriter, Quant
 from bpe_exporter import read_tiktoken_model
 from torch import nn
 
-class Llama2Exporter(ModelExporter):
+class QwenExporter(ModelExporter):
     def __init__(self, writer: TensorWriter) -> None:
         super().__init__(writer)
 
-    def _export_llama2(self, ctx: Context, model):
+    def _export_qwen(self, ctx: Context, model):
         base_model = model.base_model
+        max_length = model.config.max_position_embeddings
+        base_model.rotary_emb.update_rotary_pos_emb_cache(max_length)
+        self._export_rope(ctx.with_subname("rope"), max_length, base_model.rotary_emb)
 
-        self.export_embedding(ctx.with_subname("embd"), base_model.embed_tokens)
-        self._export_rms_norm(ctx.with_subname("norm"), base_model.norm)
-        self._export_rope(ctx.with_subname("rope"), base_model.layers[0].self_attn.rotary_emb)
-        for idx, block in enumerate(base_model.layers):
+        self.export_embedding(ctx.with_subname("embd"), base_model.wte)
+        self._export_rms_norm(ctx.with_subname("norm"), base_model.ln_f)
+        for idx, block in enumerate(base_model.h):
             self._export_block(ctx.with_subname("block" + str(idx)), block)
-        self._write(ctx.with_subname("out_weight"), model.lm_head.weight)
+        self._write(ctx.with_subname("out_weight").with_quant(Quant.NONE), model.lm_head.weight)
 
     def _export_rms_norm(self, ctx: Context, module):
         self._write(ctx.with_subname("weight").with_quant(Quant.NONE), module.weight)
 
     def _export_block(self, ctx: Context, model_block):
-        self._export_rms_norm(ctx.with_subname("input_norm"), model_block.input_layernorm)
-        self._export_attn(ctx.with_subname("attn"), model_block.self_attn)
-        self._export_rms_norm(ctx.with_subname("post_attn_norm"), model_block.post_attention_layernorm)
+        self._export_rms_norm(ctx.with_subname("input_norm"), model_block.ln_1)
+        self._export_attn(ctx.with_subname("attn"), model_block.attn)
+        self._export_rms_norm(ctx.with_subname("post_attn_norm"), model_block.ln_2)
         self._export_mlp(ctx.with_subname("mlp"), model_block.mlp)
 
-    def _export_rope(self, ctx: Context, rope_embd):
-        cos_cached = torch.squeeze(rope_embd.cos_cached)
-        sin_cached = torch.squeeze(rope_embd.sin_cached)
+    def _export_rope(self, ctx: Context, max_length: int, rope_embd):
+        cos, sin = rope_embd._rotary_pos_emb_cache
+        cos_cached = torch.squeeze(cos)
+        sin_cached = torch.squeeze(sin)
 
         rope = torch.stack((cos_cached, sin_cached))
+        rope = rope[:, :max_length, :]
         self._write(ctx.with_quant(Quant.NONE), rope)
 
     def _export_attn(self, ctx: Context, attn_block):
-        q_proj = attn_block.q_proj.weight
-        k_proj = attn_block.k_proj.weight
-        v_proj = attn_block.v_proj.weight
-
-        qkv_proj = torch.cat((q_proj, k_proj, v_proj), dim=0)
-        self._write(ctx.with_subname("qkv_proj"), qkv_proj)
-        self._write(ctx.with_subname("out_proj"), attn_block.o_proj.weight)
+        self._write(ctx.with_subname("qkv_proj"), attn_block.c_attn.weight)
+        self._write(ctx.with_subname("qkv_proj_bias").with_quant(Quant.NONE), attn_block.c_attn.bias)
+        self._write(ctx.with_subname("out_proj"), attn_block.c_proj.weight)
 
     def _export_mlp(self, ctx: Context, attn_block):
-        w_gate = attn_block.gate_proj.weight
-        w_up = attn_block.up_proj.weight
+        w_gate = attn_block.w2.weight
+        w_up = attn_block.w1.weight
         w_gate_up = torch.cat((w_gate, w_up), dim=0)
         self._write(ctx.with_subname("gate_up_proj"), w_gate_up)
-        self._write(ctx.with_subname("down_proj"), attn_block.down_proj.weight)
+        self._write(ctx.with_subname("down_proj"), attn_block.c_proj.weight)
 
     @classmethod
-    def generate_config(cls, llama2_config) -> configparser.ConfigParser:
+    def generate_config(cls, qwen_config) -> configparser.ConfigParser:
         config = configparser.ConfigParser()
-        config["llama2"] = {}
+        config["qwen"] = {}
 
-        assert llama2_config.num_key_value_heads == llama2_config.num_attention_heads
-        assert llama2_config.rope_scaling is None
-        assert llama2_config.pretraining_tp == 1
-        assert llama2_config.hidden_act == "silu"
+        assert qwen_config.rotary_pct == 1.0
+        assert qwen_config.no_bias == True
         
-        chatglm2_section = config["llama2"]
-        chatglm2_section["hidden_size"] = str(llama2_config.hidden_size)
-        chatglm2_section["num_heads"] = str(llama2_config.num_attention_heads)
-        chatglm2_section["intermediate_size"] = str(llama2_config.intermediate_size)
-        chatglm2_section["norm_eps"] = str(llama2_config.rms_norm_eps)
-        chatglm2_section["num_layers"] = str(llama2_config.num_hidden_layers)
-        chatglm2_section["vocab_size"] = str(llama2_config.vocab_size)
-        chatglm2_section["max_ctx_length"] = str(llama2_config.max_position_embeddings)
-        chatglm2_section["bos_token_id"] = "1"
-        chatglm2_section["eos_token_id"] = "2"
+        chatglm2_section = config["qwen"]
+        chatglm2_section["hidden_size"] = str(qwen_config.hidden_size)
+        chatglm2_section["num_heads"] = str(qwen_config.num_attention_heads)
+        chatglm2_section["intermediate_size"] = str(qwen_config.intermediate_size // 2)
+        chatglm2_section["norm_eps"] = str(qwen_config.layer_norm_epsilon)
+        chatglm2_section["num_layers"] = str(qwen_config.num_hidden_layers)
+        chatglm2_section["vocab_size"] = str(qwen_config.vocab_size)
+        chatglm2_section["max_ctx_length"] = str(qwen_config.max_position_embeddings)
+        chatglm2_section["qkv_proj_bias"] = "true"
 
         return config
 
@@ -108,19 +105,18 @@ class Llama2Exporter(ModelExporter):
         ctx = Context("llama", quant=quant)
         bin_filename = f"{output_prefix}.{quant_name}.bin"
         with TensorWriter(bin_filename) as writer:
-            exporter = Llama2Exporter(writer)
-            exporter._export_llama2(ctx, model)
+            exporter = QwenExporter(writer)
+            exporter._export_qwen(ctx, model)
 
         ini_config = cls.generate_config(config)
         ini_config["model"] = {}
-        ini_config["model"]["type"] = "llama"
+        ini_config["model"]["type"] = "qwen"
         ini_config["model"]["model_file"] = path.basename(bin_filename)
 
         return ini_config
 
 def run_qwen(huggingface_name):
     from transformers import AutoModelForCausalLM, AutoTokenizer
-    from transformers.generation import GenerationConfig
 
     # Note: The default behavior now has injection attack prevention off.
     tokenizer = AutoTokenizer.from_pretrained(huggingface_name, trust_remote_code=True)
@@ -131,8 +127,7 @@ def run_qwen(huggingface_name):
 MODEL_NAME = "Qwen/Qwen-1_8B-Chat"
 
 if __name__ == '__main__':
-    from transformers import AutoTokenizer
-    from transformers.models.llama import LlamaForCausalLM
+    from transformers import AutoTokenizer, AutoModelForCausalLM
 
     parser = argparse.ArgumentParser(description='export llama model from huggingface to libllm format.')
     parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default=MODEL_NAME)
@@ -146,7 +141,18 @@ if __name__ == '__main__':
         sys.exit(0)
 
     output_prefix = args.output
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(args.huggingface_name, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(args.huggingface_name, device_map="auto", trust_remote_code=True).eval()
+    model.to("cpu")
+
+    config = QwenExporter.export(model, output_prefix, args.quantization)
+    eot_token_id = tokenizer.special_tokens["<|endoftext|>"]
+    config["qwen"]["eot_token_id"] = str(eot_token_id)
+
+
     libllm_tokenizer = read_tiktoken_model(tokenizer.tokenizer)
     libllm_tokenizer.save(output_prefix + ".tokenizer.bin")
+    libllm_tokenizer.get_config().update_config(config, "tokenizer")
 
+    with open(output_prefix + ".config", "w") as fp:
+        config.write(fp)

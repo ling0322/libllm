@@ -416,7 +416,7 @@ Tensor ChatGlmModelForGeneration::forwardHidden(Tensor hidden) const {
   return _model->forwardHidden(hidden);
 }
 
-int ChatGlmModelForGeneration::getEosId() const {
+int ChatGlmModelForGeneration::getEotId() const {
   return _config.symbolEOS;
 }
 
