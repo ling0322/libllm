@@ -205,6 +205,73 @@ class TiktokenModelReader:
         libllm_model.config.add_prefix_space = False
         return libllm_model
 
+
+class TransformersBpeModelReader:
+    """model reader for the BPE tokenizer from transformers"""
+
+    def __init__(self, tokenizer) -> None:
+        self._bpe = tokenizer
+
+    def _to_byte(self, s: str) -> bytes:
+        """convert unicode string to bytes according to the char to byte mapping table"""
+        b = b''
+        byte_decoder = self._bpe.byte_decoder
+        for ch in s:
+            assert ch in byte_decoder, "invalid character"
+            byte_ord = byte_decoder[ch]
+            b += byte_ord.to_bytes(1, 'little')
+        
+        return b
+
+    def to_libllm_model(self) -> List[Token]:
+        """convert the BPE model to lytok tokenizer format."""
+        pieces: Dict[bytes, Token] = {}
+
+        # text and flag
+        for piece, piece_id in self._bpe.encoder.items():
+            b_piece = self._to_byte(piece)
+            pieces[piece] = Token(piece_id, 0, b_piece, Util.piece_to_display(b_piece))
+        
+        # weight
+        for piece_pair, rank in self._bpe.bpe_ranks.items():
+            piece = piece_pair[0] + piece_pair[1]
+            if pieces[piece].weight is not None:
+                print(f'pair for {piece} already exists')
+            pieces[piece].weight = -rank
+
+        # vocab
+        vocab: List[Token] = []
+        for token_id in range(self._bpe.vocab_size):
+            vocab.append(Token.unused(token_id))
+        
+        for token in pieces.values():
+            if not vocab[token.token_id].is_unused():
+                raise Exception(f"duplicated token id {token.token_id}")
+            vocab[token.token_id] = token
+
+        # special symbols
+        for token_id, piece in zip(self._bpe.all_special_ids, self._bpe.all_special_tokens):
+            while token_id >= len(vocab):
+                vocab.append(Token.unused(token_id))
+
+            vocab[token_id] = Token(
+                token_id,
+                Token.FLAG_CONTROL,
+                piece=b"",
+                piece_display=piece,
+                weight=0)
+        if self._bpe.unk_token_id is not None:
+            vocab[self._bpe.unk_token_id].flag |= Token.FLAG_UNK
+
+        # update weight None to 0
+        libllm_model = LibllmTokenizer()
+        for token in vocab:
+            if token.weight is None:
+                token.weight = 0
+            libllm_model.add_token(token)
+
+        return libllm_model
+
 class Util:
     @classmethod
     def escape_string(cls, s):
@@ -252,6 +319,12 @@ def read_spm_model(model_path_or_name: str) -> LibllmTokenizer:
     print("read sentencepiece model from " + model_path_or_name)
     spm_model = SentencePieceModelReader(model_path_or_name)
     libllm_model = spm_model.to_libllm_model()
+    print(f"vocab_size={len(libllm_model.get_vocab())}")
+    return libllm_model
+
+def read_transformers_bpe_model(transformers_bpe) -> LibllmTokenizer:
+    bpe_model = TransformersBpeModelReader(transformers_bpe)
+    libllm_model = bpe_model.to_libllm_model()
     print(f"vocab_size={len(libllm_model.get_vocab())}")
     return libllm_model
 

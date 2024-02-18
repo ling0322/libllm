@@ -114,8 +114,7 @@ class DecodeLayer : public Module {
 
 class LlamaModel : public Module {
  public:
-  static constexpr char Llama[] = "llama";
-  static constexpr char RoPE[] = "rope";
+  static constexpr char RoPECtxKey[] = "rope_name";
 
   static std::shared_ptr<LlamaModel> create(const Context &ctx, LlamaConfig config);
   void initParameters(const StateMap &stateDict) override;
@@ -143,16 +142,17 @@ class LlamaModelForGeneration : public ModelForGeneration {
   Tensor forward(StateMap &past, Tensor input) const override;
   Tensor forwardHidden(Tensor hidden) const override;
   Tensor buildInput(const std::vector<LongType> &prompt) const override;
-  int getEotId() const override;
+  bool isStopToken(int tokenId) const override;
   const char *getName() const override;
   Device getDevice() const override;
 
- private:
+ protected:
   std::shared_ptr<LlamaModel> _model;
   std::string _modelName;
   int _eotId;
 
   LlamaModelForGeneration();
+  void init(const Context &ctx, const lut::IniConfig &config);
 };
 
 }  // namespace llama

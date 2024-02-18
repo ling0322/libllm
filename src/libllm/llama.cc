@@ -137,7 +137,7 @@ void Attention::initParameters(const StateMap &stateDict) {
 
   _qkvProj = stateDict.getTensor(ctx.name("qkv_proj"));
   _outProj = stateDict.getTensor(ctx.name("out_proj"));
-  _roPE = stateDict.getTensor(Context::joinName(LlamaModel::Llama, LlamaModel::RoPE));
+  _roPE = stateDict.getTensor(ctx.get(LlamaModel::RoPECtxKey));
 
   _qkvProj.throwIfInvalidShape({_hiddenSize * 3, _hiddenSize});
   _outProj.throwIfInvalidShape({_hiddenSize, _hiddenSize});
@@ -197,9 +197,6 @@ Tensor Attention::forward(StateMap &past, Tensor input) const {
   Tensor q = qkv.slice(-1, {0, _hiddenSize});
   Tensor k = qkv.slice(-1, {_hiddenSize, 2 * _hiddenSize});
   Tensor v = qkv.slice(-1, {2 * _hiddenSize, 3 * _hiddenSize});
-
-  // F::print(F::to(Device::getCpu(), F::cast(F::contiguous(q), DType::kFloat)));
-  // abort();
 
   int N = qkv.getShape(0);
   int qLen = qkv.getShape(1);
@@ -292,9 +289,11 @@ Tensor DecodeLayer::forward(StateMap &past, Tensor input) const {
 // class LlamaModel                                                                               |
 // -----------------------------------------------------------------------------------------------+
 
-std::shared_ptr<LlamaModel> LlamaModel::create(const Context &rootCtx, LlamaConfig config) {
+std::shared_ptr<LlamaModel> LlamaModel::create(const Context &fromCtx, LlamaConfig config) {
   std::shared_ptr<LlamaModel> model{new LlamaModel()};
-  Context ctx = rootCtx.withName(Llama);
+
+  Context ctx = fromCtx;
+  ctx.set(RoPECtxKey, ctx.name("rope"));
   model->setCtx(ctx);
   
   model->_config = config;
@@ -345,12 +344,18 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::create(
     const Context &ctx,
     const lut::IniConfig &config) {
   std::shared_ptr<LlamaModelForGeneration> model{new LlamaModelForGeneration()};
+  model->init(ctx, config);
+
+  return model;
+}
+
+void LlamaModelForGeneration::init(const Context &ctx, const lut::IniConfig &config) {
   std::string modelType = config.getSection(ModelSection).getString(ModelTypeField);
   const lut::IniSection &llamaSection = config.getSection(modelType);
 
   // create model
   LlamaConfig llamaConfig = LlamaConfig::loadConfig(llamaSection);
-  model->_model = LlamaModel::create(ctx, llamaConfig);
+  _model = LlamaModel::create(ctx, llamaConfig);
 
   // initialize parameters
   const lut::IniSection &modelSection = config.getSection(ModelSection);
@@ -358,12 +363,10 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::create(
 
   StateMap stateMap;
   stateMap.read(modelPath.string());
-  model->_model->initParameters(stateMap);
+  _model->initParameters(stateMap);
 
-  model->_eotId = llamaSection.getInt("eot_token_id");
-  model->_modelName = modelType;
-
-  return model;
+  _eotId = llamaSection.getInt("eot_token_id");
+  _modelName = modelType;
 }
 
 Tensor LlamaModelForGeneration::forward(StateMap &past, Tensor input) const {
@@ -384,8 +387,8 @@ Tensor LlamaModelForGeneration::buildInput(const std::vector<LongType> &prompt) 
   return inputs;
 }
 
-int LlamaModelForGeneration::getEotId() const {
-  return _eotId;
+bool LlamaModelForGeneration::isStopToken(int tokenId) const {
+  return tokenId == _eotId;
 }
 
 const char *LlamaModelForGeneration::getName() const {

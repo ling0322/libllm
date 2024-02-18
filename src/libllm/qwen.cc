@@ -17,35 +17,37 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/model_factory.h"
-
-#include "libllm/lut/error.h"
-#include "libllm/lut/strings.h"
-#include "libllm/constants.h"
-#include "libllm/chatglm.h"
-#include "libllm/llama.h"
 #include "libllm/qwen.h"
 
 namespace libllm {
+namespace qwen {
 
-std::shared_ptr<ModelForGeneration> ModelFactory::createModel(
-    const Context &fromCtx,
+QwenModelForGeneration::QwenModelForGeneration() : _imStartId(-1), _imEndId(-1) {}
+
+std::shared_ptr<QwenModelForGeneration> QwenModelForGeneration::create(
+    const Context &ctx,
     const lut::IniConfig &config) {
+  std::shared_ptr<QwenModelForGeneration> model{new QwenModelForGeneration()};
+  model->init(ctx, config);
+
   std::string modelType = config.getSection(ModelSection).getString(ModelTypeField);
+  const lut::IniSection &qwenSection = config.getSection(modelType);
 
-  LOG(INFO) << "model_type = " << modelType;
-  LOG(INFO) << "device = " << fromCtx.getDevice().getName();
+  model->_imStartId = qwenSection.getInt("im_start_token_id");
+  model->_imEndId = qwenSection.getInt("im_end_token_id");
 
-  Context ctx = fromCtx.withName(modelType);
-  if (modelType == "chatglm2" || modelType == "chatglm3") {
-    return chatglm::ChatGlmModelForGeneration::create(ctx, config);
-  } else if (modelType == "llama") {
-    return llama::LlamaModelForGeneration::create(ctx, config);
-  } else if (modelType == "qwen") {
-    return qwen::QwenModelForGeneration::create(ctx, config);
+  return model;
+}
+
+bool QwenModelForGeneration::isStopToken(int tokenId) const {
+  if (llama::LlamaModelForGeneration::isStopToken(tokenId) ||
+      tokenId == _imEndId ||
+      tokenId == _imStartId) {
+    return true;
   } else {
-    throw lut::AbortedError(lut::sprintf("unexpected model type: %s", modelType));
+    return false;
   }
 }
 
+}  // namespace qwen
 }  // namespace libllm

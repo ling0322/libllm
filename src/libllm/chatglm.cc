@@ -294,9 +294,8 @@ Tensor GLMBlock::forward(StateMap &past, Tensor input, Tensor roPE) const {
 
 ChatGlmModel::ChatGlmModel() {}
 
-std::unique_ptr<ChatGlmModel> ChatGlmModel::create(const Context &rootCtx, ChatGlmConfig c) {
+std::unique_ptr<ChatGlmModel> ChatGlmModel::create(const Context &ctx, ChatGlmConfig c) {
   std::unique_ptr<ChatGlmModel> model{new ChatGlmModel()};
-  Context ctx = rootCtx.withName("chatglm");
   model->setCtx(ctx);
 
   model->_config = c;
@@ -416,8 +415,8 @@ Tensor ChatGlmModelForGeneration::forwardHidden(Tensor hidden) const {
   return _model->forwardHidden(hidden);
 }
 
-int ChatGlmModelForGeneration::getEotId() const {
-  return _config.symbolEOS;
+bool ChatGlmModelForGeneration::isStopToken(int tokenId) const {
+  return tokenId == _config.symbolEOS;
 }
 
 const char *ChatGlmModelForGeneration::getName() const {

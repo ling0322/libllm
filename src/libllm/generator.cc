@@ -40,9 +40,6 @@ Generator::Generator(
         _currentToken(-1) {}
 
 void Generator::forwardPrompt(const std::vector<LongType> &prompt) {
-  for (LongType l : prompt) {
-    LOG(INFO) << l;
-  }
   Tensor inputs = _model->buildInput(prompt);
   inputs = F::to(_model->getDevice(), inputs);
 
@@ -59,10 +56,7 @@ const char *Generator::nextToken() {
   
   const Vocab *vocab = _tokenizer->getVocab();
   const char *token = vocab->getTokenPiece(_currentToken).c_str();
-  LOG(DEBUG) << lut::sprintf("%d -> piece='%s' string='%s'",
-                            _currentToken,
-                            vocab->getTokenPiece(_currentToken),
-                            vocab->getTokenString(_currentToken));
+  LOG(DEBUG) << lut::sprintf("%d -> \"%s\"", _currentToken, vocab->getTokenString(_currentToken));
 
   std::array<LongType, 1> inputData{_currentToken};
   Tensor inputs = Tensor::create<LongType>({1, 1}, inputData);
@@ -76,7 +70,7 @@ const char *Generator::nextToken() {
 }
 
 bool Generator::stopped() const {
-  return _currentToken == _model->getEotId() || _currentToken < 0;
+  return _model->isStopToken(_currentToken) || _currentToken < 0;
 }
 
 int Generator::sampleToken(const Tensor &logits) {

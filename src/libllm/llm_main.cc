@@ -84,15 +84,12 @@ int main(int argc, char **argv) {
   std::shared_ptr<llm::Model> model = modelFactory.createModel(configPath, device);
   std::shared_ptr<PromptBulder> promptBuilder = PromptBulder::create(model->getName());
   DialogManager dialogManager(model, promptBuilder);
-  for (; ; ) {
-    std::string query;
-  
-    std::cout << "> ";
-    std::getline(std::cin, query);
-    if (lut::trim(query) == "")
-      continue;
-    if (lut::trim(query) == "q")
-      break;
+
+  std::cout << "> ";
+
+  std::string query;
+  while (std::getline(std::cin, query)) {
+    if (lut::trim(query) == "") continue;
 
     ChatOutput chatOutput = dialogManager.chat(query, [](const std::string &token) {
       std::cout << token;
@@ -100,5 +97,8 @@ int main(int argc, char **argv) {
     });
 
     printChatStat(chatOutput);
+    std::cout << "> ";
   }
+
+  return 0;
 }

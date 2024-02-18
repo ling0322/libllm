@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include "libllm/device.h"
 #include "libllm/dtype.h"
@@ -39,8 +40,8 @@ class Context {
   // return a copy of this context with a new name under current context namespace.
   Context withName(const std::string &name) const;
 
-  // get a tensor or module name under this context. If no parameter given, return the name of the
-  // context itself
+  // get name under the namespace of this context. If no parameter given, return the name of the
+  // context itself.
   std::string name(const std::string &name) const;
   std::string name() const { return _ns; }
 
@@ -52,8 +53,13 @@ class Context {
   DType getFloatDType() const { return _floatType; }
   void setFloatDType(DType dtype) { _floatType = dtype; }
 
+  /// Get or set value from the k-v store.
+  std::string get(const std::string &key) const;
+  void set(const std::string &key, const std::string &value);
+
  private:
   std::string _ns;
+  std::map<std::string, std::string> _propertyBag;
   Device _device;
   DType _floatType;
 };

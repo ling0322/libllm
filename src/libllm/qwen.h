@@ -17,35 +17,38 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/model_factory.h"
+#pragma once
 
-#include "libllm/lut/error.h"
-#include "libllm/lut/strings.h"
-#include "libllm/constants.h"
-#include "libllm/chatglm.h"
+#include <memory>
+#include "libllm/lut/ini_config.h"
 #include "libllm/llama.h"
-#include "libllm/qwen.h"
+#include "libllm/model_for_generation.h"
 
 namespace libllm {
+namespace qwen {
 
-std::shared_ptr<ModelForGeneration> ModelFactory::createModel(
-    const Context &fromCtx,
-    const lut::IniConfig &config) {
-  std::string modelType = config.getSection(ModelSection).getString(ModelTypeField);
+/// @brief The Qwen model. Model structure of qwen is similiar to llama, the only difference is
+/// stopping criteria. So, we re-use the llama model and add specific logic for the stop tokens
+/// here.
+class QwenModelForGeneration : public llama::LlamaModelForGeneration {
+ public:
+  static std::shared_ptr<QwenModelForGeneration> create(
+      const Context &ctx,
+      const lut::IniConfig &config);
 
-  LOG(INFO) << "model_type = " << modelType;
-  LOG(INFO) << "device = " << fromCtx.getDevice().getName();
+  // noncopyable
+  QwenModelForGeneration(QwenModelForGeneration &) = delete;
+  QwenModelForGeneration &operator=(QwenModelForGeneration &) = delete;
 
-  Context ctx = fromCtx.withName(modelType);
-  if (modelType == "chatglm2" || modelType == "chatglm3") {
-    return chatglm::ChatGlmModelForGeneration::create(ctx, config);
-  } else if (modelType == "llama") {
-    return llama::LlamaModelForGeneration::create(ctx, config);
-  } else if (modelType == "qwen") {
-    return qwen::QwenModelForGeneration::create(ctx, config);
-  } else {
-    throw lut::AbortedError(lut::sprintf("unexpected model type: %s", modelType));
-  }
-}
+  // override LlamaModelForGeneration
+  bool isStopToken(int tokenId) const override;
 
+ private:
+  int _imStartId;
+  int _imEndId;
+
+  QwenModelForGeneration();
+};
+
+}  // namespace qwen
 }  // namespace libllm
