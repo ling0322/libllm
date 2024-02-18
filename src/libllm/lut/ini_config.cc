@@ -36,7 +36,6 @@ std::unique_ptr<IniConfig> IniConfig::read(const std::string &filename) {
   config->_filename = filename;
 
   auto fp = ReadableFile::open(filename);
-  Scanner scanner{fp.get()};
 
   enum State {
     kBegin,
@@ -46,8 +45,9 @@ std::unique_ptr<IniConfig> IniConfig::read(const std::string &filename) {
   Path ini_dir = Path(filename).dirname();
   IniSection section{ini_dir};
   State state = kBegin;
-  while (scanner.scan()) {
-    std::string line = lut::trim(scanner.getText());
+  std::string line;
+  while ((line = fp->readLine()) != "") {
+    line = lut::trim(line);
     if (state == kBegin) {
       if (isEmptyLine(line)) {
         // self-loop
