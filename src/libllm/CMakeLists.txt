@@ -55,6 +55,7 @@ set(libllm_SOURCES
     "model_factory.cc"
     "module.cc"
     "operators.cc"
+    "qwen.cc"
     "sampler.cc"
     "state_map.cc"
     "tensor.cc"

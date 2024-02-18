@@ -87,6 +87,14 @@ class LlamaPromptBuilder : public PromptBulder {
   std::string getStopSeq() override;
 };
 
+class QwenPromptBuilder : public PromptBulder {
+ public:
+  std::shared_ptr<llm::Prompt> buildPrompt(std::shared_ptr<llm::Model> model,
+                                           lut::Span<const QA> history,
+                                           const std::string &question) override; 
+  std::string getStopSeq() override;
+};
+
 // llm dialog manager.
 class DialogManager {
  public:

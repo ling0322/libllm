@@ -92,7 +92,7 @@ bool IniConfig::hasSection(const std::string &section) const {
 const IniSection &IniConfig::getSection(const std::string &name) const {
   auto it = _table.find(name);
   if (it == _table.end()) {
-    throw lut::AbortedError(lut::sprintf("section not found: %s", name));
+    THROW(Aborted, lut::sprintf("section not found: %s", name));
   }
 
   return it->second;
@@ -179,6 +179,10 @@ Path IniSection::getPath(const std::string &key) const {
   } else {
     return path;
   }
+}
+
+bool IniSection::hasKey(const std::string &key) const {
+  return _kvTable.find(key) != _kvTable.end();
 }
 
 std::vector<std::string> IniSection::getStringArray(const std::string &key) const {

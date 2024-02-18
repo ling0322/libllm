@@ -45,6 +45,10 @@ class BPEModel : public Vocab,
   const std::string &getTokenPiece(int token_id) const override;
   const std::string &getTokenString(int token_id) const override;
   int getVocabSize() const override;
+
+  /// @brief Get the id of <unknown> token. If no <unknown> tag exists in the model, return
+  /// Vocab::kInvalidToken instead.
+  /// @return unknown token id.
   int getUnkId() const override;
 
   // given the left and right token-ids, find the merged token-id and cost, return as (id, cost).

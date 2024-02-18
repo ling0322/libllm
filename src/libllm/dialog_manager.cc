@@ -30,6 +30,10 @@ ChatOutput::ChatOutput() :
     promptDuration(0.0),
     answerDuration(0.0) {}
 
+// -----------------------------------------------------------------------------------------------+
+// class ChatGLM2PromptBuilder                                                                    |
+// -----------------------------------------------------------------------------------------------+
+
 std::shared_ptr<llm::Prompt> ChatGLM2PromptBuilder::buildPrompt(
     std::shared_ptr<llm::Model> model,
     lut::Span<const QA> history,
@@ -51,6 +55,10 @@ std::shared_ptr<llm::Prompt> ChatGLM2PromptBuilder::buildPrompt(
 std::string ChatGLM2PromptBuilder::getStopSeq() {
   return "";
 }
+
+// -----------------------------------------------------------------------------------------------+
+// class ChatGLM3PromptBuilder                                                                    |
+// -----------------------------------------------------------------------------------------------+
 
 std::shared_ptr<llm::Prompt> ChatGLM3PromptBuilder::buildPrompt(
     std::shared_ptr<llm::Model> model,
@@ -78,6 +86,10 @@ std::string ChatGLM3PromptBuilder::getStopSeq() {
   return "";
 }
 
+// -----------------------------------------------------------------------------------------------+
+// class LlamaPromptBuilder                                                                       |
+// -----------------------------------------------------------------------------------------------+
+
 std::shared_ptr<llm::Prompt> LlamaPromptBuilder::buildPrompt(
     std::shared_ptr<llm::Model> model,
     lut::Span<const QA> history,
@@ -100,14 +112,60 @@ std::string LlamaPromptBuilder::getStopSeq() {
   return "";
 }
 
+// -----------------------------------------------------------------------------------------------+
+// class QwenPromptBuilder                                                                        |
+// -----------------------------------------------------------------------------------------------+
+
+std::shared_ptr<llm::Prompt> QwenPromptBuilder::buildPrompt(
+    std::shared_ptr<llm::Model> model,
+    lut::Span<const QA> history,
+    const std::string &question) {
+  std::shared_ptr<llm::Prompt> prompt = model->createPrompt();
+  prompt->appendControlToken("<|im_start|>");
+  prompt->appendText("system\nYou are a helpful assistant.");
+  prompt->appendControlToken("<|im_end|>");
+  for (const QA &qa : history) {
+    prompt->appendText("\n");
+    prompt->appendControlToken("<|im_start|>");
+    prompt->appendText(lut::sprintf("user\n%s", qa.question));
+    prompt->appendControlToken("<|im_end|>");
+    prompt->appendText("\n");
+    prompt->appendControlToken("<|im_start|>");
+    prompt->appendText(lut::sprintf("assistant\n%s", qa.answer));
+    prompt->appendControlToken("<|im_end|>");
+  }
+  prompt->appendText("\n");
+  prompt->appendControlToken("<|im_start|>");
+  prompt->appendText(lut::sprintf("user\n%s", question));
+  prompt->appendControlToken("<|im_end|>");
+  prompt->appendText("\n");
+  prompt->appendControlToken("<|im_start|>");
+  prompt->appendText("assistant\n");
+
+  return prompt;
+}
+
+std::string QwenPromptBuilder::getStopSeq() {
+  return "";
+}
+
+// -----------------------------------------------------------------------------------------------+
+// class PromptBuilder                                                                            |
+// -----------------------------------------------------------------------------------------------+
+
 std::shared_ptr<PromptBulder> PromptBulder::create(const std::string &modelName) {
   if (modelName == "llama") return std::make_shared<LlamaPromptBuilder>();
+  if (modelName == "qwen") return std::make_shared<QwenPromptBuilder>();
   if (modelName == "chatglm2") return std::make_shared<ChatGLM2PromptBuilder>();
   if (modelName == "chatglm3") return std::make_shared<ChatGLM3PromptBuilder>();
 
-  throw lut::AbortedError("unexpected model name: " + modelName);
+  THROW(Aborted, "unexpected model name: " + modelName);
   return nullptr;
 }
+
+// -----------------------------------------------------------------------------------------------+
+// class DialogManager                                                                            |
+// -----------------------------------------------------------------------------------------------+
 
 DialogManager::DialogManager(std::shared_ptr<llm::Model> model,
                              std::shared_ptr<PromptBulder> promptBuilder) :

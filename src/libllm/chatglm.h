@@ -153,7 +153,7 @@ class ChatGlmModelForGeneration : public ModelForGeneration {
   Tensor forward(StateMap &past, Tensor input) const override;
   Tensor forwardHidden(Tensor hidden) const override;
   Tensor buildInput(const std::vector<LongType> &prompt) const override;
-  int getEosId() const override;
+  bool isStopToken(int tokenId) const override;
   const char *getName() const override;
   Device getDevice() const override;
 

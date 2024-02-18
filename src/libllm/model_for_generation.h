@@ -50,8 +50,10 @@ class ModelForGeneration {
   // build model input from the prompt token-ids.
   virtual Tensor buildInput(const std::vector<LongType> &prompt) const = 0;
 
-  // get the end-of-sentence symbol id.
-  virtual int getEosId() const = 0;
+  /// @brief Return true if tokenId is a stop token. (stop generating texts)
+  /// @param tokenId the token id.
+  /// @return if tokenId is a stop token.
+  virtual bool isStopToken(int tokenId) const = 0;
 
   // get model name.
   virtual const char *getName() const = 0;

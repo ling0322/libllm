@@ -91,12 +91,13 @@ class TokenizerConfig:
         config[section]["add_prefix_space"] = str(self.add_prefix_space).lower()
         config[section]["split_by_unicode"] = str(self.split_by_unicode).lower()
 
-class LytokModel:
+class LibllmTokenizer:
     MAGIC_NUMBER = 0x55aa
 
     def __init__(self):
         self._vocab = []
         self._bin_model_file = None
+        self.config = TokenizerConfig(add_prefix_space=True, split_by_unicode=True)
     
     def add_token(self, token: Token) -> None:
         if token.token_id != len(self._vocab):
@@ -104,9 +105,9 @@ class LytokModel:
         self._vocab.append(token)
 
     def save(self, filename: str) -> None:
-        """save the sentencepiece model as lytok format"""
+        """save the sentencepiece model as libllm format"""
         self._bin_model_file = path.basename(filename)
-        print(f"save lytok model: {filename}")
+        print(f"save libllm model: {filename}")
 
         with open(filename, 'wb') as fp:
             fp.write(b'LLsp')
@@ -124,10 +125,10 @@ class LytokModel:
             fp.write(struct.pack('<h', self.MAGIC_NUMBER))
 
     def save_text_model(self, filename: str) -> None:
-        """save the sentencepiece model as lytok format"""
+        """save the sentencepiece model as libllm format"""
         with open(filename, 'w', encoding="utf-8") as fp:
             for token in self._vocab:
-                piece_display = cls.truncate_display(token.piece_display)
+                piece_display = self.truncate_display(token.piece_display)
                 piece_display = piece_display.decode("utf-8")
                 piece = token.piece.decode()
                 fp.write(f"{token.token_id}\t0x{token.flag:02x}\t{token.weight}\t{piece}\t{piece_display}\n")
@@ -139,9 +140,8 @@ class LytokModel:
         if self._bin_model_file is None:
             raise Exception("get_config() called before save()")\
 
-        config =  TokenizerConfig(add_prefix_space=True, split_by_unicode=True)
-        config.model_file = self._bin_model_file
-        return config
+        self.config.model_file = self._bin_model_file
+        return self.config
 
 class SentencePieceModelReader:
     def __init__(self, name: str) -> None:
@@ -150,9 +150,9 @@ class SentencePieceModelReader:
         tokenizer = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
         self._sp = SentencePieceProcessor(model_file=tokenizer.vocab_file)
 
-    def to_lytok_model(self) -> LytokModel:
-        """convert the sentencepiece model to lytok tokenizer format."""
-        lytok_model = LytokModel()
+    def to_libllm_model(self) -> LibllmTokenizer:
+        """convert the sentencepiece model to libllm tokenizer format."""
+        libllm_model = LibllmTokenizer()
         for token_id in range(self._sp.vocab_size()):
             flag = 0
             piece = b''
@@ -179,14 +179,98 @@ class SentencePieceModelReader:
             piece = piece
             piece_display = piece_display
             
-            lytok_model.add_token(Token(token_id, flag, piece, piece_display, self._sp.GetScore(token_id)))
+            libllm_model.add_token(Token(token_id, flag, piece, piece_display, self._sp.GetScore(token_id)))
         
-        return lytok_model
+        return libllm_model
     
     def encode_as_pieces(self, s: str) -> List[str]:
         return self._sp.EncodeAsPieces(s)
 
+class TiktokenModelReader:
+    """model reader for the BPE tokenizer from transformers"""
 
+    def __init__(self, tiktoken_enc) -> None:
+        self._tokenizer = tiktoken_enc
+
+    def to_libllm_model(self) -> List[Token]:
+        """convert the BPE model to lytok tokenizer format."""
+        libllm_model = LibllmTokenizer()
+        for piece, rank in self._tokenizer._mergeable_ranks.items():
+            libllm_model.add_token(Token(rank, 0, piece, Util.piece_to_display(piece), -rank))
+
+        # special tokens
+        for token, token_id in self._tokenizer._special_tokens.items():
+            libllm_model.add_token(Token(token_id, Token.FLAG_CONTROL, b'', token, 0))
+
+        libllm_model.config.add_prefix_space = False
+        return libllm_model
+
+
+class TransformersBpeModelReader:
+    """model reader for the BPE tokenizer from transformers"""
+
+    def __init__(self, tokenizer) -> None:
+        self._bpe = tokenizer
+
+    def _to_byte(self, s: str) -> bytes:
+        """convert unicode string to bytes according to the char to byte mapping table"""
+        b = b''
+        byte_decoder = self._bpe.byte_decoder
+        for ch in s:
+            assert ch in byte_decoder, "invalid character"
+            byte_ord = byte_decoder[ch]
+            b += byte_ord.to_bytes(1, 'little')
+        
+        return b
+
+    def to_libllm_model(self) -> List[Token]:
+        """convert the BPE model to lytok tokenizer format."""
+        pieces: Dict[bytes, Token] = {}
+
+        # text and flag
+        for piece, piece_id in self._bpe.encoder.items():
+            b_piece = self._to_byte(piece)
+            pieces[piece] = Token(piece_id, 0, b_piece, Util.piece_to_display(b_piece))
+        
+        # weight
+        for piece_pair, rank in self._bpe.bpe_ranks.items():
+            piece = piece_pair[0] + piece_pair[1]
+            if pieces[piece].weight is not None:
+                print(f'pair for {piece} already exists')
+            pieces[piece].weight = -rank
+
+        # vocab
+        vocab: List[Token] = []
+        for token_id in range(self._bpe.vocab_size):
+            vocab.append(Token.unused(token_id))
+        
+        for token in pieces.values():
+            if not vocab[token.token_id].is_unused():
+                raise Exception(f"duplicated token id {token.token_id}")
+            vocab[token.token_id] = token
+
+        # special symbols
+        for token_id, piece in zip(self._bpe.all_special_ids, self._bpe.all_special_tokens):
+            while token_id >= len(vocab):
+                vocab.append(Token.unused(token_id))
+
+            vocab[token_id] = Token(
+                token_id,
+                Token.FLAG_CONTROL,
+                piece=b"",
+                piece_display=piece,
+                weight=0)
+        if self._bpe.unk_token_id is not None:
+            vocab[self._bpe.unk_token_id].flag |= Token.FLAG_UNK
+
+        # update weight None to 0
+        libllm_model = LibllmTokenizer()
+        for token in vocab:
+            if token.weight is None:
+                token.weight = 0
+            libllm_model.add_token(token)
+
+        return libllm_model
 
 class Util:
     @classmethod
@@ -199,15 +283,22 @@ class Util:
         return e
 
     @classmethod
-    def escape_bytes(cls, s):
-        e = b""
-        for ch in s:
-            if ch <= 32 or ch >= 127:
-                ch = f"\\x{ch:02x}".encode("utf-8")
-            else:
-                ch = ch.to_bytes(1, 'little')
-            e += ch
-        return e
+    def piece_to_display(cls, piece):
+        assert isinstance(piece, bytes)
+        try:
+            piece = piece.decode("utf-8")
+        except:
+            piece = str(piece)[2:-1]
+
+        escaped_piece = ""
+        for ch in piece:
+            if ord(ch) < 32:
+                ch = f"\\x{ord(ch):02x}"
+            elif ch == " ":
+                ch = "\u2581"
+            escaped_piece += ch
+
+        return escaped_piece
 
     @classmethod
     def truncate_display(cls, s: str) -> bytes:
@@ -224,9 +315,21 @@ class Util:
 
         return bs
 
-def read_spm_model(model_path_or_name: str) -> LytokModel:
+def read_spm_model(model_path_or_name: str) -> LibllmTokenizer:
     print("read sentencepiece model from " + model_path_or_name)
     spm_model = SentencePieceModelReader(model_path_or_name)
-    lytok_model = spm_model.to_lytok_model()
-    print(f"vocab_size={len(lytok_model.get_vocab())}")
-    return lytok_model
+    libllm_model = spm_model.to_libllm_model()
+    print(f"vocab_size={len(libllm_model.get_vocab())}")
+    return libllm_model
+
+def read_transformers_bpe_model(transformers_bpe) -> LibllmTokenizer:
+    bpe_model = TransformersBpeModelReader(transformers_bpe)
+    libllm_model = bpe_model.to_libllm_model()
+    print(f"vocab_size={len(libllm_model.get_vocab())}")
+    return libllm_model
+
+def read_tiktoken_model(tiktoken_enc) -> LibllmTokenizer:
+    tiktoken_model = TiktokenModelReader(tiktoken_enc)
+    libllm_model = tiktoken_model.to_libllm_model()
+    print(f"vocab_size={len(libllm_model.get_vocab())}")
+    return libllm_model

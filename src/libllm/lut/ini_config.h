@@ -83,7 +83,7 @@ class IniSection {
   std::vector<int> getIntArray(const std::string &key) const;
 
   // returns true if the key exists.
-  bool hasKey(const std::string &key);
+  bool hasKey(const std::string &key) const;
 
   // name of the section.
   const std::string &getName() const { return _name; }

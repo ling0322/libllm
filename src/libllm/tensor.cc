@@ -378,8 +378,7 @@ std::shared_ptr<TensorShape> TensorShape::read(lut::ReadableFile *fp) {
   std::vector<ShapeType> shape;
   for (int16_t d = 0; d < rank; ++d) {
     int32_t size = fp->readValue<int32_t>();
-    if (size >= 65536 || size <= 0) 
-      throw lut::AbortedError("invalid size in shape.");
+    if (size >= 1048576 || size <= 0) throw lut::AbortedError("invalid size in shape.");
 
     shape.push_back(size);
   }

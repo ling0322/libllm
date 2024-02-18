@@ -22,14 +22,14 @@ import torch
 import configparser
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
-from spm_exporter import read_spm_model
+from bpe_exporter import read_spm_model
 from torch import nn
 
 class Llama2Exporter(ModelExporter):
     def __init__(self, writer: TensorWriter) -> None:
         super().__init__(writer)
 
-    def _export_llama2(self, ctx: Context, model):
+    def _export(self, ctx: Context, model):
         base_model = model.base_model
 
         self.export_embedding(ctx.with_subname("embd"), base_model.embed_tokens)
@@ -107,7 +107,7 @@ class Llama2Exporter(ModelExporter):
         bin_filename = f"{output_prefix}.{quant_name}.bin"
         with TensorWriter(bin_filename) as writer:
             exporter = Llama2Exporter(writer)
-            exporter._export_llama2(ctx, model)
+            exporter._export(ctx, model)
 
         ini_config = cls.generate_config(config)
         ini_config["model"] = {}

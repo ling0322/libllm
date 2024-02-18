@@ -19,6 +19,8 @@
 
 #include "libllm/context.h"
 
+#include "libllm/lut/error.h"
+#include "libllm/lut/strings.h"
 #include "libllm/device.h"
 #include "libllm/lut/log.h"
 
@@ -38,6 +40,7 @@ Context Context::withName(const std::string &name) const {
   Context ctx;
   ctx._device = _device;
   ctx._floatType = _floatType;
+  ctx._propertyBag = _propertyBag;
   ctx._ns = this->name(name);
 
   return ctx;
@@ -64,6 +67,18 @@ std::string Context::name(const std::string &name) const {
   }
 
   return ns;
+}
+
+std::string Context::get(const std::string &key) const {
+  if (_propertyBag.find(key) == _propertyBag.end()) {
+    THROW(Aborted, lut::sprintf("key not exist: \"%s\"", key));
+  }
+
+  return _propertyBag.at(key);
+}
+
+void Context::set(const std::string &key, const std::string &value) {
+  _propertyBag[key] = value;
 }
 
 }  // namespace libllm
