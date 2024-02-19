@@ -134,11 +134,12 @@ class LlamaModel : public Module {
 
 class LlamaModelForGeneration : public ModelForGeneration {
  public:
-  static std::shared_ptr<LlamaModelForGeneration> create(
+  static std::shared_ptr<LlamaModelForGeneration> fromConfig(
       const Context &ctx,
       const lut::IniConfig &config);
 
   // implements interface ModelForGeneration
+  void initParameters(const StateMap &stateDict) override;
   Tensor forward(StateMap &past, Tensor input) const override;
   Tensor forwardHidden(Tensor hidden) const override;
   Tensor buildInput(const std::vector<LongType> &prompt) const override;

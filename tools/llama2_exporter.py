@@ -20,6 +20,8 @@
 import argparse
 import torch
 import configparser
+import zipfile
+import io
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
 from bpe_exporter import read_spm_model
@@ -72,52 +74,51 @@ class Llama2Exporter(ModelExporter):
         self._write(ctx.with_subname("down_proj"), attn_block.down_proj.weight)
 
     @classmethod
-    def generate_config(cls, llama2_config) -> configparser.ConfigParser:
+    def generate_config(cls, llama_config) -> configparser.ConfigParser:
         config = configparser.ConfigParser()
-        config["llama2"] = {}
+        config["llama"] = {}
 
-        assert llama2_config.num_key_value_heads == llama2_config.num_attention_heads
-        assert llama2_config.rope_scaling is None
-        assert llama2_config.pretraining_tp == 1
-        assert llama2_config.hidden_act == "silu"
+        assert llama_config.num_key_value_heads == llama_config.num_attention_heads
+        assert llama_config.rope_scaling is None
+        assert llama_config.pretraining_tp == 1
+        assert llama_config.hidden_act == "silu"
         
-        chatglm2_section = config["llama2"]
-        chatglm2_section["hidden_size"] = str(llama2_config.hidden_size)
-        chatglm2_section["num_heads"] = str(llama2_config.num_attention_heads)
-        chatglm2_section["intermediate_size"] = str(llama2_config.intermediate_size)
-        chatglm2_section["norm_eps"] = str(llama2_config.rms_norm_eps)
-        chatglm2_section["num_layers"] = str(llama2_config.num_hidden_layers)
-        chatglm2_section["vocab_size"] = str(llama2_config.vocab_size)
-        chatglm2_section["max_ctx_length"] = str(llama2_config.max_position_embeddings)
-        chatglm2_section["bos_token_id"] = "1"
-        chatglm2_section["eos_token_id"] = "2"
+        section = config["llama"]
+        section["hidden_size"] = str(llama_config.hidden_size)
+        section["num_heads"] = str(llama_config.num_attention_heads)
+        section["intermediate_size"] = str(llama_config.intermediate_size)
+        section["norm_eps"] = str(llama_config.rms_norm_eps)
+        section["num_layers"] = str(llama_config.num_hidden_layers)
+        section["vocab_size"] = str(llama_config.vocab_size)
+        section["max_ctx_length"] = str(llama_config.max_position_embeddings)
+        section["bos_token_id"] = "1"
+        section["eot_token_id"] = "2"
 
         return config
 
     @classmethod
-    def export(cls, llama2_model, output_prefix: str, quant: Quant):
-        model = llama2_model
-        config = llama2_model.config
-
-        quant_name = "fp32"
-        if quant != Quant.NONE:
-            quant_name = str(quant.name).lower()
+    def export(cls, llama_model, fp, quant: Quant):
+        model = llama_model
+        config = llama_model.config
 
         ctx = Context("llama", quant=quant)
-        bin_filename = f"{output_prefix}.{quant_name}.bin"
-        with TensorWriter(bin_filename) as writer:
+        with TensorWriter(fp) as writer:
             exporter = Llama2Exporter(writer)
             exporter._export(ctx, model)
 
         ini_config = cls.generate_config(config)
         ini_config["model"] = {}
         ini_config["model"]["type"] = "llama"
-        ini_config["model"]["model_file"] = path.basename(bin_filename)
+        ini_config["model"]["model_file"] = path.basename(MODEL_BIN)
 
         return ini_config
 
 
-MODEL_NAME = "meta-llama/Llama-2-7b-hf"
+MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"
+MODEL_BIN = "model.bin"
+MODEL_INI = "model.ini"
+TOKENIZER_BIN = "tokenizer.bin"
+TOKENIZER_INI = "tokenizer.ini"
 
 if __name__ == '__main__':
     from transformers import AutoTokenizer
@@ -125,20 +126,25 @@ if __name__ == '__main__':
 
 
     parser = argparse.ArgumentParser(description='export llama model from huggingface to libllm format.')
-    parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default="meta-llama/Llama-2-7b-hf")
+    parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default=MODEL_NAME)
     parser.add_argument('-quantization', type=Quant.parse, help='quantization type, "q4" or "none"', default=Quant.Q4)
-    parser.add_argument('-output', type=str, help='output file name.', default="llama2")
+    parser.add_argument('-output', type=str, help='output file name.', default="llama.llmpkg")
     args = parser.parse_args()
 
     tokenizer = AutoTokenizer.from_pretrained(args.huggingface_name, trust_remote_code=True)
     model = LlamaForCausalLM.from_pretrained(args.huggingface_name, trust_remote_code=True)
     model = model.eval()
 
-    output_prefix = args.output
-    config = Llama2Exporter.export(model, output_prefix, args.quantization)
-    lytok_model = read_spm_model(args.huggingface_name)
-    lytok_model.save(output_prefix + ".tokenizer.bin")
-    lytok_model.get_config().update_config(config, "tokenizer")
+    with zipfile.ZipFile(args.output, "w", compression=zipfile.ZIP_STORED) as package:
+        with package.open(MODEL_BIN, "w", force_zip64=True) as fp:
+            config = Llama2Exporter.export(model, fp, args.quantization)
 
-    with open(output_prefix + ".config", "w") as fp:
-        config.write(fp)
+        with package.open(MODEL_INI, "w", force_zip64=True) as fp:
+            config.write(io.TextIOWrapper(fp))
+
+        libllm_tokenizer = read_spm_model(args.huggingface_name)
+        with package.open(TOKENIZER_BIN, "w", force_zip64=True) as fp:
+            libllm_tokenizer.save(fp)
+        
+        with package.open(TOKENIZER_INI, "w", force_zip64=True) as fp:
+            libllm_tokenizer.get_config().to_ini(TOKENIZER_BIN).write(io.TextIOWrapper(fp))

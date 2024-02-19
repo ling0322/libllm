@@ -36,47 +36,38 @@ StateMap::~StateMap() {}
 //     byte[name_len]: name
 //     Tensor
 //   int16_t: magic number 0x55aa
-void StateMap::read(const std::string &filename) {
+void StateMap::read(lut::Reader *fp) {
   _dict.clear();
 
-  auto fp = lut::ReadableFile::open(filename);
-
   std::string s = fp->readString(16);
-  if (s != "llyn::tdic      ") {
-    throw lut::AbortedError("invalid tensor_dict file");
+  if (s != "llyn::tdicv2    ") {
+    throw lut::AbortedError("unsupported tensor map file");
   }
 
-  // place holder.
-  fp->readValue<int32_t>();
-  fp->readValue<int32_t>();
+  std::string tag = fp->readString(4);
+  if (tag != "<d> ") throw lut::AbortedError("invalid tensor map file");
+  tag = fp->readString(4);
 
-  // read tensors.
-  int32_t numRecord = fp->readValue<int32_t>();
-  double t0 = lut::now();
-  LOG(INFO) << "read state map from " << filename;
-  for (int i = 0; i < numRecord; ++i) {
-    std::pair<std::string, Tensor> kv = readTensor(fp.get());
-    if (lut::now() - t0 >= 5.0) {
-      t0 = lut::now();
-      LOG(INFO) << lut::sprintf("reading ... %.1f%%", 100.0 * i / numRecord);
-    }
+  int numTensor = 0;
+  while (tag != "</d>") {
+    if (tag != "<r> ") throw lut::AbortedError("invalid tensor map file");
 
+    std::pair<std::string, Tensor> kv = readTensor(fp);
     _dict[kv.first] = kv.second;
-  }
-  LOG(INFO) << "reading ... 100.0%";
-  LOG(INFO) << numRecord << " tensors read.";
 
-  // magic number
-  int16_t magicNumber = fp->readValue<int16_t>();
-  if (magicNumber != 0x55aa) {
-    throw lut::AbortedError("invalid tensor_dict file (magic number)");
+    tag = fp->readString(4);
+    if (tag != "</r>") throw lut::AbortedError("invalid tensor map file");
+    tag = fp->readString(4);
+    ++numTensor;
   }
+
+  LOG(INFO) << numTensor << " tensors read.";
 }
 
-std::pair<std::string, Tensor> StateMap::readTensor(lut::ReadableFile *fp) const {
+std::pair<std::string, Tensor> StateMap::readTensor(lut::Reader *fp) const {
   int16_t nameLen = fp->readValue<int16_t>();
   if (nameLen <= 0) {
-    throw lut::AbortedError("invalid tensor_dict file (name_len)");
+    throw lut::AbortedError("invalid tensor map file (name_len)");
   }
   std::string name = fp->readString(nameLen);
   LOG(DEBUG) << "read tensor " << name;

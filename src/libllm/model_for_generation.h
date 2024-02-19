@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include "libllm/lut/zip_file.h"
+#include "libllm/context.h"
 #include "libllm/state_map.h"
 #include "libllm/tensor.h"
 #include "libllm/tokenizer.h"
@@ -28,7 +30,17 @@ namespace libllm {
 // base class for language model.
 class ModelForGeneration {
  public:
+  static constexpr char ModelConfig[] = "model.ini";
+
+  // Cretae instance of ModelForGeneration from local package file (.llmpkg).
+  static std::shared_ptr<ModelForGeneration> fromPackage(
+      const Context &ctx,
+      lut::ZipFile *package);
+
   virtual ~ModelForGeneration() = default;
+
+  // initialize the parameters from stateMap.
+  virtual void initParameters(const StateMap &stateMap) = 0;
 
   // Forward input token ids through this language model, update the `past` state and return the
   // hidden state of last layer.

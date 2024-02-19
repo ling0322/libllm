@@ -22,6 +22,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include "libllm/lut/reader.h"
 #include "libllm/tensor.h"
 
 namespace libllm {
@@ -32,7 +33,7 @@ class StateMap {
   StateMap() = default;
   ~StateMap();
 
-  void read(const std::string &filename);
+  void read(lut::Reader *reader);
 
   // for tensors.
   Tensor getTensor(const std::string &name) const;
@@ -51,7 +52,7 @@ class StateMap {
   std::unordered_map<std::string, Tensor> _dict;
   std::unordered_map<std::string, int> _intDict;
 
-  std::pair<std::string, Tensor> readTensor(lut::ReadableFile *fp) const;
+  std::pair<std::string, Tensor> readTensor(lut::Reader *fp) const;
 }; 
 
 }  // namespace libllm

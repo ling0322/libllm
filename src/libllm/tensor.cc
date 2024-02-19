@@ -94,7 +94,7 @@ Tensor &Tensor::operator=(Tensor &&tensor) {
   return *this;
 }
 
-void Tensor::read(lut::ReadableFile *fp) {
+void Tensor::read(lut::Reader *fp) {
   std::string s = fp->readString(4);
   if (s != "tnsr") {
     throw lut::AbortedError("bad tensor format");
@@ -367,7 +367,7 @@ std::shared_ptr<TensorShape> TensorShape::subsize(int d) const {
   return subsize;
 }
 
-std::shared_ptr<TensorShape> TensorShape::read(lut::ReadableFile *fp) {
+std::shared_ptr<TensorShape> TensorShape::read(lut::Reader *fp) {
   // rank
   int16_t rank = fp->readValue<int16_t>();
   if (rank > 16 || rank < 0) {

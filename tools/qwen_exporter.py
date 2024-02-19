@@ -19,9 +19,11 @@
 
 
 import argparse
+import io
 import torch
 import configparser
 import sys
+import zipfile
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
 from bpe_exporter import read_transformers_bpe_model
@@ -69,24 +71,19 @@ class Qwen2Exporter(Llama2Exporter):
         return config
 
     @classmethod
-    def export(cls, llama2_model, output_prefix: str, quant: Quant):
-        model = llama2_model
-        config = llama2_model.config
-
-        quant_name = "fp32"
-        if quant != Quant.NONE:
-            quant_name = str(quant.name).lower()
+    def export(cls, qwen_model, fp, quant: Quant):
+        model = qwen_model
+        config = qwen_model.config
 
         ctx = Context("qwen", quant=quant)
-        bin_filename = f"{output_prefix}.{quant_name}.bin"
-        with TensorWriter(bin_filename) as writer:
+        with TensorWriter(fp) as writer:
             exporter = Qwen2Exporter(writer)
             exporter._export(ctx, model)
 
         ini_config = cls.generate_config(config)
         ini_config["model"] = {}
         ini_config["model"]["type"] = "qwen"
-        ini_config["model"]["model_file"] = path.basename(bin_filename)
+        ini_config["model"]["model_file"] = path.basename(MODEL_BIN)
 
         return ini_config
 
@@ -112,6 +109,10 @@ def run_qwen(huggingface_name):
     print(response)
 
 MODEL_NAME = "Qwen/Qwen1.5-1.8B-Chat"
+MODEL_BIN = "model.bin"
+MODEL_INI = "model.ini"
+TOKENIZER_BIN = "tokenizer.bin"
+TOKENIZER_INI = "tokenizer.ini"
 
 if __name__ == '__main__':
     from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -119,7 +120,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='export llama model from huggingface to libllm format.')
     parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default=MODEL_NAME)
     parser.add_argument('-quantization', type=Quant.parse, help='quantization type, "q4" or "none"', default=Quant.Q4)
-    parser.add_argument('-output', type=str, help='output file name.', default="qwen")
+    parser.add_argument('-output', type=str, help='output file name.', default="qwen.llmpkg")
     parser.add_argument('-run', action="store_true")
     args = parser.parse_args()
 
@@ -127,23 +128,27 @@ if __name__ == '__main__':
         run_qwen(args.huggingface_name)
         sys.exit(0)
 
-    output_prefix = args.output
     tokenizer = AutoTokenizer.from_pretrained(args.huggingface_name, use_fast=False)
     model = AutoModelForCausalLM.from_pretrained(args.huggingface_name, device_map="auto").eval()
     model.to("cpu")
 
-    config = Qwen2Exporter.export(model, output_prefix, args.quantization)
-    eot_token_id = tokenizer.added_tokens_encoder["<|endoftext|>"]
-    im_start_token_id = tokenizer.added_tokens_encoder["<|im_start|>"]
-    im_end_token_id = tokenizer.added_tokens_encoder["<|im_end|>"]
-    config["qwen"]["eot_token_id"] = str(eot_token_id)
-    config["qwen"]["im_start_token_id"] = str(im_start_token_id)
-    config["qwen"]["im_end_token_id"] = str(im_end_token_id)
+    with zipfile.ZipFile(args.output, "w", compression=zipfile.ZIP_STORED) as package:
+        with package.open(MODEL_BIN, "w", force_zip64=True) as fp:
+            config = Qwen2Exporter.export(model, fp, args.quantization)
 
+        eot_token_id = tokenizer.added_tokens_encoder["<|endoftext|>"]
+        im_start_token_id = tokenizer.added_tokens_encoder["<|im_start|>"]
+        im_end_token_id = tokenizer.added_tokens_encoder["<|im_end|>"]
+        config["qwen"]["eot_token_id"] = str(eot_token_id)
+        config["qwen"]["im_start_token_id"] = str(im_start_token_id)
+        config["qwen"]["im_end_token_id"] = str(im_end_token_id)
+        with package.open(MODEL_INI, "w", force_zip64=True) as fp:
+            config.write(io.TextIOWrapper(fp))
 
-    libllm_tokenizer = read_transformers_bpe_model(tokenizer)
-    libllm_tokenizer.save(output_prefix + ".tokenizer.bin")
-    libllm_tokenizer.get_config().update_config(config, "tokenizer")
+        libllm_tokenizer = read_transformers_bpe_model(tokenizer)
+        with package.open(TOKENIZER_BIN, "w", force_zip64=True) as fp:
+            libllm_tokenizer.save(fp)
+        
+        with package.open(TOKENIZER_INI, "w", force_zip64=True) as fp:
+            libllm_tokenizer.get_config().to_ini(TOKENIZER_BIN).write(io.TextIOWrapper(fp))
 
-    with open(output_prefix + ".config", "w") as fp:
-        config.write(fp)

@@ -57,7 +57,7 @@ class Tensor {
   ~Tensor();
 
   // Read the tensor from fp.
-  void read(lut::ReadableFile *fp);
+  void read(lut::Reader *fp);
 
   // copy and move constructors.
   Tensor(const Tensor &tensor);
@@ -148,7 +148,7 @@ class TensorShape {
   };
 
   // read tensor shape from file.
-  static std::shared_ptr<TensorShape> read(lut::ReadableFile *fp);
+  static std::shared_ptr<TensorShape> read(lut::Reader *fp);
 
   // from shape.
   TensorShape(lut::Span<const ShapeType> shape);

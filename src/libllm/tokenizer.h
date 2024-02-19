@@ -21,14 +21,17 @@
 
 #include "libllm/vocab.h"
 #include "libllm/lut/ini_config.h"
+#include "libllm/lut/zip_file.h"
 
 namespace libllm {
 
 // interface for Tokenizer.
 class Tokenizer {
  public:
-  // create an instance of Tokenizer from config.
-  static std::unique_ptr<Tokenizer> create(const lut::IniSection &config);
+  static constexpr char ConfigFile[] = "tokenizer.ini";
+
+  // create an instance of Tokenizer from model package.
+  static std::shared_ptr<Tokenizer> fromPackage(lut::ZipFile *package);
  
   virtual ~Tokenizer() = default;
   

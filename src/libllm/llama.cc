@@ -32,6 +32,8 @@
 namespace libllm {
 namespace llama {
 
+constexpr char LlamaModel::RoPECtxKey[];
+
 // -----------------------------------------------------------------------------------------------+
 // class LlamaConfig                                                                              |
 // -----------------------------------------------------------------------------------------------+
@@ -340,7 +342,7 @@ Tensor LlamaModel::forwardHidden(Tensor hidden) const {
 
 LlamaModelForGeneration::LlamaModelForGeneration() : _eotId(0) {}
 
-std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::create(
+std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromConfig(
     const Context &ctx,
     const lut::IniConfig &config) {
   std::shared_ptr<LlamaModelForGeneration> model{new LlamaModelForGeneration()};
@@ -357,16 +359,12 @@ void LlamaModelForGeneration::init(const Context &ctx, const lut::IniConfig &con
   LlamaConfig llamaConfig = LlamaConfig::loadConfig(llamaSection);
   _model = LlamaModel::create(ctx, llamaConfig);
 
-  // initialize parameters
-  const lut::IniSection &modelSection = config.getSection(ModelSection);
-  lut::Path modelPath = modelSection.getPath(ModelFileField);
-
-  StateMap stateMap;
-  stateMap.read(modelPath.string());
-  _model->initParameters(stateMap);
-
   _eotId = llamaSection.getInt("eot_token_id");
   _modelName = modelType;
+}
+
+void LlamaModelForGeneration::initParameters(const StateMap &stateDict) {
+  _model->initParameters(stateDict);
 }
 
 Tensor LlamaModelForGeneration::forward(StateMap &past, Tensor input) const {

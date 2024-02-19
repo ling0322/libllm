@@ -35,7 +35,12 @@ class IniSection;
 class IniConfig {
  public:
   // Read configuration from filename.
-  static std::unique_ptr<IniConfig> read(const std::string &filename);
+  static std::shared_ptr<IniConfig> fromFile(const std::string &filename);
+  static std::shared_ptr<IniConfig> fromStream(lut::Reader *reader);
+
+  // noncopyable.
+  IniConfig(IniConfig &) = delete;
+  IniConfig &operator=(IniConfig &) = delete;
 
   // get section by name.
   const IniSection &getSection(const std::string &name) const;
@@ -54,10 +59,11 @@ class IniConfig {
   
   IniConfig();
 
-  static bool isEmptyLine(const std::string &s);
-  static bool isHeader(const std::string &s);
-  static std::string parseHeader(const std::string &s);
-  static std::pair<std::string, std::string> parseKeyValue(const std::string &s);
+  void readStream(lut::Reader *reader);
+  bool isEmptyLine(const std::string &s);
+  bool isHeader(const std::string &s);
+  std::string parseHeader(const std::string &s);
+  std::pair<std::string, std::string> parseKeyValue(const std::string &s);
 };
 
 // one section in ini config.

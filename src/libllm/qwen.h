@@ -32,7 +32,7 @@ namespace qwen {
 /// here.
 class QwenModelForGeneration : public llama::LlamaModelForGeneration {
  public:
-  static std::shared_ptr<QwenModelForGeneration> create(
+  static std::shared_ptr<QwenModelForGeneration> fromConfig(
       const Context &ctx,
       const lut::IniConfig &config);
 

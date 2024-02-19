@@ -24,7 +24,7 @@ namespace qwen {
 
 QwenModelForGeneration::QwenModelForGeneration() : _imStartId(-1), _imEndId(-1) {}
 
-std::shared_ptr<QwenModelForGeneration> QwenModelForGeneration::create(
+std::shared_ptr<QwenModelForGeneration> QwenModelForGeneration::fromConfig(
     const Context &ctx,
     const lut::IniConfig &config) {
   std::shared_ptr<QwenModelForGeneration> model{new QwenModelForGeneration()};

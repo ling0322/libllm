@@ -25,12 +25,12 @@ BPEConfig::BPEConfig()
     : addPrefixSpace(true),
       splitByUnicode(true) {}
 
-std::unique_ptr<BPEConfig> BPEConfig::fromIni(const lut::IniSection &iniSection) {
-  std::unique_ptr<BPEConfig> config = std::make_unique<BPEConfig>();
+BPEConfig BPEConfig::fromIni(const lut::IniSection &iniSection) {
+  BPEConfig config;
 
-  config->addPrefixSpace = iniSection.getBool("add_prefix_space");
-  config->splitByUnicode = iniSection.getBool("split_by_unicode");
-  config->modelFile = iniSection.getPath("model_file").string();
+  config.addPrefixSpace = iniSection.getBool("add_prefix_space");
+  config.splitByUnicode = iniSection.getBool("split_by_unicode");
+  config.modelFile = iniSection.getPath("model_file").string();
 
   return config;
 }

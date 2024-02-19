@@ -84,19 +84,23 @@ class TokenizerConfig:
         self.split_by_unicode = split_by_unicode
         self.model_file = None
 
-    def update_config(self, config: configparser.ConfigParser, section: str) -> None:
+    def to_ini(self, model_file: str) -> None:
+        section = "tokenizer"
+
+        config = configparser.ConfigParser()
         config[section] = {}
         config[section]["type"] = "bpe"
-        config[section]["model_file"] = self.model_file
+        config[section]["model_file"] = model_file
         config[section]["add_prefix_space"] = str(self.add_prefix_space).lower()
         config[section]["split_by_unicode"] = str(self.split_by_unicode).lower()
+
+        return config
 
 class LibllmTokenizer:
     MAGIC_NUMBER = 0x55aa
 
     def __init__(self):
         self._vocab = []
-        self._bin_model_file = None
         self.config = TokenizerConfig(add_prefix_space=True, split_by_unicode=True)
     
     def add_token(self, token: Token) -> None:
@@ -104,25 +108,22 @@ class LibllmTokenizer:
             raise Exception("token_id and vocab_size mismatch")
         self._vocab.append(token)
 
-    def save(self, filename: str) -> None:
+    def save(self, fp) -> None:
         """save the sentencepiece model as libllm format"""
-        self._bin_model_file = path.basename(filename)
-        print(f"save libllm model: {filename}")
 
-        with open(filename, 'wb') as fp:
-            fp.write(b'LLsp')
-            fp.write(struct.pack('<l', len(self._vocab)))
-            fp.write(struct.pack('<h', self.MAGIC_NUMBER))
-            for token in self._vocab:
-                piece_display = Util.truncate_display(token.piece_display)
+        fp.write(b'LLsp')
+        fp.write(struct.pack('<l', len(self._vocab)))
+        fp.write(struct.pack('<h', self.MAGIC_NUMBER))
+        for token in self._vocab:
+            piece_display = Util.truncate_display(token.piece_display)
 
-                fp.write(struct.pack('<b', token.flag))
-                fp.write(struct.pack('<B', len(token.piece)))
-                fp.write(token.piece)
-                fp.write(struct.pack('<B', len(piece_display)))
-                fp.write(piece_display)
-                fp.write(struct.pack('<f', token.weight))
-            fp.write(struct.pack('<h', self.MAGIC_NUMBER))
+            fp.write(struct.pack('<b', token.flag))
+            fp.write(struct.pack('<B', len(token.piece)))
+            fp.write(token.piece)
+            fp.write(struct.pack('<B', len(piece_display)))
+            fp.write(piece_display)
+            fp.write(struct.pack('<f', token.weight))
+        fp.write(struct.pack('<h', self.MAGIC_NUMBER))
 
     def save_text_model(self, filename: str) -> None:
         """save the sentencepiece model as libllm format"""
@@ -137,10 +138,6 @@ class LibllmTokenizer:
         return self._vocab
     
     def get_config(self) -> TokenizerConfig:
-        if self._bin_model_file is None:
-            raise Exception("get_config() called before save()")\
-
-        self.config.model_file = self._bin_model_file
         return self.config
 
 class SentencePieceModelReader:
@@ -195,11 +192,11 @@ class TiktokenModelReader:
     def to_libllm_model(self) -> List[Token]:
         """convert the BPE model to lytok tokenizer format."""
         libllm_model = LibllmTokenizer()
-        for piece, rank in self._tokenizer._mergeable_ranks.items():
+        for piece, rank in self._tokenizer.mergeable_ranks.items():
             libllm_model.add_token(Token(rank, 0, piece, Util.piece_to_display(piece), -rank))
 
         # special tokens
-        for token, token_id in self._tokenizer._special_tokens.items():
+        for token, token_id in self._tokenizer.special_tokens.items():
             libllm_model.add_token(Token(token_id, Token.FLAG_CONTROL, b'', token, 0))
 
         libllm_model.config.add_prefix_space = False

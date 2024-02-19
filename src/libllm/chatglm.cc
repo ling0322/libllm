@@ -29,6 +29,8 @@ namespace chatglm {
 // class ChatGlmConfig                                                                            |
 // -----------------------------------------------------------------------------------------------+
 
+constexpr char ChatGlmConfig::kSection[];
+
 ChatGlmConfig::ChatGlmConfig()
     : hiddenSize(0),
       vocabSize(0),
@@ -378,7 +380,7 @@ Tensor ChatGlmModel::forward(StateMap &past, Tensor input) const {
 // class ChatGlmModelForGeneration                                                                |
 // -----------------------------------------------------------------------------------------------+
 
-std::shared_ptr<ChatGlmModelForGeneration> ChatGlmModelForGeneration::create(
+std::shared_ptr<ChatGlmModelForGeneration> ChatGlmModelForGeneration::fromConfig(
     const Context &ctx,
     const lut::IniConfig &config) {
   std::shared_ptr<ChatGlmModelForGeneration> model{new ChatGlmModelForGeneration()};
@@ -388,13 +390,11 @@ std::shared_ptr<ChatGlmModelForGeneration> ChatGlmModelForGeneration::create(
   model->_config = ChatGlmConfig;
   model->_modelName = config.getSection(ModelSection).getString(ModelTypeField);
 
-  // initialize parameters.
-  StateMap stateMap;
-  lut::Path modelPath = config.getSection(ModelSection).getPath(ModelFileField);
-  stateMap.read(modelPath.string());
-
-  model->_model->initParameters(stateMap);
   return model;
+}
+
+void ChatGlmModelForGeneration::initParameters(const StateMap &stateMap) {
+  _model->initParameters(stateMap);
 }
 
 Tensor ChatGlmModelForGeneration::buildInput(const std::vector<LongType> &prompt) const {

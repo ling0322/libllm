@@ -26,13 +26,11 @@ namespace lut {
 
 class ZipFile {
  public:
-  std::shared_ptr<ZipFile> fromFile(const std::string &filename);
+  static std::shared_ptr<ZipFile> fromFile(const std::string &filename);
 
-  ~ZipFile();
   ZipFile(ZipFile &) = delete;
   ZipFile operator=(ZipFile &) = delete;
 
-  bool hasFile(const std::string &filename) const;
   std::shared_ptr<Reader> open(const std::string &filename) const;
 
  private:
@@ -40,7 +38,7 @@ class ZipFile {
   class FileReader;
 
   std::shared_ptr<Impl> _impl;
-  ZipFile();
+  ZipFile() = default;
 };
 
 } // namespace lut

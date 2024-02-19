@@ -64,7 +64,7 @@ class Model:
             device (Device): target computation device.
         """
         self._pmodel = AutoPtr(interop.create_model(), interop.destroy_model)
-        interop.set_model_config(self._pmodel.get(), config_file.encode("utf-8"))
+        interop.set_model_file(self._pmodel.get(), config_file.encode("utf-8"))
         interop.set_model_device(self._pmodel.get(), int(device))
         interop.load_model(self._pmodel.get())
 

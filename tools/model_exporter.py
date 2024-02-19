@@ -134,26 +134,17 @@ class Quantization:
 class TensorWriter:
     """write tensor to file with llyn tensor format."""
 
-    def __init__(self, filename: str) -> None:
-        self._fp = open(filename, 'wb')
-        self._fp.write(b"llyn::tdic      ")
-
-        # reserved
-        self._fp.write(struct.pack('<i', 0))
-        self._fp.write(struct.pack('<i', 0))
-
-        # numTensors, this field will be filled when writer is closing.
-        self._num_tensors = 0
-        self._fp.write(struct.pack('<i', self._num_tensors))
+    def __init__(self, fp) -> None:
+        self._fp = fp
+        self._fp.write(b"llyn::tdicv2    ")
+        self._fp.write(b"<d> ")
 
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, traceback):
-        print("__exit__")
-        self._fp.write(struct.pack('<h', 0x55aa))
-        self._fp.seek(24)
-        self._fp.write(struct.pack('<i', self._num_tensors))
+        print("TensorWriter: __exit__")
+        self._fp.write(b"</d>")
         self._fp.close()
 
     def _write_tensor_elem(self, tensor: torch.Tensor, dtype=DTYPE_UNKNOWN):
@@ -225,7 +216,7 @@ class TensorWriter:
 
     def write_tensor(self, ctx: Context, tensor: torch.Tensor):
         print(f"write tensor {ctx.name}, shape={tensor.shape}, quant={ctx.quant}")
-        self._num_tensors += 1
+        self._fp.write(b"<r> ")
 
         if len(ctx.name) > 1024:
             raise Exception('name too long')
@@ -239,6 +230,8 @@ class TensorWriter:
             self._write_tensor_q4(tensor)
         else:
             raise NotImplementedError(ctx.quant)
+
+        self._fp.write(b"</r>")
 
 class ModelExporter:
     def __init__(self, writer: TensorWriter) -> None:

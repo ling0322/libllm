@@ -37,7 +37,7 @@ class BPEModel : public Vocab,
 
   // Read the BpeModel from file. It could not read a SPM model directly, instead, we need to
   // convert the SPM model using tokenizer_exporter.py.
-  static std::unique_ptr<BPEModel> create(const std::string &filename);
+  static std::shared_ptr<BPEModel> fromStream(lut::Reader *reader);
 
   // implement interface Vocab
   int findToken(const std::string &token) const override;
@@ -87,9 +87,9 @@ class BPEModel : public Vocab,
   BPEModel();
 
   // read model from fp
-  void readModel(lut::ReadableFile *fp);
-  void readMagicNumber(lut::ReadableFile *fp);
-  TokenInfo readRecord(lut::ReadableFile *fp);
+  void readModel(lut::Reader *fp);
+  void readMagicNumber(lut::Reader *fp);
+  TokenInfo readRecord(lut::Reader *fp);
   void initModel();
   void checkModel();
 };
