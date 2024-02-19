@@ -50,6 +50,16 @@ Path Path::basename() const {
   return std::string(_path.begin() + lastDelimIdx + 1, _path.end());
 }
 
+std::string Path::extension() const {
+  std::string name = basename().string();
+  size_t dotIndex = name.find_last_of('.');
+  if (dotIndex == std::string::npos) {
+    return "";
+  } else {
+    return name.substr(dotIndex);
+  }
+}
+
 bool Path::operator==(const Path &r) const {
   return _path == r._path;
 }

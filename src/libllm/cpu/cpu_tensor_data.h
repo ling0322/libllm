@@ -32,7 +32,7 @@ class CpuTensorData : public TensorData {
  public:
   static std::shared_ptr<TensorData> create(int64_t numel0, DType dtype0);
   static std::shared_ptr<TensorData> create(lut::Span<const std::pair<int64_t, DType>> slots);
-  static std::shared_ptr<TensorData> read(lut::ReadableFile *fp);
+  static std::shared_ptr<TensorData> read(lut::Reader *fp);
 
   /// @brief Create a new instance of CpuTensorData with the same size and slots as `tensorData`.
   /// @param tensorData The reference tensorData object.
@@ -62,7 +62,7 @@ class CpuTensorData : public TensorData {
   Slot _slots[TensorData::MaxSlot];
   int _numSlot;
 
-  void readSlot(lut::ReadableFile *fp, int slotIdx);
+  void readSlot(lut::Reader *fp, int slotIdx);
 };
 
 }  // namespace cpu

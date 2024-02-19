@@ -46,7 +46,7 @@ Byte *CpuTensorData::Slot::getRawData() const {
 
 CpuTensorData::CpuTensorData() : _numSlot(0) {}
 
-void CpuTensorData::readSlot(lut::ReadableFile *fp, int slotIdx) {
+void CpuTensorData::readSlot(lut::Reader *fp, int slotIdx) {
   CHECK(slotIdx < MaxSlot);
   Slot &slot = _slots[slotIdx];
 
@@ -94,7 +94,7 @@ std::shared_ptr<TensorData> CpuTensorData::create(
   return tensorData;
 }
 
-std::shared_ptr<TensorData> CpuTensorData::read(lut::ReadableFile *fp) {
+std::shared_ptr<TensorData> CpuTensorData::read(lut::Reader *fp) {
   std::shared_ptr<CpuTensorData> tensorData = std::make_shared<CpuTensorData>();
 
   if (fp->readString(4) != "tdat")

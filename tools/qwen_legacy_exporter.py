@@ -22,6 +22,8 @@ import argparse
 import torch
 import configparser
 import sys
+import zipfile
+import io
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
 from bpe_exporter import read_tiktoken_model
@@ -94,24 +96,19 @@ class QwenExporter(ModelExporter):
         return config
 
     @classmethod
-    def export(cls, llama2_model, output_prefix: str, quant: Quant):
-        model = llama2_model
-        config = llama2_model.config
-
-        quant_name = "fp32"
-        if quant != Quant.NONE:
-            quant_name = str(quant.name).lower()
+    def export(cls, qwen_model, fp, quant: Quant):
+        model = qwen_model
+        config = qwen_model.config
 
         ctx = Context("qwen", quant=quant)
-        bin_filename = f"{output_prefix}.{quant_name}.bin"
-        with TensorWriter(bin_filename) as writer:
+        with TensorWriter(fp) as writer:
             exporter = QwenExporter(writer)
             exporter._export_qwen(ctx, model)
 
         ini_config = cls.generate_config(config)
         ini_config["model"] = {}
         ini_config["model"]["type"] = "qwen"
-        ini_config["model"]["model_file"] = path.basename(bin_filename)
+        ini_config["model"]["model_file"] = path.basename(MODEL_BIN)
 
         return ini_config
 
@@ -125,6 +122,10 @@ def run_qwen(huggingface_name):
     print(response)
 
 MODEL_NAME = "Qwen/Qwen-1_8B-Chat"
+MODEL_BIN = "model.bin"
+MODEL_INI = "model.ini"
+TOKENIZER_BIN = "tokenizer.bin"
+TOKENIZER_INI = "tokenizer.ini"
 
 if __name__ == '__main__':
     from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -145,18 +146,22 @@ if __name__ == '__main__':
     model = AutoModelForCausalLM.from_pretrained(args.huggingface_name, device_map="auto", trust_remote_code=True).eval()
     model.to("cpu")
 
-    config = QwenExporter.export(model, output_prefix, args.quantization)
-    eot_token_id = tokenizer.special_tokens["<|endoftext|>"]
-    im_start_token_id = tokenizer.special_tokens["<|im_start|>"]
-    im_end_token_id = tokenizer.special_tokens["<|im_end|>"]
-    config["qwen"]["eot_token_id"] = str(eot_token_id)
-    config["qwen"]["im_start_token_id"] = str(im_start_token_id)
-    config["qwen"]["im_end_token_id"] = str(im_end_token_id)
+    with zipfile.ZipFile(args.output, "w", compression=zipfile.ZIP_STORED) as package:
+        with package.open(MODEL_BIN, "w", force_zip64=True) as fp:
+            config = QwenExporter.export(model, fp, args.quantization)
 
+        eot_token_id = tokenizer.special_tokens["<|endoftext|>"]
+        im_start_token_id = tokenizer.special_tokens["<|im_start|>"]
+        im_end_token_id = tokenizer.special_tokens["<|im_end|>"]
+        config["qwen"]["eot_token_id"] = str(eot_token_id)
+        config["qwen"]["im_start_token_id"] = str(im_start_token_id)
+        config["qwen"]["im_end_token_id"] = str(im_end_token_id)
+        with package.open(MODEL_INI, "w", force_zip64=True) as fp:
+            config.write(io.TextIOWrapper(fp))
 
-    libllm_tokenizer = read_tiktoken_model(tokenizer.tokenizer)
-    libllm_tokenizer.save(output_prefix + ".tokenizer.bin")
-    libllm_tokenizer.get_config().update_config(config, "tokenizer")
-
-    with open(output_prefix + ".config", "w") as fp:
-        config.write(fp)
+        libllm_tokenizer = read_tiktoken_model(tokenizer)
+        with package.open(TOKENIZER_BIN, "w", force_zip64=True) as fp:
+            libllm_tokenizer.save(fp)
+        
+        with package.open(TOKENIZER_INI, "w", force_zip64=True) as fp:
+            libllm_tokenizer.get_config().to_ini(TOKENIZER_BIN).write(io.TextIOWrapper(fp))

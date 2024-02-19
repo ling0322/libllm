@@ -39,6 +39,7 @@ class Path {
 
   Path dirname() const;
   Path basename() const;
+  std::string extension() const;
   bool isabs() const;
 
   Path operator/(const Path &path) const;

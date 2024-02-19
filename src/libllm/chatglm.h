@@ -145,11 +145,12 @@ class ChatGlmModel : public Module {
 
 class ChatGlmModelForGeneration : public ModelForGeneration {
  public:
-  static std::shared_ptr<ChatGlmModelForGeneration> create(
+  static std::shared_ptr<ChatGlmModelForGeneration> fromConfig(
       const Context &ctx,
       const lut::IniConfig &config);
 
   // implements interface ModelForGeneration
+  void initParameters(const StateMap &state_dict) override;
   Tensor forward(StateMap &past, Tensor input) const override;
   Tensor forwardHidden(Tensor hidden) const override;
   Tensor buildInput(const std::vector<LongType> &prompt) const override;

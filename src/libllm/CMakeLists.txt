@@ -16,7 +16,8 @@ set(lut_SOURCES
     "lut/random.cc"
     "lut/reader.cc"
     "lut/strings.cc"
-    "lut/time.cc")
+    "lut/time.cc"
+    "lut/zip_file.cc")
 
 set(libllm_SOURCES
     "cpu/kernel/kernel_avx2.cc"
@@ -52,7 +53,7 @@ set(libllm_SOURCES
     "functional.cc"
     "generator.cc"
     "llama.cc"
-    "model_factory.cc"
+    "model_for_generation.cc"
     "module.cc"
     "operators.cc"
     "qwen.cc"
@@ -143,7 +144,8 @@ endif(UNIX)
 
 add_library(lut STATIC ${lut_SOURCES})
 set_target_properties(lut PROPERTIES CXX_VISIBILITY_PRESET hidden)
-target_include_directories(lut PRIVATE "..")
+target_include_directories(lut PRIVATE ".." "../../third_party/")
+
 
 set(libllm_LIBADD
     lut

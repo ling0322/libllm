@@ -62,7 +62,7 @@ class Api(Structure):
 
         ("createModel", CFUNC_P),
         ("destroyModel", CFUNC_IP),
-        ("setModelConfig", CFUNC_IPS),
+        ("setModelFile", CFUNC_IPS),
         ("setModelDevice", CFUNC_IPI),
         ("loadModel", CFUNC_IP),
         ("getModelName", CFUNC_PP),
@@ -113,7 +113,7 @@ get_last_error_message = _api.contents.getLastErrorMessage
 
 create_model = _rp(_api.contents.createModel)
 destroy_model = _rc(_api.contents.destroyModel)
-set_model_config = _rc(_api.contents.setModelConfig)
+set_model_file = _rc(_api.contents.setModelFile)
 set_model_device = _rc(_api.contents.setModelDevice)
 load_model = _rc(_api.contents.loadModel)
 get_model_name = _rp(_api.contents.getModelName)

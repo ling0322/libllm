@@ -31,23 +31,37 @@ namespace lut {
 
 IniConfig::IniConfig() {}
 
-std::unique_ptr<IniConfig> IniConfig::read(const std::string &filename) {
-  std::unique_ptr<IniConfig> config{new IniConfig()};
+std::shared_ptr<IniConfig> IniConfig::fromFile(const std::string &filename) {
+  std::shared_ptr<IniConfig> config{new IniConfig()};
   config->_filename = filename;
 
-  auto fp = ReadableFile::open(filename);
-  Scanner scanner{fp.get()};
+  std::shared_ptr<Reader> reader = lut::ReadableFile::open(filename);
+  config->readStream(reader.get());
+
+  return config;
+}
+
+std::shared_ptr<IniConfig> IniConfig::fromStream(lut::Reader *reader) {
+  std::shared_ptr<IniConfig> config{new IniConfig()};
+  config->readStream(reader);
+
+  return config;
+}
+
+void IniConfig::readStream(lut::Reader *fp) {
+  _table.clear();
 
   enum State {
     kBegin,
     kSelfLoop,
   };
 
-  Path ini_dir = Path(filename).dirname();
-  IniSection section{ini_dir};
+  Path iniDir = Path(_filename).dirname();
+  IniSection section{iniDir};
   State state = kBegin;
-  while (scanner.scan()) {
-    std::string line = lut::trim(scanner.getText());
+  std::string line;
+  while ((line = fp->readLine()) != "") {
+    line = lut::trim(line);
     if (state == kBegin) {
       if (isEmptyLine(line)) {
         // self-loop
@@ -61,8 +75,8 @@ std::unique_ptr<IniConfig> IniConfig::read(const std::string &filename) {
       if (isEmptyLine(line)) {
         // do nothing.
       } else if (isHeader(line)) {
-        config->_table.emplace(section.getName(), std::move(section));
-        section = IniSection{ini_dir};
+        _table.emplace(section.getName(), std::move(section));
+        section = IniSection{iniDir};
         section._name = parseHeader(line);
       } else {
         std::string key, value;
@@ -78,16 +92,13 @@ std::unique_ptr<IniConfig> IniConfig::read(const std::string &filename) {
     throw AbortedError("ini file is empty.");
   }
 
-  config->_table.emplace(section.getName(), std::move(section));
-
-  return config;
+  _table.emplace(section.getName(), std::move(section));
 }
 
 bool IniConfig::hasSection(const std::string &section) const {
   auto it = _table.find(section);
   return it != _table.end();
 }
-
 
 const IniSection &IniConfig::getSection(const std::string &name) const {
   auto it = _table.find(name);

@@ -21,6 +21,7 @@
 
 #include <limits>
 #include "libllm/lut/error.h"
+#include "libllm/lut/reader.h"
 #include "libllm/lut/strings.h"
 
 namespace libllm {
@@ -29,18 +30,15 @@ BPEModel::BPEModel() : _unkId(kInvalidToken), _isByteTokenAvailable(false) {
   std::fill(_byteId.begin(), _byteId.end(), kInvalidToken);
 }
 
-std::unique_ptr<BPEModel> BPEModel::create(const std::string &filename) {
-  std::unique_ptr<BPEModel> model(new BPEModel());
-  LOG(INFO) << "read tokenizer from " << filename;
+std::shared_ptr<BPEModel> BPEModel::fromStream(lut::Reader *reader) {
+  std::shared_ptr<BPEModel> model(new BPEModel());
 
-  auto fp = lut::ReadableFile::open(filename);
-
-  model->readModel(fp.get());
+  model->readModel(reader);
   model->checkModel();
   return model;
 }
 
-void BPEModel::readModel(lut::ReadableFile *fp) {
+void BPEModel::readModel(lut::Reader *fp) {
   std::string s = fp->readString(4);
   if (s != "LLsp") {
     throw lut::AbortedError("bad format (header)");
@@ -62,7 +60,7 @@ void BPEModel::readModel(lut::ReadableFile *fp) {
   initModel();
 }
 
-void BPEModel::readMagicNumber(lut::ReadableFile *fp) {
+void BPEModel::readMagicNumber(lut::Reader *fp) {
   // ensure magic number
   int16_t magic_number = fp->readValue<int16_t>();
   if (magic_number != kMagicNumber) {
@@ -103,7 +101,7 @@ void BPEModel::initModel() {
   _spaceId = itSpace->second->id;
 }
 
-BPEModel::TokenInfo BPEModel::readRecord(lut::ReadableFile *fp) {
+BPEModel::TokenInfo BPEModel::readRecord(lut::Reader *fp) {
   TokenInfo info;
   info.flag = fp->readValue<int8_t>();
 

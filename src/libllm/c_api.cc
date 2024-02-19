@@ -10,7 +10,6 @@
 #include "libllm/chatglm.h"
 #include "libllm/dtype.h"
 #include "libllm/functional.h"
-#include "libllm/model_factory.h"
 #include "libllm/generator.h"
 #include "libllm/model_for_generation.h"
 #include "libllm/operators.h"
@@ -18,12 +17,12 @@
 #include "libllm/lut/error.h"
 #include "libllm/lut/ini_config.h"
 #include "libllm/lut/log.h"
+#include "libllm/lut/zip_file.h"
 
 using libllm::Context;
 using libllm::LongType;
 using libllm::Generator;
 using libllm::GenerationConfig;
-using libllm::ModelFactory;
 using libllm::ModelForGeneration;
 using libllm::chatglm::ChatGlmConfig;
 using libllm::chatglm::ChatGlmModel;
@@ -157,7 +156,7 @@ llmStatus_t destroyModel(llmModel_t *model) {
   return LLM_OK;
 }
 
-llmStatus_t setModelConfig(llmModel_t *model, const char *filename) {
+llmStatus_t setModelFile(llmModel_t *model, const char *filename) {
   return runAndCatch([model, filename](){
     if (!model) throw lut::InvalidArgError("model");
     if (!filename) throw lut::InvalidArgError("filename");
@@ -179,14 +178,15 @@ llmStatus_t setModelDevice(llmModel_t *model, int32_t device) {
 llmStatus_t loadModel(llmModel_t *model) {
   return runAndCatch([model](){
     if (!model) throw lut::InvalidArgError("model");
-    if (model->configFile.empty()) throw lut::InvalidArgError("model_config not set");
+    if (model->configFile.empty()) throw lut::InvalidArgError("model file not set.");
 
-    std::unique_ptr<IniConfig> ini = IniConfig::read(model->configFile);
+    LOG(INFO) << "read model package: " << model->configFile;
+    std::shared_ptr<lut::ZipFile> package = lut::ZipFile::fromFile(model->configFile);
 
     model->ctx.setDevice(getDeviceFromApi(model->device));
     model->ctx.setFloatDType(F::getDefaultFloatType(model->ctx.getDevice()));
-    model->tokenizer = Tokenizer::create(ini->getSection("tokenizer"));
-    model->model_for_generation = ModelFactory::createModel(model->ctx, *ini);
+    model->tokenizer = Tokenizer::fromPackage(package.get());
+    model->model_for_generation = ModelForGeneration::fromPackage(model->ctx, package.get());
   
     return LLM_OK;
   });
@@ -382,7 +382,7 @@ llmApi_t gApi{
   getLastErrorMessage,
   createModel,
   destroyModel,
-  setModelConfig,
+  setModelFile,
   setModelDevice,
   loadModel,
   getModelName,

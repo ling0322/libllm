@@ -25,32 +25,14 @@
 
 namespace lut {
 
-std::vector<int8_t> readFile(const std::string &filename) {
-  std::vector<int8_t> data;
-  std::vector<int8_t> chunk(4096);
+// -- class Reader -------------------------------------------------------------------------
 
-  auto fp = ReadableFile::open(filename);
-
-  for (; ; ) {
-    int64_t cbytes = fp->read(makeSpan(chunk));
-    if (cbytes) {
-      data.insert(data.end(), chunk.begin(), chunk.begin() + cbytes);
-    } else {
-      break;
-    }
-  }
-
-  return data;
-}
-
-// -- class BufferedReader -------------------------------------------------------------------------
-
-BufferedReader::BufferedReader(int buffer_size)
+Reader::Reader(int buffer_size)
     : _buffer(buffer_size), 
       _w(0),
       _r(0) {}
 
-int64_t BufferedReader::readFromBuffer(Span<int8_t> dest) {
+int64_t Reader::readFromBuffer(Span<int8_t> dest) {
   int64_t n = std::min(static_cast<int64_t>(dest.size()), _w - _r);
 
   int8_t *begin = _buffer.begin() + _r;
@@ -60,16 +42,16 @@ int64_t BufferedReader::readFromBuffer(Span<int8_t> dest) {
   return n;
 }
 
-int64_t BufferedReader::readNextBuffer() {
+int64_t Reader::readNextBuffer() {
   CHECK(_w - _r == 0);
   _r = 0;
   _w = 0;
-  _w = read(makeSpan(_buffer));
+  _w = readData(makeSpan(_buffer));
 
   return _w;
 }
 
-void BufferedReader::readSpan(Span<int8_t> span) {
+void Reader::readSpan(Span<int8_t> span) {
   Span<int8_t>::iterator it = span.begin();
 
   int64_t bytesRead = readFromBuffer(span);
@@ -84,7 +66,7 @@ void BufferedReader::readSpan(Span<int8_t> span) {
   }
 }
 
-std::string BufferedReader::readString(int n) {
+std::string Reader::readString(int n) {
   CHECK(n > 0);
   if (n == 0) return "";
 
@@ -92,6 +74,27 @@ std::string BufferedReader::readString(int n) {
   readSpan(makeSpan(buffer));
 
   return std::string(buffer.begin(), buffer.end());
+}
+
+std::string Reader::readLine() {
+  std::string line;
+
+  int8_t ch;
+  for (; ; ) {
+    if (_w - _r == 0) {
+      int64_t n = readNextBuffer();
+
+      // on EOF.
+      if (!n) return line;
+    }
+
+    ch = _buffer[_r];
+    ++_r;
+    line.push_back(ch);
+    if (ch == '\n') return line;
+  }
+
+  NOT_IMPL();
 }
 
 // -- class ReadableFile ---------------------------------------------------------------------------
@@ -114,7 +117,7 @@ std::unique_ptr<ReadableFile> ReadableFile::open(const std::string &filename) {
   return fp;
 }
 
-int64_t ReadableFile::read(Span<int8_t> buffer) {
+int64_t ReadableFile::readData(Span<int8_t> buffer) {
   CHECK(buffer.size() != 0);
   size_t n = fread(buffer.data(), sizeof(int8_t), buffer.size(), _fp);
 
@@ -123,53 +126,6 @@ int64_t ReadableFile::read(Span<int8_t> buffer) {
   }
 
   return n;
-}
-
-// -- class Scanner --------------------------------------------------------------------------------
-
-Scanner::Scanner(Reader *reader) : _reader(reader), _buffer(BufferSize) {}
-
-bool Scanner::scan() {
-  _text.clear();
-
-  for (; ; ) {
-    if (_bufferSpan.empty()) {
-      bool ok = readBuffer();
-      if (!ok) {
-        return !_text.empty();
-      }
-    }
-
-    auto it = _bufferSpan.begin();
-    for (; it < _bufferSpan.end() && *it != '\n'; ++it) {
-    }
-    if (it != _bufferSpan.end()) {
-      _text.insert(_text.end(), _bufferSpan.begin(), it);
-      _bufferSpan = _bufferSpan.subspan(it - _bufferSpan.begin() + 1);
-      return true;
-    } else {
-      _text.insert(_text.end(), _bufferSpan.begin(), _bufferSpan.end());
-      _bufferSpan = Span<int8_t>();
-    }
-  }
-
-  // will not reach here.
-  NOT_IMPL();
-  return false;
-}
-
-const std::string &Scanner::getText() const {
-  return _text;
-}
-
-bool Scanner::readBuffer() {
-  int64_t n = _reader->read(makeSpan(_buffer));
-  if (!n) {
-    return false;
-  }
-
-  _bufferSpan = makeSpan(_buffer.data(), n);
-  return true;
 }
 
 } // namespace lut

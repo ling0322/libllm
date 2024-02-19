@@ -29,18 +29,19 @@
 namespace libllm {
 
 constexpr int Vocab::kInvalidToken;
+constexpr char Tokenizer::ConfigFile[];
 
 // BPE tokenizer.
 class BPETokenizer : public Tokenizer {
  public:
-  static std::unique_ptr<BPETokenizer> create(const BPEConfig &config);
+  static std::unique_ptr<BPETokenizer> fromStream(lut::Reader *fp, BPEConfig config);
 
   // implement interface Tokenizer
   std::vector<int> encode(const std::string &s) const override;
   const Vocab *getVocab() const override;
 
  private:
-  std::unique_ptr<BPEModel> _model;
+  std::shared_ptr<BPEModel> _model;
   BPEConfig _config;
 
   BPETokenizer();
@@ -48,11 +49,9 @@ class BPETokenizer : public Tokenizer {
 
 BPETokenizer::BPETokenizer() {}
 
-std::unique_ptr<BPETokenizer> BPETokenizer::create(const BPEConfig &config) {
-  auto model = BPEModel::create(config.modelFile);
-
+std::unique_ptr<BPETokenizer> BPETokenizer::fromStream(lut::Reader *reader, BPEConfig config) {
   std::unique_ptr<BPETokenizer> tokenizer{new BPETokenizer()};
-  tokenizer->_model = std::move(model);
+  tokenizer->_model = BPEModel::fromStream(reader);
   tokenizer->_config = config;
 
   return tokenizer;
@@ -69,12 +68,15 @@ const Vocab *BPETokenizer::getVocab() const {
 
 // -- class Tokenizer ----------
 
-std::unique_ptr<Tokenizer> Tokenizer::create(const lut::IniSection &config) {
-  std::string type = config.getString("type");
-  if (type == "bpe") {
-    auto bpe_config = BPEConfig::fromIni(config);
+std::shared_ptr<Tokenizer> Tokenizer::fromPackage(lut::ZipFile *package) {
+  std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(
+      package->open(ConfigFile).get());
 
-    return BPETokenizer::create(*bpe_config);
+  lut::IniSection tokenizerSection = ini->getSection("tokenizer");
+  std::string type = tokenizerSection.getString("type");
+  if (type == "bpe") {
+    BPEConfig config = BPEConfig::fromIni(tokenizerSection);
+    return BPETokenizer::fromStream(package->open(config.modelFile).get(), config);
   } else {
     throw lut::AbortedError(lut::sprintf("invalid tokenizer type: %s", type));
   }

@@ -61,7 +61,7 @@ typedef struct llmApi_t {
   // llmModel_t
   llmModel_t *(*createModel)();
   llmStatus_t (*destroyModel)(llmModel_t *model);
-  llmStatus_t (*setModelConfig)(llmModel_t *model, const char *filename);
+  llmStatus_t (*setModelFile)(llmModel_t *model, const char *filename);
   llmStatus_t (*setModelDevice)(llmModel_t *model, int32_t device);
   llmStatus_t (*loadModel)(llmModel_t *model);
   const char *(*getModelName)(llmModel_t *model);

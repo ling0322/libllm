@@ -253,7 +253,7 @@ inline std::shared_ptr<Model> ModelFactory::createModel(const std::string &confi
                                                         DeviceType device) {
   std::shared_ptr<llmModel_t> pModel(_api->createModel(), _api->destroyModel);
   int32_t dwDevice = static_cast<int32_t>(device);
-  if (LLM_OK != _api->setModelConfig(pModel.get(), config.c_str())) internal::throwLastError(_api);
+  if (LLM_OK != _api->setModelFile(pModel.get(), config.c_str())) internal::throwLastError(_api);
   if (LLM_OK != _api->setModelDevice(pModel.get(), dwDevice)) internal::throwLastError(_api);
   if (LLM_OK != _api->loadModel(pModel.get())) internal::throwLastError(_api);
 

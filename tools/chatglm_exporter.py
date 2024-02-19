@@ -18,7 +18,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import configparser
-import sys
+import zipfile
+import io
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
 from bpe_exporter import read_spm_model, Token
@@ -65,52 +66,47 @@ class ChatGLMExporter(ModelExporter):
         self._write(ctx.with_subname("weight").with_quant(Quant.NONE), module.weight)
 
     @classmethod
-    def generate_config(cls, chatglm2_config, model_name) -> configparser.ConfigParser:
+    def generate_config(cls, chatglm_config, model_name) -> configparser.ConfigParser:
         config = configparser.ConfigParser()
         config[model_name] = {}
         
-        chatglm2_section = config[model_name]
-        chatglm2_section["hidden_size"] = str(chatglm2_config.hidden_size)
-        chatglm2_section["vocab_size"] = str(chatglm2_config.padded_vocab_size)
-        chatglm2_section["kv_channels"] = str(chatglm2_config.kv_channels)
-        chatglm2_section["seq_length"] = str(chatglm2_config.seq_length)
-        chatglm2_section["hidden_size_per_attention_head"] = str(chatglm2_config.kv_channels)
-        chatglm2_section["multi_query_group_num"] = str(chatglm2_config.multi_query_group_num)
-        chatglm2_section["norm_eps"] = str(chatglm2_config.layernorm_epsilon)
-        chatglm2_section["ffn_hidden_size"] = str(chatglm2_config.ffn_hidden_size)
-        chatglm2_section["num_layers"] = str(chatglm2_config.num_layers)
-        chatglm2_section["symbol_gmask"] = str(64790)
-        chatglm2_section["symbol_sop"] = str(64792)
-        chatglm2_section["symbol_eos"] = str(2)
+        section = config[model_name]
+        section["hidden_size"] = str(chatglm_config.hidden_size)
+        section["vocab_size"] = str(chatglm_config.padded_vocab_size)
+        section["kv_channels"] = str(chatglm_config.kv_channels)
+        section["seq_length"] = str(chatglm_config.seq_length)
+        section["hidden_size_per_attention_head"] = str(chatglm_config.kv_channels)
+        section["multi_query_group_num"] = str(chatglm_config.multi_query_group_num)
+        section["norm_eps"] = str(chatglm_config.layernorm_epsilon)
+        section["ffn_hidden_size"] = str(chatglm_config.ffn_hidden_size)
+        section["num_layers"] = str(chatglm_config.num_layers)
+        section["symbol_gmask"] = str(64790)
+        section["symbol_sop"] = str(64792)
+        section["symbol_eos"] = str(2)
 
         return config
 
     @classmethod
-    def export(cls, chatglm_model, output_prefix: str, quant: Quant) -> configparser.ConfigParser:
+    def export(cls, chatglm_model, fp, quant: Quant) -> configparser.ConfigParser:
         model = chatglm_model.base_model
         config = chatglm_model.config
 
-        assert config.rmsnorm == True
-        assert config.add_qkv_bias == True
-        assert config.add_bias_linear == False
-        assert config.post_layer_norm == True
-        assert config.apply_residual_connection_post_layernorm == False
-
-        quant_name = "fp32"
-        if quant != Quant.NONE:
-            quant_name = str(quant.name).lower()
-
-        ctx = Context("chatglm", quant=quant)
-        bin_filename = f"{output_prefix}.{quant_name}.bin"
-        with TensorWriter(bin_filename) as writer:
+        ctx = Context("chatglm3", quant=quant)
+        with TensorWriter(fp) as writer:
             exporter = ChatGLMExporter(writer)
-            exporter.export_chatglm(ctx, model)        
+            exporter.export_chatglm(ctx, model)
 
-        ini_config = cls.generate_config(config, model_name)
+        ini_config = cls.generate_config(config, "chatglm")
         ini_config["model"] = {}
-        ini_config["model"]["model_file"] = path.basename(bin_filename)
+        ini_config["model"]["type"] = "chatglm3"
+        ini_config["model"]["model_file"] = path.basename(MODEL_BIN)
 
         return ini_config
+
+MODEL_BIN = "model.bin"
+MODEL_INI = "model.ini"
+TOKENIZER_BIN = "tokenizer.bin"
+TOKENIZER_INI = "tokenizer.ini"
 
 if __name__ == '__main__':
     from transformers import AutoTokenizer, AutoModel
@@ -118,46 +114,35 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='export ChatGLM model from huggingface to libllm format.')
     parser.add_argument('-huggingface_name', type=str, help='the ChatGLM model name in huggingface.', default="THUDM/chatglm3-6b")
-    parser.add_argument('-chatglm_version', type=int, help='version of the ChatGLM model, for example, 3 for chatglm3.', default=0)
     parser.add_argument('-quantization', type=Quant.parse, help='quantization type, "q4" or "none"', default=Quant.Q4)
-    parser.add_argument('-output_dir', type=str, help='output directory name, files will be written to this directory with prefix <name>.', default=".")
+    parser.add_argument('-output', type=str, help='output model package.', default="chatglm.llmpkg")
     args = parser.parse_args()
     
     huggingface_name = args.huggingface_name
-    model_name = "chatglm"
-    model_version = args.chatglm_version
-    if model_version == 0:
-        if huggingface_name[: 6] == "THUDM/":
-            name = huggingface_name[6: ].split("-")[0]
-            if name == "chatglm2":
-                model_version = 2
-            elif name == "chatglm3":
-                model_version = 3
-    if model_version == 0:
-        print("Unable to infer model version from huggingface_name, please specify it by -name. For example, -name chatglm3-6b")
-        sys.exit(1)
-
-    model_type = model_name + str(model_version)
-    output_prefix = path.join(args.output_dir, model_type)
+    model_type = "chatglm3"
     quant = args.quantization
 
     model = AutoModel.from_pretrained(huggingface_name, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(huggingface_name, trust_remote_code=True)
+
     model = model.eval()
 
-    config = ChatGLMExporter.export(model, output_prefix, quant)
-    config["model"]["type"] = model_type
-    lytok_model = read_spm_model(huggingface_name)
-    if model_version == 3:
-        tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm3-6b", trust_remote_code=True)
+    with zipfile.ZipFile(args.output, "w", compression=zipfile.ZIP_STORED) as package:
+        with package.open(MODEL_BIN, "w", force_zip64=True) as fp:
+            config = ChatGLMExporter.export(model, fp, args.quantization)
+
+        with package.open(MODEL_INI, "w", force_zip64=True) as fp:
+            config.write(io.TextIOWrapper(fp))
+
+        libllm_tokenizer = read_spm_model(args.huggingface_name)
         special_tokens = tokenizer.tokenizer.special_tokens
         special_tokens = list(special_tokens.items())
         special_tokens.sort(key=lambda t: t[1])
         for name, token_id in special_tokens:
             print(f"add control token: {token_id} {name}")
-            lytok_model.add_token(Token(token_id, Token.FLAG_CONTROL, piece_display=name, weight=-100.0))
-
-    lytok_model.save(output_prefix + ".tokenizer.bin")
-    lytok_model.get_config().update_config(config, "tokenizer")
-
-    with open(output_prefix + ".config", "w") as fp:
-        config.write(fp)
+            libllm_tokenizer.add_token(Token(token_id, Token.FLAG_CONTROL, piece_display=name, weight=-100.0))
+        with package.open(TOKENIZER_BIN, "w", force_zip64=True) as fp:
+            libllm_tokenizer.save(fp)
+        
+        with package.open(TOKENIZER_INI, "w", force_zip64=True) as fp:
+            libllm_tokenizer.get_config().to_ini(TOKENIZER_BIN).write(io.TextIOWrapper(fp))

@@ -20,17 +20,25 @@
 #pragma once
 
 #include <memory>
-#include "libllm/lut/ini_config.h"
-#include "libllm/context.h"
-#include "libllm/model_for_generation.h"
+#include "libllm/lut/reader.h"
 
-namespace libllm {
+namespace lut {
 
-class ModelFactory {
+class ZipFile {
  public:
-  // create model from ini.
-  static std::shared_ptr<ModelForGeneration> createModel(const Context &ctx,
-                                                         const lut::IniConfig &config);
+  static std::shared_ptr<ZipFile> fromFile(const std::string &filename);
+
+  ZipFile(ZipFile &) = delete;
+  ZipFile operator=(ZipFile &) = delete;
+
+  std::shared_ptr<Reader> open(const std::string &filename) const;
+
+ private:
+  class Impl;
+  class FileReader;
+
+  std::shared_ptr<Impl> _impl;
+  ZipFile() = default;
 };
 
-}  // namespace libllm
+} // namespace lut

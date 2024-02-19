@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(libllm LANGUAGES CXX)
+project(libllm LANGUAGES CXX C)
 
 option(WITH_CUDA "CUDA compute support." OFF)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
@@ -44,7 +44,8 @@ if(WIN32)
 endif(WIN32)
 if(UNIX)
   add_definitions( "-DCATCH_AMALGAMATED_CUSTOM_MAIN -DCATCH_CONFIG_PREFIX_ALL" )
-  set(CMAKE_CXX_FLAGS "-O3 -g")
+  set(CMAKE_CXX_FLAGS "-O0 -g")
+  set(CMAKE_C_FLAGS "-O0 -g")
 endif(UNIX)
 
 add_subdirectory("src/libllm")
