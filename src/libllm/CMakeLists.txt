@@ -60,7 +60,8 @@ set(libllm_SOURCES
     "sampler.cc"
     "state_map.cc"
     "tensor.cc"
-    "tokenizer.cc")
+    "tokenizer.cc"
+    "../../third_party/ruapu/ruapu.cc")
 
 set(unittest_SOURCES
     "cpu/kernel/test.cc"
@@ -77,7 +78,7 @@ set(llm_SOURCES
     "dialog_manager.cc"
     "llm_main.cc")
 
-set(libllm_INCDIR "..")
+set(libllm_INCDIR ".." "../../third_party")
 
 if (WITH_CUDA)
     set(libllm_INCDIR ${libllm_INCDIR} ${CUDAToolkit_INCLUDE_DIRS})
