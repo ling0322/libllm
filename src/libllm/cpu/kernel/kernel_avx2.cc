@@ -63,10 +63,13 @@
 // | 0 | A |  | 0 | B |
 // +---+---+  +---+---+
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
-#if LYMATH_MSVC
-inline float lymath_cvtsh_ss(Fp16 sh) {
+#if LIBLLM_KERNEL_MSVC
+inline float libllm_cvtsh_ss(Fp16 sh) {
   __m128h shx8;
   shx8.m128i_u16[0] = sh;
 
@@ -75,7 +78,7 @@ inline float lymath_cvtsh_ss(Fp16 sh) {
 }
 #endif
 
-LYMATH_FORCE_INLINE float hsum(__m256 ymm) {
+LIBLLM_KERNEL_FORCE_INLINE float hsum(__m256 ymm) {
   __m128 x = _mm256_castps256_ps128(ymm);
   x = _mm_add_ps(x, _mm256_extractf128_ps(ymm, 1));
   x = _mm_add_ps(x, _mm_movehl_ps(x, x));
@@ -242,36 +245,36 @@ float SDotAvx2Kernel::applyRow(const SGEMVArgs &args, int row) {
   return apply(args.N, args.A + row * args.lda, args.x);
 }
 
-LYMATH_FORCE_INLINE __m256i loadNibble32ToByte32(const void *nibbleAddr) {
+LIBLLM_KERNEL_FORCE_INLINE __m256i loadNibble32ToByte32(const void *nibbleAddr) {
   __m256i vbyte = _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)nibbleAddr)); 
   vbyte = _mm256_or_si256(_mm256_slli_epi16(vbyte, 4), vbyte); 
   vbyte = _mm256_and_si256(vbyte, _mm256_set1_epi8(0xf));
   return vbyte;
 }
 
-LYMATH_FORCE_INLINE float half2float(Fp16 half) {
-#if LYMATH_MSVC
-  return lymath_cvtsh_ss(half);
+LIBLLM_KERNEL_FORCE_INLINE float half2float(Fp16 half) {
+#if LIBLLM_KERNEL_MSVC
+  return libllm_cvtsh_ss(half);
 #else
   return _cvtsh_ss(half);
 #endif
 }
 
-LYMATH_FORCE_INLINE __m256 extractFloat8FromByte32Block0(__m256i src) {
+LIBLLM_KERNEL_FORCE_INLINE __m256 extractFloat8FromByte32Block0(__m256i src) {
   return _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm256_extracti128_si256(src, 0)));
 }
 
-LYMATH_FORCE_INLINE __m256 extractFloat8FromByte32Block1(__m256i src) {
+LIBLLM_KERNEL_FORCE_INLINE __m256 extractFloat8FromByte32Block1(__m256i src) {
   return _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm_srli_si128(
       _mm256_extracti128_si256(src, 0),
       8)));
 }
 
-LYMATH_FORCE_INLINE __m256 extractFloat8FromByte32Block2(__m256i src) {
+LIBLLM_KERNEL_FORCE_INLINE __m256 extractFloat8FromByte32Block2(__m256i src) {
   return _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm256_extracti128_si256(src, 1)));
 }
 
-LYMATH_FORCE_INLINE __m256 extractFloat8FromByte32Block3(__m256i src) {
+LIBLLM_KERNEL_FORCE_INLINE __m256 extractFloat8FromByte32Block3(__m256i src) {
   return _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm_srli_si128(
       _mm256_extracti128_si256(src, 1),
       8)));
@@ -525,4 +528,7 @@ void CvtHalfToFloatAvx2Kernel::apply(int64_t n, PCFp16 x, PFp32 y) {
   }
 }
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

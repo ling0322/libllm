@@ -26,7 +26,10 @@
 #include "libllm/cpu/kernel/common.h"
 #include "libllm/cpu/kernel/util.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 template<typename TArgs, class TSAxpyKernel, class TSDotKernel, Mode MODE>
 class GEMVCommon {
@@ -136,4 +139,7 @@ void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYTransA(
   }
 }
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

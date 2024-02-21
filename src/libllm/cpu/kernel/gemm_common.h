@@ -22,7 +22,10 @@
 #include "libllm/cpu/kernel/common.h"
 #include "libllm/lut/time.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 // block is a sub area of a matrix.
 struct Block {
@@ -336,4 +339,7 @@ inline void GEMMCommon<MC, KC, NC, TKernel, MODE>::Apply(
   split0ByNC();
 }
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

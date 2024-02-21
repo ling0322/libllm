@@ -25,7 +25,10 @@
 #include "libllm/lut/log.h"
 
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 
 struct AxpyQ4NotImplKernel {
@@ -52,4 +55,7 @@ struct DequantQ4FallbackKernel {
   static void apply(int n, DataQ4 x, int64_t offsetX, PFp32 y);
 };
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

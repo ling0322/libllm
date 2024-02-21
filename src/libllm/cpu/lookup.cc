@@ -56,11 +56,11 @@ Tensor lookupFp32(Subtensor<const float> table, Subtensor<const LongType> indice
 template<>
 void applyDequant<Q4>(
   int64_t offset, int n, const TensorData *data, float *tgt) {
-  lymath_dequant_q4(
+  kernel::dequantQ4(
       n,
-      (const lymath_q4x2_t *)data->getData<Q4>(),
-      (const lymath_float16_t *)data->getSlot(1)->getData<Float16>(),
-      (const uint8_t *)data->getSlot(2)->getData<UInt8>(),
+      (const kernel::Q4x2 *)data->getData<Q4>(),
+      (const kernel::Fp16 *)data->getSlot(1)->getData<Float16>(),
+      (const kernel::UInt8 *)data->getSlot(2)->getData<UInt8>(),
       offset,
       tgt);
 }

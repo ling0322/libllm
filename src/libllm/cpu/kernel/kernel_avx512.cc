@@ -22,7 +22,10 @@
 
 #include "libllm/cpu/kernel/skernel.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 void SGemm12x32Avx512Kernel::apply(int64_t kc, float *a, float *b, float *c, int64_t rs_c) {
   // a: kc x MR
@@ -191,4 +194,7 @@ void SGemm12x32Avx512Kernel::apply(int64_t kc, float *a, float *b, float *c, int
   pc += rs_c;
 }
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

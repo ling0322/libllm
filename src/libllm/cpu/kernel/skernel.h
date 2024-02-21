@@ -23,7 +23,10 @@
 #include <memory>
 #include "libllm/cpu/kernel/args.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 // -- avx512 kernels ---------
 void sgemmKernel12x32Avx512(int64_t kc, float *a, float *b, float *c, int64_t rs_c);
@@ -80,4 +83,7 @@ struct SDotAvx2Kernel {
   static float applyRow(const SGEMVArgs &args, int row);
 };
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

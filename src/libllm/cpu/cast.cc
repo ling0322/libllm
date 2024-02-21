@@ -51,9 +51,10 @@ Tensor cast(Tensor A, DType dtype) {
 Tensor castFp16ToFp32(Tensor A) {
   CHECK(A.isContiguous()) << "unable to cast a non-contiguous half tensor to float";
   Tensor C = op::cpu::tensor(A.getShape(), DType::kFloat);
-  lymath_half2float(A.getNumEl(),
-                    reinterpret_cast<const lymath_float16_t *>(A.getData<Float16>()),
-                    C.getData<float>());
+  kernel::convertHalfToFloat(
+      A.getNumEl(),
+      reinterpret_cast<const kernel::Fp16 *>(A.getData<Float16>()),
+      C.getData<float>());
   
   return C;
 }

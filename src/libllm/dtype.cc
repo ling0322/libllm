@@ -20,6 +20,7 @@
 #include "libllm/dtype.h"
 
 #include "libllm/lut/log.h"
+#include "libllm/lut/strings.h"
 
 #ifdef LIBLLM_CUDA_ENABLED
 #include <cuda_fp16.h>
@@ -145,6 +146,8 @@ std::string DType::toString() const {
   switch (_dtype) {
     case DType::kFloat:
       return "float32";
+    case DType::kFloat16:
+      return "float16";
     case DType::kLong:
       return "int64";
     case DType::kUInt8:
@@ -154,8 +157,7 @@ std::string DType::toString() const {
     case DType::kInt8:
       return "int8";
     default:
-      NOT_IMPL();
-      return "";
+      return lut::sprintf("unknown(%d)", int(_dtype));
   }
 }
 

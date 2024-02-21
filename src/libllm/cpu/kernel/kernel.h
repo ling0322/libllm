@@ -21,61 +21,69 @@
 
 #include <stdint.h>
 
-typedef uint8_t lymath_q4x2_t;
-typedef uint16_t lymath_float16_t;
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
-void lymath_init();
-void lymath_destroy();
+typedef uint16_t Fp16;
+typedef int8_t Int8;
+typedef uint8_t UInt8;
+typedef float Fp32;
+typedef uint8_t Q4x2;
 
-void lymath_sgemm(
+enum class Mode {
+  OMP,
+  SingleThread,
+  Auto
+};
+
+void init();
+void destroy();
+
+void sgemm(
     bool transA,
     bool transB,
     int M,
     int N,
     int K,
-    const float *A,
+    const Fp32 *A,
     int lda,
-    const float *B,
+    const Fp32 *B,
     int ldb,
-    float *C,
-    int ldc);
+    Fp32 *C,
+    int ldc,
+    Mode mode = Mode::Auto);
 
-void lymath_sgemm_omp(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const float *A,
-    int lda,
-    const float *B,
-    int ldb,
-    float *C,
-    int ldc);
-
-void lymath_dequant_q4(
+void dequantQ4(
     int n,
-    const lymath_q4x2_t *data,
-    const lymath_float16_t *scale,
-    const uint8_t *zeroPoint,
+    const Q4x2 *data,
+    const Fp16 *scale,
+    const UInt8 *zeroPoint,
     int offset,
-    float *tgt);
+    Fp32 *tgt,
+    Mode mode = Mode::Auto);
 
 // GEMM: A is a float32 matrix, B is a matrix with 4-bit asymmetric quantization. C is a float32
 // matrix.
-void lymath_q4gemm(
+void gemmQ4(
     bool transA,
     bool transB,
     int M,
     int N,
     int K,
-    const float *A,
+    const Fp32 *A,
     int lda,
-    const lymath_q4x2_t *B,
-    const lymath_float16_t *scaleB,
-    const uint8_t *zeroPointB,
-    float *C,
-    int ldc);
+    const Q4x2 *B,
+    const Fp16 *scaleB,
+    const UInt8 *zeroPointB,
+    Fp32 *C,
+    int ldc,
+    Mode mode = Mode::Auto);
 
-void lymath_half2float(int n, const lymath_float16_t *x, float *y);
+void convertHalfToFloat(int n, const Fp16 *x, Fp32 *y, Mode mode = Mode::Auto);
 
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

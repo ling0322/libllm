@@ -26,7 +26,10 @@
 #include "libllm/cpu/kernel/sgemv.h"
 #include "libllm/cpu/kernel/skernel.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 
 // -- class SGEMM ----------
@@ -185,4 +188,7 @@ void SGEMMImpl<TGEMMKernel, TGEMVKernel>::applyColumnVectorB(
 
 }
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

@@ -31,7 +31,10 @@
 #include "libllm/lut/random.h"
 #include "libllm/lut/log.h"
 
-using namespace lymath;
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 constexpr uint32_t MagicNumber = 0x55aa;
 
@@ -116,7 +119,7 @@ void testGemmQ4(bool transB, int M, int N, int K) {
       refC.data(),
       N);
 
-  lymath_q4gemm(
+  gemmQ4(
       false,
       transB,
       M,
@@ -124,8 +127,8 @@ void testGemmQ4(bool transB, int M, int N, int K) {
       K,
       A.data(),
       K,
-      (const lymath_q4x2_t *)B.data(),
-      (const lymath_float16_t *)scaleB.data(),
+      (const Q4x2 *)B.data(),
+      (const Fp16 *)scaleB.data(),
       (const uint8_t *)zeroB.data(),
       C.data(),
       N);
@@ -298,7 +301,7 @@ void testSgemm(bool transA, bool transB, int M, int N, int K) {
       refC.data(),
       N);
 
-  lymath_sgemm(
+  sgemm(
       transA,
       transB,
       M,
@@ -366,3 +369,8 @@ CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {
     testHalfToFloat(n);
   }
 }
+
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

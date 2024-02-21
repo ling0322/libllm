@@ -24,7 +24,10 @@
 #include "libllm/cpu/kernel/q4kernel.h"
 #include "libllm/lut/log.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 class DequantQ4 {
  public:
@@ -63,4 +66,7 @@ typedef DequantQ4Impl<DequantQ4FallbackKernel, Mode::SingleThread> DequantQ4Fall
 typedef DequantQ4Impl<DequantQ4Avx2Kernel, Mode::OMP> DequantQ4Avx2OMP;
 typedef DequantQ4Impl<DequantQ4FallbackKernel, Mode::OMP> DequantQ4FallbackOMP;
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

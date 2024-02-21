@@ -29,7 +29,10 @@
 #include "libllm/lut/log.h"
 
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 
 // -- fallback micro-kernels ---------
@@ -114,4 +117,7 @@ void CvtHalfToFloatFallbackKernel::apply(int64_t n, PCFp16 x, PFp32 y) {
   }
 }
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

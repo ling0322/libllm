@@ -24,7 +24,10 @@
 #include "libllm/cpu/kernel/hkernel.h"
 #include "libllm/lut/log.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 template<class TKernel, typename TX, typename TY, Mode MODE>
 class CvtCommon {
@@ -67,4 +70,7 @@ class CvtHalfToFloatImpl : public CvtHalfToFloat {
 typedef CvtHalfToFloatImpl<CvtHalfToFloatAvx2Kernel, Mode::OMP> CvtHalfToFloatAvx2OMP;
 typedef CvtHalfToFloatImpl<CvtHalfToFloatFallbackKernel, Mode::OMP> CvtHalfToFloatFallbackOMP;
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

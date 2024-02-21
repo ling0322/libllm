@@ -20,28 +20,21 @@
 #pragma once
 
 #include <stdint.h>
+#include "kernel.h"
 
-#define LYMATH_MSVC (_MSC_VER && !__INTEL_COMPILER)
+#define LIBLLM_KERNEL_MSVC (_MSC_VER && !__INTEL_COMPILER)
 
-#if LYMATH_MSVC
-#define LYMATH_FORCE_INLINE __forceinline
+#if LIBLLM_KERNEL_MSVC
+#define LIBLLM_KERNEL_FORCE_INLINE __forceinline
 #else
-#define LYMATH_FORCE_INLINE __attribute__((always_inline)) inline
+#define LIBLLM_KERNEL_FORCE_INLINE __attribute__((always_inline)) inline
 #endif
 
 
-namespace lymath {
-
-// executing mode.
-enum class Mode {
-  OMP,
-  SingleThread
-};
-
-typedef uint16_t Fp16;
-typedef int8_t Int8;
-typedef uint8_t UInt8;
-typedef float Fp32;
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 typedef uint16_t *PFp16;
 typedef float *PFp32;
@@ -51,7 +44,6 @@ typedef const uint16_t *PCFp16;
 typedef const int8_t *PCInt8;
 typedef const UInt8 *PCUInt8;
 
-typedef uint8_t Q4x2;
 typedef const uint8_t *PCQ4x2;
 
 constexpr int GEMVMinRowsPerThread = 128;
@@ -87,4 +79,7 @@ class DataQ4 {
   PCUInt8 _zero;
 };
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

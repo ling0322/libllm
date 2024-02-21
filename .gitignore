@@ -13,6 +13,7 @@ __pycache__
 *.egg-info
 *.so
 *.dll
+*.llmpkg
 /tools/*.config
 bindings/python/build
 bindings/python/dist
