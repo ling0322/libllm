@@ -24,11 +24,13 @@
 #include <memory>
 #include "libllm/lut/log.h"
 #include "libllm/lut/platform.h"
+#include "libllm/lut/strings.h"
 #include "libllm/cpu/kernel/args.h"
 #include "libllm/cpu/kernel/hcvt.h"
 #include "libllm/cpu/kernel/q4dequant.h"
 #include "libllm/cpu/kernel/q4gemm.h"
 #include "libllm/cpu/kernel/sgemm.h"
+#include "ruapu/ruapu.h"
 
 namespace libllm {
 namespace op {
@@ -42,15 +44,22 @@ enum class CPUMathBackend {
 };
 
 CPUMathBackend findBestCpuMathBackend() {
-  if (lut::isAvx512Available()) {
-    LOG(INFO) << "lymath: Use Avx512 backend.";
+  raupu_init();
+  bool isaAvx2 = ruapu_supports("avx2") > 0;
+  bool isaAvx512f = ruapu_supports("avx512f") > 0;
+  bool isaF16c = ruapu_supports("f16c") > 0;
+
+  LOG(INFO) << lut::sprintf(
+      "ISA support: AVX2=%d F16C=%d AVX512F=%d", isaAvx2, isaF16c, isaAvx512f);
+
+  if (isaAvx512f && isaF16c) {
+    LOG(INFO) << "Use Avx512 backend.";
     return CPUMathBackend::AVX512;
-  } else if (lut::isAvx2Available()) {
-    LOG(INFO) << "lymath: Use Avx2 backend.";
+  } else if (isaAvx2 && isaF16c) {
+    LOG(INFO) << "Use Avx2 backend.";
     return CPUMathBackend::AVX2;
   } else {
-    LOG(WARN) << "lymath: fallback to default backend.";
-    return CPUMathBackend::AVX2;
+    LOG(FATAL) << "CPU not supported (AVX2 and F16C is required).";
   }
 }
 
@@ -84,6 +93,7 @@ class Api {
   std::unique_ptr<DequantQ4> _q4dequant;
   std::unique_ptr<CvtHalfToFloat> _cvtHalfToFloat;
 };
+    
 
 Api *Api::_instance = nullptr;
 int Api::_numThreads = 1;
@@ -237,7 +247,6 @@ void convertHalfToFloat(int n, const Fp16 *x, float *y, Mode mode) {
     default:
       NOT_IMPL();
   }
-  
 }
 
 }  // namespace kernel
