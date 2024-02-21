@@ -22,7 +22,10 @@
 #include "libllm/cpu/kernel/common.h"
 #include "libllm/lut/platform.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 // copy vector x to y.
 void scopy(int n, const float *x, int incx, float *y, int incy) {
@@ -38,5 +41,8 @@ lut::c_ptr<float> salloc(int64_t n) {
       lut::free32ByteAlignedMem);
 }
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm
 

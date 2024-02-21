@@ -25,7 +25,10 @@
 #include <memory>
 #include "libllm/cpu/kernel/common.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 struct CvtHalfToFloatAvx2Kernel {
   static void apply(int64_t n, PCFp16 x, PFp32 y);
@@ -35,4 +38,7 @@ struct CvtHalfToFloatFallbackKernel {
   static void apply(int64_t n, PCFp16 x, PFp32 y);
 };
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

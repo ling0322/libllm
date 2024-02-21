@@ -56,7 +56,7 @@ Tensor gemmFp32(const Tensor &A, const Tensor &B) {
   zerosFp32(Cs);
 
   GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
-  lymath_sgemm_omp(
+  kernel::sgemm(
       gemmArgs.transA,
       gemmArgs.transB,
       gemmArgs.M,
@@ -67,7 +67,8 @@ Tensor gemmFp32(const Tensor &A, const Tensor &B) {
       B.getData<float>(),
       gemmArgs.ldb,
       Cs.data,
-      gemmArgs.ldc);
+      gemmArgs.ldc,
+      kernel::Mode::OMP);
 
   return C;
 }
@@ -107,7 +108,7 @@ Tensor bmmFp32(const Tensor &A, const Tensor &B) {
 
   #pragma omp parallel for
   for (int i = 0; i < mAs.getSize(); ++i) {
-    lymath_sgemm(
+    kernel::sgemm(
         gemmArgs.transA,
         gemmArgs.transB,
         gemmArgs.M,
@@ -118,7 +119,8 @@ Tensor bmmFp32(const Tensor &A, const Tensor &B) {
         mBp[i],
         gemmArgs.ldb,
         mCp[i],
-        gemmArgs.ldc);
+        gemmArgs.ldc,
+        kernel::Mode::SingleThread);
   }
 
   return tensorC;
@@ -140,7 +142,7 @@ Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
 
   GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
   const TensorData *dataObjectB = B.getDataObject();
-  lymath_q4gemm(
+  kernel::gemmQ4(
       gemmArgs.transA,
       gemmArgs.transB,
       gemmArgs.M,
@@ -148,9 +150,9 @@ Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
       gemmArgs.K,
       A.getData<float>(),
       gemmArgs.lda,
-      reinterpret_cast<const lymath_q4x2_t *>(dataObjectB->getData<Q4>()),
-      reinterpret_cast<const lymath_float16_t *>(dataObjectB->getSlot(1)->getData<Float16>()),
-      reinterpret_cast<const uint8_t *>(dataObjectB->getSlot(2)->getData<UInt8>()),
+      reinterpret_cast<const kernel::Q4x2 *>(dataObjectB->getData<Q4>()),
+      reinterpret_cast<const kernel::Fp16 *>(dataObjectB->getSlot(1)->getData<Float16>()),
+      reinterpret_cast<const kernel::UInt8 *>(dataObjectB->getSlot(2)->getData<UInt8>()),
       Cs.data,
       gemmArgs.ldc);
 

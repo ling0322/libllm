@@ -22,7 +22,10 @@
 #include <stdint.h>
 #include "libllm/cpu/kernel/common.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 struct SGEMVArgs {
   typedef float VecType;
@@ -64,4 +67,7 @@ struct Q4GemmArgs {
   int ldc;
 };
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

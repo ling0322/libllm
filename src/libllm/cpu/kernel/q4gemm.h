@@ -26,7 +26,10 @@
 #include "libllm/cpu/kernel/sgemm.h"
 #include "libllm/cpu/kernel/skernel.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 class Q4Gemm {
  public:
@@ -90,4 +93,7 @@ typedef Q4GemmImpl<SGEMMImplAvx512OMP, Q4GemvImplAvx2OMP, DequantQ4Avx2OMP> Q4Ge
 typedef Q4GemmImpl<SGEMMImplAvx2OMP, Q4GemvImplAvx2OMP, DequantQ4Avx2OMP> Q4GemmAvx2OMP;
 typedef Q4GemmImpl<SGEMMImplDefaultOMP, Q4GemvImplFallbackOMP, DequantQ4Fallback> Q4GemmFallbackOMP;
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

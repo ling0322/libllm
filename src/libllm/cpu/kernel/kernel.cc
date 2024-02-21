@@ -30,7 +30,10 @@
 #include "libllm/cpu/kernel/q4gemm.h"
 #include "libllm/cpu/kernel/sgemm.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 enum class CPUMathBackend {
   DEFAULT,
@@ -128,71 +131,70 @@ const Api *Api::getInstance() {
   return _instance;
 }
 
-}  // namespace libllmmath
+// -----------------------------------------------------------------------------------------------+
+// API implementation                                                                             |
+// -----------------------------------------------------------------------------------------------+
 
-using lymath::Q4GemmArgs;
-using lymath::Api;
-
-void lymath_init() {
+void init() {
   Api::init();
 }
 
-void lymath_destroy() {
+void destroy() {
   Api::destroy();
 }
 
-void lymath_sgemm(
+void sgemm(
     bool transA,
     bool transB,
     int M,
     int N,
     int K,
-    const float *A,
+    const Fp32 *A,
     int lda,
-    const float *B,
+    const Fp32 *B,
     int ldb,
-    float *C,
-    int ldc) {
-  Api::getInstance()->getSgemm()->apply(
-      transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+    Fp32 *C,
+    int ldc,
+    Mode mode) {
+  switch (mode) {
+    case Mode::Auto:
+    case Mode::OMP:
+      Api::getInstance()->getSgemmOmp()->apply(
+          transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+      break;
+    case Mode::SingleThread:
+      Api::getInstance()->getSgemm()->apply(
+          transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+      break;
+    default:
+      NOT_IMPL();
+  }
 }
 
-void lymath_sgemm_omp(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const float *A,
-    int lda,
-    const float *B,
-    int ldb,
-    float *C,
-    int ldc) {
-  Api::getInstance()->getSgemmOmp()->apply(
-      transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
-}
-
-void lymath_dequant_q4(
+void dequantQ4(
     int n,
-    const lymath_q4x2_t *data,
-    const lymath_float16_t *scale,
-    const uint8_t *zeroPoint,
+    const Q4x2 *data,
+    const Fp16 *scale,
+    const UInt8 *zeroPoint,
     int offset,
-    float *tgt) {
-  lymath::DataQ4 x(
-    reinterpret_cast<lymath::PCQ4x2>(data),
-    reinterpret_cast<lymath::PCFp16>(scale),
-    reinterpret_cast<lymath::PCUInt8>(zeroPoint));
+    float *tgt,
+    Mode mode) {
+  DataQ4 x(data, scale, zeroPoint);
 
-  Api::getInstance()->getDequantQ4()->apply(
-      n,
-      x,
-      offset,
-      tgt);
+  switch (mode) {
+    case Mode::Auto:
+      Api::getInstance()->getDequantQ4()->apply(
+          n,
+          x,
+          offset,
+          tgt);
+      break;
+    default:
+      NOT_IMPL();
+  }
 }
 
-void lymath_q4gemm(
+void gemmQ4(
     bool transA,
     bool transB,
     int M,
@@ -200,28 +202,45 @@ void lymath_q4gemm(
     int K,
     const float *A,
     int lda,
-    const lymath_q4x2_t *dataB,
-    const lymath_float16_t *scaleB,
-    const uint8_t *zeroPointB,
+    const Q4x2 *dataB,
+    const Fp16 *scaleB,
+    const UInt8 *zeroPointB,
     float *C,
-    int ldc) {
-  lymath::DataQ4 B(
-      reinterpret_cast<lymath::PCQ4x2>(dataB),
-      reinterpret_cast<lymath::PCFp16>(scaleB),
-      reinterpret_cast<lymath::PCUInt8>(zeroPointB));
-  Api::getInstance()->getQ4Gemm()->apply(Q4GemmArgs{
-      transA,
-      transB,
-      M,
-      N,
-      K,
-      A,
-      lda,
-      B,
-      C,
-      ldc});
+    int ldc,
+    Mode mode) {
+  DataQ4 B(dataB, scaleB, zeroPointB);
+
+  switch (mode) {
+    case Mode::Auto:
+      Api::getInstance()->getQ4Gemm()->apply(Q4GemmArgs{
+          transA,
+          transB,
+          M,
+          N,
+          K,
+          A,
+          lda,
+          B,
+          C,
+          ldc});
+      break;
+    default:
+      NOT_IMPL();
+  }
 }
 
-void lymath_half2float(int n, const lymath_float16_t *x, float *y) {
-  Api::getInstance()->getCvtHalfToFloat()->apply(n, x, y);
+void convertHalfToFloat(int n, const Fp16 *x, float *y, Mode mode) {
+  switch (mode) {
+    case Mode::Auto:
+      Api::getInstance()->getCvtHalfToFloat()->apply(n, x, y);
+      break;
+    default:
+      NOT_IMPL();
+  }
+  
 }
+
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

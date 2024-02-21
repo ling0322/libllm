@@ -138,7 +138,7 @@ Operators *gOperatorsForDevice[Device::NumDeviceType] = {
 static std::atomic<bool> gInitialized{false};
 
 void initOperators() {
-  lymath_init();
+  op::cpu::kernel::init();
 
   if (!gInitialized.exchange(true)) {
     CHECK(!gOperatorsForDevice[Device::kCpu]);
@@ -161,7 +161,7 @@ Operators *getOperators(Device::Type deviceType) {
 }
 
 void destroyOperators() {
-  lymath_destroy();
+  op::cpu::kernel::destroy();
 
   if (gInitialized.exchange(false)) {
     for (int i = 0; i < Device::NumDeviceType; ++i) {

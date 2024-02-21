@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
   else if (deviceType == "cpu")
     device = llm::DeviceType::CPU;
   else {
-    printf("invalid device");
+    printf("invali·d device");
     return 1;
   }
 

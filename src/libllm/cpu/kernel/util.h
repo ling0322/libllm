@@ -25,7 +25,10 @@
 #include "libllm/lut/c_ptr.h"
 #include "libllm/lut/span.h"
 
-namespace lymath {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
 
 // copy vector x to y.
 void scopy(int n, const float *x, int incx, float *y, int incy);
@@ -33,4 +36,7 @@ void scopy(int n, const float *x, int incx, float *y, int incy);
 // allocate n single float and returns the holder. the memory is 32 byte aligned.
 lut::c_ptr<float> salloc(int64_t n);
 
-}  // namespace libllmmath
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

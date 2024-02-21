@@ -26,16 +26,11 @@
 #include <chrono>
 #include <functional>
 #include "libllm/lut/log.h"
-#include "libllm/cpu/kernel/lymath.h"
+#include "libllm/cpu/kernel/kernel.h"
 #include "libllm/lut/strings.h"
 #include "libllm/lut/time.h"
 #include "libllm/cpu/kernel/common.h"
 #include "libllm/cpu/kernel/gemm_common.h"
-
-using lymath::Block;
-using lymath::Mode;
-using lymath::Pack;
-using lymath::PackedBlock;
 
 void benchmarkPack(Block A, Block Ap, int KC) {
   double t0 = lut::now();
@@ -62,7 +57,7 @@ double benchmarkSgemm(int M, int K, int N, int numLoops = 2) {
 
   double t0 = lut::now();
   for (int i = 0; i < numLoops; ++i)
-    lymath_sgemm(
+    libllm::op::cpu::kernel::sgemm(
         false,
         true,
         M,
