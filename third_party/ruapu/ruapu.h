@@ -7,7 +7,7 @@
 #ifndef RUAPU_H
 #define RUAPU_H
 
-void raupu_init();
+void ruapu_init();
 
 int ruapu_supports(const char* isa);
 
@@ -20,6 +20,14 @@ int ruapu_supports(const char* isa);
 
 #include <windows.h>
 
+#if WINAPI_FAMILY == WINAPI_FAMILY_APP
+static int ruapu_detect_isa(const void* some_inst)
+{
+    // uwp does not support seh  :(
+    (void)some_inst;
+    return 0;
+}
+#else // WINAPI_FAMILY == WINAPI_FAMILY_APP
 static int g_ruapu_sigill_caught = 0;
 static jmp_buf g_ruapu_jmpbuf;
 
@@ -51,6 +59,7 @@ static int ruapu_detect_isa(const void* some_inst)
 
     return g_ruapu_sigill_caught ? 0 : 1;
 }
+#endif // WINAPI_FAMILY == WINAPI_FAMILY_APP
 
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 #ifdef _MSC_VER
@@ -67,16 +76,23 @@ static int ruapu_detect_isa(const void* some_inst)
 #endif
 
 #elif __arm__ || defined(_M_ARM)
+#if __thumb__
 #ifdef _MSC_VER
 #define RUAPU_INSTCODE(isa, ...) __pragma(section(".text")) __declspec(allocate(".text")) static unsigned int ruapu_some_##isa[] = { __VA_ARGS__, 0x4770 };
 #else
-#define RUAPU_INSTCODE(isa, ...) __attribute__((section(".text"))) static unsigned int ruapu_some_##isa[] = { __VA_ARGS__, 0x4770bf00 };
+#define RUAPU_INSTCODE(isa, ...) __attribute__((section(".text"))) static unsigned int ruapu_some_##isa[] = { __VA_ARGS__, 0x4770 };
 #endif
-
-#endif
-
-
 #else
+#ifdef _MSC_VER
+#define RUAPU_INSTCODE(isa, ...) __pragma(section(".text")) __declspec(allocate(".text")) static unsigned int ruapu_some_##isa[] = { __VA_ARGS__, 0xe12fff1e };
+#else
+#define RUAPU_INSTCODE(isa, ...) __attribute__((section(".text"))) static unsigned int ruapu_some_##isa[] = { __VA_ARGS__, 0xe12fff1e };
+#endif
+#endif
+
+#endif
+
+#elif defined __ANDROID__ || defined __linux__ || defined __APPLE__
 #include <signal.h>
 
 static int g_ruapu_sigill_caught = 0;
@@ -114,15 +130,23 @@ static int ruapu_detect_isa(ruapu_some_inst some_inst)
     return g_ruapu_sigill_caught ? 0 : 1;
 }
 
-#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { asm volatile(".byte " #__VA_ARGS__ : : : ); };
-#elif __aarch64__
-#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { asm volatile(".word " #__VA_ARGS__ : : : ); };
-#elif __arm__
-#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { asm volatile(".word " #__VA_ARGS__ : : : ); };
+#if defined(__i386__) || defined(__x86_64__)
+#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { asm volatile(".byte " #__VA_ARGS__ : : : ); }
+#elif __aarch64__ || __arm__ || __riscv
+#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { asm volatile(".word " #__VA_ARGS__ : : : ); }
 #endif
 
-#endif
+#else // defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
+typedef const void* ruapu_some_inst;
+static int ruapu_detect_isa(const void* some_inst)
+{
+    // unknown platform, bare metal os ?
+    (void)some_inst;
+    return 0;
+}
+
+#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { }
+#endif // defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
 
 struct ruapu_isa_entry
 {
@@ -140,25 +164,26 @@ RUAPU_INSTCODE(ssse3, 0x66, 0x0f, 0x38, 0x06, 0xc0) // phsubd xmm0,xmm0
 RUAPU_INSTCODE(sse41, 0x66, 0x0f, 0x38, 0x3d, 0xc0) // pmaxsd xmm0,xmm0
 RUAPU_INSTCODE(sse42, 0x66, 0x0f, 0x38, 0x37, 0xc0) // pcmpgtq xmm0,xmm0
 RUAPU_INSTCODE(sse4a, 0x66, 0x0f, 0x79, 0xc0) // extrq xmm0,xmm0
-RUAPU_INSTCODE(xop, 0x8f, 0xe8, 0x78, 0xb6, 0xc0, 0x00)  // vpmadcswd %xmm0,%xmm0,%xmm0,%xmm0
+RUAPU_INSTCODE(xop, 0x8f, 0xe8, 0x78, 0xb6, 0xc0, 0x00)  // vpmadcswd xmm0,xmm0,xmm0,xmm0
 RUAPU_INSTCODE(avx, 0xc5, 0xfc, 0x54, 0xc0) // vandps ymm0,ymm0,ymm0
 RUAPU_INSTCODE(f16c, 0xc4, 0xe2, 0x7d, 0x13, 0xc0) // vcvtph2ps ymm0,xmm0
 RUAPU_INSTCODE(fma, 0xc4, 0xe2, 0x7d, 0x98, 0xc0) // vfmadd132ps ymm0,ymm0,ymm0
+RUAPU_INSTCODE(fma4, 0xc4, 0xe3, 0xfd, 0x68, 0xc0, 0x00) // vfmaddps ymm0,ymm0,ymm0,ymm0
 RUAPU_INSTCODE(avx2, 0xc5, 0xfd, 0xfe, 0xc0) // vpaddd ymm0,ymm0,ymm0
 RUAPU_INSTCODE(avx512f, 0x62, 0xf1, 0x7c, 0x48, 0x58, 0xc0) // vaddps zmm0,zmm0,zmm0
 RUAPU_INSTCODE(avx512bw, 0x62, 0xf1, 0x7d, 0x48, 0xfd, 0xc0) // vpaddw zmm0,zmm0,zmm0
 RUAPU_INSTCODE(avx512cd, 0x62, 0xf2, 0xfd, 0x48, 0x44, 0xc0) // vplzcntq zmm0,zmm0
 RUAPU_INSTCODE(avx512dq, 0x62, 0xf1, 0x7c, 0x48, 0x54, 0xc0) // vandps zmm0,zmm0,zmm0
 RUAPU_INSTCODE(avx512vl, 0x62, 0xf2, 0xfd, 0x28, 0x1f, 0xc0) // vpabsq ymm0,ymm0
-RUAPU_INSTCODE(avx512vnni, 0x62, 0xf2, 0x7d, 0x48, 0x52, 0xc0) // vpdpwssd %zmm0,%zmm0,%zmm0
-RUAPU_INSTCODE(avx512bf16, 0x62, 0xf2, 0x7e, 0x48, 0x52, 0xc0) // vdpbf16ps %zmm0,%zmm0,%zmm0
-RUAPU_INSTCODE(avx512ifma, 0x62, 0xf2, 0xfd, 0x48, 0xb4, 0xc0) // vpmadd52luq %zmm0,%zmm0,%zmm0
-RUAPU_INSTCODE(avx512vbmi, 0x62, 0xf2, 0x7d, 0x48, 0x75, 0xc0) // vpermi2b %zmm0,%zmm0,%zmm0
-RUAPU_INSTCODE(avx512vbmi2, 0x62, 0xf2, 0x7d, 0x48, 0x71, 0xc0) // vpshldvd %zmm0,%zmm0,%zmm0
-RUAPU_INSTCODE(avx512fp16, 0x62, 0xf6, 0x7d, 0x48, 0x98, 0xc0) // vfmadd132ph %zmm0,%zmm0,%zmm0
-RUAPU_INSTCODE(avxvnni, 0x62, 0xf2, 0x7d, 0x28, 0x52, 0xc0) // vpdpwssd ymm0,ymm0,ymm0
+RUAPU_INSTCODE(avx512vnni, 0x62, 0xf2, 0x7d, 0x48, 0x52, 0xc0) // vpdpwssd zmm0,zmm0,zmm0
+RUAPU_INSTCODE(avx512bf16, 0x62, 0xf2, 0x7e, 0x48, 0x52, 0xc0) // vdpbf16ps zmm0,zmm0,zmm0
+RUAPU_INSTCODE(avx512ifma, 0x62, 0xf2, 0xfd, 0x48, 0xb4, 0xc0) // vpmadd52luq zmm0,zmm0,zmm0
+RUAPU_INSTCODE(avx512vbmi, 0x62, 0xf2, 0x7d, 0x48, 0x75, 0xc0) // vpermi2b zmm0,zmm0,zmm0
+RUAPU_INSTCODE(avx512vbmi2, 0x62, 0xf2, 0x7d, 0x48, 0x71, 0xc0) // vpshldvd zmm0,zmm0,zmm0
+RUAPU_INSTCODE(avx512fp16, 0x62, 0xf6, 0x7d, 0x48, 0x98, 0xc0) // vfmadd132ph zmm0,zmm0,zmm0
+RUAPU_INSTCODE(avxvnni, 0xc4, 0xe2, 0x7d, 0x52, 0xc0) // vpdpwssd ymm0,ymm0,ymm0
 RUAPU_INSTCODE(avxvnniint8, 0xc4, 0xe2, 0x7f, 0x50, 0xc0) // vpdpbssd ymm0,ymm0,ymm0
-RUAPU_INSTCODE(avxifma, 0x62, 0xf2, 0xfd, 0x28, 0xb4, 0xc0) // vpmadd52luq %ymm0,%ymm0,%ymm0
+RUAPU_INSTCODE(avxifma, 0xc4, 0xe2, 0xfd, 0xb4, 0xc0) // vpmadd52luq ymm0,ymm0,ymm0
 
 #elif __aarch64__ || defined(_M_ARM64)
 RUAPU_INSTCODE(neon, 0x4e20d400) // fadd v0.4s,v0.4s,v0.4s
@@ -176,9 +201,23 @@ RUAPU_INSTCODE(svei8mm, 0x45009800) // smmla z0.s,z0.b,z0.b
 RUAPU_INSTCODE(svef32mm, 0x64a0e400) // fmmla z0.s,z0.s,z0.s
 
 #elif __arm__ || defined(_M_ARM)
-RUAPU_INSTCODE(edsp, 0x0000fb20) // smlad r0,r0,r0,r0
-RUAPU_INSTCODE(neon, 0x0d40ef00) // vadd.f32 q0,q0,q0
-RUAPU_INSTCODE(vfpv4, 0x0600ffb6) // vcvt.f16.f32 d0,q0
+#if __thumb__
+RUAPU_INSTCODE(edsp, 0xfb20, 0x0000) // smlad r0,r0,r0,r0
+RUAPU_INSTCODE(neon, 0xef00, 0x0d40) // vadd.f32 q0,q0,q0
+RUAPU_INSTCODE(vfpv4, 0xffb6, 0x0600) // vcvt.f16.f32 d0,q0
+#else
+RUAPU_INSTCODE(edsp, 0xe7000010) // smlad r0,r0,r0,r0
+RUAPU_INSTCODE(neon, 0xf2000d40) // vadd.f32 q0,q0,q0
+RUAPU_INSTCODE(vfpv4, 0xf3b60600) // vcvt.f16.f32 d0,q0
+#endif
+
+#elif __riscv
+RUAPU_INSTCODE(i, 0x00a50533) // add a0,a0,a0
+RUAPU_INSTCODE(m, 0x02a50533) // mul a0,a0,a0
+RUAPU_INSTCODE(a, 0x100122af, 0x185122af) // lr.w t0,(sp) + sc.w t0,t0,(sp)
+RUAPU_INSTCODE(f, 0x10a57553) // fmul.s fa0,fa0,fa0
+RUAPU_INSTCODE(d, 0x12a57553) // fmul.d fa0,fa0,fa0
+RUAPU_INSTCODE(c, 0x0001952a) // add a0,a0,a0 + nop
 
 #endif
 
@@ -201,6 +240,7 @@ RUAPU_ISAENTRY(xop)
 RUAPU_ISAENTRY(avx)
 RUAPU_ISAENTRY(f16c)
 RUAPU_ISAENTRY(fma)
+RUAPU_ISAENTRY(fma4)
 RUAPU_ISAENTRY(avx2)
 RUAPU_ISAENTRY(avx512f)
 RUAPU_ISAENTRY(avx512bw)
@@ -237,12 +277,20 @@ RUAPU_ISAENTRY(edsp)
 RUAPU_ISAENTRY(neon)
 RUAPU_ISAENTRY(vfpv4)
 
+#elif __riscv
+RUAPU_ISAENTRY(i)
+RUAPU_ISAENTRY(m)
+RUAPU_ISAENTRY(a)
+RUAPU_ISAENTRY(f)
+RUAPU_ISAENTRY(d)
+RUAPU_ISAENTRY(c)
+
 #endif
 };
 
 #undef RUAPU_ISAENTRY
 
-void raupu_init()
+void ruapu_init()
 {
     for (size_t i = 0; i < sizeof(g_ruapu_isa_map) / sizeof(g_ruapu_isa_map[0]); i++)
     {
