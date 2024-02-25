@@ -20,14 +20,6 @@ Welcome to libLLM, an open-source project designed for efficient inference of la
 - 无外部依赖：核心功能无需第三方依赖（BLAS、SentencePiece等），所需的GEMM内核均在内部实现(avx2、avx512)。
 - 支持CUDA：支持使用CUDA加速推理。
 
-## Supported models:
-
-| Model            | Download |
-|------------------|----------|
-| Llama2           | [HuggingFace](https://huggingface.co/ling0322/llama2-7b-libllm-q4/tree/main) |
-| ChatGLM3-6b      | [HuggingFace](https://huggingface.co/ling0322/chatglm3-6b-libllm-q4/tree/main) |
-| ChatGLM2-6b      | [HuggingFace](https://huggingface.co/ling0322/chatglm2-6b-libllm-q4/tree/main) |
-
 ## Build
 
 ### libLLM CPU only
