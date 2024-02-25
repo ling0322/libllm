@@ -39,7 +39,7 @@ class Llama2Exporter(ModelExporter):
         self._export_rope(ctx.with_subname("rope"), base_model.layers[0].self_attn.rotary_emb)
         for idx, block in enumerate(base_model.layers):
             self._export_block(ctx.with_subname("block" + str(idx)), block)
-        self._write(ctx.with_subname("out_weight"), model.lm_head.weight)
+        self._write(ctx.with_subname("out_weight").with_quant(Quant.NONE), model.lm_head.weight)
 
     def _export_rms_norm(self, ctx: Context, module):
         self._write(ctx.with_subname("weight").with_quant(Quant.NONE), module.weight)
@@ -112,7 +112,6 @@ class Llama2Exporter(ModelExporter):
         ini_config["model"]["model_file"] = path.basename(MODEL_BIN)
 
         return ini_config
-
 
 MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"
 MODEL_BIN = "model.bin"

@@ -94,18 +94,15 @@ std::shared_ptr<llm::Prompt> LlamaPromptBuilder::buildPrompt(
     std::shared_ptr<llm::Model> model,
     lut::Span<const QA> history,
     const std::string &question) {
-  std::string promptText;
+  std::shared_ptr<llm::Prompt> prompt = model->createPrompt();
   for (const QA &qa : history) {
-    promptText += "[INST] " + qa.question + " [/INST]\n";
-    promptText += qa.answer + "\n";
+    prompt->appendControlToken("<s>");
+    prompt->appendText("[INST] " + qa.question + " [/INST] " + qa.answer);
+    prompt->appendControlToken("</s>");
   }
-  promptText += "[INST] " + question + " [/INST]\n";
-
-  LOG(INFO) << promptText;
-  
-  std::shared_ptr<llm::Prompt> pPrompt = model->createPrompt();
-  pPrompt->appendText(promptText);
-  return pPrompt;
+  prompt->appendControlToken("<s>");
+  prompt->appendText("[INST] " + question + " [/INST] ");
+  return prompt;
 }
 
 std::string LlamaPromptBuilder::getStopSeq() {
