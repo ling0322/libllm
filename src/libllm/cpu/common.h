@@ -27,6 +27,7 @@ namespace op {
 namespace cpu {
 
 Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> shape);
+bool isShapeMatch(const Tensor &A, const Tensor &B);
 
 }  // cpu
 }  // op

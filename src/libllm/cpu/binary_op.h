@@ -25,7 +25,13 @@ namespace libllm {
 namespace op {
 namespace cpu {
 
-Tensor attention(const Tensor &q, const Tensor &k, const Tensor &v, const Tensor &mask);
+enum class BinaryOp {
+  ADD,
+  MUL
+};
+
+// apply C <- BinaryOp(A, B)
+Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op);
 
 }  // cpu
 }  // op

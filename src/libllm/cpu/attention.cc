@@ -21,6 +21,7 @@
 
 #include <math.h>
 #include "libllm/functional.h"
+#include "libllm/cpu/accessor.h"
 #include "libllm/cpu/mul.h"
 #include "libllm/lut/time.h"
 
