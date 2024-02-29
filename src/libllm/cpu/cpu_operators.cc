@@ -26,22 +26,18 @@
 #include "libllm/cpu/kernel/kernel.h"
 #include "libllm/cpu/all_close.h"
 #include "libllm/cpu/apply_rotary_pos_emb.h"
-#include "libllm/cpu/attention.h"
 #include "libllm/cpu/binary_op.h"
 #include "libllm/cpu/cast.h"
-#include "libllm/cpu/cat.h"
 #include "libllm/cpu/copy.h"
 #include "libllm/cpu/lookup.h"
 #include "libllm/cpu/matmul.h"
-#include "libllm/cpu/mul.h"
 #include "libllm/cpu/print.h"
 #include "libllm/cpu/rand.h"
 #include "libllm/cpu/rms_norm.h"
-#include "libllm/cpu/subtensor.h"
-#include "libllm/cpu/subtensor_list.h"
 #include "libllm/cpu/softmax.h"
 #include "libllm/cpu/swiglu.h"
 #include "libllm/cpu/tensor.h"
+#include "libllm/cpu/transform.h"
 #include "libllm/cpu/cpu_tensor_data.h"
 #include "libllm/operators.h"
 #include "libllm/tensor.h"
@@ -52,56 +48,16 @@ namespace cpu {
 
 CPUOperators::CPUOperators() {}
 
+
 Tensor CPUOperators::createTensor(lut::Span<const int> shape, DType dtype) {
   return op::cpu::tensor(shape, dtype);
 }
 
-void CPUOperators::randFp32(Tensor *tensor) {
-  float *data = tensor->getData<float>();
-  int64_t numel = tensor->getNumEl();
-
-  float randmax = RAND_MAX;
-  for (int64_t i = 0; i < numel; ++i) {
-    data[i] = ::rand() / randmax - 0.5f;
-  }
-}
-
-Tensor CPUOperators::createTensorLike(Subtensor<const float> input) {
-  std::vector<Tensor::ShapeType> shape;
-  for (const Shape &s : input.shape) {
-    shape.push_back(s.shape);
-  }
-
-  return createTensor(shape, DType::kFloat);
-}
-
-Tensor CPUOperators::causalMaskFp32(int seq_len) {
-  Tensor mask = createTensor(lut::makeConstSpan({seq_len, seq_len}), DType::kFloat);
-  CHECK(mask.isContiguous());
-
-  float *data = mask.getData<float>();
-  for (int i = 0; i < seq_len; ++i) {
-    float *row = data + i * seq_len;
-    for (int j = 0; j <= i; ++j) {
-      row[j] = 0.0f;
-    }
-    for (int j = i + 1; j < seq_len; ++j) {
-      row[j] = -std::numeric_limits<float>::infinity();
-    }
-  }
-
-  return mask;
+Tensor CPUOperators::createTensorLike(Tensor input) {
+  return op::cpu::tensorLike(input);
 }
 
 // -- class CPUOperators ----------
-
-Tensor CPUOperators::createTensor(std::initializer_list<int> shape, DType dtype) {
-  return createTensor(lut::makeConstSpan(shape), dtype);
-}
-
-Tensor CPUOperators::createTensorLike(Tensor input) {
-  return createTensor(input.getShape(), input.getDType());
-}
 
 Tensor CPUOperators::rand(lut::Span<const int> shape, DType dtype, lut::Random *generator,
                           float min, float max) {
@@ -109,16 +65,7 @@ Tensor CPUOperators::rand(lut::Span<const int> shape, DType dtype, lut::Random *
 }
 
 Tensor CPUOperators::zeros(lut::Span<const int> shape, DType dtype) {
-  Tensor tensor = createTensor(shape, dtype);
-  switch (dtype) {
-    case DType::kFloat:
-      zerosFp32(Subtensor<float>::fromTensor(tensor));
-      break;
-    default:
-      CHECK(false) << "unsupported dtype for Zeros";
-  }
-
-  return tensor;
+  return op::cpu::zeros(shape, dtype);
 }
 
 Tensor CPUOperators::matmul(Tensor A, Tensor B) {
@@ -141,7 +88,6 @@ void CPUOperators::print(Tensor tensor) {
 Tensor CPUOperators::add(Tensor input, Tensor other) {
   switch (input.getDType()) {
     case DType::kFloat:
-      // return addFp32(Subtensor<const float>::fromTensor(input), Subtensor<const float>::fromTensor(other));
       return cpu::binaryOp(input, other, BinaryOp::ADD);
       break;
     default:
@@ -168,19 +114,11 @@ bool CPUOperators::allClose(Tensor A, Tensor B, float rtol, float atol) {
 }
 
 Tensor CPUOperators::mul(Tensor A, float k) {
-  switch (A.getDType()) {
-    case DType::kFloat:
-      return mulFp32(Subtensor<const float>::fromTensor(A), k);
-      break;
-    default:
-      NOT_IMPL();
-  }
-
-  return Tensor();
+  return op::cpu::transform(A, k, 0.0f);
 }
 
 Tensor CPUOperators::mul(Tensor A, Tensor B) {
-  return cpu::mul(A, B);
+  return op::cpu::binaryOp(A, B, BinaryOp::MUL);
 }
 
 Tensor CPUOperators::lookup(Tensor table, Tensor indices) {
@@ -190,23 +128,11 @@ Tensor CPUOperators::lookup(Tensor table, Tensor indices) {
 Tensor CPUOperators::rmsNorm(Tensor input, Tensor weight, float eps) {
   CHECK(input.getDType() == weight.getDType());
 
-  switch (input.getDType()) {
-    case DType::kFloat:
-      return cpu::rmsNorm(input, weight, eps);
-    default:
-      NOT_IMPL();
-  }
-
-  return Tensor();
+  return cpu::rmsNorm(input, weight, eps);
 }
 
 Tensor CPUOperators::causalMask(int max_len) {
-  return causalMaskFp32(max_len);
-}
-
-
-Tensor CPUOperators::cat(Tensor A, Tensor B, int dim) {
-  return cpu::cat(A, B, dim);
+  return op::cpu::causalMask(max_len, DType::kFloat);
 }
 
 Tensor CPUOperators::applRotaryPosEmb(Tensor A, Tensor roPE) {
@@ -215,10 +141,6 @@ Tensor CPUOperators::applRotaryPosEmb(Tensor A, Tensor roPE) {
 
 void CPUOperators::copy(Tensor src, Tensor dest) {
   return cpu::copy(src, dest);
-}
-
-Tensor CPUOperators::attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
-  return cpu::attention(q, k, v, mask);
 }
 
 Tensor CPUOperators::swiglu(Tensor A) {

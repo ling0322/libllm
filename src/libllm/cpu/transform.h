@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -20,15 +20,14 @@
 #pragma once
 
 #include "libllm/tensor.h"
-#include "libllm/cpu/subtensor.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 
-Tensor cat(Tensor A, Tensor B, int dim);
-void catFp32(Subtensor<const float> A, Subtensor<const float> B, int dim, Subtensor<float> C);
+// apply C <- alpha * A + beta
+Tensor transform(const Tensor &src, float alpha, float beta);
 
 }  // cpu
 }  // op
-}  // ly
+}  // libllm

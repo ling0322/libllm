@@ -19,6 +19,9 @@
 
 #include "libllm/cpu/print.h"
 
+#include <inttypes.h>
+#include "libllm/cpu/accessor.h"
+
 namespace libllm {
 namespace op {
 namespace cpu {
@@ -39,89 +42,79 @@ inline void printValue(float value) {
 
 template<>
 inline void printValue(LongType value) {
-  printf("%lld", value);
+  printf("%" PRId64, value);
 }
 
-
-template<typename T>
-void print1D(Subtensor<const T> A) {
-  CHECK(A.rank() == 1);
-
+template<typename T, int DIM>
+typename std::enable_if<(DIM > 1), void>::type printImplND(
+    TensorAccessor<const T, DIM> A,
+    int padSpace) {
   printf("[");
-  for (int i = 0; i < A.dimension(0); ++i) {
-    T elem = A.elem(i);
+  for (int i = 0; i < A.getShape(0); ++i) {
+    if (i > 0) {
+      for (int j = 0; j < padSpace + 1; ++j) printf(" ");
+    }
+    
+    printImplND<T>(A[i], padSpace + 1);
+
+    if (i < A.getShape(0) - 1) printf(",\n"); 
+    if (A.getShape(0) > kPrintEdgeItems * 2 && i == kPrintEdgeItems - 1) {
+      for (int j = 0; j < padSpace + 1; ++j) printf(" ");
+      printf("...\n");
+      i += A.getShape(0) - kPrintEdgeItems * 2;
+    }
+  }
+  printf("]");
+}
+
+template<typename T, int DIM>
+typename std::enable_if<DIM == 1, void>::type printImplND(
+    TensorAccessor<const T, DIM> A,
+    int padSpace) {
+  printf("[");
+  for (int i = 0; i < A.getShape(0); ++i) {
+    T elem = A[i];
     printValue<T>(elem);
 
-    if (A.dimension(0) > kPrintEdgeItems * 2 && i == kPrintEdgeItems - 1) {
+    if (A.getShape(0) > kPrintEdgeItems * 2 && i == kPrintEdgeItems - 1) {
       printf(" ... ");
-      i += A.dimension(0) - kPrintEdgeItems * 2;
-    } else if (i < A.dimension(0) - 1) {
+      i += A.getShape(0) - kPrintEdgeItems * 2;
+    } else if (i < A.getShape(0) - 1) {
       printf(", ");
     }
   }
   printf("]");
 }
 
-template<typename T>
-void printND(Subtensor<const T> A, int pad_space) {
-  CHECK(A.rank() >= 2);
-
-  printf("[");
-  for (int i = 0; i < A.dimension(0); ++i) {
-    if (i > 0) {
-      for (int j = 0; j < pad_space + 1; ++j) printf(" ");
-    }
-    if (A.rank() == 2) {
-      print1D<T>(A.subtensor(i));
-    } else {
-      printND<T>(A.subtensor(i), pad_space + 1);
-    }
-    
-    
-    if (i < A.dimension(0) - 1) printf(",\n"); 
-    if (A.dimension(0) > kPrintEdgeItems * 2 && i == kPrintEdgeItems - 1) {
-      for (int j = 0; j < pad_space + 1; ++j) printf(" ");
-      printf("...\n");
-      i += A.dimension(0) - kPrintEdgeItems * 2;
-    }
-  }
-  printf("]");
-}
-
-template<typename T>
-void print(Subtensor<const T> tensor) {
-  int rank = tensor.rank();
-
+template<typename T, int DIM>
+void printImpl(TensorAccessor<const T, DIM> tensor) {
   printf("tensor(");
-  switch (rank) {
-    case 1:
-      print1D<T>(tensor);
-      break;
-    default:
-      printND<T>(tensor, 7);
-      break;
-  }
+  printImplND<T>(tensor, 7);
+
   printf(", shape=(");
-  for (int d = 0; d < tensor.rank(); ++d) {
+  for (int d = 0; d < DIM; ++d) {
     if (d) printf(", ");
-    printf("%d", tensor.dimension(d));
+    printf("%d", tensor.getShape(d));
   }
   puts("))");
 }
 
+template<typename T>
+void printT(const Tensor &tensor) {
+  if (tensor.getDim() == 1) printImpl<T, 1>(tensor);
+  if (tensor.getDim() == 2) printImpl<T, 2>(tensor);
+  if (tensor.getDim() == 3) printImpl<T, 3>(tensor);
+  if (tensor.getDim() == 4) printImpl<T, 4>(tensor);
+  if (tensor.getDim() == 5) printImpl<T, 5>(tensor);
+  if (tensor.getDim() > 5) NOT_IMPL();
+}
+
 void print(const Tensor &tensor) {
-  switch (tensor.getDType()) {
-    case DType::kFloat:
-      print<float>(Subtensor<const float>::fromTensor(tensor));
-      break;
-    case DType::kLong:
-      print<LongType>(Subtensor<const LongType>::fromTensor(tensor));
-      break;
-    default:
-      CHECK(false) << "unsupported dtype for Print";
-  }
+  if (tensor.getDType() == DType::kFloat) printT<float>(tensor);
+  else if (tensor.getDType() == DType::kLong) printT<LongType>(tensor);
+  else NOT_IMPL();
 }
 
 }  // cpu
 }  // op
-}  // ly
+}  // libllm

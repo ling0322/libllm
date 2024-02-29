@@ -19,6 +19,7 @@
 
 #include "libllm/functional.h"
 
+#include <math.h>
 #include "libllm/lut/error.h"
 #include "libllm/lut/strings.h"
 #include "libllm/operators.h"
@@ -66,7 +67,7 @@ Tensor gelu(Tensor input) {
   return getOperators(input.getDevice().getType())->gelu(input);
 }
 
-Tensor createTensor(std::initializer_list<int> shape, DType dtype, Device device) {
+Tensor createTensor(lut::Span<const int> shape, DType dtype, Device device) {
   return getOperators(device.getType())->createTensor(shape, dtype);
 }
 
@@ -108,7 +109,23 @@ Tensor causalMask(int maxLen, Device device) {
 }
 
 Tensor cat(Tensor A, Tensor B, int dim) {
-  return getOperators(A.getDevice().getType())->cat(A, B, dim);
+  CHECK(A.getDType() == B.getDType());
+  dim = A.getShape_()->getRealDim(dim);
+  CHECK(A.getDim() == B.getDim() &&  dim < A.getDim());
+
+  std::vector<int> shape = A.getShape();
+  int dA = A.getShape(dim);
+  int dB = B.getShape(dim);
+  shape[dim] = dA + dB;
+
+  Tensor C = createTensor(shape, A.getDType(), A.getDevice());
+  Tensor sA = C.slice(dim, {0, dA});
+  Tensor sB = C.slice(dim, {dA, dA + dB});
+
+  copy(A, sA);
+  copy(B, sB);
+
+  return C;
 }
 
 Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) {
@@ -134,7 +151,17 @@ void copy(Tensor src, Tensor dest) {
 }
 
 Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
-  return getOperators(q.getDevice().getType())->attention(q, k, v, mask);
+  Tensor scores = F::matmul(q, k.transpose(-2, -1));
+  scores = F::mul(scores,  1.0f / sqrtf(1.0f * q.getShape(-1)));
+
+  if (!mask.empty()) {
+    scores = F::add(scores, mask);
+  }
+
+  scores = F::softmax(scores);
+  Tensor outputs = F::matmul(scores, v);  
+
+  return outputs;
 }
 
 Tensor swiglu(Tensor input) {

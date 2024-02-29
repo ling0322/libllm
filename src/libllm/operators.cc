@@ -57,7 +57,7 @@ Tensor Operators::add(Tensor a, Tensor b) {
   NOT_IMPL();
 }
 
-Tensor Operators::createTensor(std::initializer_list<int> shape, DType dtype) {
+Tensor Operators::createTensor(lut::Span<const int> shape, DType dtype) {
   NOT_IMPL();
 }
 
@@ -93,19 +93,11 @@ Tensor Operators::causalMask(int max_len) {
   NOT_IMPL();
 }
 
-Tensor Operators::cat(Tensor A, Tensor B, int dim) {
-  NOT_IMPL();
-}
-
 Tensor Operators::applRotaryPosEmb(Tensor A, Tensor roPE) {
   NOT_IMPL();
 }
 
 void Operators::copy(Tensor src, Tensor dest) {
-  NOT_IMPL();
-}
-
-Tensor Operators::attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
   NOT_IMPL();
 }
 

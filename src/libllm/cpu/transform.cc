@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,15 +17,42 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
 
+#include "libllm/cpu/transform.h"
+
+#include "libllm/cpu/accessor.h"
+#include "libllm/cpu/common.h"
+#include "libllm/cpu/tensor.h"
 #include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 
-Tensor attention(const Tensor &q, const Tensor &k, const Tensor &v, const Tensor &mask);
+template<typename T>
+Tensor transformKernel(const Tensor &A, float alpha, float beta) {
+  Tensor C = tensorLike(A);
+
+  TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(A);
+  TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
+  CHECK(vA.getLength() == vC.getLength());
+
+  #pragma omp parallel for
+  for (int j = 0; j < vA.getLength(); ++j) {
+    TensorAccessor<const T, 1> a = vA.getTensor(j);
+    TensorAccessor<T, 1> c = vC.getTensor(j);
+
+    for (int i = 0; i < a.getShape(0); ++i) {
+      c[i] = a[i] * static_cast<T>(alpha) + static_cast<T>(beta);
+    }
+  }
+
+  return C;
+}
+
+Tensor transform(const Tensor &src, float alpha, float beta) {
+  if (src.getDType() == DType::kFloat) return transformKernel<float>(src, alpha, beta);
+}
 
 }  // cpu
 }  // op

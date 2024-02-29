@@ -47,6 +47,10 @@ class TensorAccessorBase {
     return _size[d].shape;
   }
 
+  T *getData() const {
+    return _data;
+  }
+
   TensorAccessorBase(const TensorShape::Elem *size, T *data) : _size(size), _data(data) {}
 
  protected:

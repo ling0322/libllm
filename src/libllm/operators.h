@@ -40,17 +40,15 @@ class Operators {
   virtual Tensor softmax(Tensor input);
   virtual Tensor add(Tensor input, Tensor other);
   virtual Tensor gelu(Tensor input);
-  virtual Tensor createTensor(std::initializer_list<int> shape, DType dtype);
+  virtual Tensor createTensor(lut::Span<const int> shape, DType dtype);
   virtual Tensor createTensorLike(Tensor input);
   virtual Tensor rand(std::initializer_list<int> shape, DType dtype);
   virtual Tensor zeros(lut::Span<const int> shape, DType dtype);
   virtual bool allClose(Tensor A, Tensor B, float rtol, float atol);
   virtual void print(Tensor tensor);
   virtual Tensor causalMask(int max_len);
-  virtual Tensor cat(Tensor A, Tensor B, int dim);
   virtual Tensor applRotaryPosEmb(Tensor A, Tensor roPE);
   virtual void copy(Tensor src, Tensor dest);
-  virtual Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask);
   virtual Tensor swiglu(Tensor A);
   virtual Tensor toDevice(Tensor tensor, Device device);
   virtual Tensor cast(Tensor tensor, DType dtype);

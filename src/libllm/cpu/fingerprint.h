@@ -29,11 +29,6 @@ namespace cpu {
 /// tensors.
 Tensor fingerprint(Tensor A);
 
-Tensor fingerprint1D(Tensor A);
-Tensor fingerprint2D(Tensor A);
-Tensor fingerprint3D(Tensor A);
-Tensor fingerprint4D(Tensor A);
-
 }  // cpu
 }  // op
 }  // ly

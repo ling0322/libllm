@@ -20,6 +20,8 @@
 #pragma once
 
 #include "libllm/tensor.h"
+#include "libllm/cpu/accessor.h"
+#include "libllm/cpu/kernel/kernel.h"
 #include "libllm/lut/span.h"
 
 namespace libllm {
@@ -28,6 +30,29 @@ namespace cpu {
 
 Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> shape);
 bool isShapeMatch(const Tensor &A, const Tensor &B);
+
+template<typename T>
+void copyVector(TensorAccessor<T, 1> dest, TensorAccessor<const T, 1> src) {
+  CHECK(dest.getShape(0) == src.getShape(0));
+  for (int i = 0; i < src.getShape(0); ++i) {
+    dest[i] = src[i];
+  }
+}
+
+template<typename T>
+void applyDequant(int64_t offset, int n, const TensorData *data, float *tgt);
+
+template<>
+inline void applyDequant<Q4>(
+  int64_t offset, int n, const TensorData *data, float *tgt) {
+  kernel::dequantQ4(
+      n,
+      (const kernel::Q4x2 *)data->getData<Q4>(),
+      (const kernel::Fp16 *)data->getSlot(1)->getData<Float16>(),
+      (const kernel::UInt8 *)data->getSlot(2)->getData<UInt8>(),
+      offset,
+      tgt);
+}
 
 }  // cpu
 }  // op

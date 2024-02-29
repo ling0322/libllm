@@ -19,41 +19,33 @@
 
 #include "libllm/cpu/apply_rotary_pos_emb.h"
 
-#include "libllm/cpu/subtensor.h"
-#include "libllm/cpu/subtensor_list.h"
+#include "libllm/cpu/accessor.h"
 #include "libllm/cpu/tensor.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 
-Tensor applyRotaryPosEmbFp32(const Tensor &input, const Tensor &roPE) {
+template<typename T>
+Tensor applyRotaryPosEmbKernel(const Tensor &input, const Tensor &roPE) {
   CHECK(roPE.getDType() == DType::kFloat);
 
   Tensor C = zerosLike(input);
-  Subtensor<float> Cs = Subtensor<float>::fromTensor(C);
   
-  SubtensorList<const float> vAs = getVectorList(Subtensor<const float>::fromTensor(input));
-  SubtensorList<const float> vRs = getVectorList(Subtensor<const float>::fromTensor(roPE));
-  SubtensorList<float> vCs = getVectorList(Cs);
-  CHECK(vAs.getSize() == vCs.getSize());
-  CHECK(vAs.getSize() == vRs.getSize());
+  TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(input);
+  TensorList<const T, 1> vR = TensorList<const T, 1>::fromTensor(roPE);
+  TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
+  CHECK(vA.getLength() == vC.getLength());
+  CHECK(vA.getLength() == vR.getLength());
 
-  for (int j = 0; j < vAs.getSize(); ++j) {
-    Subtensor<const float> vA = vAs.getSubtensor(j);
-    Subtensor<const float> vR = vRs.getSubtensor(j % vRs.getSize());  // (D/2, 2) matrix
-    Subtensor<float> vC = vCs.getSubtensor(j);
+  for (int j = 0; j < vA.getLength(); ++j) {
+    TensorAccessor<const T, 1> a = vA.getTensor(j);
+    TensorAccessor<const T, 1> r = vR.getTensor(j);
+    TensorAccessor<T, 1> c = vC.getTensor(j);
 
-    int n = vA.dimension(0) / 2;
-    const float *pA = vA.data;
-    const float *pR = vR.data;
-    float *pC = vC.data;
-    for (int i = 0; i < n; ++i) {
-      pC[0] = pA[0] * pR[0] - pA[1] * pR[1];
-      pC[1] = pA[1] * pR[0] + pA[0] * pR[1];
-      pA += 2;
-      pR += 2;
-      pC += 2;
+    for (int i = 0; i < a.getShape(0); i += 2) {
+      c[i + 0] = a[i + 0] * r[i + 0] - a[i + 1] * r[i + 1];
+      c[i + 1] = a[i + 1] * r[i + 0] + a[i + 0] * r[i + 1];
     }
   }
 
@@ -67,7 +59,7 @@ Tensor applyRotaryPosEmb(const Tensor &input, Tensor roPE) {
   roPE = roPE.unsqueeze(0);
   roPE = roPE.expand({input.getShape(0), roPE.getShape(1), input.getShape(2), roPE.getShape(3)});
 
-  if (input.getDType() == DType::kFloat) return applyRotaryPosEmbFp32(input, roPE);
+  if (input.getDType() == DType::kFloat) return applyRotaryPosEmbKernel<float>(input, roPE);
 
   NOT_IMPL();
 }

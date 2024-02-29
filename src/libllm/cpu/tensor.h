@@ -27,12 +27,12 @@ namespace op {
 namespace cpu {
 
 Tensor tensor(lut::Span<const int> shape, DType dtype);
+Tensor zeros(lut::Span<const int> shape, DType dtype);
+Tensor causalMask(int length, DType dtype);
 
 Tensor tensorLike(const Tensor &input);
 Tensor zerosLike(const Tensor &input);
 
-void zerosFp32(Subtensor<float> tensor);
-Tensor zerosLikeFp32(const Tensor &input);
 
 }  // cpu
 }  // op

@@ -19,39 +19,37 @@
 
 #include "libllm/cpu/copy.h"
 
-#include "libllm/cpu/subtensor.h"
-#include "libllm/cpu/subtensor_list.h"
+#include "libllm/cpu/accessor.h"
+#include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 
-void copyFp32(Subtensor<const float> src, Subtensor<float> tgt) {
-  SubtensorList<const float> vAs = getVectorList(src);
-  SubtensorList<float> vCs = getVectorList(tgt);
-  CHECK(vAs.getSize() == vCs.getSize() && vAs.getShape(0) == vCs.getShape(0));
+template<typename T>
+void copyKernel(const Tensor &src, Tensor &dest) {
+  TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(src);
+  TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(dest);
+  CHECK(vA.getLength() == vC.getLength());
 
   #pragma omp parallel for
-  for (int j = 0; j < vAs.getSize(); ++j) {
-    Subtensor<const float> vA = vAs.getSubtensor(j);
-    Subtensor<float> vC = vCs.getSubtensor(j);
+  for (int j = 0; j < vA.getLength(); ++j) {
+    TensorAccessor<const T, 1> a = vA.getTensor(j);
+    TensorAccessor<T, 1> c = vC.getTensor(j);
 
-    for (int i = 0; i < vA.dimension(0); ++i) {
-      vC.elem(i) = vA.elem(i);
-    }
+    copyVector(c, a);
   }
 }
 
 void copy(const Tensor &src, Tensor &dest) {
   if (src.getDType() == DType::kFloat) {
-    copyFp32(Subtensor<const float>::fromTensor(src), Subtensor<float>::fromTensor(dest));
-    return;
+    copyKernel<float>(src, dest);
+  } else {
+    NOT_IMPL();
   }
-  
-  NOT_IMPL();
 }
 
 }  // cpu
 }  // op
-}  // ly
+}  // libllm

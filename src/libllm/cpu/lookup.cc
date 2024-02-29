@@ -17,105 +17,79 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cpu/kernel/kernel.h"
-#include "libllm/cpu/copy.h"
 #include "libllm/cpu/lookup.h"
+
+#include "libllm/cpu/kernel/kernel.h"
+#include "libllm/cpu/common.h"
+#include "libllm/cpu/copy.h"
 #include "libllm/cpu/print.h"
-#include "libllm/cpu/subtensor_list.h"
+#include "libllm/cpu/accessor.h"
 #include "libllm/cpu/tensor.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 
-Tensor lookupFp32(Subtensor<const float> table, Subtensor<const LongType> indices) {
-  CHECK(table.rank() == 2 && indices.rank() == 2);
-
-  int batch_size = indices.dimension(0);
-  int seq_len = indices.dimension(1);
-  int d_model = table.dimension(1);
-  Tensor output = tensor(lut::makeConstSpan({batch_size, seq_len, d_model}), DType::kFloat);
-  Subtensor<float> emb = Subtensor<float>::fromTensor(output);
-
-  for (int batch = 0; batch < batch_size; ++batch) {
-    Subtensor<const LongType> indices_b = indices.subtensor(batch);
-    Subtensor<float> emb_b = emb.subtensor(batch);
-    for (int l = 0; l < seq_len; ++l) {
-      int64_t index = indices_b.elem(l);
-      CHECK(index < table.dimension(0)) << "indices out of range";
-
-      Subtensor<const float> emb_src = table.subtensor(static_cast<int>(index));
-      Subtensor<float> emb_tgt = emb_b.subtensor(l);
-      copyFp32(emb_src, emb_tgt);
-    }
-  }
-
-  return output;
-}
-
-template<>
-void applyDequant<Q4>(
-  int64_t offset, int n, const TensorData *data, float *tgt) {
-  kernel::dequantQ4(
-      n,
-      (const kernel::Q4x2 *)data->getData<Q4>(),
-      (const kernel::Fp16 *)data->getSlot(1)->getData<Float16>(),
-      (const kernel::UInt8 *)data->getSlot(2)->getData<UInt8>(),
-      offset,
-      tgt);
-}
-
-template void applyDequant<Q4>(
-    int64_t offset, int n, const TensorData *data, float *tgt);
-
 template<typename T>
-Tensor lookupQuantized(const Tensor &embd, Subtensor<const LongType> indices) {
-  CHECK(embd.getDim() == 2 && embd.getShape(1) % T::GroupSize == 0);
+Tensor lookupKernel2D(const Tensor &table, const Tensor &indices) {
+  CHECK(table.getDim() == 2 && indices.getDim() == 2);
 
-  int vocabSize = embd.getShape(0);
-  int embdDim = embd.getShape(1);
-  const TensorData *embdData = embd.getDataObject();
+  int vocabSize = table.getShape(0);
+  int d0 = indices.getShape(0);
+  int d1 = indices.getShape(1);
+  int embdDim = table.getShape(1);
+  Tensor xC = tensor(lut::makeConstSpan({d0, d1, embdDim}), DType::getType<T>());
 
-  std::vector<int> shapeC = indices.getShape();
-  shapeC.push_back(embdDim);
+  TensorAccessor<const T, 2> A = table;
+  TensorAccessor<const LongType, 2> B = indices;
+  TensorAccessor<T, 3> C = xC;
 
-  Tensor C = tensor(shapeC, DType::kFloat);
-  Subtensor<float> Cs = Subtensor<float>::fromTensor(C);
+  for (int i = 0; i < d0; ++i) {
+    for (int j = 0; j < d1; ++j) {
+      int64_t index = B[i][j];
+      CHECK(index < vocabSize) << "indices out of range";
 
-  SubtensorList<const LongType> vAs = getVectorList(indices);
-  SubtensorList<float> vCs = getMatrixList(Cs);
-  CHECK(vAs.getSize() == vCs.getSize() && vAs.getShape()[0].shape == vCs.getShape()[0].shape);
-  for (int j = 0; j < vAs.getSize(); ++j) {
-    Subtensor<const LongType> vA = vAs.getSubtensor(j);
-    Subtensor<float> vC = vCs.getSubtensor(j);
-
-    for (int i = 0; i < vA.dimension(0); ++i) {
-      int64_t index = vA.elem(i);
-      CHECK(index < vocabSize) << "indices out of range.";
-
-      Subtensor<float> vCi = vC.subtensor(i);
-      applyDequant<T>(embdDim * index, embdDim, embdData, vCi.data);
+      copyVector(C[i][j], A[index]);
     }
   }
 
-  return C;
+  return xC;
+}
+
+template<typename SrcT, typename DestT>
+Tensor lookupQuantizedKernel2D(const Tensor &table, const Tensor &indices) {
+  CHECK(table.getDim() == 2 && table.getShape(1) % SrcT::GroupSize == 0);
+  const TensorData *embdData = table.getDataObject();
+
+  int vocabSize = table.getShape(0);
+  int d0 = indices.getShape(0);
+  int d1 = indices.getShape(1);
+  int embdDim = table.getShape(1);
+  Tensor xC = tensor(lut::makeConstSpan({d0, d1, embdDim}), DType::getType<DestT>());
+
+  TensorAccessor<const LongType, 2> B = indices;
+  TensorAccessor<DestT, 3> C = xC;
+
+  for (int i = 0; i < d0; ++i) {
+    for (int j = 0; j < d1; ++j) {
+      int64_t index = B[i][j];
+      CHECK(index < vocabSize) << "indices out of range";
+
+      applyDequant<SrcT>(embdDim * index, embdDim, embdData, C[i][j].getData());
+    }
+  }
+
+  return xC;
 }
 
 Tensor lookup(const Tensor &table, const Tensor &indices) {
-  switch (table.getDType()) {
-    case DType::kFloat:
-      return lookupFp32(
-          Subtensor<const float>::fromTensor(table),
-          Subtensor<const LongType>::fromTensor(indices));
-    case DType::kQ4:
-      return lookupQuantized<Q4>(table, Subtensor<const LongType>::fromTensor(indices));
-    default:
-      NOT_IMPL();
-  }
+  if (table.getDType() == DType::kFloat) return lookupKernel2D<float>(table, indices);
+  if (table.getDType() == DType::kQ4)
+    return lookupQuantizedKernel2D<Q4, float>(table, indices);
 
-  return Tensor();
+  NOT_IMPL();
 }
 
 }  // cpu
 }  // op
-}  // ly
+}  // libllm

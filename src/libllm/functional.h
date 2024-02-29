@@ -89,8 +89,7 @@ Tensor gelu(Tensor input);
 //   dtype: data type of the new tensor.
 // Returns:
 //   the tensor with specified shape and dtype.
-Tensor createTensor(std::initializer_list<int> shape, DType dtype, 
-                    Device device = Device::getCpu());
+Tensor createTensor(lut::Span<const int> shape, DType dtype, Device device = Device::getCpu());
 
 /// @brief Generate a tensor filled with random numbers in range [min, max)
 /// @param shape shape of the tensor to generated.

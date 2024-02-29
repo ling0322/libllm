@@ -40,32 +40,68 @@ Tensor tensorLike(const Tensor &input) {
   return tensor(input.getShape(), input.getDType());
 }
 
-Tensor zerosLike(const Tensor &input) {
-  if (input.getDType() == DType::kFloat) return zerosLikeFp32(input);
-
-  NOT_IMPL();
-  return Tensor();
-}
-
-void zerosFp32(Subtensor<float> tensor) {
+template<typename T>
+void fillZeroKernel(Tensor tensor) {
   // make sure tensor is contiguous.
-  CHECK(tensor.numel() == tensor.stride(0) * tensor.dimension(0));
+  CHECK(tensor.isContiguous());
 
-  float *data = tensor.data;
-  int64_t numel = tensor.numel();
+  T *data = tensor.getData<T>();
+  int64_t numel = tensor.getNumEl();
 
   for (int64_t i = 0; i < numel; ++i) {
-    data[i] = 0.0f;
+    data[i] = T(0);
   }
+}
+
+void fillZero(Tensor tensor) {
+  if (tensor.getDType() == DType::kFloat) fillZeroKernel<float>(tensor);
+  else NOT_IMPL();
 }
 
 Tensor zerosLikeFp32(const Tensor &input) {
   CHECK(input.getDType() == DType::kFloat);
 
   Tensor x = tensorLike(input);
-  zerosFp32(Subtensor<float>::fromTensor(x));
+  fillZero(x);
 
   return x;
+}
+
+Tensor zeros(lut::Span<const int> shape, DType dtype) {
+  Tensor x = tensor(shape, dtype);
+  fillZero(x);
+
+  return x;
+}
+
+Tensor zerosLike(const Tensor &input) {
+  if (input.getDType() == DType::kFloat) return zerosLikeFp32(input);
+
+  NOT_IMPL();
+}
+
+template<typename T>
+Tensor causalMaskKernel(int length) {
+  Tensor mask = tensor({length, length}, DType::getType<T>());
+
+  T *data = mask.getData<T>();
+  for (int i = 0; i < length; ++i) {
+    T *row = data + i * length;
+    for (int j = 0; j <= i; ++j) {
+      row[j] = 0.0f;
+    }
+    for (int j = i + 1; j < length; ++j) {
+      row[j] = -std::numeric_limits<T>::infinity();
+    }
+  }
+
+  return mask;
+}
+
+Tensor causalMask(int length, DType dtype) {
+  if (dtype == DType::kFloat) return causalMaskKernel<float>(length);
+
+  NOT_IMPL();
 }
 
 }  // cpu
