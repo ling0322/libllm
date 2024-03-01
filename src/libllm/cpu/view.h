@@ -20,7 +20,6 @@
 #pragma once
 
 #include "libllm/tensor.h"
-#include "libllm/cpu/subtensor.h"
 #include "libllm/lut/span.h"
 
 namespace libllm {
