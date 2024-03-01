@@ -65,6 +65,8 @@ Tensor rmsNormKernel(const Tensor &tensor, const Tensor &weight, float eps) {
 
 Tensor rmsNorm(const Tensor &tensor, const Tensor &weight, float eps) {
   if (tensor.getDType() == DType::kFloat) return rmsNormKernel<float>(tensor, weight, eps);
+
+  NOT_IMPL();
 }
 
 }  // cpu
