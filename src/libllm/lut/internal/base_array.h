@@ -61,7 +61,7 @@ class BaseArray {
     assert(i < _size);
     return *(_ptr + i);
   }
-  reference front() const noexcept { ASSERT(!empty()); return *_ptr; }
+  reference front() const noexcept { assert(!empty()); return *_ptr; }
   reference back() const noexcept { 
     assert(!empty());
     return *(_ptr + _size - 1);

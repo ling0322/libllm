@@ -20,9 +20,8 @@
 #include "libllm/cpu/matmul.h"
 
 #include "libllm/lut/strings.h"
+#include "libllm/cpu/accessor.h"
 #include "libllm/cpu/common.h"
-#include "libllm/cpu/subtensor.h"
-#include "libllm/cpu/subtensor_list.h"
 #include "libllm/cpu/tensor.h"
 #include "libllm/cpu/kernel/kernel.h"
 
@@ -51,9 +50,7 @@ Tensor matmulFp32(const Tensor &A, const Tensor &B) {
 Tensor gemmFp32(const Tensor &A, const Tensor &B) {
   CHECK(A.getDim() == B.getDim() && A.getDim() == 2);
 
-  Tensor C = cpu::tensor({A.getShape(0), B.getShape(1)}, DType::kFloat);
-  Subtensor<float> Cs = Subtensor<float>::fromTensor(C);
-  zerosFp32(Cs);
+  Tensor C = op::cpu::zeros({A.getShape(0), B.getShape(1)}, DType::kFloat);
 
   GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
   kernel::sgemm(
@@ -66,7 +63,7 @@ Tensor gemmFp32(const Tensor &A, const Tensor &B) {
       gemmArgs.lda,
       B.getData<float>(),
       gemmArgs.ldb,
-      Cs.data,
+      C.getData<float>(),
       gemmArgs.ldc,
       kernel::Mode::OMP);
 
@@ -88,26 +85,24 @@ Tensor bmmFp32(const Tensor &A, const Tensor &B) {
   if (A.getDim() != B.getDim()) xB = expandBatchDims(B, A.getShape());
   std::vector<int> shapeC = getBmmOutputShape(A, xB);
 
-  Tensor tensorC = cpu::tensor(shapeC, DType::kFloat);
-  Subtensor<float> C = Subtensor<float>::fromTensor(tensorC);
-  zerosFp32(C);
+  Tensor C = op::cpu::zeros(shapeC, DType::kFloat);
 
-  SubtensorList<const float> mAs = getMatrixList(Subtensor<const float>::fromTensor(A));
-  SubtensorList<const float> mBs = getMatrixList(Subtensor<const float>::fromTensor(xB));
-  SubtensorList<float> mCs = getMatrixList(C);
+  TensorList<const float, 2> mA = TensorList<const float, 2>::fromTensor(A);
+  TensorList<const float, 2> mB = TensorList<const float, 2>::fromTensor(xB);
+  TensorList<float, 2> mC = TensorList<float, 2>::fromTensor(C);
 
-  GEMMArgs gemmArgs = generateGemmArgs(A, xB, tensorC);
+  GEMMArgs gemmArgs = generateGemmArgs(A, xB, C);
 
   // broadcast B.
-  CHECK(mAs.getSize() == mCs.getSize());
-  CHECK(mAs.getSize() % mBs.getSize() == 0);
+  CHECK(mA.getLength() == mC.getLength());
+  CHECK(mA.getLength() % mB.getLength() == 0);
 
-  const float *const *mAp = mAs.getDataPtrList().data();
-  const float *const *mBp = mBs.getDataPtrList().data();
-  float *const *mCp = mCs.getDataPtrList().data();
+  const float *const *mAp = mA.getDataPtrList().data();
+  const float *const *mBp = mB.getDataPtrList().data();
+  float *const *mCp = mC.getDataPtrList().data();
 
   #pragma omp parallel for
-  for (int i = 0; i < mAs.getSize(); ++i) {
+  for (int i = 0; i < mA.getLength(); ++i) {
     kernel::sgemm(
         gemmArgs.transA,
         gemmArgs.transB,
@@ -123,7 +118,7 @@ Tensor bmmFp32(const Tensor &A, const Tensor &B) {
         kernel::Mode::SingleThread);
   }
 
-  return tensorC;
+  return C;
 }
 
 Tensor bmmFp32QInt4Fp32(const Tensor &A, const Tensor &B) {
@@ -136,9 +131,7 @@ Tensor bmmFp32QInt4Fp32(const Tensor &A, const Tensor &B) {
 Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
   CHECK(A.getDim() == B.getDim() && A.getDim() == 2 && B.getDType() == DType::kQ4);
 
-  Tensor C = cpu::tensor({A.getShape(0), B.getShape(1)}, DType::kFloat);
-  Subtensor<float> Cs = Subtensor<float>::fromTensor(C);
-  zerosFp32(Cs);
+  Tensor C = op::cpu::zeros({A.getShape(0), B.getShape(1)}, DType::kFloat);
 
   GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
   const TensorData *dataObjectB = B.getDataObject();
@@ -153,7 +146,7 @@ Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
       reinterpret_cast<const kernel::Q4x2 *>(dataObjectB->getData<Q4>()),
       reinterpret_cast<const kernel::Fp16 *>(dataObjectB->getSlot(1)->getData<Float16>()),
       reinterpret_cast<const kernel::UInt8 *>(dataObjectB->getSlot(2)->getData<UInt8>()),
-      Cs.data,
+      C.getData<float>(),
       gemmArgs.ldc);
 
   return C;

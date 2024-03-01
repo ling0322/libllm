@@ -25,9 +25,14 @@ namespace libllm {
 namespace op {
 namespace cpu {
 
-Tensor swiglu(const Tensor &A);
-Tensor swigluFp32(const Tensor &A);
+enum class BinaryOp {
+  ADD,
+  MUL
+};
+
+// apply C <- BinaryOp(A, B)
+Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op);
 
 }  // cpu
 }  // op
-}  // ly
+}  // libllm

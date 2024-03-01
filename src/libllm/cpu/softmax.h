@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -20,18 +20,13 @@
 #pragma once
 
 #include "libllm/tensor.h"
-#include "libllm/cpu/subtensor.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 
-Tensor mul(const Tensor &A, float k);
-Tensor mul(const Tensor &A, const Tensor &B);
-
-Tensor mulFp32(Subtensor<const float> A, float k);
-Tensor mulFp32(Subtensor<const float> A, Subtensor<const float> B);
+Tensor softmax(Tensor A);
 
 }  // cpu
 }  // op
-}  // ly
+}  // libllm

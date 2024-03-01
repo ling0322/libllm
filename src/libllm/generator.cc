@@ -56,7 +56,7 @@ const char *Generator::nextToken() {
   
   const Vocab *vocab = _tokenizer->getVocab();
   const char *token = vocab->getTokenPiece(_currentToken).c_str();
-  LOG(DEBUG) << lut::sprintf("%d -> \"%s\"", _currentToken, vocab->getTokenString(_currentToken));
+  LOG(INFO) << lut::sprintf("%d -> \"%s\"", _currentToken, vocab->getTokenString(_currentToken));
 
   std::array<LongType, 1> inputData{_currentToken};
   Tensor inputs = Tensor::create<LongType>({1, 1}, inputData);

@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,53 +17,58 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cpu/apply_rotary_pos_emb.h"
+#include "libllm/cpu/rms_norm.h"
 
+#include <cmath>
 #include "libllm/cpu/accessor.h"
+#include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 
 template<typename T>
-Tensor applyRotaryPosEmbKernel(const Tensor &input, const Tensor &roPE) {
-  CHECK(roPE.getDType() == DType::kFloat);
+Tensor rmsNormKernel(const Tensor &tensor, const Tensor &weight, float eps) {
+  CHECK(weight.getDim() == 1);
+  CHECK(tensor.getShape(-1) == weight.getShape(0));
 
-  Tensor C = zerosLike(input);
-  
-  TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(input);
-  TensorList<const T, 1> vR = TensorList<const T, 1>::fromTensor(roPE);
+  Tensor C = tensorLike(tensor);
+
+  TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(tensor);
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
-  CHECK(vA.getLength() == vR.getLength());
 
+  TensorAccessor<const T, 1> w = weight;
+
+  #pragma omp parallel for
   for (int j = 0; j < vA.getLength(); ++j) {
     TensorAccessor<const T, 1> a = vA.getTensor(j);
-    TensorAccessor<const T, 1> r = vR.getTensor(j);
     TensorAccessor<T, 1> c = vC.getTensor(j);
 
-    for (int i = 0; i < a.getShape(0); i += 2) {
-      c[i + 0] = a[i + 0] * r[i + 0] - a[i + 1] * r[i + 1];
-      c[i + 1] = a[i + 1] * r[i + 0] + a[i + 0] * r[i + 1];
+    double sum = 0.0;
+    for (int i = 0; i < a.getShape(0); ++i) {
+      sum += a[i] * a[i];
+    }
+    double mean = sum / a.getShape(0);
+    double rms = std::sqrt(mean + eps);
+
+    // compute rms-norm
+    for (int i = 0; i < a.getShape(0); ++i) {
+      c[i] = static_cast<T>(a[i] * w[i] / rms);
     }
   }
 
   return C;
 }
 
-Tensor applyRotaryPosEmb(const Tensor &input, Tensor roPE) {
-  CHECK(input.getDim() == 4 && roPE.getDim() == 3 && roPE.isContiguous());
-  CHECK(input.getShape(1) == roPE.getShape(0) && input.getShape(3) == roPE.getShape(2));
-
-  roPE = roPE.unsqueeze(0);
-  roPE = roPE.expand({input.getShape(0), roPE.getShape(1), input.getShape(2), roPE.getShape(3)});
-
-  if (input.getDType() == DType::kFloat) return applyRotaryPosEmbKernel<float>(input, roPE);
+Tensor rmsNorm(const Tensor &tensor, const Tensor &weight, float eps) {
+  if (tensor.getDType() == DType::kFloat) return rmsNormKernel<float>(tensor, weight, eps);
 
   NOT_IMPL();
 }
 
 }  // cpu
 }  // op
-}  // ly
+}  // libllm

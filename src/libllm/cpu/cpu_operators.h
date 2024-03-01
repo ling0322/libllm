@@ -21,8 +21,6 @@
 
 #include <stdint.h>
 #include <memory>
-#include "libllm/cpu/subtensor.h"
-#include "libllm/cpu/subtensor_list.h"
 #include "libllm/operators.h"
 #include "libllm/tensor.h"
 
@@ -46,20 +44,16 @@ class CPUOperators : public Operators {
   Tensor mul(Tensor input, float other) override;
   Tensor mul(Tensor input, Tensor other) override;
   Tensor softmax(Tensor input) override;
-  Tensor gelu(Tensor input) override;
   Tensor add(Tensor a, Tensor b) override;
-  Tensor createTensor(std::initializer_list<int> shape, DType dtype) override;
+  Tensor createTensor(lut::Span<const int> shape, DType dtype) override;
   Tensor createTensorLike(Tensor input) override;
   Tensor zeros(lut::Span<const int> shape, DType dtype) override;
   bool allClose(Tensor A, Tensor B, float rtol, float atol) override;
   void print(Tensor tensor) override;
-  Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor causalMask(int max_len) override;
-  Tensor cat(Tensor A, Tensor B, int dim) override;
   Tensor applRotaryPosEmb(Tensor A, Tensor roPE) override;
   void copy(Tensor src, Tensor dest) override;
-  Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) override;
   Tensor swiglu(Tensor A) override;
   Tensor toDevice(Tensor tensor, Device device) override;
   Tensor cast(Tensor tensor, DType dtype) override;
@@ -70,37 +64,6 @@ class CPUOperators : public Operators {
 
  private:
   typedef TensorShape::Elem Shape;
-
-  Tensor createTensor(lut::Span<const int> shape, DType dtype);
-  Tensor createTensorLike(Subtensor<const float> A);
-
-  Tensor addFp32(Subtensor<const float> A, Subtensor<const float> B);
-  Tensor softmaxFp32(Subtensor<const float> A);
-  Tensor geluFp32(Subtensor<const float> A);
-
-  void randFp32(Tensor *tensor);
-  void print1DFp32(Subtensor<const float> A);
-  void printNDFp32(Subtensor<const float> A, int pad_space);
-  void printFp32(Subtensor<const float> tensor);
-  
-  bool allCloseFp32(Subtensor<const float> A, Subtensor<const float> B, float rtol, float atol);
-
-  Tensor lookupFp32(Subtensor<const float> table, Subtensor<const LongType> indices);
-  Tensor layerNormFp32(
-      Subtensor<const float> input,
-      Subtensor<const float> weight,
-      Subtensor<const float> bias,
-      float eps);
-  Tensor rmsNormFp32(
-      Subtensor<const float> input,
-      Subtensor<const float> weight,
-      float eps);
-  Tensor causalMaskFp32(int max_len);
-
-
-  template<typename T>
-  void getSubtensors(Subtensor<T> tensor, int subtensorDim, std::vector<T*>& l);
-
 };
 
 }  // cpu

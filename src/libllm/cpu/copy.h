@@ -20,14 +20,12 @@
 #pragma once
 
 #include "libllm/tensor.h"
-#include "libllm/cpu/subtensor.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 
 void copy(const Tensor &src, Tensor &dest);
-void copyFp32(Subtensor<const float> src, Subtensor<float> tgt);
 
 }  // cpu
 }  // op

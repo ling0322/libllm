@@ -88,28 +88,14 @@ Tensor CudaOperators::causalMask(int max_len) {
   return op::cuda::causalMask(max_len);
 }
 
-Tensor CudaOperators::cat(Tensor A, Tensor B, int dim) {
-  CHECK(A.getDType() == B.getDType() && A.getDType() == DType::kFloat16);
-  dim = A.getShape_()->getRealDim(dim);
-  CHECK(A.getDim() == B.getDim() &&  dim < A.getDim());
-
-  std::vector<Tensor::ShapeType> shape = A.getShape();
-  Tensor::ShapeType dA = A.getShape(dim);
-  Tensor::ShapeType dB = B.getShape(dim);
-  shape[dim] = dA + dB;
-
-  Tensor C = createCudaTensorHalf(shape);
-  Tensor sA = C.slice(dim, {0, dA});
-  Tensor sB = C.slice(dim, {dA, dA + dB});
-
-  copy(A, sA);
-  copy(B, sB);
-
-  return C;
-}
-
 Tensor CudaOperators::applRotaryPosEmb(Tensor A, Tensor roPE) {
   return op::cuda::applyRotaryPosEmb(A, roPE);
+}
+
+Tensor CudaOperators::createTensor(lut::Span<const int> shape, DType dtype) {
+  if (dtype == DType::kFloat16) return createCudaTensorHalf(shape);
+
+  NOT_IMPL();
 }
 
 Tensor CudaOperators::createTensorLike(Tensor input) {
@@ -132,17 +118,6 @@ void CudaOperators::copy(Tensor src, Tensor dest) {
   } else {
     op::cuda::copy(src, dest);
   }
-}
-
-Tensor CudaOperators::attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
-  Tensor scores = matmul(q, k.transpose(-2, -1));
-  scores = mul(scores,  1.0f / sqrtf(1.0f * q.getShape(-1)));
-
-  if (!mask.empty()) scores = add(scores, mask);
-  scores = softmax(scores);
-
-  Tensor outputs = matmul(scores, v);  
-  return outputs;
 }
 
 Tensor CudaOperators::swiglu(Tensor A) {

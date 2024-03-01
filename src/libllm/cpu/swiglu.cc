@@ -19,50 +19,50 @@
 
 #include "libllm/cpu/swiglu.h"
 
-#include <math.h>
-#include "libllm/cpu/subtensor.h"
-#include "libllm/cpu/subtensor_list.h"
+#include <cmath>
+#include "libllm/cpu/accessor.h"
 #include "libllm/cpu/tensor.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 
-Tensor swiglu(const Tensor &A) {
-  CHECK(A.getShape(-1) % 2 == 0);
+template<typename T>
+Tensor swigluKernel(const Tensor &A) {
+  std::vector<int> shapeC = A.getShape();
+  shapeC.back() /= 2;
+  Tensor C = tensor(shapeC, DType::kFloat);
 
-  if (A.getDType() == DType::kFloat) return swigluFp32(A);
-
-  NOT_IMPL();
-}
-
-Tensor swigluFp32(const Tensor &A) {
-  CHECK(A.getDType() == DType::kFloat);
-  std::vector<int> shapeA = A.getShape();
-  shapeA.back() /= 2;
-  Tensor C = tensor(shapeA, DType::kFloat);
-  Subtensor<float> Cs = Subtensor<float>::fromTensor(C);
-  Subtensor<const float> As = Subtensor<const float>::fromTensor(A);
-
-  SubtensorList<const float> vAs = getVectorList(As);
-  SubtensorList<float> vCs = getVectorList(Cs);
-  CHECK(vAs.getSize() == vCs.getSize());
+  TensorList<const float, 1> vA = TensorList<const float, 1>::fromTensor(A);
+  TensorList<float, 1> vC = TensorList<float, 1>::fromTensor(C);
+  CHECK(vA.getLength() == vC.getLength());
 
   #pragma omp parallel for
-  for (int j = 0; j < vAs.getSize(); ++j) {
-    Subtensor<const float> vA = vAs.getSubtensor(j);
-    Subtensor<float> vC = vCs.getSubtensor(j);
+  for (int j = 0; j < vA.getLength(); ++j) {
+    TensorAccessor<const float, 1> a = vA.getTensor(j);
+    TensorAccessor<float, 1> c = vC.getTensor(j);
 
-    int n = vC.dimension(0);
+    int n = c.getShape(0);
     for (int i = 0; i < n; ++i) {
-      float x = vA.data[i];
-      x *= 1.0f / (1 + expf(-x));
-      x *= vA.data[i + n];
-      vC.data[i] = x;
+      T x = a[i];
+      x *= 1.0f / (1 + std::exp(-x));
+      x *= a[i + n];
+      c[i] = x;
     }
   }
   return C;
 }
+
+Tensor swiglu(const Tensor &A) {
+  CHECK(A.getShape(-1) % 2 == 0);
+
+  if (A.getDType() == DType::kFloat) return swigluKernel<float>(A);
+
+  NOT_IMPL();
+}
+
+
+
 
 }  // cpu
 }  // op

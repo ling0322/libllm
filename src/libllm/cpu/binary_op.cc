@@ -17,53 +17,59 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cpu/apply_rotary_pos_emb.h"
+#include "libllm/cpu/binary_op.h"
 
 #include "libllm/cpu/accessor.h"
+#include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 
+Tensor broadcastTensor(const Tensor &a, lut::Span<const Tensor::ShapeType> targetShape) {
+  Tensor x = expandBatchDims(a, targetShape);
+  return x.expand(targetShape);
+}
+
 template<typename T>
-Tensor applyRotaryPosEmbKernel(const Tensor &input, const Tensor &roPE) {
-  CHECK(roPE.getDType() == DType::kFloat);
+Tensor binaryOpKernel(const Tensor &A, const Tensor &B, BinaryOp op) {
+  Tensor xB = broadcastTensor(B, A.getShape());
+  Tensor C = tensorLike(A);
 
-  Tensor C = zerosLike(input);
-  
-  TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(input);
-  TensorList<const T, 1> vR = TensorList<const T, 1>::fromTensor(roPE);
+  TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(A);
+  TensorList<const T, 1> vB = TensorList<const T, 1>::fromTensor(xB);
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
-  CHECK(vA.getLength() == vC.getLength());
-  CHECK(vA.getLength() == vR.getLength());
+  CHECK(vA.getLength() == vB.getLength() && vC.getLength() == vB.getLength());
 
+  #pragma omp parallel for
   for (int j = 0; j < vA.getLength(); ++j) {
     TensorAccessor<const T, 1> a = vA.getTensor(j);
-    TensorAccessor<const T, 1> r = vR.getTensor(j);
+    TensorAccessor<const T, 1> b = vB.getTensor(j);
     TensorAccessor<T, 1> c = vC.getTensor(j);
 
-    for (int i = 0; i < a.getShape(0); i += 2) {
-      c[i + 0] = a[i + 0] * r[i + 0] - a[i + 1] * r[i + 1];
-      c[i + 1] = a[i + 1] * r[i + 0] + a[i + 0] * r[i + 1];
+    for (int i = 0; i < a.getShape(0); ++i) {
+      if (op == BinaryOp::ADD) {
+        c[i] = a[i] + b[i];
+      } else if (op == BinaryOp::MUL) {
+        c[i] = a[i] * b[i];
+      } else {
+        NOT_IMPL();
+      }
     }
   }
 
   return C;
 }
 
-Tensor applyRotaryPosEmb(const Tensor &input, Tensor roPE) {
-  CHECK(input.getDim() == 4 && roPE.getDim() == 3 && roPE.isContiguous());
-  CHECK(input.getShape(1) == roPE.getShape(0) && input.getShape(3) == roPE.getShape(2));
-
-  roPE = roPE.unsqueeze(0);
-  roPE = roPE.expand({input.getShape(0), roPE.getShape(1), input.getShape(2), roPE.getShape(3)});
-
-  if (input.getDType() == DType::kFloat) return applyRotaryPosEmbKernel<float>(input, roPE);
+// apply C <- BinaryOp(A, B)
+Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op) {
+  if (A.getDType() == DType::kFloat) return binaryOpKernel<float>(A, B, op);
 
   NOT_IMPL();
 }
 
 }  // cpu
 }  // op
-}  // ly
+}  // libllm
