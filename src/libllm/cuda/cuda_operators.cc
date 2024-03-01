@@ -27,6 +27,7 @@
 #include "libllm/cuda/copy.h"
 #include "libllm/cuda/lookup.h"
 #include "libllm/cuda/matmul.h"
+#include "libllm/cuda/print.h"
 #include "libllm/cuda/softmax.h"
 #include "libllm/cuda/swiglu.h"
 #include "libllm/cuda/to_device.h"
@@ -118,6 +119,10 @@ void CudaOperators::copy(Tensor src, Tensor dest) {
   } else {
     op::cuda::copy(src, dest);
   }
+}
+
+void CudaOperators::print(Tensor tensor) {
+  op::cuda::print(tensor);
 }
 
 Tensor CudaOperators::swiglu(Tensor A) {

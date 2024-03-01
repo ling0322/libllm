@@ -98,6 +98,7 @@ if (WITH_CUDA)
         "cuda/lookup.cu"
         "cuda/matmul.cc"
         "cuda/matvec.cu"
+        "cuda/print.cc"
         "cuda/reduce.cu"
         "cuda/rms_norm.cu"
         "cuda/softmax.cu"

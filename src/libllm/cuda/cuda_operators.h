@@ -52,6 +52,7 @@ class CudaOperators : public Operators {
   Tensor causalMask(int max_len) override;
   Tensor applRotaryPosEmb(Tensor A, Tensor roPE) override;
   void copy(Tensor src, Tensor dest) override;
+  void print(Tensor tensor) override;
   Tensor swiglu(Tensor A) override;
   Tensor toDevice(Tensor tensor, Device device) override;
   Tensor cast(Tensor tensor, DType dtype) override;
