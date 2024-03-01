@@ -90,7 +90,7 @@ class TensorAccessor<T, 1> : public TensorAccessorBase<T, 1> {
     int64_t offset = index * this->_size[0].stride;
     return this->_data[offset];
   }
-  T operator[](int index) const {
+  const T &operator[](int index) const {
     int64_t offset = index * this->_size[0].stride;
     return this->_data[offset];
   }

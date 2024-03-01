@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -19,42 +19,42 @@
 
 #include "libllm/cpu/print.h"
 
+#include <cuda_runtime.h>
+#include <cuda_fp16.h>
 #include <inttypes.h>
+#include "libllm/cuda/common.h"
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/tensor_printer.h"
 
 namespace libllm {
 namespace op {
-namespace cpu {
+namespace cuda {
 
 
-struct CpuPrinterImpl {
+struct CudaPrinterImpl {
   template<typename T, int DIM>
-  using accessor_type = TensorAccessor<T, DIM>;
+  using accessor_type = op::cpu::TensorAccessor<T, DIM>;
 
-  static void printValue(const float *pval) {
-    float value = *pval;
+  static void printValue(const half *pval) {
+    half hvalue;
+    LL_CHECK_CUDA_STATUS(cudaMemcpy(&hvalue, pval, sizeof(half), cudaMemcpyDeviceToHost));
+
+    float value = hvalue;
     if (std::abs(value) > 100 || std::abs(value) < 0.01) {
       printf("%.4e", value);
     } else {
       printf("%.4f", value);
     }
   }
-  
-  static void printValue(const LongType *pval) {
-    LongType value = *pval;
-    printf("%" PRId64, value);
-  }
 };
 
 void print(const Tensor &tensor) {
-  TensorPrinter<CpuPrinterImpl> printer;
+  op::cpu::TensorPrinter<CudaPrinterImpl> printer;
 
-  if (tensor.getDType() == DType::kFloat) printer.print<float>(tensor);
-  else if (tensor.getDType() == DType::kLong) printer.print<LongType>(tensor);
+  if (tensor.getDType() == DType::kFloat16) printer.print<half>(tensor);
   else NOT_IMPL();
 }
 
-}  // cpu
+}  // cuda
 }  // op
 }  // libllm
