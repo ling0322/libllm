@@ -60,6 +60,7 @@ CPUMathBackend findBestCpuMathBackend() {
     return CPUMathBackend::AVX2;
   } else {
     LOG(FATAL) << "CPU not supported (AVX2 and F16C is required).";
+    NOT_IMPL();
   }
 }
 

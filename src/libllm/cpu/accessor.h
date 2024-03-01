@@ -102,7 +102,9 @@ class TensorList {
   static TensorList<T, DIM> fromTensor(const Tensor &src);
   static TensorList<T, DIM> fromTensor(Tensor &src);
   
-  lut::Span<const TensorShape::Elem> getShape() const { return _shape; }
+  lut::Span<const TensorShape::Elem> getShape() const {
+    return lut::Span<const TensorShape::Elem>(_shape, DIM); 
+  }
   int getShape(int d) const { return _shape[d].shape; }
   int getLength() const { return static_cast<int>(_pointerList.size()); }
   lut::Span<T *const> getDataPtrList() const { return lut::makeConstSpan(_pointerList); }
