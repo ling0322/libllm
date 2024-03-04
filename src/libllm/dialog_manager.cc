@@ -95,13 +95,25 @@ std::shared_ptr<llm::Prompt> LlamaPromptBuilder::buildPrompt(
     lut::Span<const QA> history,
     const std::string &question) {
   std::shared_ptr<llm::Prompt> prompt = model->createPrompt();
+  bool systemPromptAdded = false;
   for (const QA &qa : history) {
     prompt->appendControlToken("<s>");
-    prompt->appendText("[INST] " + qa.question + " [/INST] " + qa.answer);
+    if (!systemPromptAdded) {
+      prompt->appendText("[INST] <<SYS>>\nYou are a helpful assistant.\n<</SYS>>\n\n");
+      systemPromptAdded = true;
+    } else {
+      prompt->appendText("[INST]");
+    }
+    prompt->appendText(qa.question + " [/INST]" + qa.answer);
     prompt->appendControlToken("</s>");
   }
   prompt->appendControlToken("<s>");
-  prompt->appendText("[INST] " + question + " [/INST] ");
+  if (!systemPromptAdded) {
+    prompt->appendText("[INST] <<SYS>>\nYou are a helpful assistant.\n<</SYS>>\n\n");
+  } else {
+    prompt->appendText("[INST]");
+  }
+  prompt->appendText(question + " [/INST]");
   return prompt;
 }
 

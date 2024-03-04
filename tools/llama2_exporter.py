@@ -22,6 +22,7 @@ import torch
 import configparser
 import zipfile
 import io
+import sys
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
 from bpe_exporter import read_spm_model
@@ -113,6 +114,26 @@ class Llama2Exporter(ModelExporter):
 
         return ini_config
 
+def run_llama2_chat(huggingface_name):
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained(huggingface_name)
+
+    prompt = "hi"
+    messages = [
+        {"role": "user", "content": prompt}
+    ]
+    text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    model_inputs = tokenizer([text], return_tensors="pt")
+    model = AutoModelForCausalLM.from_pretrained(huggingface_name, device_map="cpu")
+    generated_ids = model.generate(model_inputs.input_ids, max_new_tokens=512)
+    generated_ids = [
+        output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+    ]
+    print(generated_ids)
+
+    response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    print(response)
+
 MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"
 MODEL_BIN = "model.bin"
 MODEL_INI = "model.ini"
@@ -128,7 +149,12 @@ if __name__ == '__main__':
     parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default=MODEL_NAME)
     parser.add_argument('-quantization', type=Quant.parse, help='quantization type, "q4" or "none"', default=Quant.Q4)
     parser.add_argument('-output', type=str, help='output file name.', default="llama.llmpkg")
+    parser.add_argument('-run', action="store_true")
     args = parser.parse_args()
+
+    if args.run:
+        run_llama2_chat(args.huggingface_name)
+        sys.exit(0)
 
     tokenizer = AutoTokenizer.from_pretrained(args.huggingface_name, trust_remote_code=True)
     model = LlamaForCausalLM.from_pretrained(args.huggingface_name, trust_remote_code=True)
