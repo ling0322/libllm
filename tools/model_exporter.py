@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 import struct
 import torch
 import math
+import sys
 import numpy as np
 from enum import Enum
 import torch.nn.functional as F
@@ -107,29 +108,21 @@ class Quantization:
     @classmethod
     def quantize_to_q4(cls, tensor: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """1D tensor to qdata (q4x2), scale (fp16), zero_point (int8) """
-        grouped_data = tensor.reshape(-1, 128)
-        num_group = grouped_data.shape[0]
+        weights = tensor.reshape(-1, 128)
+        num_group = weights.shape[0]
 
-        min_value = torch.min(grouped_data, 1).values
-        max_value = torch.max(grouped_data, 1).values
+        min_value = torch.min(weights, 1).values
+        max_value = torch.max(weights, 1).values
 
-        # zero point is in range(0, 15), here to make sure the zero point will not overflow.
-        min_value[min_value > 0] = 0
-        max_value[max_value < 0] = 0
+        scales = torch.clamp(max_value - min_value, min=1e-5) / 15
+        zeros = torch.round(-min_value / scales).clamp(0, 15)
 
-        group_scale = (max_value - min_value) / 15
-        group_zero_point = torch.round(-min_value / group_scale).type(torch.int32)
-        assert torch.all(group_zero_point <= 15) and torch.all(group_zero_point >= 0)
-        group_zero_point = group_zero_point.type(torch.uint8)
-        group_zero_point = cls._pack_uint8_to_uint4x2(group_zero_point)
+        qweights = torch.round(weights / scales.reshape(num_group, 1)) + zeros.reshape(num_group, 1)
+        qweights = qweights.clamp(0, 15).reshape(-1).type(torch.uint8)
+        qweights = cls._pack_uint8_to_uint4x2(qweights)
 
-        qdata = (grouped_data - min_value.reshape(num_group, 1)) / group_scale.reshape(num_group, 1)
-        qdata = torch.round(qdata).reshape(-1).type(torch.int32)
-        assert torch.all(qdata <= 15) and torch.all(qdata >= 0)
-        qdata = qdata.type(torch.uint8)
-        qdata = cls._pack_uint8_to_uint4x2(qdata)
-
-        return qdata, group_scale.type(torch.float16), group_zero_point
+        zeros = cls._pack_uint8_to_uint4x2(zeros.type(torch.uint8))
+        return qweights, scales.type(torch.float16), zeros
 
 class TensorWriter:
     """write tensor to file with llyn tensor format."""
