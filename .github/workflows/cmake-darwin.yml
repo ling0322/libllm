@@ -14,6 +14,8 @@ jobs:
     runs-on: macos-14
     steps:
     - uses: actions/checkout@v3
+    - name: Install openmp
+      run: brew install libomp
     - name: Configure CMake
       run: OpenMP_ROOT=$(brew --prefix)/opt/libomp cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
     - name: Build
