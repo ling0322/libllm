@@ -142,7 +142,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 # CPU specific code
-if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+if(LIBLLM_KERNEL_X86_64)
     set(libllm_SOURCES
         ${libllm_SOURCES}
         "cpu/kernel/kernel_avx2.cc"
@@ -163,7 +163,7 @@ if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
             "cpu/kernel/kernel_avx2.cc"
             PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mf16c")
     endif(UNIX)
-endif(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+endif()
 
 add_library(lut STATIC ${lut_SOURCES})
 set_target_properties(lut PROPERTIES CXX_VISIBILITY_PRESET hidden)
