@@ -40,7 +40,8 @@ namespace kernel {
 enum class CPUMathBackend {
   DEFAULT,
   AVX2,
-  AVX512
+  AVX512,
+  ASIMDHP
 };
 
 CPUMathBackend findBestCpuMathBackend() {
@@ -49,19 +50,30 @@ CPUMathBackend findBestCpuMathBackend() {
   bool isaAvx512f = ruapu_supports("avx512f") > 0;
   bool isaF16c = ruapu_supports("f16c") > 0;
 
+#ifdef LIBLLM_ARCH_X86_64
   LOG(INFO) << lut::sprintf(
       "ISA support: AVX2=%d F16C=%d AVX512F=%d", isaAvx2, isaF16c, isaAvx512f);
+#endif  // LIBLLM_ARCH_X86_64
 
+#ifdef LIBLLM_ARCH_X86_64
   if (isaAvx512f && isaF16c) {
     LOG(INFO) << "Use Avx512 backend.";
     return CPUMathBackend::AVX512;
-  } else if (isaAvx2 && isaF16c) {
+  }
+  
+  if (isaAvx2 && isaF16c) {
     LOG(INFO) << "Use Avx2 backend.";
     return CPUMathBackend::AVX2;
-  } else {
-    LOG(FATAL) << "CPU not supported (AVX2 and F16C is required).";
-    NOT_IMPL();
   }
+#endif  // LIBLLM_ARCH_X86_64
+
+#ifdef LIBLLM_ARCH_AARCH64
+  LOG(INFO) << "Use default backend.";
+  return CPUMathBackend::DEFAULT;
+#endif  // LIBLLM_ARCH_AARCH64
+
+  LOG(FATAL) << "CPU not supported.";
+  NOT_IMPL();
 }
 
 // instance of Api.
@@ -106,6 +118,7 @@ void Api::init() {
 
   _instance = new Api();
   switch (findBestCpuMathBackend()) {
+#ifdef LIBLLM_ARCH_X86_64
     case CPUMathBackend::AVX512:
       _instance->_sgemm = std::make_unique<SGEMMImplAvx512>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplAvx512OMP>();
@@ -120,6 +133,7 @@ void Api::init() {
       _instance->_q4dequant = std::make_unique<DequantQ4Avx2OMP>();
       _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatAvx2OMP>();
       break;
+#endif  // LIBLLM_ARCH_X86_64
     case CPUMathBackend::DEFAULT:
       _instance->_sgemm = std::make_unique<SGEMMImplDefault>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplDefaultOMP>();

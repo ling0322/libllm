@@ -40,12 +40,19 @@ set(MKL_PREFIX "/opt/intel/mkl" CACHE STRING "Prefix for MKL headers and librari
 #add_link_options(-fsanitize=address)
 
 if(WIN32)
-  add_definitions( "/D_CRT_SECURE_NO_WARNINGS /DCATCH_AMALGAMATED_CUSTOM_MAIN /DCATCH_CONFIG_PREFIX_ALL" )
+    add_definitions( "/D_CRT_SECURE_NO_WARNINGS /DCATCH_AMALGAMATED_CUSTOM_MAIN /DCATCH_CONFIG_PREFIX_ALL" )
 endif(WIN32)
 if(UNIX)
-  add_definitions( "-DCATCH_AMALGAMATED_CUSTOM_MAIN -DCATCH_CONFIG_PREFIX_ALL" )
-  set(CMAKE_CXX_FLAGS "-O3 -g")
-  set(CMAKE_C_FLAGS "-O3 -g")
+    add_definitions( "-DCATCH_AMALGAMATED_CUSTOM_MAIN -DCATCH_CONFIG_PREFIX_ALL -D_FILE_OFFSET_BITS=64" )
+    set(CMAKE_CXX_FLAGS "-O0 -g")
+    set(CMAKE_C_FLAGS "-O0 -g")
 endif(UNIX)
+
+if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    add_compile_definitions(LIBLLM_ARCH_X86_64)
+endif(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64")
+    add_compile_definitions(LIBLLM_ARCH_AARCH64)
+endif(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64")
 
 add_subdirectory("src/libllm")

@@ -20,8 +20,6 @@ set(lut_SOURCES
     "lut/zip_file.cc")
 
 set(libllm_SOURCES
-    "cpu/kernel/kernel_avx2.cc"
-    "cpu/kernel/kernel_avx512.cc"
     "cpu/kernel/kernel_fallback.cc"
     "cpu/kernel/kernel.cc"
     "cpu/kernel/util.cc"
@@ -80,7 +78,7 @@ set(llm_SOURCES
     "dialog_manager.cc"
     "llm_main.cc")
 
-set(libllm_INCDIR ".." "../../third_party")
+set(libllm_INCDIR ".." "../../third_party" ${OpenMP_CXX_INCLUDE_DIRS})
 
 if (WITH_CUDA)
     set(libllm_INCDIR ${libllm_INCDIR} ${CUDAToolkit_INCLUDE_DIRS})
@@ -118,38 +116,58 @@ if (WITH_CUDA)
         "lut/internal/log.cc")
 endif()
 
+# OS specific code
 if(WIN32)
-    set_source_files_properties(
-        "cpu/kernel/kernel_avx512.cc"
-        PROPERTIES COMPILE_FLAGS /arch:AVX512)
-    set_source_files_properties(
-        "cpu/kernel/kernel_avx2.cc"
-        PROPERTIES COMPILE_FLAGS /arch:AVX2)
     set(libllm_SOURCES
         ${libllm_SOURCES}
         "lut/path_windows.cc"
         "lut/platform_windows.cc"
         "lut/shared_library_windows.cc")
-endif(WIN32)
-
+endif()
 if(UNIX)
-    set_source_files_properties(
-        "cpu/kernel/kernel_avx512.cc"
-        PROPERTIES COMPILE_FLAGS "-mavx512f")
-    set_source_files_properties(
-        "cpu/kernel/kernel_avx2.cc"
-        PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mf16c")
     set(libllm_SOURCES
         ${libllm_SOURCES}
-        "lut/path_linux.cc"
         "lut/platform_linux.cc"
         "lut/shared_library_linux.cc")
-endif(UNIX)
+endif()
+if(UNIX AND APPLE)
+    set(libllm_SOURCES
+        ${libllm_SOURCES}
+        "lut/path_darwin.cc")
+endif()
+if(UNIX AND NOT APPLE)
+    set(libllm_SOURCES
+        ${libllm_SOURCES}
+        "lut/path_linux.cc")
+endif()
+
+# CPU specific code
+if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    set(libllm_SOURCES
+        ${libllm_SOURCES}
+        "cpu/kernel/kernel_avx2.cc"
+        "cpu/kernel/kernel_avx512.cc")
+    if(WIN32)
+        set_source_files_properties(
+            "cpu/kernel/kernel_avx512.cc"
+            PROPERTIES COMPILE_FLAGS /arch:AVX512)
+        set_source_files_properties(
+            "cpu/kernel/kernel_avx2.cc"
+            PROPERTIES COMPILE_FLAGS /arch:AVX2)
+    endif(WIN32)
+    if(UNIX)
+        set_source_files_properties(
+            "cpu/kernel/kernel_avx512.cc"
+            PROPERTIES COMPILE_FLAGS "-mavx512f")
+        set_source_files_properties(
+            "cpu/kernel/kernel_avx2.cc"
+            PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mf16c")
+    endif(UNIX)
+endif(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
 
 add_library(lut STATIC ${lut_SOURCES})
 set_target_properties(lut PROPERTIES CXX_VISIBILITY_PRESET hidden)
-target_include_directories(lut PRIVATE ".." "../../third_party/")
-
+target_include_directories(lut PRIVATE ${libllm_INCDIR})
 
 set(libllm_LIBADD
     lut
@@ -165,14 +183,14 @@ target_include_directories(libllm_static PRIVATE ${libllm_INCDIR})
 add_library(libllm SHARED $<TARGET_OBJECTS:libllm_static>)
 target_link_libraries(libllm ${libllm_LIBADD}  )
 set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
-if(UNIX)
+if(UNIX AND NOT APPLE)
     target_link_options(libllm PUBLIC "-Wl,--no-undefined")
-endif(UNIX)
+endif()
 
 add_library(catch2 STATIC  "../../third_party/catch2/catch_amalgamated.cpp")
 add_executable(unittest ${unittest_SOURCES})
-target_include_directories(unittest PRIVATE .. "../../third_party/")
-target_link_libraries(unittest libllm_static lut catch2)
+target_include_directories(unittest PRIVATE ${libllm_INCDIR})
+target_link_libraries(unittest libllm_static lut catch2 OpenMP::OpenMP_CXX)
 
 add_executable(llm ${llm_SOURCES})
 target_include_directories(llm PRIVATE ..)
@@ -180,7 +198,7 @@ target_link_libraries(llm libllm lut)
 
 if (WITH_CUDA)
     add_library(llmextcublas SHARED ${llmextcublas_SOURCES})
-    target_include_directories(llmextcublas PRIVATE .. "../../third_party/")
+    target_include_directories(llmextcublas PRIVATE ${libllm_INCDIR})
     target_link_libraries(llmextcublas lut CUDA::cublas)
     if(UNIX)
         target_link_options(llmextcublas PUBLIC "-Wl,--no-undefined")

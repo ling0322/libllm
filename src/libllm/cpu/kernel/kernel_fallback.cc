@@ -105,10 +105,27 @@ void SAxpyFallbackKernel::apply(int64_t n, float a, PCFp32 x, PFp32 y) {
   const float *px = x;
   float *py = y;
   for (int i = 0; i < n; ++i) {
-    *py = a * *px;
+    *py += a * *px;
     ++px;
     ++py;
   }
+}
+
+void SAxpyFallbackKernel::applyColumn(const SGEMVArgs &args, int column, float *y) {
+  apply(args.N, args.x[column], args.A + column * args.lda, y);
+}
+
+float SDotFallbackKernel::apply(int64_t n, const float *x, const float *y) {
+  float sum = 0;
+  for (int64_t i = 0; i < n; ++i) {
+    sum += x[i] * y[i];
+  }
+
+  return sum;
+}
+
+float SDotFallbackKernel::applyRow(const SGEMVArgs &args, int row) {
+  return apply(args.N, args.A + row * args.lda, args.x);
 }
 
 void CvtHalfToFloatFallbackKernel::apply(int64_t n, PCFp16 x, PFp32 y) {

@@ -70,14 +70,6 @@ DType DType::getTypeImpl<half>() {
 #endif
 
 
-template DType DType::getTypeImpl<float>();
-template DType DType::getTypeImpl<int64_t>();
-template DType DType::getTypeImpl<UInt8>();
-template DType DType::getTypeImpl<Float16>();
-template DType DType::getTypeImpl<Q4>();
-template DType DType::getTypeImpl<Int8>();
-
-
 int64_t DType::getTotalSize(int64_t numel) const {
   switch (_dtype) {
     case DType::kFloat:

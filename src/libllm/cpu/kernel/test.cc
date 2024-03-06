@@ -164,6 +164,9 @@ void refSgemm(
   }
 }
 
+
+#ifdef LIBLLM_ARCH_X86_64
+
 CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
   constexpr int DIM = DequantMinElemPerThread * 2 + GroupSizeQ4;
 
@@ -269,6 +272,7 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   float a = DotQ4Avx2Kernel::apply(NUM_COL * 2, x2.data(), {A.data(), scaleA.data(), zeroA.data()}, 0);
   CATCH_REQUIRE(isClose(a, a0 + a1));
 }
+#endif  // LIBLLM_ARCH_X86_64
 
 CATCH_TEST_CASE("test lymath_q4gemm", "[lymath][api][q4]") {
   testGemmQ4(true, 1, 32, 128);
@@ -359,7 +363,7 @@ void testHalfToFloat(int n) {
   random.fill(lut::makeSpan(yr));
   std::transform(yr.begin(), yr.end(), x.begin(), lut::cvtss_sh);
 
-  CvtHalfToFloatAvx2OMP().apply(n, x.data(), y.data());
+  convertHalfToFloat(n, x.data(), y.data());
   CATCH_REQUIRE(isClose(yr, y, 1e-4, 1e-3));
 }
 
