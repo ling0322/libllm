@@ -83,6 +83,13 @@ struct SDotAvx2Kernel {
   static float applyRow(const SGEMVArgs &args, int row);
 };
 
+struct SDotFallbackKernel {
+  typedef float ValueType;
+
+  static float apply(int64_t n, const float *x, const float *y);
+  static float applyRow(const SGEMVArgs &args, int row);
+};
+
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op

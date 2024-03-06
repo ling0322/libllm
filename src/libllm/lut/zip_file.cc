@@ -27,6 +27,8 @@
 
 #ifdef _MSC_VER
 #define FSEEK64 _fseeki64
+#elif _FILE_OFFSET_BITS == 64
+#define FSEEK64 fseeko
 #else
 #define FSEEK64 fseeko64
 #endif  // _MSC_VER

@@ -120,8 +120,5 @@ bool StateMap::hasValue<int>(const std::string &name) const {
   return _intDict.find(name) != _intDict.end();
 }
 
-template int StateMap::getValue<int>(const std::string &name) const;
-template void StateMap::putValue<int>(const std::string &name, int value);
-template bool StateMap::hasValue<int>(const std::string &name) const;
 
 }

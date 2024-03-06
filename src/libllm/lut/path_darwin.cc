@@ -17,25 +17,46 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/lut/platform.h"
+#include "libllm/lut/path.h"
 
-#include <stdlib.h>
+#include <dlfcn.h>
+#include <mach-o/dyld.h>
+#include <sys/syslimits.h>
+#include "libllm/lut/error.h"
+#include "libllm/lut/log.h"
+#include "libllm/lut/strings.h"
 
 namespace lut {
 
-void *alloc32ByteAlignedMem(int64_t size) {
-  if (size % 32 != 0) {
-    size += (32 - size % 32);
+Path Path::currentExecutablePath() {
+  char path[PATH_MAX + 1];
+  uint32_t size = sizeof(path);
+  int ret = _NSGetExecutablePath(path, &size);
+  if (ret) {
+    throw lut::AbortedError("failed to call _NSGetExecutablePath()");
   }
-  return aligned_alloc(32, size);
+
+  return Path(path);
 }
 
-void free32ByteAlignedMem(void *ptr) {
-  free(ptr);
+Path Path::currentModulePath() {
+  Dl_info info;
+  int success = dladdr(reinterpret_cast<const void *>(&currentModulePath), &info);
+  CHECK(success);
+
+  return Path(info.dli_fname);
 }
 
-const char *getPathDelim() {
-  return "/";
+bool Path::isabs() const {
+  if (_path.size() == 0) return false;
+  if (_path[0] == '/') return true;
+
+  return false;
 }
+
+std::string Path::normPath(const std::string &path) {
+  return path;
+}
+
 
 } // namespace lut
