@@ -23,9 +23,9 @@
 #include <stdint.h>
 #include "libllm/cpu/kernel/args.h"
 #include "libllm/cpu/kernel/common.h"
-#include "libllm/cpu/kernel/hkernel.h"
-#include "libllm/cpu/kernel/q4kernel.h"
-#include "libllm/cpu/kernel/skernel.h"
+#include "libllm/cpu/kernel/kernel_half.h"
+#include "libllm/cpu/kernel/kernel_q4.h"
+#include "libllm/cpu/kernel/kernel_float.h"
 
 
 // UInt4x2 -> UInt8 SIMD

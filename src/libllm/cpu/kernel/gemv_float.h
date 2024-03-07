@@ -19,41 +19,41 @@
 
 #pragma once
 
-#include "libllm/tensor.h"
-#include "libllm/cpu/accessor.h"
+#include <stdint.h>
+#include <memory>
+#include "libllm/cpu/kernel/args.h"
 #include "libllm/cpu/kernel/api.h"
-#include "libllm/lut/span.h"
+#include "libllm/cpu/kernel/gemm_common.h"
+#include "libllm/cpu/kernel/gemv_common.h"
+#include "libllm/cpu/kernel/kernel_float.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
+namespace kernel {
 
-Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> shape);
-bool isShapeMatch(const Tensor &A, const Tensor &B);
+class SGEMV {
+ public:
+  virtual ~SGEMV() = default;
+  virtual void apply(const SGEMVArgs &args) const = 0; 
+};
 
-template<typename T>
-void copyVector(TensorAccessor<T, 1> dest, TensorAccessor<const T, 1> src) {
-  CHECK(dest.getShape(0) == src.getShape(0));
-  for (int i = 0; i < src.getShape(0); ++i) {
-    dest[i] = src[i];
+template<class TSAxpyKernel, class TSDotKernel, Mode MODE>
+class SGEMVImpl : public SGEMV {
+ public:
+  void apply(const SGEMVArgs &args) const override {
+    GEMVCommon<SGEMVArgs, TSAxpyKernel, TSDotKernel, MODE>().apply(args);
   }
-}
+};
 
-template<typename T>
-void applyDequant(int64_t offset, int n, const TensorData *data, float *tgt);
+typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx512;
+typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx2;
+typedef SGEMVImpl<SAxpyFallbackKernel, SDotFallbackKernel, Mode::SingleThread> SGEMVImplDefault;
+typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx512OMP;
+typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx2OMP;
+typedef SGEMVImpl<SAxpyFallbackKernel, SDotFallbackKernel, Mode::OMP> SGEMVImplDefaultOMP;
 
-template<>
-inline void applyDequant<Q4>(
-  int64_t offset, int n, const TensorData *data, float *tgt) {
-  kernel::dequantQ4(
-      n,
-      (const kernel::Q4x2 *)data->getData<Q4>(),
-      (const kernel::Fp16 *)data->getSlot(1)->getData<Float16>(),
-      (const kernel::UInt8 *)data->getSlot(2)->getData<UInt8>(),
-      offset,
-      tgt);
-}
-
-}  // cpu
-}  // op
-}  // ly
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

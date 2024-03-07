@@ -20,38 +20,75 @@
 #pragma once
 
 #include <stdint.h>
-#include <memory>
-#include "libllm/cpu/kernel/args.h"
-#include "libllm/cpu/kernel/kernel.h"
-#include "libllm/cpu/kernel/gemm_common.h"
-#include "libllm/cpu/kernel/gemv_common.h"
-#include "libllm/cpu/kernel/skernel.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-class SGEMV {
- public:
-  virtual ~SGEMV() = default;
-  virtual void apply(const SGEMVArgs &args) const = 0; 
+union Fp16 {
+  uint16_t h;
+#ifdef LIBLLM_HAVE_FP16
+  __fp16 v;
+#endif
 };
 
-template<class TSAxpyKernel, class TSDotKernel, Mode MODE>
-class SGEMVImpl : public SGEMV {
- public:
-  void apply(const SGEMVArgs &args) const override {
-    GEMVCommon<SGEMVArgs, TSAxpyKernel, TSDotKernel, MODE>().apply(args);
-  }
+
+typedef int8_t Int8;
+typedef uint8_t UInt8;
+typedef float Fp32;
+typedef uint8_t Q4x2;
+
+enum class Mode {
+  OMP,
+  SingleThread,
+  Auto
 };
 
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx512;
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx2;
-typedef SGEMVImpl<SAxpyFallbackKernel, SDotFallbackKernel, Mode::SingleThread> SGEMVImplDefault;
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx512OMP;
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx2OMP;
-typedef SGEMVImpl<SAxpyFallbackKernel, SDotFallbackKernel, Mode::OMP> SGEMVImplDefaultOMP;
+void init();
+void destroy();
+
+void sgemm(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const Fp32 *A,
+    int lda,
+    const Fp32 *B,
+    int ldb,
+    Fp32 *C,
+    int ldc,
+    Mode mode = Mode::Auto);
+
+void dequantQ4(
+    int n,
+    const Q4x2 *data,
+    const Fp16 *scale,
+    const UInt8 *zeroPoint,
+    int offset,
+    Fp32 *tgt,
+    Mode mode = Mode::Auto);
+
+// GEMM: A is a float32 matrix, B is a matrix with 4-bit asymmetric quantization. C is a float32
+// matrix.
+void gemmQ4(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const Fp32 *A,
+    int lda,
+    const Q4x2 *B,
+    const Fp16 *scaleB,
+    const UInt8 *zeroPointB,
+    Fp32 *C,
+    int ldc,
+    Mode mode = Mode::Auto);
+
+void convertHalfToFloat(int n, const Fp16 *x, Fp32 *y, Mode mode = Mode::Auto);
 
 }  // namespace kernel
 }  // namespace cpu

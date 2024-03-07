@@ -28,22 +28,6 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-// -- avx512 kernels ---------
-void sgemmKernel12x32Avx512(int64_t kc, float *a, float *b, float *c, int64_t rs_c);
-
-// -- avx2 kernels ---------
-void sgemmKernel6x16Avx2(int64_t kc, float *a, float *b, float *c, int64_t rs_c);
-void dequantInt4SymAvx2(int n, PCQ4x2 src, PCFp16 scale, PFp32 tgt);
-float dotFp32Int4Fp32KernelAvx2(int64_t n, const float *x, const uint8_t *y, float scale);
-
-// -- fallback kernels ---------
-
-void sgemmKernel6x16Fallback(int64_t kc, float *a, float *b, float *c, int64_t rs_c);
-void dequantInt4AFallback(int n, PCQ4x2 src, PCFp16 scale, PFp32 tgt);
-float dotFp32Int4Fp32KernelFallback(int64_t n, const float *x, const uint8_t *y, float scale);
-
-// -- classes ----------
-
 struct SGemm6x16DefaultKernel {
   static constexpr int MR = 6;
   static constexpr int NR = 16;

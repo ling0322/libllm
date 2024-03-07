@@ -21,11 +21,12 @@
 
 #include <omp.h>
 #include "libllm/cpu/kernel/common.h"
-#include "libllm/cpu/kernel/kernel.h"
-#include "libllm/cpu/kernel/hcvt.h"
-#include "libllm/cpu/kernel/q4dequant.h"
-#include "libllm/cpu/kernel/q4kernel.h"
-#include "libllm/cpu/kernel/skernel.h"
+#include "libllm/cpu/kernel/api.h"
+#include "libllm/cpu/kernel/cvt_half.h"
+#include "libllm/cpu/kernel/dequant_q4.h"
+#include "libllm/cpu/kernel/kernel_q4.h"
+#include "libllm/cpu/kernel/kernel_float.h"
+#include "libllm/cpu/kernel/kernel_half.h"
 #include "libllm/cpu/kernel/util.h"
 #include "libllm/lut/half.h"
 #include "libllm/lut/random.h"
@@ -39,11 +40,26 @@ namespace kernel {
 constexpr uint32_t MagicNumber = 0x55aa;
 
 bool isClose(float l, float r, float atol = 1e-5, float rtol = 1e-5) {
-  return fabs(l - r) <= atol + rtol * fabs(r);
+  bool close = fabs(l - r) <= atol + rtol * fabs(r);
+  if (!close) {
+    printf("%f vs %f\n", l, r);
+  }
+  return close;
 }
 
-bool isClose(lut::Span<const float> A,
-             lut::Span<const float> B,
+bool isClose(Fp16 l, Fp16 r, float atol = 1e-5, float rtol = 1e-5) {
+  float lf = lut::cvtsh_ss(l.h);
+  float rf = lut::cvtsh_ss(r.h);
+  bool close = fabs(lf - rf <= atol + rtol * fabs(rf));
+  if (!close) {
+    printf("%f vs %f\n", lf, rf);
+  }
+  return close;
+}
+
+template<typename T>
+bool isClose(lut::Span<const T> A,
+             lut::Span<const T> B,
              float atol = 1e-5,
              float rtol = 1e-5) {
   if (A.size() != B.size()) 
@@ -51,12 +67,21 @@ bool isClose(lut::Span<const float> A,
 
   for (int i = 0; i < A.size(); ++i) {
     if (!isClose(A[i], B[i], atol, rtol)) {
-      printf("%d: %f vs %f\n", i, A[i], B[i]);
       return false;
     }
   }
 
   return true;
+}
+
+void fillRandomHalf(lut::Random *r, lut::Span<Fp16> v) {
+  std::vector<float> vf(v.size());
+  r->fill(lut::makeSpan(vf));
+  std::transform(vf.begin(), vf.end(), v.begin(), [](float v){
+    Fp16 vf;
+    vf.h = lut::cvtss_sh(v);
+    return vf;
+  });
 }
 
 void refGemmQ4(
@@ -99,9 +124,8 @@ void testGemmQ4(bool transB, int M, int N, int K) {
   random.fill(lut::makeSpan(A));
   random.fillUInt8(lut::makeSpan(B));
   random.fillUInt8(lut::makeSpan(zeroB));
-  random.fill(lut::makeSpan(scaleBFp32));
-  std::transform(scaleBFp32.begin(), scaleBFp32.end(), scaleB.begin(), lut::cvtss_sh);
 
+  fillRandomHalf(&random, lut::makeSpan(scaleB));
   std::vector<float> C(M * N);
   std::vector<float> refC(M * N);
 
@@ -133,7 +157,7 @@ void testGemmQ4(bool transB, int M, int N, int K) {
       C.data(),
       N);
 
-  CATCH_REQUIRE(isClose(C, refC, 1e-3));
+  CATCH_REQUIRE(isClose<float>(C, refC, 1e-3));
 }
 
 void refSgemm(
@@ -205,7 +229,7 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
 
   random.fill(lut::makeSpan(y));
   DequantQ4Avx2OMP().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
-  CATCH_REQUIRE(isClose(y, yRef));
+  CATCH_REQUIRE(isClose<float>(y, yRef));
 }
 
 CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
@@ -228,7 +252,7 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
   float aRef = DotQ4FallbackKernel::apply(
       DIM, x.data(), {y.data(), scaleY.data(), zeroY.data()}, 0);
 
-  CATCH_REQUIRE(isClose(a, aRef));
+  CATCH_REQUIRE(isClose<float>(a, aRef));
 }
 
 // to reproduce a zero-point index bug in q4 kernels.
@@ -270,7 +294,7 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
 
 
   float a = DotQ4Avx2Kernel::apply(NUM_COL * 2, x2.data(), {A.data(), scaleA.data(), zeroA.data()}, 0);
-  CATCH_REQUIRE(isClose(a, a0 + a1));
+  CATCH_REQUIRE(isClose<float>(a, a0 + a1));
 }
 #endif  // LIBLLM_ARCH_X86_64
 
@@ -318,7 +342,7 @@ void testSgemm(bool transA, bool transB, int M, int N, int K) {
       C.data(),
       N);
 
-  CATCH_REQUIRE(isClose(C, refC));
+  CATCH_REQUIRE(isClose<float>(C, refC));
 }
 
 int gemmTestShapes[][3] = {
@@ -357,14 +381,18 @@ CATCH_TEST_CASE("test lymath_sgemm", "[lymath][sgemm]") {
 void testHalfToFloat(int n) {
   std::vector<float> y(n);
   std::vector<float> yr(n);
-  std::vector<uint16_t> x(n);
+  std::vector<Fp16> x(n);
 
   lut::Random random(MagicNumber);
   random.fill(lut::makeSpan(yr));
-  std::transform(yr.begin(), yr.end(), x.begin(), lut::cvtss_sh);
+  std::transform(yr.begin(), yr.end(), x.begin(), [](float x) {
+    Fp16 v;
+    v.h = lut::cvtss_sh(x);
+    return v;
+  });
 
   convertHalfToFloat(n, x.data(), y.data());
-  CATCH_REQUIRE(isClose(yr, y, 1e-4, 1e-3));
+  CATCH_REQUIRE(isClose<float>(yr, y, 1e-4, 1e-3));
 }
 
 CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {
@@ -373,6 +401,36 @@ CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {
     testHalfToFloat(n);
   }
 }
+
+
+template<class TAxpyHalfKernel>
+void testAxpyHalfKernel(int n) {
+  std::vector<Fp16> x(n);
+  std::vector<Fp16> y(n);
+  std::vector<Fp16> yr(n);
+
+  lut::Random random(MagicNumber);
+  fillRandomHalf(&random, lut::makeSpan<Fp16>(x));
+  Fp16 a = x[0];
+
+  TAxpyHalfKernel::apply(n, a, x.data(), y.data());
+  AxpyHalfFallbackKernel::apply(n, a, x.data(), yr.data());
+
+  CATCH_REQUIRE(isClose<Fp16>(yr, y));
+}
+
+#ifdef LIBLLM_ARCH_AARCH64
+
+CATCH_TEST_CASE("test AxpyHalfAsimdhpKernel", "[libllm][cpu_kernel][axpy][half]") {
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(1);
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(8);
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(16);
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(17);
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(128);
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(2001);
+}
+
+#endif  // LIBLLM_ARCH_AARCH64
 
 }  // namespace kernel
 }  // namespace cpu

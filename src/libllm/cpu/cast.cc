@@ -23,7 +23,7 @@
 #include <string.h>
 #include <algorithm>
 #include "libllm/lut/half.h"
-#include "libllm/cpu/kernel/kernel.h"
+#include "libllm/cpu/kernel/api.h"
 #include "libllm/tensor.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/cpu_tensor_data.h"

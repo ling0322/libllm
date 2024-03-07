@@ -21,9 +21,9 @@
 #include <stdlib.h>
 #include <algorithm>
 #include "libllm/cpu/kernel/common.h"
-#include "libllm/cpu/kernel/hkernel.h"
-#include "libllm/cpu/kernel/q4kernel.h"
-#include "libllm/cpu/kernel/skernel.h"
+#include "libllm/cpu/kernel/kernel_half.h"
+#include "libllm/cpu/kernel/kernel_q4.h"
+#include "libllm/cpu/kernel/kernel_float.h"
 #include "libllm/cpu/kernel/util.h"
 #include "libllm/lut/half.h"
 #include "libllm/lut/log.h"
@@ -63,7 +63,7 @@ void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
   assert(offsetX % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
 
   for (int i = groupIdx; i < groupIdx + nb; ++i) {
-    float scale = lut::cvtsh_ss(x.getScaleValByGroup(i));
+    float scale = lut::cvtsh_ss(x.getScaleValByGroup(i).h);
     UInt8 zero = x.getZeroValByGroup(i);
     PCQ4x2 p = x.getDataByGroup(i);
     for (int j = 0; j < GroupSizeQ4 / 2; ++j) {
@@ -84,7 +84,7 @@ float DotQ4FallbackKernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY)
   PCQ4x2 py = y.getDataByGroup(groupIdx);
   PCUInt8 zeroY = y.getZeroByGroup(groupIdx);
   for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
-    float scale = lut::cvtsh_ss(y.getScaleValByGroup(i));
+    float scale = lut::cvtsh_ss(y.getScaleValByGroup(i).h);
     UInt8 zero = y.getZeroValByGroup(i);
     for (int j = 0; j < GroupSizeQ4 / 2; ++j) {
       sum += *x++ * scale * (static_cast<int>(*py & 0xf) - zero);
@@ -130,7 +130,17 @@ float SDotFallbackKernel::applyRow(const SGEMVArgs &args, int row) {
 
 void CvtHalfToFloatFallbackKernel::apply(int64_t n, PCFp16 x, PFp32 y) {
   for (int i = 0; i < n; ++i) {
-    y[i] = lut::cvtsh_ss(x[i]);
+    y[i] = lut::cvtsh_ss(x[i].h);
+  }
+}
+
+void AxpyHalfFallbackKernel::apply(int64_t n, Fp16 a, PCFp16 x, PFp16 y) {
+  PCFp16 px = x;
+  PFp16 py = y;
+  for (int i = 0; i < n; ++i) {
+    py->h = lut::cvtss_sh(lut::cvtsh_ss(py->h) + lut::cvtsh_ss(a.h) * lut::cvtsh_ss(px->h));
+    ++px;
+    ++py;
   }
 }
 

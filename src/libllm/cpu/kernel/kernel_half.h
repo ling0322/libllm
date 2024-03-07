@@ -17,71 +17,46 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// kernels for half type
+
 #pragma once
 
 #include <stdint.h>
+#include <memory>
+#include "libllm/cpu/kernel/args.h"
+#include "libllm/cpu/kernel/common.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-typedef uint16_t Fp16;
-typedef int8_t Int8;
-typedef uint8_t UInt8;
-typedef float Fp32;
-typedef uint8_t Q4x2;
-
-enum class Mode {
-  OMP,
-  SingleThread,
-  Auto
+struct CvtHalfToFloatAvx2Kernel {
+  static void apply(int64_t n, PCFp16 x, PFp32 y);
 };
 
-void init();
-void destroy();
+struct CvtHalfToFloatFallbackKernel {
+  static void apply(int64_t n, PCFp16 x, PFp32 y);
+};
 
-void sgemm(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const Fp32 *A,
-    int lda,
-    const Fp32 *B,
-    int ldb,
-    Fp32 *C,
-    int ldc,
-    Mode mode = Mode::Auto);
+struct SGemm12x16AsimdhpKernel {
+  static constexpr int MR = 6;
+  static constexpr int NR = 16;
+  static void apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_t rs_c);
+};
 
-void dequantQ4(
-    int n,
-    const Q4x2 *data,
-    const Fp16 *scale,
-    const UInt8 *zeroPoint,
-    int offset,
-    Fp32 *tgt,
-    Mode mode = Mode::Auto);
+struct AxpyHalfAsimdhpKernel {
+  typedef float ValueType;
 
-// GEMM: A is a float32 matrix, B is a matrix with 4-bit asymmetric quantization. C is a float32
-// matrix.
-void gemmQ4(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const Fp32 *A,
-    int lda,
-    const Q4x2 *B,
-    const Fp16 *scaleB,
-    const UInt8 *zeroPointB,
-    Fp32 *C,
-    int ldc,
-    Mode mode = Mode::Auto);
+  static void apply(int64_t n, Fp16 a, PCFp16 x, PFp16 y);
+  static void applyColumn(const SGEMVArgs &args, int row, float *y);
+};
 
-void convertHalfToFloat(int n, const Fp16 *x, Fp32 *y, Mode mode = Mode::Auto);
+struct AxpyHalfFallbackKernel {
+  typedef Fp16 ValueType;
+
+  static void apply(int64_t n, Fp16 a, PCFp16 x, PFp16 y);
+};
 
 }  // namespace kernel
 }  // namespace cpu
