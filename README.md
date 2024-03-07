@@ -30,7 +30,9 @@ $ cmake ..
 $ make -j
 ```
 
-for macOS, please brew install openmp first. NOTE: currently libllm macOS expected to be very slow since there is no aarch64 kernel for it.
+#### for macOS
+
+please brew install openmp first. NOTE: currently libllm macOS expected to be very slow since there is no aarch64 kernel for it.
 
 ```bash
 % brew install libomp
