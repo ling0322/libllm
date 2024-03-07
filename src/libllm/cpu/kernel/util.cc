@@ -32,21 +32,8 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-// copy vector x to y.
-void scopy(int n, const float *x, int incx, float *y, int incy) {
-  for (int i = 0; i < n; ++i) {
-    y[i * incy] = x[i * incx];
-  }
-}
 
-// allocate n single float and returns the holder. the memory is 32 byte aligned.
-lut::c_ptr<float> salloc(int64_t n) {
-  return lut::c_ptr<float>(
-      reinterpret_cast<float *>(lut::alloc32ByteAlignedMem(sizeof(float) * n)),
-      lut::free32ByteAlignedMem);
-}
-
-float cvt_h2s(Fp16 vh) {
+float cvt_h2s(Float16 vh) {
 #ifdef __aarch64__
   float16x4_t a00 = vld1_dup_f16(&vh);
   float32x4_t b00 = vcvt_f32_f16(a00);
@@ -56,7 +43,7 @@ float cvt_h2s(Fp16 vh) {
 #endif
 }
 
-Fp16 cvt_s2h(float vf) {
+Float16 cvt_s2h(float vf) {
 #ifdef __aarch64__
   float32x4_t a00 = vld1q_dup_f32(&vf);
   float16x4_t b00 = vcvt_f16_f32(a00);

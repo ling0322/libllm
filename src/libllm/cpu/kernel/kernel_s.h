@@ -20,55 +20,58 @@
 #pragma once
 
 #include <stdint.h>
-#include "libllm/cpu/kernel/common.h"
+#include <memory>
+#include "libllm/cpu/kernel/args.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-template<typename T>
-struct GemvArgs {
-  typedef T VecType;
-
-  bool transA;
-  int M;
-  int N;
-  const T *A;
-  int lda;
-  const T *x;
-  int incX;
-  T *y;
-  int incY;
+struct SGemm6x16DefaultKernel {
+  static constexpr int MR = 6;
+  static constexpr int NR = 16;
+  static void apply(int64_t kc, float *a, float *b, float *c, int64_t rs_c);
 };
 
-typedef GemvArgs<float> SGEMVArgs;
-typedef GemvArgs<Float16> HGemvArgs;
-
-struct Q4GemvArgs {
-  typedef float VecType;
-
-  bool transA;
-  int M;
-  int N;
-  DataQ4 A;
-  const float *x;
-  int incX;
-  float *y;
-  int incY;
+struct SGemm6x16Avx2Kernel {
+  static constexpr int MR = 6;
+  static constexpr int NR = 16;
+  static void apply(int64_t kc, float *a, float *b, float *c, int64_t rs_c);
 };
 
-struct GemmQ4Args {
-  bool transA;
-  bool transB;
-  int M;
-  int N;
-  int K;
-  const float *A;
-  int lda;
-  DataQ4 B;
-  float *C;
-  int ldc;
+struct SGemm12x32Avx512Kernel {
+  static constexpr int MR = 12;
+  static constexpr int NR = 32;
+  static void apply(int64_t kc, float *a, float *b, float *c, int64_t rs_c);
+};
+
+struct SAxpyAvx2Kernel {
+  typedef float ValueType;
+
+  static void apply(int64_t n, float a, const float *x, float *y);
+  static void applyColumn(const SGEMVArgs &args, int row, float *y);
+};
+
+struct SAxpyFallbackKernel {
+  typedef float ValueType;
+
+  static void apply(int64_t n, float a, const float *x, float *y);
+  static void applyColumn(const SGEMVArgs &args, int col, float *y);
+};
+
+struct SDotAvx2Kernel {
+  typedef float ValueType;
+
+  static float apply(int64_t n, const float *x, const float *y);
+  static float applyRow(const SGEMVArgs &args, int row);
+};
+
+struct SDotFallbackKernel {
+  typedef float ValueType;
+
+  static float apply(int64_t n, const float *x, const float *y);
+  static float applyRow(const SGEMVArgs &args, int row);
 };
 
 }  // namespace kernel

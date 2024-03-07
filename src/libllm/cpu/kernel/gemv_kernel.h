@@ -32,7 +32,7 @@ namespace cpu {
 namespace kernel {
 
 template<typename TArgs, class TSAxpyKernel, class TSDotKernel, Mode MODE>
-class GEMVCommon {
+class GemvKernel {
  public:
   void apply(const TArgs &args) const;
 
@@ -43,11 +43,12 @@ class GEMVCommon {
 };
 
 template<typename TArgs, class TAxpyKernel, class TDotKernel, Mode MODE>
-void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::apply(const TArgs &args) const {
+void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::apply(const TArgs &args) const {
   if (args.incX == 1 && args.incY == 1) {
     applyContigousXY(args);
   } else {
-    lut::c_ptr<typename TArgs::VecType> packedXY = salloc(args.M + args.N);
+    lut::c_ptr<typename TArgs::VecType> packedXY = alignedAlloc<typename TArgs::VecType>(
+        args.M + args.N);
 
     // On transposed A: dimemsion of (x, y) is (M, N)
     // On non-transposed A: dimemsion of (x, y) is (N, M)
@@ -58,11 +59,11 @@ void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::apply(const TArgs &args) 
     typename TArgs::VecType *py = args.y;
     if (args.incX != 1) {
       px = packedXY.get();
-      scopy(dimX, args.x, args.incX, packedXY.get(), 1);
+      copyVec<typename TArgs::VecType>(dimX, args.x, args.incX, packedXY.get(), 1);
     }
     if (args.incY != 1) {
       py = packedXY.get() + dimX;
-      scopy(dimY, args.y, args.incY, py, 1);
+      copyVec<typename TArgs::VecType>(dimY, args.y, args.incY, py, 1);
     }
 
     // apply GEMV kernel.
@@ -72,13 +73,13 @@ void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::apply(const TArgs &args) 
     applyContigousXY(cArgs);
 
     if (args.incY != 1) {
-      scopy(dimY, py, 1, args.y, args.incY);
+      copyVec<typename TArgs::VecType>(dimY, py, 1, args.y, args.incY);
     }
   }
 }
 
 template<typename TArgs, class TAxpyKernel, class TDotKernel, Mode MODE>
-void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXY(const TArgs &args) const {
+void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXY(const TArgs &args) const {
   if (args.transA) {
     applyContigousXYTransA(args);
   } else {
@@ -87,7 +88,7 @@ void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXY(const TA
 }
 
 template<typename TArgs, class TAxpyKernel, class TDotKernel, Mode MODE>
-void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYNonTransA(
+void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYNonTransA(
     const TArgs &args) const {
   if (MODE == Mode::SingleThread) {
     for (int m = 0; m < args.M; ++m) {
@@ -104,7 +105,7 @@ void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYNonTransA
 }
 
 template<typename TArgs, class TAxpyKernel, class TDotKernel, Mode MODE>
-void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYTransA(
+void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYTransA(
     const TArgs &args) const {
   int mp = (args.M + GEMVMinRowsPerThread - 1) / GEMVMinRowsPerThread;
   int numThreads = std::min(mp, omp_get_max_threads());
@@ -116,7 +117,8 @@ void GEMVCommon<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYTransA(
   } else if (MODE == Mode::OMP) {
     // initialize numThreads y buffers.
     // TODO: sfill
-    lut::c_ptr<typename TArgs::VecType> ys = salloc(args.N * numThreads);
+    lut::c_ptr<typename TArgs::VecType> ys = alignedAlloc<typename TArgs::VecType>(
+        args.N * numThreads);
     memset(ys.get(), 0, args.N * numThreads * sizeof(typename TArgs::VecType));
 
     // compute axpy.

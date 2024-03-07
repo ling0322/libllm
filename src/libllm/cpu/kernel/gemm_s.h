@@ -21,37 +21,45 @@
 
 #include <stdint.h>
 #include <memory>
-#include "libllm/cpu/kernel/args.h"
 #include "libllm/cpu/kernel/kernel.h"
 #include "libllm/cpu/kernel/gemm_common.h"
-#include "libllm/cpu/kernel/gemv_common.h"
-#include "libllm/cpu/kernel/kernel_float.h"
+#include "libllm/cpu/kernel/gemm_kernel.h"
+#include "libllm/cpu/kernel/gemv_s.h"
+#include "libllm/cpu/kernel/kernel_s.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-class SGEMV {
- public:
-  virtual ~SGEMV() = default;
-  virtual void apply(const SGEMVArgs &args) const = 0; 
-};
+// -- class SGEMM ----------
 
-template<class TSAxpyKernel, class TSDotKernel, Mode MODE>
-class SGEMVImpl : public SGEMV {
- public:
-  void apply(const SGEMVArgs &args) const override {
-    GEMVCommon<SGEMVArgs, TSAxpyKernel, TSDotKernel, MODE>().apply(args);
-  }
-};
+typedef GemmKernel<288, 512, 4096, float, SGemm6x16DefaultKernel, Mode::SingleThread>
+    SGEMMKernelDefault;
+typedef GemmKernel<288, 512, 4096, float, SGemm6x16Avx2Kernel, Mode::SingleThread>
+    SGEMMKernelAvx2;
+typedef GemmKernel<576, 512, 4096, float, SGemm12x32Avx512Kernel, Mode::SingleThread>
+    SGEMMKernelAvx512;
 
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx512;
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx2;
-typedef SGEMVImpl<SAxpyFallbackKernel, SDotFallbackKernel, Mode::SingleThread> SGEMVImplDefault;
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx512OMP;
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx2OMP;
-typedef SGEMVImpl<SAxpyFallbackKernel, SDotFallbackKernel, Mode::OMP> SGEMVImplDefaultOMP;
+typedef GemmKernel<288, 512, 4096, float, SGemm6x16DefaultKernel, Mode::OMP>
+    SGEMMKernelDefaultOMP;
+typedef GemmKernel<288, 512, 4096, float, SGemm6x16Avx2Kernel, Mode::OMP>
+    SGEMMKernelAvx2OMP;
+typedef GemmKernel<576, 512, 4096, float, SGemm12x32Avx512Kernel, Mode::OMP>
+    SGEMMKernelAvx512OMP;
+
+
+template<class TGemmKernel, class TGemvKernel>
+using GemmFloatImpl = GemmImpl<TGemmKernel, TGemvKernel, float>;
+
+typedef GemmFloatImpl<SGEMMKernelAvx512OMP, SGEMVImplAvx512OMP> SGEMMImplAvx512OMP;
+typedef GemmFloatImpl<SGEMMKernelAvx2OMP, SGEMVImplAvx2OMP> SGEMMImplAvx2OMP;
+typedef GemmFloatImpl<SGEMMKernelDefaultOMP, SGEMVImplDefaultOMP> SGEMMImplDefaultOMP;
+
+typedef GemmFloatImpl<SGEMMKernelAvx512, SGEMVImplAvx512> SGEMMImplAvx512;
+typedef GemmFloatImpl<SGEMMKernelAvx2, SGEMVImplAvx2> SGEMMImplAvx2;
+typedef GemmFloatImpl<SGEMMKernelDefault, SGEMVImplDefault> SGEMMImplDefault;
+
 
 }  // namespace kernel
 }  // namespace cpu

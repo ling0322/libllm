@@ -54,7 +54,7 @@ Tensor castFp16ToFp32(Tensor A) {
   Tensor C = op::cpu::tensor(A.getShape(), DType::kFloat);
   kernel::convertHalfToFloat(
       A.getNumEl(),
-      reinterpret_cast<const kernel::Fp16 *>(A.getData<Float16>()),
+      reinterpret_cast<const kernel::Float16 *>(A.getData<Float16>()),
       C.getData<float>());
   
   return C;

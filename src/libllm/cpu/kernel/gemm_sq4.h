@@ -20,27 +20,27 @@
 #pragma once
 
 #include "libllm/cpu/kernel/args.h"
-#include "libllm/cpu/kernel/gemv_common.h"
-#include "libllm/cpu/kernel/dequant_q4.h"
-#include "libllm/cpu/kernel/kernel_q4.h"
-#include "libllm/cpu/kernel/gemm_float.h"
-#include "libllm/cpu/kernel/kernel_float.h"
+#include "libllm/cpu/kernel/gemv_kernel.h"
+#include "libllm/cpu/kernel/dequant_sq4.h"
+#include "libllm/cpu/kernel/kernel_sq4.h"
+#include "libllm/cpu/kernel/gemm_s.h"
+#include "libllm/cpu/kernel/kernel_s.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-class Q4Gemm {
+class GemmQ4 {
  public:
-  virtual ~Q4Gemm() = default;
-  virtual void apply(const Q4GemmArgs &args) const = 0;
+  virtual ~GemmQ4() = default;
+  virtual void apply(const GemmQ4Args &args) const = 0;
 };
 
 template<class TGemmKernel, class TGemvImpl, class TDequantQ4Impl>
-class Q4GemmImpl : public Q4Gemm {
+class GemmQ4Impl : public GemmQ4 {
  public:
-  void apply(const Q4GemmArgs &args) const override {
+  void apply(const GemmQ4Args &args) const override {
     if (args.M == 1) {
       // fill C with zero.
       std::fill(args.C, args.C + args.N, 0.0f);
@@ -56,7 +56,7 @@ class Q4GemmImpl : public Q4Gemm {
         1});
     } else {
       int numelB = args.K * args.N;
-      lut::c_ptr<float> B = salloc(numelB);
+      lut::c_ptr<float> B = alignedAlloc<float>(numelB);
       TDequantQ4Impl().apply(numelB, args.B, 0, B.get());
 
       int ldb = args.transB ? args.K : args.N;
@@ -76,22 +76,24 @@ class Q4GemmImpl : public Q4Gemm {
   }
 };
 
-typedef GEMVCommon<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4Avx2Kernel, Mode::SingleThread>
+typedef GemvKernel<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4Avx2Kernel, Mode::SingleThread>
         Q4GemvImplAvx2;
-typedef GEMVCommon<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4Avx2Kernel, Mode::OMP>
+typedef GemvKernel<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4Avx2Kernel, Mode::OMP>
         Q4GemvImplAvx2OMP;
-typedef GEMVCommon<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4FallbackKernel, Mode::SingleThread>
+typedef GemvKernel<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4FallbackKernel, Mode::SingleThread>
         Q4GemvImplFallback;
-typedef GEMVCommon<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4FallbackKernel, Mode::OMP>
+typedef GemvKernel<Q4GemvArgs, AxpyQ4NotImplKernel, DotQ4FallbackKernel, Mode::OMP>
         Q4GemvImplFallbackOMP;
+  
+typedef GemmQ4Impl<SGEMMImplAvx512, Q4GemvImplAvx2, DequantQ4Avx2> Q4GemmAvx512;
+typedef GemmQ4Impl<SGEMMImplAvx2, Q4GemvImplAvx2, DequantQ4Avx2> Q4GemmAvx2;
+typedef GemmQ4Impl<SGEMMImplDefault, Q4GemvImplFallback, DequantQ4Fallback> Q4GemmFallback;
 
-typedef Q4GemmImpl<SGEMMImplAvx512, Q4GemvImplAvx2, DequantQ4Avx2> Q4GemmAvx512;
-typedef Q4GemmImpl<SGEMMImplAvx2, Q4GemvImplAvx2, DequantQ4Avx2> Q4GemmAvx2;
-typedef Q4GemmImpl<SGEMMImplDefault, Q4GemvImplFallback, DequantQ4Fallback> Q4GemmFallback;
 
-typedef Q4GemmImpl<SGEMMImplAvx512OMP, Q4GemvImplAvx2OMP, DequantQ4Avx2OMP> Q4GemmAvx512OMP;
-typedef Q4GemmImpl<SGEMMImplAvx2OMP, Q4GemvImplAvx2OMP, DequantQ4Avx2OMP> Q4GemmAvx2OMP;
-typedef Q4GemmImpl<SGEMMImplDefaultOMP, Q4GemvImplFallbackOMP, DequantQ4Fallback> Q4GemmFallbackOMP;
+typedef GemmQ4Impl<SGEMMImplAvx512OMP, Q4GemvImplAvx2OMP, DequantQ4Avx2OMP> Q4GemmAvx512OMP;
+typedef GemmQ4Impl<SGEMMImplAvx2OMP, Q4GemvImplAvx2OMP, DequantQ4Avx2OMP> Q4GemmAvx2OMP;
+typedef GemmQ4Impl<SGEMMImplDefaultOMP, Q4GemvImplFallbackOMP, DequantQ4FallbackOMP>
+    Q4GemmFallbackOMP;
 
 }  // namespace kernel
 }  // namespace cpu

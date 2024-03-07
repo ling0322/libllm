@@ -20,56 +20,28 @@
 #pragma once
 
 #include <stdint.h>
-#include "libllm/cpu/kernel/common.h"
+#include <memory>
+#include "libllm/cpu/kernel/gemm_common.h"
+#include "libllm/cpu/kernel/gemm_kernel.h"
+#include "libllm/cpu/kernel/gemv_h.h"
+#include "libllm/cpu/kernel/kernel_h.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-template<typename T>
-struct GemvArgs {
-  typedef T VecType;
+typedef GemmKernel<576, 512, 4096, Float16, GemmHalf12x16AsimdhpKernel, Mode::SingleThread> 
+    HGemmKernelAaimdhp;
+typedef GemmKernel<576, 512, 4096, Float16, GemmHalf12x16AsimdhpKernel, Mode::OMP>
+    HGemmKernelAaimdhpOMP;
 
-  bool transA;
-  int M;
-  int N;
-  const T *A;
-  int lda;
-  const T *x;
-  int incX;
-  T *y;
-  int incY;
-};
 
-typedef GemvArgs<float> SGEMVArgs;
-typedef GemvArgs<Float16> HGemvArgs;
+template<class TGemmKernel, class TGemvKernel>
+using HGemmImpl = GemmImpl<TGemmKernel, TGemvKernel, Float16>;
 
-struct Q4GemvArgs {
-  typedef float VecType;
-
-  bool transA;
-  int M;
-  int N;
-  DataQ4 A;
-  const float *x;
-  int incX;
-  float *y;
-  int incY;
-};
-
-struct GemmQ4Args {
-  bool transA;
-  bool transB;
-  int M;
-  int N;
-  int K;
-  const float *A;
-  int lda;
-  DataQ4 B;
-  float *C;
-  int ldc;
-};
+typedef HGemmImpl<HGemmKernelAaimdhpOMP, HGemvAsimdhpOMP> HGemmAsimdhpOMP;
+typedef HGemmImpl<HGemmKernelAaimdhp, HGemvAsimdhp> HGemmAsimdhp;
 
 }  // namespace kernel
 }  // namespace cpu

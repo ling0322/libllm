@@ -24,6 +24,7 @@
 #include "libllm/cpu/kernel/common.h"
 #include "libllm/lut/c_ptr.h"
 #include "libllm/lut/span.h"
+#include "libllm/lut/platform.h"
 
 namespace libllm {
 namespace op {
@@ -31,13 +32,22 @@ namespace cpu {
 namespace kernel {
 
 // copy vector x to y.
-void scopy(int n, const float *x, int incx, float *y, int incy);
-
+template<typename T>
+void copyVec(int n, const T *x, int incx, T *y, int incy) {
+  for (int i = 0; i < n; ++i) {
+    y[i * incy] = x[i * incx];
+  }
+}
 // allocate n single float and returns the holder. the memory is 32 byte aligned.
-lut::c_ptr<float> salloc(int64_t n);
+template<typename T>
+lut::c_ptr<T> alignedAlloc(int64_t n) {
+  return lut::c_ptr<T>(
+      reinterpret_cast<T *>(lut::alloc32ByteAlignedMem(sizeof(T) * n)),
+      lut::free32ByteAlignedMem);
+}
 
-float cvt_h2s(Fp16 vh);
-Fp16 cvt_s2h(float vf);
+float cvt_h2s(Float16 vh);
+Float16 cvt_s2h(float vf);
 
 }  // namespace kernel
 }  // namespace cpu

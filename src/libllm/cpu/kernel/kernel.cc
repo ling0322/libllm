@@ -26,10 +26,11 @@
 #include "libllm/lut/platform.h"
 #include "libllm/lut/strings.h"
 #include "libllm/cpu/kernel/args.h"
-#include "libllm/cpu/kernel/cvt_half.h"
-#include "libllm/cpu/kernel/dequant_q4.h"
-#include "libllm/cpu/kernel/gemm_q4.h"
-#include "libllm/cpu/kernel/gemm_float.h"
+#include "libllm/cpu/kernel/cvt_h.h"
+#include "libllm/cpu/kernel/dequant_sq4.h"
+#include "libllm/cpu/kernel/gemm_h.h"
+#include "libllm/cpu/kernel/gemm_sq4.h"
+#include "libllm/cpu/kernel/gemm_s.h"
 #include "ruapu/ruapu.h"
 
 namespace libllm {
@@ -45,17 +46,16 @@ enum class CPUMathBackend {
 };
 
 CPUMathBackend findBestCpuMathBackend() {
-  ruapu_init();
+  // ruapu_init();
+
+#ifdef LIBLLM_ARCH_X86_64
   bool isaAvx2 = ruapu_supports("avx2") > 0;
   bool isaAvx512f = ruapu_supports("avx512f") > 0;
   bool isaF16c = ruapu_supports("f16c") > 0;
 
-#ifdef LIBLLM_ARCH_X86_64
   LOG(INFO) << lut::sprintf(
       "ISA support: AVX2=%d F16C=%d AVX512F=%d", isaAvx2, isaF16c, isaAvx512f);
-#endif  // LIBLLM_ARCH_X86_64
-
-#ifdef LIBLLM_ARCH_X86_64
+  
   if (isaAvx512f && isaF16c) {
     LOG(INFO) << "Use Avx512 backend.";
     return CPUMathBackend::AVX512;
@@ -68,8 +68,8 @@ CPUMathBackend findBestCpuMathBackend() {
 #endif  // LIBLLM_ARCH_X86_64
 
 #ifdef LIBLLM_ARCH_AARCH64
-  LOG(INFO) << "Use default backend.";
-  return CPUMathBackend::DEFAULT;
+  LOG(INFO) << "Use asimdhp backend.";
+  return CPUMathBackend::ASIMDHP;
 #endif  // LIBLLM_ARCH_AARCH64
 
   LOG(FATAL) << "CPU not supported.";
@@ -90,9 +90,11 @@ class Api {
   static const Api *getInstance();
 
   // get kernel implementations.
-  const GemmFloat *getSgemm() const { return _sgemm.get(); }
-  const GemmFloat *getSgemmOmp() const { return _sgemmOmp.get(); }
-  const Q4Gemm *getQ4Gemm() const { return _q4gemm.get(); }
+  const Gemm<float> *getSgemm() const { return _sgemm.get(); }
+  const Gemm<float> *getSgemmOmp() const { return _sgemmOmp.get(); }
+  const Gemm<Float16> *getHgemm() const { return _hgemm.get(); }
+  const Gemm<Float16> *getHgemmOmp() const { return _hgemmOmp.get(); }
+  const GemmQ4 *getGemmQ4() const { return _q4gemm.get(); }
   const DequantQ4 *getDequantQ4() const { return _q4dequant.get(); }
   const CvtHalfToFloat *getCvtHalfToFloat() const { return _cvtHalfToFloat.get(); }
 
@@ -100,9 +102,11 @@ class Api {
   static Api *_instance;
   static int _numThreads;
 
-  std::unique_ptr<GemmFloat> _sgemm;
-  std::unique_ptr<GemmFloat> _sgemmOmp;
-  std::unique_ptr<Q4Gemm> _q4gemm;
+  std::unique_ptr<Gemm<float>> _sgemm;
+  std::unique_ptr<Gemm<float>> _sgemmOmp;
+  std::unique_ptr<Gemm<Float16>> _hgemmOmp;
+  std::unique_ptr<Gemm<Float16>> _hgemm;
+  std::unique_ptr<GemmQ4> _q4gemm;
   std::unique_ptr<DequantQ4> _q4dequant;
   std::unique_ptr<CvtHalfToFloat> _cvtHalfToFloat;
 };
@@ -134,13 +138,24 @@ void Api::init() {
       _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatAvx2OMP>();
       break;
 #endif  // LIBLLM_ARCH_X86_64
-    case CPUMathBackend::DEFAULT:
+#ifdef LIBLLM_ARCH_AARCH64
+    case CPUMathBackend::ASIMDHP:
+      _instance->_hgemm = std::make_unique<HGemmAsimdhp>();
+      _instance->_hgemmOmp = std::make_unique<HGemmAsimdhpOMP>();
       _instance->_sgemm = std::make_unique<SGEMMImplDefault>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplDefaultOMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmFallbackOMP>();
       _instance->_q4dequant = std::make_unique<DequantQ4FallbackOMP>();
       _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatFallbackOMP>();
       break;
+#endif  // LIBLLM_ARCH_AARCH64
+    case CPUMathBackend::DEFAULT:
+      _instance->_sgemm = std::make_unique<SGEMMImplDefault>();
+      _instance->_sgemmOmp = std::make_unique<SGEMMImplDefaultOMP>();
+      _instance->_q4gemm = std::make_unique<Q4GemmFallbackOMP>();
+      _instance->_q4dequant = std::make_unique<DequantQ4FallbackOMP>();
+      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatFallbackOMP>();
+
     default:
       NOT_IMPL();
   }
@@ -174,11 +189,11 @@ void sgemm(
     int M,
     int N,
     int K,
-    const Fp32 *A,
+    const float *A,
     int lda,
-    const Fp32 *B,
+    const float *B,
     int ldb,
-    Fp32 *C,
+    float *C,
     int ldc,
     Mode mode) {
   switch (mode) {
@@ -196,11 +211,39 @@ void sgemm(
   }
 }
 
+void hgemm(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const Float16 *A,
+    int lda,
+    const Float16 *B,
+    int ldb,
+    Float16 *C,
+    int ldc,
+    Mode mode) {
+  switch (mode) {
+    case Mode::Auto:
+    case Mode::OMP:
+      Api::getInstance()->getHgemmOmp()->apply(
+          transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+      break;
+    case Mode::SingleThread:
+      Api::getInstance()->getHgemm()->apply(
+          transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+      break;
+    default:
+      NOT_IMPL();
+  }
+}
+
 void dequantQ4(
     int n,
-    const Q4x2 *data,
-    const Fp16 *scale,
-    const UInt8 *zeroPoint,
+    const UInt4x2 *data,
+    const Float16 *scale,
+    const UInt4x2 *zeroPoint,
     int offset,
     float *tgt,
     Mode mode) {
@@ -227,9 +270,9 @@ void gemmQ4(
     int K,
     const float *A,
     int lda,
-    const Q4x2 *dataB,
-    const Fp16 *scaleB,
-    const UInt8 *zeroPointB,
+    const UInt4x2 *dataB,
+    const Float16 *scaleB,
+    const UInt4x2 *zeroPointB,
     float *C,
     int ldc,
     Mode mode) {
@@ -237,7 +280,7 @@ void gemmQ4(
 
   switch (mode) {
     case Mode::Auto:
-      Api::getInstance()->getQ4Gemm()->apply(Q4GemmArgs{
+      Api::getInstance()->getGemmQ4()->apply(GemmQ4Args{
           transA,
           transB,
           M,
@@ -254,7 +297,7 @@ void gemmQ4(
   }
 }
 
-void convertHalfToFloat(int n, const Fp16 *x, float *y, Mode mode) {
+void convertHalfToFloat(int n, const Float16 *x, float *y, Mode mode) {
   switch (mode) {
     case Mode::Auto:
       Api::getInstance()->getCvtHalfToFloat()->apply(n, x, y);
