@@ -1,6 +1,6 @@
 # libLLM: Efficient inference of large language models.
 
-[![Linux](https://github.com/ling0322/libllm/actions/workflows/cmake-linux.yml/badge.svg?branch=main)](https://github.com/ling0322/libllm/actions/workflows/cmake-linux.yml) [![Windows](https://github.com/ling0322/libllm/actions/workflows/cmake-windows.yml/badge.svg?branch=main)](https://github.com/ling0322/libllm/actions/workflows/cmake-windows.yml)
+[![Linux](https://github.com/ling0322/libllm/actions/workflows/cmake-linux.yml/badge.svg?branch=main)](https://github.com/ling0322/libllm/actions/workflows/cmake-linux.yml) [![Windows](https://github.com/ling0322/libllm/actions/workflows/cmake-windows.yml/badge.svg?branch=main)](https://github.com/ling0322/libllm/actions/workflows/cmake-windows.yml) [![macOS](https://github.com/ling0322/libllm/actions/workflows/cmake-darwin.yml/badge.svg?branch=main)](https://github.com/ling0322/libllm/actions/workflows/cmake-darwin.yml)
 
 Welcome to libLLM, an open-source project designed for efficient inference of large language models (LLM) on ordinary personal computers and mobile devices. The core is implemented in C++14, without any third-party dependencies (such as BLAS or SentencePiece), enabling seamless operation across a variety of devices.
 
@@ -30,6 +30,18 @@ $ cmake ..
 $ make -j
 ```
 
+#### For macOS
+
+Please brew install OpenMP before cmake. NOTE: currently libllm macOS expected to be very slow since there is no aarch64 kernel for it.
+
+```bash
+% brew install libomp
+% export OpenMP_ROOT=$(brew --prefix)/opt/libomp
+% mkdir build && cd build
+% cmake ..
+% make -j
+```
+
 ### Build with CUDA
 
 NOTE: specify `-DCUDAToolkit_ROOT=<CUDA-DIR>` if there is multiple CUDA versions in your OS.
@@ -39,7 +51,7 @@ Recommand versions are:
 
 ```bash
 $ mkdir build && cd build
-$ cmake -DLLYN_CUDA=ON [-DCUDAToolkit_ROOT=<CUDA-DIR>] ..
+$ cmake -DWITH_CUDA=ON [-DCUDAToolkit_ROOT=<CUDA-DIR>] ..
 $ make -j
 ```
 
