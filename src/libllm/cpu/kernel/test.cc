@@ -20,12 +20,14 @@
 #include "catch2/catch_amalgamated.hpp"
 
 #include <omp.h>
+#include <math.h>
 #include "libllm/cpu/kernel/common.h"
 #include "libllm/cpu/kernel/kernel.h"
-#include "libllm/cpu/kernel/hcvt.h"
-#include "libllm/cpu/kernel/q4dequant.h"
-#include "libllm/cpu/kernel/q4kernel.h"
-#include "libllm/cpu/kernel/skernel.h"
+#include "libllm/cpu/kernel/cvt_half.h"
+#include "libllm/cpu/kernel/dequant_q4.h"
+#include "libllm/cpu/kernel/kernel_q4.h"
+#include "libllm/cpu/kernel/kernel_float.h"
+#include "libllm/cpu/kernel/kernel_half.h"
 #include "libllm/cpu/kernel/util.h"
 #include "libllm/lut/half.h"
 #include "libllm/lut/random.h"
@@ -39,11 +41,26 @@ namespace kernel {
 constexpr uint32_t MagicNumber = 0x55aa;
 
 bool isClose(float l, float r, float atol = 1e-5, float rtol = 1e-5) {
-  return fabs(l - r) <= atol + rtol * fabs(r);
+  bool close = fabs(l - r) <= atol + rtol * fabs(r);
+  if (!close) {
+    printf("%f vs %f\n", l, r);
+  }
+  return close;
 }
 
-bool isClose(lut::Span<const float> A,
-             lut::Span<const float> B,
+bool isClose(Fp16 l, Fp16 r, float atol = 1e-5, float rtol = 1e-5) {
+  float lf = cvt_h2s(l);
+  float rf = cvt_h2s(r);
+  bool close = fabs(lf - rf <= atol + rtol * fabs(rf));
+  if (!close) {
+    printf("%f vs %f\n", lf, rf);
+  }
+  return close;
+}
+
+template<typename T>
+bool isClose(lut::Span<const T> A,
+             lut::Span<const T> B,
              float atol = 1e-5,
              float rtol = 1e-5) {
   if (A.size() != B.size()) 
@@ -51,12 +68,61 @@ bool isClose(lut::Span<const float> A,
 
   for (int i = 0; i < A.size(); ++i) {
     if (!isClose(A[i], B[i], atol, rtol)) {
-      printf("%d: %f vs %f\n", i, A[i], B[i]);
       return false;
     }
   }
 
   return true;
+}
+
+float toFloat(float x) {
+  return x;
+}
+float toFloat(Fp16 x) {
+  return cvt_h2s(x);
+}
+
+template<typename T>
+float getMSE(lut::Span<const T> A, lut::Span<const T> B) {
+  CHECK(A.size() == B.size());
+
+  double sum = 0;
+  for (int i = 0; i < A.size(); ++i) {
+    double d = toFloat(A[i]) - toFloat(B[i]);
+    sum += d * d;
+  }
+  double mse = sum / A.size();
+  return static_cast<float>(mse);
+}
+
+template<typename T>
+float getVar(lut::Span<const T> A) {
+  double sum = 0;
+  for (int i = 0; i < A.size(); ++i) {
+    sum += toFloat(A[i]);
+  }
+
+  double mean = sum / A.size();
+  sum = 0;
+  for (int i = 0; i < A.size(); ++i) {
+    double d = toFloat(A[i]) - mean;
+    sum += d * d;
+  }
+  double var = sum / A.size();
+  return static_cast<float>(var);
+}
+
+template<typename T>
+float getRSquared(lut::Span<const T> predict, lut::Span<const T> correct) {
+  return 1.0f - getMSE<T>(predict, correct) / getVar<T>(predict);
+}
+
+void fillRandomHalf(lut::Random *r, lut::Span<Fp16> v) {
+  std::vector<float> vf(v.size());
+  r->fill(lut::makeSpan(vf), -1, 1);
+  std::transform(vf.begin(), vf.end(), v.begin(), [](float v){
+    return cvt_s2h(v);
+  });
 }
 
 void refGemmQ4(
@@ -99,9 +165,8 @@ void testGemmQ4(bool transB, int M, int N, int K) {
   random.fill(lut::makeSpan(A));
   random.fillUInt8(lut::makeSpan(B));
   random.fillUInt8(lut::makeSpan(zeroB));
-  random.fill(lut::makeSpan(scaleBFp32));
-  std::transform(scaleBFp32.begin(), scaleBFp32.end(), scaleB.begin(), lut::cvtss_sh);
 
+  fillRandomHalf(&random, lut::makeSpan(scaleB));
   std::vector<float> C(M * N);
   std::vector<float> refC(M * N);
 
@@ -133,7 +198,7 @@ void testGemmQ4(bool transB, int M, int N, int K) {
       C.data(),
       N);
 
-  CATCH_REQUIRE(isClose(C, refC, 1e-3));
+  CATCH_REQUIRE(isClose<float>(C, refC, 1e-3));
 }
 
 void refSgemm(
@@ -182,11 +247,11 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
   random.fillUInt8(lut::makeSpan(x));
   random.fillUInt8(lut::makeSpan(zeroX));
   random.fill(lut::makeSpan(scaleXFp32));
-  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), lut::cvtss_sh);
+  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), cvt_s2h);
 
   DequantQ4FallbackKernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, yRef.data());
   DequantQ4Avx2Kernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
-  CATCH_REQUIRE(isClose(y, yRef));
+  CATCH_REQUIRE(isClose<float>(y, yRef));
 
   random.fill(lut::makeSpan(y));
   random.fill(lut::makeSpan(yRef));
@@ -194,18 +259,18 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
       GroupSizeQ4, {x.data(), scaleX.data(), zeroX.data()}, DequantMinElemPerThread, yRef.data());
   DequantQ4Avx2Kernel::apply(
       GroupSizeQ4, {x.data(), scaleX.data(), zeroX.data()}, DequantMinElemPerThread, y.data());
-  CATCH_REQUIRE(isClose(lut::makeConstSpan(y).subspan(0, GroupSizeQ4),
-                        lut::makeConstSpan(yRef).subspan(0, GroupSizeQ4)));
+  CATCH_REQUIRE(isClose<float>(lut::makeConstSpan(y).subspan(0, GroupSizeQ4),
+                               lut::makeConstSpan(yRef).subspan(0, GroupSizeQ4)));
 
   // test api.
   random.fill(lut::makeSpan(y));
   DequantQ4FallbackKernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, yRef.data());
   DequantQ4Avx2().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
-  CATCH_REQUIRE(isClose(y, yRef));
+  CATCH_REQUIRE(isClose<float>(y, yRef));
 
   random.fill(lut::makeSpan(y));
   DequantQ4Avx2OMP().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
-  CATCH_REQUIRE(isClose(y, yRef));
+  CATCH_REQUIRE(isClose<float>(y, yRef));
 }
 
 CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
@@ -222,7 +287,7 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
   random.fillUInt8(lut::makeSpan(zeroY));
   random.fill(lut::makeSpan(scaleYFp32));
   random.fill(lut::makeSpan(x));
-  std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), lut::cvtss_sh);
+  std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), cvt_s2h);
 
   float a = DotQ4Avx2Kernel::apply(DIM, x.data(), {y.data(), scaleY.data(), zeroY.data()}, 0);
   float aRef = DotQ4FallbackKernel::apply(
@@ -249,7 +314,7 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   random.fillUInt8(lut::makeSpan(zeroA));
   random.fill(lut::makeSpan(scaleAFp32));
   random.fill(lut::makeSpan(x));
-  std::transform(scaleAFp32.begin(), scaleAFp32.end(), scaleA.begin(), lut::cvtss_sh);
+  std::transform(scaleAFp32.begin(), scaleAFp32.end(), scaleA.begin(), cvt_s2h);
 
   Q4GemvArgs gemvArgs;
   gemvArgs.A = {A.data(), scaleA.data(), zeroA.data()};
@@ -318,7 +383,7 @@ void testSgemm(bool transA, bool transB, int M, int N, int K) {
       C.data(),
       N);
 
-  CATCH_REQUIRE(isClose(C, refC));
+  CATCH_REQUIRE(isClose<float>(C, refC));
 }
 
 int gemmTestShapes[][3] = {
@@ -357,14 +422,16 @@ CATCH_TEST_CASE("test lymath_sgemm", "[lymath][sgemm]") {
 void testHalfToFloat(int n) {
   std::vector<float> y(n);
   std::vector<float> yr(n);
-  std::vector<uint16_t> x(n);
+  std::vector<Fp16> x(n);
 
   lut::Random random(MagicNumber);
   random.fill(lut::makeSpan(yr));
-  std::transform(yr.begin(), yr.end(), x.begin(), lut::cvtss_sh);
+  std::transform(yr.begin(), yr.end(), x.begin(), [](float x) {
+    return cvt_s2h(x);
+  });
 
   convertHalfToFloat(n, x.data(), y.data());
-  CATCH_REQUIRE(isClose(yr, y, 1e-4, 1e-3));
+  CATCH_REQUIRE(isClose<float>(yr, y, 1e-4, 1e-3));
 }
 
 CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {
@@ -373,6 +440,100 @@ CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {
     testHalfToFloat(n);
   }
 }
+
+
+template<class TAxpyHalfKernel>
+void testAxpyHalfKernel(int n) {
+  std::vector<Fp16> x(n);
+  std::vector<Fp16> y(n);
+  std::vector<Fp16> yr(n);
+
+  lut::Random random(MagicNumber);
+  fillRandomHalf(&random, lut::makeSpan<Fp16>(x));
+  Fp16 a = x[0];
+
+  TAxpyHalfKernel::apply(n, a, x.data(), y.data());
+  AxpyHalfFallbackKernel::apply(n, a, x.data(), yr.data());
+
+  CATCH_REQUIRE(isClose<Fp16>(yr, y));
+}
+
+template<class TDotHalfKernel>
+void testDotHalfKernel(int n, float rtol = 1e-3) {
+  std::vector<Fp16> x(n);
+  std::vector<Fp16> y(n);
+
+  lut::Random random(MagicNumber);
+  fillRandomHalf(&random, lut::makeSpan<Fp16>(x));
+  fillRandomHalf(&random, lut::makeSpan<Fp16>(y));
+
+  Fp16 z = TDotHalfKernel::apply(n, x.data(), y.data());
+  Fp16 zr = DotHalfFallbackKernel::apply(n, x.data(), y.data());
+
+  CATCH_REQUIRE(isClose(z, zr, 0, rtol));
+}
+
+template<class TGemmHalfKernel, class TGemmHalfReferenceKernel>
+struct GemmMicroKernelTester {
+  void test(int k, float rtol = 0.01) {
+    static_assert(TGemmHalfKernel::MR == TGemmHalfReferenceKernel::MR, "gemm kernal size mismatch");
+    static_assert(TGemmHalfKernel::NR == TGemmHalfReferenceKernel::NR, "gemm kernal size mismatch");
+
+    int MR = TGemmHalfKernel::MR;
+    int NR = TGemmHalfReferenceKernel::NR;
+
+    std::vector<Fp16> A(MR * k);
+    std::vector<Fp16> B(NR * k);
+    std::vector<Fp16> C(MR * NR);
+    std::vector<Fp16> Cr(MR * NR);
+
+    lut::Random random(MagicNumber);
+    fillRandomHalf(&random, lut::makeSpan<Fp16>(A));
+    fillRandomHalf(&random, lut::makeSpan<Fp16>(B));
+    fillRandomHalf(&random, lut::makeSpan<Fp16>(C));
+    std::copy(C.begin(), C.end(), Cr.begin());
+
+    TGemmHalfKernel::apply(k, A.data(), B.data(), C.data(), NR);
+    TGemmHalfReferenceKernel::apply(k, A.data(), B.data(), Cr.data(), NR);
+    CATCH_REQUIRE(getRSquared<Fp16>(C, Cr) > 0.99995);
+  }
+};
+
+#ifdef LIBLLM_ARCH_AARCH64
+
+CATCH_TEST_CASE("test AxpyHalfAsimdhpKernel", "[libllm][cpu_kernel][axpy][half]") {
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(1);
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(8);
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(16);
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(17);
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(128);
+  testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(2001);
+}
+
+CATCH_TEST_CASE("test DotHalfAsimdhpKernel", "[libllm][cpu_kernel][dot][half]") {
+  testDotHalfKernel<DotHalfAsimdhpKernel>(1);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(8);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(16);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(17);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(128);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(160);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(1500);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(2001);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(20000);
+}
+
+CATCH_TEST_CASE("test GemmHalf12x16AsimdhpKernel", "[libllm][cpu_kernel][gemm_kernel][half]") {
+  GemmMicroKernelTester<GemmHalf12x16FallbackKernel, GemmHalf12x16AsimdhpKernel> tester;
+  tester.test(1);
+  tester.test(8);
+  tester.test(17);
+  tester.test(64);
+  tester.test(100);
+  tester.test(256);
+  tester.test(500);
+}
+
+#endif  // LIBLLM_ARCH_AARCH64
 
 }  // namespace kernel
 }  // namespace cpu

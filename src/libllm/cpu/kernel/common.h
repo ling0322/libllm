@@ -20,7 +20,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "kernel.h"
+#include "libllm/cpu/kernel/kernel.h"
 
 #define LIBLLM_KERNEL_MSVC (_MSC_VER && !__INTEL_COMPILER)
 
@@ -36,11 +36,12 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-typedef uint16_t *PFp16;
-typedef float *PFp32;
+typedef Fp16 *PFp16;
+typedef const Fp16 *PCFp16;
 
+typedef float *PFp32;
 typedef const float *PCFp32;
-typedef const uint16_t *PCFp16;
+
 typedef const int8_t *PCInt8;
 typedef const UInt8 *PCUInt8;
 

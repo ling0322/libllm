@@ -17,26 +17,58 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// kernels for half type
-
 #pragma once
 
-#include <stdint.h>
-#include <memory>
+#include <omp.h>
 #include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/kernel_half.h"
+#include "libllm/lut/log.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-struct CvtHalfToFloatAvx2Kernel {
-  static void apply(int64_t n, PCFp16 x, PFp32 y);
+template<class TKernel, typename TX, typename TY, Mode MODE>
+class CvtCommon {
+ public:
+  static void apply(int64_t n, const TX *x, TY *y) {
+    int nb = (n + CvtMinElemPerThread - 1) / CvtMinElemPerThread;
+
+    if (MODE == Mode::OMP && nb > 1) {
+      int nr = (n - 1) % CvtMinElemPerThread + 1;
+      int numThreads = std::min(nb, omp_get_max_threads());
+
+      #pragma omp parallel for num_threads(numThreads)
+      for (int i = 0; i < nb; ++i) {
+        int ne = (i == nb - 1) ? nr : CvtMinElemPerThread;
+        TKernel::apply(
+            ne,
+            x + i * CvtMinElemPerThread,
+            y + i * CvtMinElemPerThread);
+      }
+    } else {
+      TKernel::apply(n, x, y);
+    }
+  }
 };
 
-struct CvtHalfToFloatFallbackKernel {
-  static void apply(int64_t n, PCFp16 x, PFp32 y);
+class CvtHalfToFloat {
+ public:
+  virtual ~CvtHalfToFloat() = default;
+  virtual void apply(int64_t n, PCFp16 x, PFp32 y) const = 0;
 };
+
+template<class TKernel, Mode MODE>
+class CvtHalfToFloatImpl : public CvtHalfToFloat {
+ public:
+  void apply(int64_t n, PCFp16 x, PFp32 y) const override {
+    CvtCommon<TKernel, Fp16, Fp32, MODE>::apply(n, x, y);
+  }
+};
+
+typedef CvtHalfToFloatImpl<CvtHalfToFloatAvx2Kernel, Mode::OMP> CvtHalfToFloatAvx2OMP;
+typedef CvtHalfToFloatImpl<CvtHalfToFloatFallbackKernel, Mode::OMP> CvtHalfToFloatFallbackOMP;
 
 }  // namespace kernel
 }  // namespace cpu

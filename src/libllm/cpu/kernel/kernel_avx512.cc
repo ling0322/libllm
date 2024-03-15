@@ -20,7 +20,7 @@
 #include <immintrin.h>
 #include <stdint.h>
 
-#include "libllm/cpu/kernel/skernel.h"
+#include "libllm/cpu/kernel/kernel_float.h"
 
 namespace libllm {
 namespace op {

@@ -21,10 +21,10 @@
 
 #include "libllm/cpu/kernel/args.h"
 #include "libllm/cpu/kernel/gemv_common.h"
-#include "libllm/cpu/kernel/q4dequant.h"
-#include "libllm/cpu/kernel/q4kernel.h"
-#include "libllm/cpu/kernel/sgemm.h"
-#include "libllm/cpu/kernel/skernel.h"
+#include "libllm/cpu/kernel/dequant_q4.h"
+#include "libllm/cpu/kernel/kernel_q4.h"
+#include "libllm/cpu/kernel/gemm_float.h"
+#include "libllm/cpu/kernel/kernel_float.h"
 
 namespace libllm {
 namespace op {

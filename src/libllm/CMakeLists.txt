@@ -20,8 +20,8 @@ set(lut_SOURCES
     "lut/zip_file.cc")
 
 set(libllm_SOURCES
-    "cpu/kernel/kernel_fallback.cc"
     "cpu/kernel/kernel.cc"
+    "cpu/kernel/kernel_fallback.cc"
     "cpu/kernel/util.cc"
     "cpu/all_close.cc"
     "cpu/apply_rotary_pos_emb.cc"
@@ -163,6 +163,9 @@ if(LIBLLM_KERNEL_X86_64)
             "cpu/kernel/kernel_avx2.cc"
             PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mf16c")
     endif(UNIX)
+endif()
+if(LIBLLM_ARCH_AARCH64)
+    set(libllm_SOURCES ${libllm_SOURCES} "cpu/kernel/kernel_asimdhp.cc")
 endif()
 
 add_library(lut STATIC ${lut_SOURCES})

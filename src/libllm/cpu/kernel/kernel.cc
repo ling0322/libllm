@@ -26,10 +26,10 @@
 #include "libllm/lut/platform.h"
 #include "libllm/lut/strings.h"
 #include "libllm/cpu/kernel/args.h"
-#include "libllm/cpu/kernel/hcvt.h"
-#include "libllm/cpu/kernel/q4dequant.h"
-#include "libllm/cpu/kernel/q4gemm.h"
-#include "libllm/cpu/kernel/sgemm.h"
+#include "libllm/cpu/kernel/cvt_half.h"
+#include "libllm/cpu/kernel/dequant_q4.h"
+#include "libllm/cpu/kernel/gemm_q4.h"
+#include "libllm/cpu/kernel/gemm_float.h"
 #include "ruapu/ruapu.h"
 
 namespace libllm {
@@ -90,8 +90,8 @@ class Api {
   static const Api *getInstance();
 
   // get kernel implementations.
-  const SGEMM *getSgemm() const { return _sgemm.get(); }
-  const SGEMM *getSgemmOmp() const { return _sgemmOmp.get(); }
+  const GemmFloat *getSgemm() const { return _sgemm.get(); }
+  const GemmFloat *getSgemmOmp() const { return _sgemmOmp.get(); }
   const Q4Gemm *getQ4Gemm() const { return _q4gemm.get(); }
   const DequantQ4 *getDequantQ4() const { return _q4dequant.get(); }
   const CvtHalfToFloat *getCvtHalfToFloat() const { return _cvtHalfToFloat.get(); }
@@ -100,8 +100,8 @@ class Api {
   static Api *_instance;
   static int _numThreads;
 
-  std::unique_ptr<SGEMM> _sgemm;
-  std::unique_ptr<SGEMM> _sgemmOmp;
+  std::unique_ptr<GemmFloat> _sgemm;
+  std::unique_ptr<GemmFloat> _sgemmOmp;
   std::unique_ptr<Q4Gemm> _q4gemm;
   std::unique_ptr<DequantQ4> _q4dequant;
   std::unique_ptr<CvtHalfToFloat> _cvtHalfToFloat;

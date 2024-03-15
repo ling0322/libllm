@@ -17,41 +17,67 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// kernels for half type
+
 #pragma once
 
 #include <stdint.h>
 #include <memory>
 #include "libllm/cpu/kernel/args.h"
-#include "libllm/cpu/kernel/kernel.h"
-#include "libllm/cpu/kernel/gemm_common.h"
-#include "libllm/cpu/kernel/gemv_common.h"
-#include "libllm/cpu/kernel/skernel.h"
+#include "libllm/cpu/kernel/common.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-class SGEMV {
- public:
-  virtual ~SGEMV() = default;
-  virtual void apply(const SGEMVArgs &args) const = 0; 
+struct CvtHalfToFloatAvx2Kernel {
+  static void apply(int64_t n, PCFp16 x, PFp32 y);
 };
 
-template<class TSAxpyKernel, class TSDotKernel, Mode MODE>
-class SGEMVImpl : public SGEMV {
- public:
-  void apply(const SGEMVArgs &args) const override {
-    GEMVCommon<SGEMVArgs, TSAxpyKernel, TSDotKernel, MODE>().apply(args);
-  }
+struct CvtHalfToFloatFallbackKernel {
+  static void apply(int64_t n, PCFp16 x, PFp32 y);
 };
 
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx512;
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx2;
-typedef SGEMVImpl<SAxpyFallbackKernel, SDotFallbackKernel, Mode::SingleThread> SGEMVImplDefault;
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx512OMP;
-typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx2OMP;
-typedef SGEMVImpl<SAxpyFallbackKernel, SDotFallbackKernel, Mode::OMP> SGEMVImplDefaultOMP;
+
+struct AxpyHalfAsimdhpKernel {
+  typedef float ValueType;
+
+  static void apply(int64_t n, Fp16 a, PCFp16 x, PFp16 y);
+  static void applyColumn(const SGEMVArgs &args, int row, float *y);
+};
+
+struct AxpyHalfFallbackKernel {
+  typedef Fp16 ValueType;
+  static void apply(int64_t n, Fp16 a, PCFp16 x, PFp16 y);
+};
+
+struct DotHalfAsimdhpKernel {
+  typedef Fp16 ValueType;
+
+  static Fp16 apply(int64_t n, PCFp16 x, PCFp16 y);
+};
+
+struct DotHalfFallbackKernel {
+  typedef Fp16 ValueType;
+
+  static Fp16 apply(int64_t n, PCFp16 x, PCFp16 y);
+};
+
+template<int MR_, int NR_>
+struct GemmHalfFallbackKernel {
+  static constexpr int MR = MR_;
+  static constexpr int NR = NR_;
+  static void apply(int64_t kc, PFp16 a, PFp16 b, PFp16 c, int64_t rs_c);
+};
+
+typedef GemmHalfFallbackKernel<12, 16> GemmHalf12x16FallbackKernel;
+
+struct GemmHalf12x16AsimdhpKernel {
+  static constexpr int MR = 12;
+  static constexpr int NR = 16;
+  static void apply(int64_t kc, PFp16 a, PFp16 b, PFp16 c, int64_t rs_c);
+};
 
 }  // namespace kernel
 }  // namespace cpu

@@ -21,23 +21,37 @@
 
 #include <stdint.h>
 #include <memory>
-#include "libllm/cpu/kernel/common.h"
-#include "libllm/lut/c_ptr.h"
-#include "libllm/lut/span.h"
+#include "libllm/cpu/kernel/args.h"
+#include "libllm/cpu/kernel/kernel.h"
+#include "libllm/cpu/kernel/gemm_common.h"
+#include "libllm/cpu/kernel/gemv_common.h"
+#include "libllm/cpu/kernel/kernel_float.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-// copy vector x to y.
-void scopy(int n, const float *x, int incx, float *y, int incy);
+class SGEMV {
+ public:
+  virtual ~SGEMV() = default;
+  virtual void apply(const SGEMVArgs &args) const = 0; 
+};
 
-// allocate n single float and returns the holder. the memory is 32 byte aligned.
-lut::c_ptr<float> salloc(int64_t n);
+template<class TSAxpyKernel, class TSDotKernel, Mode MODE>
+class SGEMVImpl : public SGEMV {
+ public:
+  void apply(const SGEMVArgs &args) const override {
+    GEMVCommon<SGEMVArgs, TSAxpyKernel, TSDotKernel, MODE>().apply(args);
+  }
+};
 
-float cvt_h2s(Fp16 vh);
-Fp16 cvt_s2h(float vf);
+typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx512;
+typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx2;
+typedef SGEMVImpl<SAxpyFallbackKernel, SDotFallbackKernel, Mode::SingleThread> SGEMVImplDefault;
+typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx512OMP;
+typedef SGEMVImpl<SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx2OMP;
+typedef SGEMVImpl<SAxpyFallbackKernel, SDotFallbackKernel, Mode::OMP> SGEMVImplDefaultOMP;
 
 }  // namespace kernel
 }  // namespace cpu

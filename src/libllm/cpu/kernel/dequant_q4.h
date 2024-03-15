@@ -21,7 +21,7 @@
 
 #include <omp.h>
 #include "libllm/cpu/kernel/common.h"
-#include "libllm/cpu/kernel/hkernel.h"
+#include "libllm/cpu/kernel/kernel_q4.h"
 #include "libllm/lut/log.h"
 
 namespace libllm {
@@ -29,46 +29,42 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-template<class TKernel, typename TX, typename TY, Mode MODE>
-class CvtCommon {
+class DequantQ4 {
  public:
-  static void apply(int64_t n, const TX *x, TY *y) {
-    int nb = (n + CvtMinElemPerThread - 1) / CvtMinElemPerThread;
+  virtual ~DequantQ4() = default;
+  virtual void apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) const = 0;
+};
+
+template<class TKernel, Mode MODE>
+class DequantQ4Impl : public DequantQ4 {
+ public:
+  void apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) const override {
+    CHECK(n % GroupSizeQ4 == 0);
+    int nb = (n + DequantMinElemPerThread - 1) / DequantMinElemPerThread;
 
     if (MODE == Mode::OMP && nb > 1) {
-      int nr = (n - 1) % CvtMinElemPerThread + 1;
+      int nr = (n - 1) % DequantMinElemPerThread + 1;
       int numThreads = std::min(nb, omp_get_max_threads());
 
       #pragma omp parallel for num_threads(numThreads)
       for (int i = 0; i < nb; ++i) {
-        int ne = (i == nb - 1) ? nr : CvtMinElemPerThread;
+        int ne = (i == nb - 1) ? nr : DequantMinElemPerThread;
         TKernel::apply(
             ne,
-            x + i * CvtMinElemPerThread,
-            y + i * CvtMinElemPerThread);
+            x,
+            offsetX + i * DequantMinElemPerThread,
+            y + i * DequantMinElemPerThread);
       }
     } else {
-      TKernel::apply(n, x, y);
+      TKernel::apply(n, x, offsetX, y);
     }
   }
 };
 
-class CvtHalfToFloat {
- public:
-  virtual ~CvtHalfToFloat() = default;
-  virtual void apply(int64_t n, PCFp16 x, PFp32 y) const = 0;
-};
-
-template<class TKernel, Mode MODE>
-class CvtHalfToFloatImpl : public CvtHalfToFloat {
- public:
-  void apply(int64_t n, PCFp16 x, PFp32 y) const override {
-    CvtCommon<TKernel, Fp16, Fp32, MODE>::apply(n, x, y);
-  }
-};
-
-typedef CvtHalfToFloatImpl<CvtHalfToFloatAvx2Kernel, Mode::OMP> CvtHalfToFloatAvx2OMP;
-typedef CvtHalfToFloatImpl<CvtHalfToFloatFallbackKernel, Mode::OMP> CvtHalfToFloatFallbackOMP;
+typedef DequantQ4Impl<DequantQ4Avx2Kernel, Mode::SingleThread> DequantQ4Avx2;
+typedef DequantQ4Impl<DequantQ4FallbackKernel, Mode::SingleThread> DequantQ4Fallback;
+typedef DequantQ4Impl<DequantQ4Avx2Kernel, Mode::OMP> DequantQ4Avx2OMP;
+typedef DequantQ4Impl<DequantQ4FallbackKernel, Mode::OMP> DequantQ4FallbackOMP;
 
 }  // namespace kernel
 }  // namespace cpu

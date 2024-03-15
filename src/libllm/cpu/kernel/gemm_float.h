@@ -23,8 +23,8 @@
 #include <memory>
 #include "libllm/cpu/kernel/kernel.h"
 #include "libllm/cpu/kernel/gemm_common.h"
-#include "libllm/cpu/kernel/sgemv.h"
-#include "libllm/cpu/kernel/skernel.h"
+#include "libllm/cpu/kernel/gemv_float.h"
+#include "libllm/cpu/kernel/kernel_float.h"
 
 namespace libllm {
 namespace op {
@@ -42,9 +42,9 @@ typedef GEMMCommon<288, 512, 4096, SGemm6x16DefaultKernel, Mode::OMP> SGEMMKerne
 typedef GEMMCommon<288, 512, 4096, SGemm6x16Avx2Kernel, Mode::OMP> SGEMMKernelAvx2OMP;
 typedef GEMMCommon<576, 512, 4096, SGemm12x32Avx512Kernel, Mode::OMP> SGEMMKernelAvx512OMP;
 
-class SGEMM {
+class GemmFloat {
  public:
-  virtual ~SGEMM() = default;
+  virtual ~GemmFloat() = default;
 
   virtual void apply(
       bool transA,
@@ -62,7 +62,7 @@ class SGEMM {
 };
 
 template<class TGEMMKernel, class TGEMVKernel>
-class SGEMMImpl : public SGEMM {
+class GemmFloatImpl : public GemmFloat {
  public:
   void apply(
       bool transA,
@@ -115,16 +115,16 @@ class SGEMMImpl : public SGEMM {
       int ldc) const;
 };
 
-typedef SGEMMImpl<SGEMMKernelAvx512OMP, SGEMVImplAvx512OMP> SGEMMImplAvx512OMP;
-typedef SGEMMImpl<SGEMMKernelAvx2OMP, SGEMVImplAvx2OMP> SGEMMImplAvx2OMP;
-typedef SGEMMImpl<SGEMMKernelDefaultOMP, SGEMVImplDefaultOMP> SGEMMImplDefaultOMP;
+typedef GemmFloatImpl<SGEMMKernelAvx512OMP, SGEMVImplAvx512OMP> SGEMMImplAvx512OMP;
+typedef GemmFloatImpl<SGEMMKernelAvx2OMP, SGEMVImplAvx2OMP> SGEMMImplAvx2OMP;
+typedef GemmFloatImpl<SGEMMKernelDefaultOMP, SGEMVImplDefaultOMP> SGEMMImplDefaultOMP;
 
-typedef SGEMMImpl<SGEMMKernelAvx512, SGEMVImplAvx512> SGEMMImplAvx512;
-typedef SGEMMImpl<SGEMMKernelAvx2, SGEMVImplAvx2> SGEMMImplAvx2;
-typedef SGEMMImpl<SGEMMKernelDefault, SGEMVImplDefault> SGEMMImplDefault;
+typedef GemmFloatImpl<SGEMMKernelAvx512, SGEMVImplAvx512> SGEMMImplAvx512;
+typedef GemmFloatImpl<SGEMMKernelAvx2, SGEMVImplAvx2> SGEMMImplAvx2;
+typedef GemmFloatImpl<SGEMMKernelDefault, SGEMVImplDefault> SGEMMImplDefault;
 
 template<class TGEMMKernel, class TGEMVKernel>
-void SGEMMImpl<TGEMMKernel, TGEMVKernel>::applyRowVectorA(
+void GemmFloatImpl<TGEMMKernel, TGEMVKernel>::applyRowVectorA(
     bool transA,
     bool transB,
     int M,
@@ -154,7 +154,7 @@ void SGEMMImpl<TGEMMKernel, TGEMVKernel>::applyRowVectorA(
 }
 
 template<class TGEMMKernel, class TGEMVKernel>
-void SGEMMImpl<TGEMMKernel, TGEMVKernel>::applyColumnVectorB(
+void GemmFloatImpl<TGEMMKernel, TGEMVKernel>::applyColumnVectorB(
     bool transA,
     bool transB,
     int M,
