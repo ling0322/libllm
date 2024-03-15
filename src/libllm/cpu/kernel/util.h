@@ -49,6 +49,9 @@ lut::c_ptr<T> alignedAlloc(int64_t n) {
 float cvt_h2s(Float16 vh);
 Float16 cvt_s2h(float vf);
 
+float cvt_h2s(Fp16 vh);
+Fp16 cvt_s2h(float vf);
+
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op

@@ -53,6 +53,26 @@ Float16 cvt_s2h(float vf) {
 #endif
 }
 
+float cvt_h2s(Fp16 vh) {
+#ifdef __aarch64__
+  float16x4_t a00 = vld1_dup_f16(&vh);
+  float32x4_t b00 = vcvt_f32_f16(a00);
+  return vgetq_lane_f32(b00, 0);
+#else
+  return lut::cvtsh_ss(vh.h);
+#endif
+}
+
+Fp16 cvt_s2h(float vf) {
+#ifdef __aarch64__
+  float32x4_t a00 = vld1q_dup_f32(&vf);
+  float16x4_t b00 = vcvt_f16_f32(a00);
+  return vget_lane_f16(b00, 0);
+#else
+  return lut::cvtss_sh(vh.h);
+#endif
+}
+
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
