@@ -251,7 +251,7 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
 
   DequantQ4FallbackKernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, yRef.data());
   DequantQ4Avx2Kernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
-  CATCH_REQUIRE(isClose(y, yRef));
+  CATCH_REQUIRE(isClose<float>(y, yRef));
 
   random.fill(lut::makeSpan(y));
   random.fill(lut::makeSpan(yRef));
@@ -259,14 +259,14 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
       GroupSizeQ4, {x.data(), scaleX.data(), zeroX.data()}, DequantMinElemPerThread, yRef.data());
   DequantQ4Avx2Kernel::apply(
       GroupSizeQ4, {x.data(), scaleX.data(), zeroX.data()}, DequantMinElemPerThread, y.data());
-  CATCH_REQUIRE(isClose(lut::makeConstSpan(y).subspan(0, GroupSizeQ4),
-                        lut::makeConstSpan(yRef).subspan(0, GroupSizeQ4)));
+  CATCH_REQUIRE(isClose<float>(lut::makeConstSpan(y).subspan(0, GroupSizeQ4),
+                               lut::makeConstSpan(yRef).subspan(0, GroupSizeQ4)));
 
   // test api.
   random.fill(lut::makeSpan(y));
   DequantQ4FallbackKernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, yRef.data());
   DequantQ4Avx2().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
-  CATCH_REQUIRE(isClose(y, yRef));
+  CATCH_REQUIRE(isClose<float>(y, yRef));
 
   random.fill(lut::makeSpan(y));
   DequantQ4Avx2OMP().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
