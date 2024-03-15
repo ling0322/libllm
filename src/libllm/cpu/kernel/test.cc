@@ -247,7 +247,7 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
   random.fillUInt8(lut::makeSpan(x));
   random.fillUInt8(lut::makeSpan(zeroX));
   random.fill(lut::makeSpan(scaleXFp32));
-  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), lut::cvtss_sh);
+  std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), cvt_s2h);
 
   DequantQ4FallbackKernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, yRef.data());
   DequantQ4Avx2Kernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
