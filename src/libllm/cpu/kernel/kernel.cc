@@ -45,7 +45,7 @@ enum class CPUMathBackend {
 };
 
 CPUMathBackend findBestCpuMathBackend() {
-  // ruapu_init();
+  ruapu_init();
   bool isaAvx2 = ruapu_supports("avx2") > 0;
   bool isaAvx512f = ruapu_supports("avx512f") > 0;
   bool isaF16c = ruapu_supports("f16c") > 0;

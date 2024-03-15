@@ -69,7 +69,7 @@ namespace cpu {
 namespace kernel {
 
 #if LIBLLM_KERNEL_MSVC
-inline float libllm_cvtsh_ss(Fp16 sh) {
+inline float libllm_cvtsh_ss(uint16_t sh) {
   __m128h shx8;
   shx8.m128i_u16[0] = sh;
 
@@ -254,7 +254,7 @@ LIBLLM_KERNEL_FORCE_INLINE __m256i loadNibble32ToByte32(const void *nibbleAddr) 
 
 LIBLLM_KERNEL_FORCE_INLINE float half2float(Fp16 half) {
 #if LIBLLM_KERNEL_MSVC
-  return libllm_cvtsh_ss(half);
+  return libllm_cvtsh_ss(*reinterpret_cast<uint16_t *>(&half));
 #else
   return _cvtsh_ss(*reinterpret_cast<uint16_t *>(&half));
 #endif

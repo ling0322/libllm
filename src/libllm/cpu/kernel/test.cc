@@ -287,7 +287,7 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
   random.fillUInt8(lut::makeSpan(zeroY));
   random.fill(lut::makeSpan(scaleYFp32));
   random.fill(lut::makeSpan(x));
-  std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), lut::cvtss_sh);
+  std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), cvt_s2h);
 
   float a = DotQ4Avx2Kernel::apply(DIM, x.data(), {y.data(), scaleY.data(), zeroY.data()}, 0);
   float aRef = DotQ4FallbackKernel::apply(
@@ -314,7 +314,7 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   random.fillUInt8(lut::makeSpan(zeroA));
   random.fill(lut::makeSpan(scaleAFp32));
   random.fill(lut::makeSpan(x));
-  std::transform(scaleAFp32.begin(), scaleAFp32.end(), scaleA.begin(), lut::cvtss_sh);
+  std::transform(scaleAFp32.begin(), scaleAFp32.end(), scaleA.begin(), cvt_s2h);
 
   Q4GemvArgs gemvArgs;
   gemvArgs.A = {A.data(), scaleA.data(), zeroA.data()};
