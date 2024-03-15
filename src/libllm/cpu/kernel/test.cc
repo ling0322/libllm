@@ -293,7 +293,7 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
   float aRef = DotQ4FallbackKernel::apply(
       DIM, x.data(), {y.data(), scaleY.data(), zeroY.data()}, 0);
 
-  CATCH_REQUIRE(isClose<float>(a, aRef));
+  CATCH_REQUIRE(isClose(a, aRef));
 }
 
 // to reproduce a zero-point index bug in q4 kernels.
@@ -335,7 +335,7 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
 
 
   float a = DotQ4Avx2Kernel::apply(NUM_COL * 2, x2.data(), {A.data(), scaleA.data(), zeroA.data()}, 0);
-  CATCH_REQUIRE(isClose<float>(a, a0 + a1));
+  CATCH_REQUIRE(isClose(a, a0 + a1));
 }
 #endif  // LIBLLM_ARCH_X86_64
 
