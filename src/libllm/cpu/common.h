@@ -21,7 +21,7 @@
 
 #include "libllm/tensor.h"
 #include "libllm/cpu/accessor.h"
-#include "libllm/cpu/kernel/api.h"
+#include "libllm/cpu/kernel/kernel.h"
 #include "libllm/lut/span.h"
 
 namespace libllm {

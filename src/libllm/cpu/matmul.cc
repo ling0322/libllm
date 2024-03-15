@@ -23,7 +23,7 @@
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
-#include "libllm/cpu/kernel/api.h"
+#include "libllm/cpu/kernel/kernel.h"
 
 #ifndef _OPENMP
 #error OpenMP required

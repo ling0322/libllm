@@ -24,7 +24,7 @@
 #include "libllm/lut/error.h"
 #include "libllm/lut/strings.h"
 #include "libllm/cpu/cpu_operators.h"
-#include "libllm/cpu/kernel/api.h"
+#include "libllm/cpu/kernel/kernel.h"
 #include "libllm/cuda/cuda_operators.h"
 
 namespace libllm {

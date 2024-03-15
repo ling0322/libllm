@@ -19,7 +19,7 @@
 
 #include "libllm/cpu/lookup.h"
 
-#include "libllm/cpu/kernel/api.h"
+#include "libllm/cpu/kernel/kernel.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/copy.h"
 #include "libllm/cpu/print.h"

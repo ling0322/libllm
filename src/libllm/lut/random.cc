@@ -67,4 +67,8 @@ float Random::nextFloat() {
   return static_cast<float>(static_cast<double>(nextInt()) / RandMax);
 }
 
+void Random::reset(uint64_t seed) {
+  _x = seed % RandMax;
+}
+
 } // namespace lut

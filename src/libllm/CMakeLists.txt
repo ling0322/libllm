@@ -20,7 +20,7 @@ set(lut_SOURCES
     "lut/zip_file.cc")
 
 set(libllm_SOURCES
-    "cpu/kernel/api.cc"
+    "cpu/kernel/kernel.cc"
     "cpu/kernel/kernel_fallback.cc"
     "cpu/kernel/util.cc"
     "cpu/all_close.cc"

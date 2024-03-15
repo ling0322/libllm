@@ -50,6 +50,9 @@ class Random {
   // return next random float number in range [0, 1).
   float nextFloat();
 
+  // reset the random number generator.
+  void reset(uint64_t seed);
+
  private:
   uint64_t _x;
 };

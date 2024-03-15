@@ -26,12 +26,14 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-union Fp16 {
-  uint16_t h;
+
 #ifdef LIBLLM_HAVE_FP16
-  __fp16 v;
-#endif
+typedef __fp16 Fp16;
+#else
+struct Fp16 {
+  uint16_t h;
 };
+#endif
 
 
 typedef int8_t Int8;

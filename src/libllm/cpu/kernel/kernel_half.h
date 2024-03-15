@@ -39,11 +39,6 @@ struct CvtHalfToFloatFallbackKernel {
   static void apply(int64_t n, PCFp16 x, PFp32 y);
 };
 
-struct SGemm12x16AsimdhpKernel {
-  static constexpr int MR = 6;
-  static constexpr int NR = 16;
-  static void apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_t rs_c);
-};
 
 struct AxpyHalfAsimdhpKernel {
   typedef float ValueType;
@@ -54,8 +49,34 @@ struct AxpyHalfAsimdhpKernel {
 
 struct AxpyHalfFallbackKernel {
   typedef Fp16 ValueType;
-
   static void apply(int64_t n, Fp16 a, PCFp16 x, PFp16 y);
+};
+
+struct DotHalfAsimdhpKernel {
+  typedef Fp16 ValueType;
+
+  static Fp16 apply(int64_t n, PCFp16 x, PCFp16 y);
+};
+
+struct DotHalfFallbackKernel {
+  typedef Fp16 ValueType;
+
+  static Fp16 apply(int64_t n, PCFp16 x, PCFp16 y);
+};
+
+template<int MR_, int NR_>
+struct GemmHalfFallbackKernel {
+  static constexpr int MR = MR_;
+  static constexpr int NR = NR_;
+  static void apply(int64_t kc, PFp16 a, PFp16 b, PFp16 c, int64_t rs_c);
+};
+
+typedef GemmHalfFallbackKernel<12, 16> GemmHalf12x16FallbackKernel;
+
+struct GemmHalf12x16AsimdhpKernel {
+  static constexpr int MR = 12;
+  static constexpr int NR = 16;
+  static void apply(int64_t kc, PFp16 a, PFp16 b, PFp16 c, int64_t rs_c);
 };
 
 }  // namespace kernel

@@ -20,7 +20,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "libllm/cpu/kernel/api.h"
+#include "libllm/cpu/kernel/kernel.h"
 
 #define LIBLLM_KERNEL_MSVC (_MSC_VER && !__INTEL_COMPILER)
 

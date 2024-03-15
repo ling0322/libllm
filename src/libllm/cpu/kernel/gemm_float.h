@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 #include <memory>
-#include "libllm/cpu/kernel/api.h"
+#include "libllm/cpu/kernel/kernel.h"
 #include "libllm/cpu/kernel/gemm_common.h"
 #include "libllm/cpu/kernel/gemv_float.h"
 #include "libllm/cpu/kernel/kernel_float.h"

@@ -36,6 +36,9 @@ void scopy(int n, const float *x, int incx, float *y, int incy);
 // allocate n single float and returns the holder. the memory is 32 byte aligned.
 lut::c_ptr<float> salloc(int64_t n);
 
+float cvt_h2s(Fp16 vh);
+Fp16 cvt_s2h(float vf);
+
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op

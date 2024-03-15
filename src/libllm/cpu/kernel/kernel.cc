@@ -17,7 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cpu/kernel/api.h"
+#include "libllm/cpu/kernel/kernel.h"
 
 #include <omp.h>
 #include <stdlib.h>
@@ -45,7 +45,7 @@ enum class CPUMathBackend {
 };
 
 CPUMathBackend findBestCpuMathBackend() {
-  ruapu_init();
+  // ruapu_init();
   bool isaAvx2 = ruapu_supports("avx2") > 0;
   bool isaAvx512f = ruapu_supports("avx512f") > 0;
   bool isaF16c = ruapu_supports("f16c") > 0;

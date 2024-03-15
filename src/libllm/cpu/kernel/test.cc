@@ -20,8 +20,9 @@
 #include "catch2/catch_amalgamated.hpp"
 
 #include <omp.h>
+#include <math.h>
 #include "libllm/cpu/kernel/common.h"
-#include "libllm/cpu/kernel/api.h"
+#include "libllm/cpu/kernel/kernel.h"
 #include "libllm/cpu/kernel/cvt_half.h"
 #include "libllm/cpu/kernel/dequant_q4.h"
 #include "libllm/cpu/kernel/kernel_q4.h"
@@ -48,8 +49,8 @@ bool isClose(float l, float r, float atol = 1e-5, float rtol = 1e-5) {
 }
 
 bool isClose(Fp16 l, Fp16 r, float atol = 1e-5, float rtol = 1e-5) {
-  float lf = lut::cvtsh_ss(l.h);
-  float rf = lut::cvtsh_ss(r.h);
+  float lf = cvt_h2s(l);
+  float rf = cvt_h2s(r);
   bool close = fabs(lf - rf <= atol + rtol * fabs(rf));
   if (!close) {
     printf("%f vs %f\n", lf, rf);
@@ -74,13 +75,53 @@ bool isClose(lut::Span<const T> A,
   return true;
 }
 
+float toFloat(float x) {
+  return x;
+}
+float toFloat(Fp16 x) {
+  return cvt_h2s(x);
+}
+
+template<typename T>
+float getMSE(lut::Span<const T> A, lut::Span<const T> B) {
+  CHECK(A.size() == B.size());
+
+  double sum = 0;
+  for (int i = 0; i < A.size(); ++i) {
+    double d = toFloat(A[i]) - toFloat(B[i]);
+    sum += d * d;
+  }
+  double mse = sum / A.size();
+  return static_cast<float>(mse);
+}
+
+template<typename T>
+float getVar(lut::Span<const T> A) {
+  double sum = 0;
+  for (int i = 0; i < A.size(); ++i) {
+    sum += toFloat(A[i]);
+  }
+
+  double mean = sum / A.size();
+  sum = 0;
+  for (int i = 0; i < A.size(); ++i) {
+    double d = toFloat(A[i]) - mean;
+    sum += d * d;
+  }
+  double var = sum / A.size();
+  return static_cast<float>(var);
+}
+
+template<typename T>
+float getRSquared(lut::Span<const T> predict, lut::Span<const T> correct) {
+  return 1.0f - getMSE<T>(predict, correct) / getVar<T>(predict);
+}
+
 void fillRandomHalf(lut::Random *r, lut::Span<Fp16> v) {
   std::vector<float> vf(v.size());
-  r->fill(lut::makeSpan(vf));
+  r->fill(lut::makeSpan(vf), -1, 1);
   std::transform(vf.begin(), vf.end(), v.begin(), [](float v){
-    Fp16 vf;
-    vf.h = lut::cvtss_sh(v);
-    return vf;
+    return cvt_s2h(v);
   });
 }
 
@@ -386,9 +427,7 @@ void testHalfToFloat(int n) {
   lut::Random random(MagicNumber);
   random.fill(lut::makeSpan(yr));
   std::transform(yr.begin(), yr.end(), x.begin(), [](float x) {
-    Fp16 v;
-    v.h = lut::cvtss_sh(x);
-    return v;
+    return cvt_s2h(x);
   });
 
   convertHalfToFloat(n, x.data(), y.data());
@@ -419,6 +458,47 @@ void testAxpyHalfKernel(int n) {
   CATCH_REQUIRE(isClose<Fp16>(yr, y));
 }
 
+template<class TDotHalfKernel>
+void testDotHalfKernel(int n, float rtol = 1e-3) {
+  std::vector<Fp16> x(n);
+  std::vector<Fp16> y(n);
+
+  lut::Random random(MagicNumber);
+  fillRandomHalf(&random, lut::makeSpan<Fp16>(x));
+  fillRandomHalf(&random, lut::makeSpan<Fp16>(y));
+
+  Fp16 z = TDotHalfKernel::apply(n, x.data(), y.data());
+  Fp16 zr = DotHalfFallbackKernel::apply(n, x.data(), y.data());
+
+  CATCH_REQUIRE(isClose(z, zr, 0, rtol));
+}
+
+template<class TGemmHalfKernel, class TGemmHalfReferenceKernel>
+struct GemmMicroKernelTester {
+  void test(int k, float rtol = 0.01) {
+    static_assert(TGemmHalfKernel::MR == TGemmHalfReferenceKernel::MR, "gemm kernal size mismatch");
+    static_assert(TGemmHalfKernel::NR == TGemmHalfReferenceKernel::NR, "gemm kernal size mismatch");
+
+    int MR = TGemmHalfKernel::MR;
+    int NR = TGemmHalfReferenceKernel::NR;
+
+    std::vector<Fp16> A(MR * k);
+    std::vector<Fp16> B(NR * k);
+    std::vector<Fp16> C(MR * NR);
+    std::vector<Fp16> Cr(MR * NR);
+
+    lut::Random random(MagicNumber);
+    fillRandomHalf(&random, lut::makeSpan<Fp16>(A));
+    fillRandomHalf(&random, lut::makeSpan<Fp16>(B));
+    fillRandomHalf(&random, lut::makeSpan<Fp16>(C));
+    std::copy(C.begin(), C.end(), Cr.begin());
+
+    TGemmHalfKernel::apply(k, A.data(), B.data(), C.data(), NR);
+    TGemmHalfReferenceKernel::apply(k, A.data(), B.data(), Cr.data(), NR);
+    CATCH_REQUIRE(getRSquared<Fp16>(C, Cr) > 0.99995);
+  }
+};
+
 #ifdef LIBLLM_ARCH_AARCH64
 
 CATCH_TEST_CASE("test AxpyHalfAsimdhpKernel", "[libllm][cpu_kernel][axpy][half]") {
@@ -428,6 +508,29 @@ CATCH_TEST_CASE("test AxpyHalfAsimdhpKernel", "[libllm][cpu_kernel][axpy][half]"
   testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(17);
   testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(128);
   testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(2001);
+}
+
+CATCH_TEST_CASE("test DotHalfAsimdhpKernel", "[libllm][cpu_kernel][dot][half]") {
+  testDotHalfKernel<DotHalfAsimdhpKernel>(1);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(8);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(16);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(17);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(128);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(160);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(1500);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(2001);
+  testDotHalfKernel<DotHalfAsimdhpKernel>(20000);
+}
+
+CATCH_TEST_CASE("test GemmHalf12x16AsimdhpKernel", "[libllm][cpu_kernel][gemm_kernel][half]") {
+  GemmMicroKernelTester<GemmHalf12x16FallbackKernel, GemmHalf12x16AsimdhpKernel> tester;
+  tester.test(1);
+  tester.test(8);
+  tester.test(17);
+  tester.test(64);
+  tester.test(100);
+  tester.test(256);
+  tester.test(500);
 }
 
 #endif  // LIBLLM_ARCH_AARCH64
