@@ -256,7 +256,7 @@ LIBLLM_KERNEL_FORCE_INLINE float half2float(Fp16 half) {
 #if LIBLLM_KERNEL_MSVC
   return libllm_cvtsh_ss(half);
 #else
-  return _cvtsh_ss(half);
+  return _cvtsh_ss(*reinterpret_cast<uint16_t *>(&half));
 #endif
 }
 
