@@ -17,61 +17,67 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// kernels for half type
+
 #pragma once
 
 #include <stdint.h>
 #include <memory>
 #include "libllm/cpu/kernel/args.h"
+#include "libllm/cpu/kernel/common.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-struct SGemm6x16DefaultKernel {
-  static constexpr int MR = 6;
-  static constexpr int NR = 16;
-  static void apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_t rs_c);
+struct CvtHalfToFloatAvx2Kernel {
+  static void apply(int64_t n, const Float16 *x, float *y);
 };
 
-struct SGemm6x16Avx2Kernel {
-  static constexpr int MR = 6;
-  static constexpr int NR = 16;
-  static void apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_t rs_c);
+struct CvtHalfToFloatFallbackKernel {
+  static void apply(int64_t n, const Float16 *x, float *y);
 };
 
-struct SGemm12x32Avx512Kernel {
+
+struct AxpyHalfAsimdhpKernel {
+  typedef Float16 ValueType;
+
+  static void apply(int64_t n, Float16 a, const Float16 *x, Float16 *y);
+  static void applyColumn(const GemvArgs<Float16> &args, int row, Float16 *y);
+};
+
+struct AxpyHalfFallbackKernel {
+  typedef Float16 ValueType;
+  static void apply(int64_t n, Float16 a, const Float16 *x, Float16 *y);
+};
+
+struct DotHalfAsimdhpKernel {
+  typedef Float16 ValueType;
+
+  static Float16 apply(int64_t n, const Float16 *x, const Float16 *y);
+  static Float16 applyRow(const GemvArgs<Float16> &args, int row);
+};
+
+struct DotHalfFallbackKernel {
+  typedef Float16 ValueType;
+
+  static Float16 apply(int64_t n, const Float16 *x, const Float16 *y);
+};
+
+template<int MR_, int NR_>
+struct GemmHalfFallbackKernel {
+  static constexpr int MR = MR_;
+  static constexpr int NR = NR_;
+  static void apply(int64_t kc, Float16 *a, Float16 *b, Float16 *c, int64_t rs_c);
+};
+
+typedef GemmHalfFallbackKernel<12, 16> GemmHalf12x16FallbackKernel;
+
+struct GemmHalf12x16AsimdhpKernel {
   static constexpr int MR = 12;
-  static constexpr int NR = 32;
-  static void apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_t rs_c);
-};
-
-struct SAxpyAvx2Kernel {
-  typedef float ValueType;
-
-  static void apply(int64_t n, float a, PCFp32 x, PFp32 y);
-  static void applyColumn(const SGEMVArgs &args, int row, float *y);
-};
-
-struct SAxpyFallbackKernel {
-  typedef float ValueType;
-
-  static void apply(int64_t n, float a, PCFp32  x, PFp32 y);
-  static void applyColumn(const SGEMVArgs &args, int col, float *y);
-};
-
-struct SDotAvx2Kernel {
-  typedef float ValueType;
-
-  static float apply(int64_t n, const float *x, const float *y);
-  static float applyRow(const SGEMVArgs &args, int row);
-};
-
-struct SDotFallbackKernel {
-  typedef float ValueType;
-
-  static float apply(int64_t n, const float *x, const float *y);
-  static float applyRow(const SGEMVArgs &args, int row);
+  static constexpr int NR = 16;
+  static void apply(int64_t kc, Float16 *a, Float16 *b, Float16 *c, int64_t rs_c);
 };
 
 }  // namespace kernel

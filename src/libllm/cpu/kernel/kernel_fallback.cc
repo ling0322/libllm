@@ -21,9 +21,9 @@
 #include <stdlib.h>
 #include <algorithm>
 #include "libllm/cpu/kernel/common.h"
-#include "libllm/cpu/kernel/kernel_half.h"
-#include "libllm/cpu/kernel/kernel_q4.h"
-#include "libllm/cpu/kernel/kernel_float.h"
+#include "libllm/cpu/kernel/kernel_h.h"
+#include "libllm/cpu/kernel/kernel_sq4.h"
+#include "libllm/cpu/kernel/kernel_s.h"
 #include "libllm/cpu/kernel/util.h"
 #include "libllm/lut/half.h"
 #include "libllm/lut/log.h"
@@ -37,7 +37,7 @@ namespace kernel {
 
 // -- fallback micro-kernels ---------
 
-void SGemm6x16DefaultKernel::apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_t rs_c) {
+void SGemm6x16DefaultKernel::apply(int64_t kc, float *a, float *b, float *c, int64_t rs_c) {
   // a: kc x MR
   // b: kc x NR
   constexpr int64_t MR = 6;
@@ -57,38 +57,38 @@ void SGemm6x16DefaultKernel::apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_
   }
 }
 
-void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
+void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, float *y) {
   int64_t groupIdx = offsetX / GroupSizeQ4;
   int64_t nb = n / GroupSizeQ4;
   assert(offsetX % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
 
   for (int i = groupIdx; i < groupIdx + nb; ++i) {
     float scale = cvt_h2s(x.getScaleValByGroup(i));
-    UInt8 zero = x.getZeroValByGroup(i);
-    PCQ4x2 p = x.getDataByGroup(i);
+    uint8_t zero = x.getZeroValByGroup(i);
+    const UInt4x2 *p = x.getDataByGroup(i);
     for (int j = 0; j < GroupSizeQ4 / 2; ++j) {
-      *y++ = scale * (static_cast<int>(*p & 0xf) - zero);
-      *y++ = scale * ((static_cast<int>(*p) >> 4) - zero);
+      *y++ = scale * (static_cast<int>(p->b & 0xf) - zero);
+      *y++ = scale * ((static_cast<int>(p->b) >> 4) - zero);
       ++p;
     }
   }
 }
 
-float DotQ4FallbackKernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY) {
+float DotQ4FallbackKernel::apply(int64_t n, const float *x, DataQ4 y, int64_t offsetY) {
   int64_t groupIdx = offsetY / GroupSizeQ4;
   int64_t nb = n / GroupSizeQ4;
   assert(offsetY % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
 
   float sum = 0.0f;
 
-  PCQ4x2 py = y.getDataByGroup(groupIdx);
-  PCUInt8 zeroY = y.getZeroByGroup(groupIdx);
+  const UInt4x2 *py = y.getDataByGroup(groupIdx);
+  const UInt4x2 *zeroY = y.getZeroByGroup(groupIdx);
   for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
     float scale = cvt_h2s(y.getScaleValByGroup(i));
-    UInt8 zero = y.getZeroValByGroup(i);
+    uint8_t zero = y.getZeroValByGroup(i);
     for (int j = 0; j < GroupSizeQ4 / 2; ++j) {
-      sum += *x++ * scale * (static_cast<int>(*py & 0xf) - zero);
-      sum += *x++ * scale * ((static_cast<int>(*py) >> 4) - zero);
+      sum += *x++ * scale * (static_cast<int>(py->b & 0xf) - zero);
+      sum += *x++ * scale * ((static_cast<int>(py->b) >> 4) - zero);
       ++py;
     }
   }
@@ -101,7 +101,7 @@ float DotQ4FallbackKernel::applyRow(const Q4GemvArgs &args, int row) {
   return apply(args.N, args.x, args.A, offset);
 }
 
-void SAxpyFallbackKernel::apply(int64_t n, float a, PCFp32 x, PFp32 y) {
+void SAxpyFallbackKernel::apply(int64_t n, float a, const float *x, float *y) {
   const float *px = x;
   float *py = y;
   for (int i = 0; i < n; ++i) {
@@ -128,15 +128,15 @@ float SDotFallbackKernel::applyRow(const SGEMVArgs &args, int row) {
   return apply(args.N, args.A + row * args.lda, args.x);
 }
 
-void CvtHalfToFloatFallbackKernel::apply(int64_t n, PCFp16 x, PFp32 y) {
+void CvtHalfToFloatFallbackKernel::apply(int64_t n, const Float16 *x, float *y) {
   for (int i = 0; i < n; ++i) {
     y[i] = cvt_h2s(x[i]);
   }
 }
 
-void AxpyHalfFallbackKernel::apply(int64_t n, Fp16 a, PCFp16 x, PFp16 y) {
-  PCFp16 px = x;
-  PFp16 py = y;
+void AxpyHalfFallbackKernel::apply(int64_t n, Float16 a, const Float16 *x, Float16 *y) {
+  const Float16 *px = x;
+  Float16 *py = y;
   for (int i = 0; i < n; ++i) {
     *py = cvt_s2h(cvt_h2s(*py) + cvt_h2s(a) * cvt_h2s(*px));
     ++px;
@@ -144,7 +144,7 @@ void AxpyHalfFallbackKernel::apply(int64_t n, Fp16 a, PCFp16 x, PFp16 y) {
   }
 }
 
-Fp16 DotHalfFallbackKernel::apply(int64_t n, PCFp16 x, PCFp16 y) {
+Float16 DotHalfFallbackKernel::apply(int64_t n, const Float16 *x, const Float16 *y) {
   float sum = 0;
   for (int i = 0; i < n; ++i) {
     sum += cvt_h2s(x[i]) * cvt_h2s(y[i]);
@@ -155,7 +155,7 @@ Fp16 DotHalfFallbackKernel::apply(int64_t n, PCFp16 x, PCFp16 y) {
 
 template<int MR, int NR>
 void GemmHalfFallbackKernel<MR, NR>::apply(
-    int64_t kc, PFp16 a, PFp16 b, PFp16 c, int64_t rs_c) {
+    int64_t kc, Float16 *a, Float16 *b, Float16 *c, int64_t rs_c) {
   for (int64_t m = 0; m < MR; ++m) {
     for (int64_t n = 0; n < NR; ++n) {
       float sum = cvt_h2s(c[m * rs_c + n]);

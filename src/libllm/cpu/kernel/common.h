@@ -36,17 +36,6 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-typedef Fp16 *PFp16;
-typedef const Fp16 *PCFp16;
-
-typedef float *PFp32;
-typedef const float *PCFp32;
-
-typedef const int8_t *PCInt8;
-typedef const UInt8 *PCUInt8;
-
-typedef const uint8_t *PCQ4x2;
-
 constexpr int GEMVMinRowsPerThread = 128;
 constexpr int CvtMinElemPerThread = 1024;
 constexpr int DequantMinElemPerThread = 1024;
@@ -58,26 +47,26 @@ class DataQ4 {
       _data(nullptr),
       _scale(nullptr),
       _zero(nullptr) {}
-  constexpr DataQ4(PCQ4x2 data, PCFp16 scale, PCUInt8 zero) :
+  constexpr DataQ4(const UInt4x2 *data, const Float16 *scale, const UInt4x2 *zero) :
       _data(data),
       _scale(scale),
       _zero(zero) {}
 
-  constexpr PCQ4x2 getDataByGroup(int64_t groupIdx) const {
+  constexpr const UInt4x2 *getDataByGroup(int64_t groupIdx) const {
     return _data + groupIdx * GroupSizeQ4 / 2;
   }
-  constexpr PCFp16 getScaleByGroup(int64_t groupIdx) const { return _scale + groupIdx; }
-  constexpr PCQ4x2 getZeroByGroup(int64_t groupIdx) const { return _zero + groupIdx / 2; }
+  constexpr const Float16 *getScaleByGroup(int64_t groupIdx) const { return _scale + groupIdx; }
+  constexpr const UInt4x2 *getZeroByGroup(int64_t groupIdx) const { return _zero + groupIdx / 2; }
 
-  constexpr Fp16 getScaleValByGroup(int64_t groupIdx) const { return _scale[groupIdx]; }
-  constexpr UInt8 getZeroValByGroup(int64_t groupIdx) const {
-    return (_zero[groupIdx >> 1] >> ((groupIdx & 1) << 2)) & 0xf;
+  constexpr Float16 getScaleValByGroup(int64_t groupIdx) const { return _scale[groupIdx]; }
+  constexpr uint8_t getZeroValByGroup(int64_t groupIdx) const {
+    return (_zero[groupIdx >> 1].b >> ((groupIdx & 1) << 2)) & 0xf;
   }
 
  private:
-  PCQ4x2 _data;
-  PCFp16 _scale;
-  PCUInt8 _zero;
+  const UInt4x2 *_data;
+  const Float16 *_scale;
+  const UInt4x2 *_zero;
 };
 
 }  // namespace kernel

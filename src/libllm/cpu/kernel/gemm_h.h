@@ -17,44 +17,33 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cpu/kernel/util.h"
+#pragma once
 
-#include "libllm/cpu/kernel/common.h"
-#include "libllm/lut/half.h"
-#include "libllm/lut/platform.h"
-
-#ifdef __aarch64__
-#include <arm_neon.h>
-#endif
+#include <stdint.h>
+#include <memory>
+#include "libllm/cpu/kernel/gemm_common.h"
+#include "libllm/cpu/kernel/gemm_kernel.h"
+#include "libllm/cpu/kernel/gemv_h.h"
+#include "libllm/cpu/kernel/kernel_h.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
+typedef GemmKernel<576, 512, 4096, Float16, GemmHalf12x16AsimdhpKernel, Mode::SingleThread> 
+    HGemmKernelAaimdhp;
+typedef GemmKernel<576, 512, 4096, Float16, GemmHalf12x16AsimdhpKernel, Mode::OMP>
+    HGemmKernelAaimdhpOMP;
 
-float cvt_h2s(Float16 vh) {
-#ifdef __aarch64__
-  float16x4_t a00 = vld1_dup_f16(&vh);
-  float32x4_t b00 = vcvt_f32_f16(a00);
-  return vgetq_lane_f32(b00, 0);
-#else
-  return lut::cvtsh_ss(vh.h);
-#endif
-}
 
-Float16 cvt_s2h(float vf) {
-#ifdef __aarch64__
-  float32x4_t a00 = vld1q_dup_f32(&vf);
-  float16x4_t b00 = vcvt_f16_f32(a00);
-  return vget_lane_f16(b00, 0);
-#else
-  return Float16{lut::cvtss_sh(vf)};
-#endif
-}
+template<class TGemmKernel, class TGemvKernel>
+using HGemmImpl = GemmImpl<TGemmKernel, TGemvKernel, Float16>;
+
+typedef HGemmImpl<HGemmKernelAaimdhpOMP, HGemvAsimdhpOMP> HGemmAsimdhpOMP;
+typedef HGemmImpl<HGemmKernelAaimdhp, HGemvAsimdhp> HGemmAsimdhp;
 
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
 }  // namespace libllm
-

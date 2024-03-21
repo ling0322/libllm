@@ -22,38 +22,24 @@
 #include <stdint.h>
 #include <memory>
 #include "libllm/cpu/kernel/args.h"
-#include "libllm/lut/log.h"
-
+#include "libllm/cpu/kernel/kernel.h"
+#include "libllm/cpu/kernel/gemv_kernel.h"
+#include "libllm/cpu/kernel/kernel_s.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
+typedef GemvKernel<SGEMVArgs, SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx512;
+typedef GemvKernel<SGEMVArgs, SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::SingleThread> SGEMVImplAvx2;
+typedef GemvKernel<SGEMVArgs, SAxpyFallbackKernel, SDotFallbackKernel, Mode::SingleThread>
+    SGEMVImplDefault;
 
-struct AxpyQ4NotImplKernel {
-  static void applyColumn(const Q4GemvArgs &args, int col, PFp32 y) {
-    NOT_IMPL();
-  }
-};
-
-struct DotQ4FallbackKernel {
-  static float apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY);
-  static float applyRow(const Q4GemvArgs &args, int row);
-};
-
-struct DotQ4Avx2Kernel {
-  static float apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY);
-  static float applyRow(const Q4GemvArgs &args, int row);
-};
-
-struct DequantQ4Avx2Kernel {
-  static void apply(int n, DataQ4 x, int64_t offsetX, PFp32 y);
-};
-
-struct DequantQ4FallbackKernel {
-  static void apply(int n, DataQ4 x, int64_t offsetX, PFp32 y);
-};
+typedef GemvKernel<SGEMVArgs, SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx512OMP;
+typedef GemvKernel<SGEMVArgs, SAxpyAvx2Kernel, SDotAvx2Kernel, Mode::OMP> SGEMVImplAvx2OMP;
+typedef GemvKernel<SGEMVArgs, SAxpyFallbackKernel, SDotFallbackKernel, Mode::OMP>
+    SGEMVImplDefaultOMP;
 
 }  // namespace kernel
 }  // namespace cpu

@@ -26,20 +26,21 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-
-#ifdef LIBLLM_HAVE_FP16
-typedef __fp16 Fp16;
-#else
-struct Fp16 {
+struct WORD {
   uint16_t h;
 };
+
+struct BYTE {
+  uint8_t b;
+};
+
+#ifdef __aarch64__
+typedef _Float16 Float16;
+#else
+typedef WORD Float16;
 #endif
 
-
-typedef int8_t Int8;
-typedef uint8_t UInt8;
-typedef float Fp32;
-typedef uint8_t Q4x2;
+typedef BYTE UInt4x2;
 
 enum class Mode {
   OMP,
@@ -56,21 +57,35 @@ void sgemm(
     int M,
     int N,
     int K,
-    const Fp32 *A,
+    const float *A,
     int lda,
-    const Fp32 *B,
+    const float *B,
     int ldb,
-    Fp32 *C,
+    float *C,
+    int ldc,
+    Mode mode = Mode::Auto);
+
+void hgemm(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const Float16 *A,
+    int lda,
+    const Float16 *B,
+    int ldb,
+    Float16 *C,
     int ldc,
     Mode mode = Mode::Auto);
 
 void dequantQ4(
     int n,
-    const Q4x2 *data,
-    const Fp16 *scale,
-    const UInt8 *zeroPoint,
+    const UInt4x2 *data,
+    const Float16 *scale,
+    const UInt4x2 *zeroPoint,
     int offset,
-    Fp32 *tgt,
+    float *tgt,
     Mode mode = Mode::Auto);
 
 // GEMM: A is a float32 matrix, B is a matrix with 4-bit asymmetric quantization. C is a float32
@@ -81,16 +96,16 @@ void gemmQ4(
     int M,
     int N,
     int K,
-    const Fp32 *A,
+    const float *A,
     int lda,
-    const Q4x2 *B,
-    const Fp16 *scaleB,
-    const UInt8 *zeroPointB,
-    Fp32 *C,
+    const UInt4x2 *B,
+    const Float16 *scaleB,
+    const UInt4x2 *zeroPointB,
+    float *C,
     int ldc,
     Mode mode = Mode::Auto);
 
-void convertHalfToFloat(int n, const Fp16 *x, Fp32 *y, Mode mode = Mode::Auto);
+void convertHalfToFloat(int n, const Float16 *x, float *y, Mode mode = Mode::Auto);
 
 }  // namespace kernel
 }  // namespace cpu

@@ -143,9 +143,9 @@ Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
       gemmArgs.K,
       A.getData<float>(),
       gemmArgs.lda,
-      reinterpret_cast<const kernel::Q4x2 *>(dataObjectB->getData<Q4>()),
-      reinterpret_cast<const kernel::Fp16 *>(dataObjectB->getSlot(1)->getData<Float16>()),
-      reinterpret_cast<const kernel::UInt8 *>(dataObjectB->getSlot(2)->getData<UInt8>()),
+      reinterpret_cast<const kernel::UInt4x2 *>(dataObjectB->getData<Q4>()),
+      reinterpret_cast<const kernel::Float16 *>(dataObjectB->getSlot(1)->getData<Float16>()),
+      reinterpret_cast<const kernel::UInt4x2 *>(dataObjectB->getSlot(2)->getData<UInt8>()),
       C.getData<float>(),
       gemmArgs.ldc);
 

@@ -19,56 +19,41 @@
 
 #pragma once
 
-#include <omp.h>
-#include "libllm/cpu/kernel/common.h"
-#include "libllm/cpu/kernel/kernel_half.h"
+#include <stdint.h>
+#include <memory>
+#include "libllm/cpu/kernel/args.h"
 #include "libllm/lut/log.h"
+
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-template<class TKernel, typename TX, typename TY, Mode MODE>
-class CvtCommon {
- public:
-  static void apply(int64_t n, const TX *x, TY *y) {
-    int nb = (n + CvtMinElemPerThread - 1) / CvtMinElemPerThread;
 
-    if (MODE == Mode::OMP && nb > 1) {
-      int nr = (n - 1) % CvtMinElemPerThread + 1;
-      int numThreads = std::min(nb, omp_get_max_threads());
-
-      #pragma omp parallel for num_threads(numThreads)
-      for (int i = 0; i < nb; ++i) {
-        int ne = (i == nb - 1) ? nr : CvtMinElemPerThread;
-        TKernel::apply(
-            ne,
-            x + i * CvtMinElemPerThread,
-            y + i * CvtMinElemPerThread);
-      }
-    } else {
-      TKernel::apply(n, x, y);
-    }
+struct AxpyQ4NotImplKernel {
+  static void applyColumn(const Q4GemvArgs &args, int col, float *y) {
+    NOT_IMPL();
   }
 };
 
-class CvtHalfToFloat {
- public:
-  virtual ~CvtHalfToFloat() = default;
-  virtual void apply(int64_t n, PCFp16 x, PFp32 y) const = 0;
+struct DotQ4FallbackKernel {
+  static float apply(int64_t n, const float *x, DataQ4 y, int64_t offsetY);
+  static float applyRow(const Q4GemvArgs &args, int row);
 };
 
-template<class TKernel, Mode MODE>
-class CvtHalfToFloatImpl : public CvtHalfToFloat {
- public:
-  void apply(int64_t n, PCFp16 x, PFp32 y) const override {
-    CvtCommon<TKernel, Fp16, Fp32, MODE>::apply(n, x, y);
-  }
+struct DotQ4Avx2Kernel {
+  static float apply(int64_t n, const float *x, DataQ4 y, int64_t offsetY);
+  static float applyRow(const Q4GemvArgs &args, int row);
 };
 
-typedef CvtHalfToFloatImpl<CvtHalfToFloatAvx2Kernel, Mode::OMP> CvtHalfToFloatAvx2OMP;
-typedef CvtHalfToFloatImpl<CvtHalfToFloatFallbackKernel, Mode::OMP> CvtHalfToFloatFallbackOMP;
+struct DequantQ4Avx2Kernel {
+  static void apply(int n, DataQ4 x, int64_t offsetX, float *y);
+};
+
+struct DequantQ4FallbackKernel {
+  static void apply(int n, DataQ4 x, int64_t offsetX, float *y);
+};
 
 }  // namespace kernel
 }  // namespace cpu

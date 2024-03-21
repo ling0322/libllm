@@ -23,11 +23,11 @@
 #include <math.h>
 #include "libllm/cpu/kernel/common.h"
 #include "libllm/cpu/kernel/kernel.h"
-#include "libllm/cpu/kernel/cvt_half.h"
-#include "libllm/cpu/kernel/dequant_q4.h"
-#include "libllm/cpu/kernel/kernel_q4.h"
-#include "libllm/cpu/kernel/kernel_float.h"
-#include "libllm/cpu/kernel/kernel_half.h"
+#include "libllm/cpu/kernel/cvt_h.h"
+#include "libllm/cpu/kernel/dequant_sq4.h"
+#include "libllm/cpu/kernel/kernel_sq4.h"
+#include "libllm/cpu/kernel/kernel_s.h"
+#include "libllm/cpu/kernel/kernel_h.h"
 #include "libllm/cpu/kernel/util.h"
 #include "libllm/lut/half.h"
 #include "libllm/lut/random.h"
@@ -48,7 +48,7 @@ bool isClose(float l, float r, float atol = 1e-5, float rtol = 1e-5) {
   return close;
 }
 
-bool isClose(Fp16 l, Fp16 r, float atol = 1e-5, float rtol = 1e-5) {
+bool isClose(Float16 l, Float16 r, float atol = 1e-5, float rtol = 1e-5) {
   float lf = cvt_h2s(l);
   float rf = cvt_h2s(r);
   bool close = fabs(lf - rf <= atol + rtol * fabs(rf));
@@ -78,7 +78,7 @@ bool isClose(lut::Span<const T> A,
 float toFloat(float x) {
   return x;
 }
-float toFloat(Fp16 x) {
+float toFloat(Float16 x) {
   return cvt_h2s(x);
 }
 
@@ -117,12 +117,21 @@ float getRSquared(lut::Span<const T> predict, lut::Span<const T> correct) {
   return 1.0f - getMSE<T>(predict, correct) / getVar<T>(predict);
 }
 
-void fillRandomHalf(lut::Random *r, lut::Span<Fp16> v) {
+template<typename T>
+void fillRandom(lut::Random *r, lut::Span<T> v);
+
+template<>
+inline void fillRandom<Float16>(lut::Random *r, lut::Span<Float16> v) {
   std::vector<float> vf(v.size());
   r->fill(lut::makeSpan(vf), -1, 1);
   std::transform(vf.begin(), vf.end(), v.begin(), [](float v){
     return cvt_s2h(v);
   });
+}
+
+template<>
+inline void fillRandom<float>(lut::Random *r, lut::Span<float> v) {
+  r->fill(v, -1, 1);
 }
 
 void refGemmQ4(
@@ -131,12 +140,12 @@ void refGemmQ4(
     int M,
     int N,
     int K,
-    PCFp32 A,
+    const float *A,
     int lda,
-    PCQ4x2 B,
-    PCFp16 scaleB,
-    PCUInt8 zeroB,
-    PFp32 C,
+    const UInt4x2 *B,
+    const Float16 *scaleB,
+    const UInt4x2 *zeroB,
+    float *C,
     int ldc) {
   CHECK(transA == false);
   std::fill_n(C, M * N, 0.0f);
@@ -144,7 +153,7 @@ void refGemmQ4(
   for (int j = 0; j < M; ++j) {
     if (transB) {
       for (int i = 0; i < N; ++i) {
-        PCFp32 Aj = A + j * lda;
+        const float *Aj = A + j * lda;
         C[j * ldc + i] = DotQ4FallbackKernel::apply(K, Aj, {B, scaleB, zeroB}, i * K);
       }
     } else {
@@ -157,8 +166,8 @@ void testGemmQ4(bool transB, int M, int N, int K) {
   std::vector<float> A(M * K);
   std::vector<uint8_t> B(K * N / 2);
   std::vector<float> scaleBFp32(K * N / GroupSizeQ4);
-  std::vector<Fp16> scaleB(K * N / GroupSizeQ4);
-  std::vector<UInt8> zeroB(K * N / GroupSizeQ4 / 2);
+  std::vector<Float16> scaleB(K * N / GroupSizeQ4);
+  std::vector<uint8_t> zeroB(K * N / GroupSizeQ4 / 2);
 
   lut::Random random(MagicNumber);
 
@@ -166,7 +175,7 @@ void testGemmQ4(bool transB, int M, int N, int K) {
   random.fillUInt8(lut::makeSpan(B));
   random.fillUInt8(lut::makeSpan(zeroB));
 
-  fillRandomHalf(&random, lut::makeSpan(scaleB));
+  fillRandom<Float16>(&random, lut::makeSpan(scaleB));
   std::vector<float> C(M * N);
   std::vector<float> refC(M * N);
 
@@ -178,9 +187,9 @@ void testGemmQ4(bool transB, int M, int N, int K) {
       K,
       A.data(),
       K,
-      B.data(),
+      reinterpret_cast<const UInt4x2 *>(B.data()),
       scaleB.data(),
-      zeroB.data(),
+      reinterpret_cast<const UInt4x2 *>(zeroB.data()),
       refC.data(),
       N);
 
@@ -192,16 +201,31 @@ void testGemmQ4(bool transB, int M, int N, int K) {
       K,
       A.data(),
       K,
-      (const Q4x2 *)B.data(),
-      (const Fp16 *)scaleB.data(),
-      (const uint8_t *)zeroB.data(),
+      (const UInt4x2 *)B.data(),
+      (const Float16 *)scaleB.data(),
+      (const UInt4x2 *)zeroB.data(),
       C.data(),
       N);
 
   CATCH_REQUIRE(isClose<float>(C, refC, 1e-3));
 }
 
-void refSgemm(
+template<typename T>
+void gemm(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const T *A,
+    int lda,
+    const T *B,
+    int ldb,
+    T *C,
+    int ldc);
+
+template<>
+inline void gemm<float>(
     bool transA,
     bool transB,
     int M,
@@ -213,6 +237,38 @@ void refSgemm(
     int ldb,
     float *C,
     int ldc) {
+  return sgemm(transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+}
+
+template<>
+inline void gemm<Float16>(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const Float16 *A,
+    int lda,
+    const Float16 *B,
+    int ldb,
+    Float16 *C,
+    int ldc) {
+  return hgemm(transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+}
+
+template<typename T>
+void refGemm(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const T *A,
+    int lda,
+    const T *B,
+    int ldb,
+    T *C,
+    int ldc) {
   int stride0A = transA ? 1 : lda;
   int stride1A = transA ? lda : 1;
   int stride0B = transB ? 1 : ldb;
@@ -220,15 +276,115 @@ void refSgemm(
 
   for (int m = 0; m < M; ++m) {
     for (int n = 0; n < N; ++n) {
+      float sum = C[ldc * m + n];
       for (int k = 0; k < K; ++k) {
-        float va = A[stride0A * m + k * stride1A];
-        float vb = B[stride0B * k + n * stride1B];
-        C[ldc * m + n] += va * vb;
+        T va = A[stride0A * m + k * stride1A];
+        T vb = B[stride0B * k + n * stride1B];
+        sum += va * vb;
       }
+      C[ldc * m + n] = sum;
     }
   }
 }
 
+int gemmTestShapes[][3] = {
+  {256, 256, 256},
+  {2, 2, 2},
+  {50, 50, 1},
+  {1, 50, 50},
+  {50, 50, 2},
+  {2, 50, 50},
+  {513, 2, 513},
+  {200, 1, 300},
+  {1, 200, 300},
+  {300, 200, 1},
+  {2, 200, 300},
+  {300, 200, 2},
+  {16, 512, 16},
+  {16, 1024, 16},
+  {16, 16, 2048},
+  {2048, 16, 16},
+  {1, 2048, 2048},
+  {2048, 2048, 1},
+  {2, 2048, 2048},
+  {2048, 2048, 2},
+  {0, 0, 0}
+};
+
+
+template<typename T>
+void testGemm(bool transA, bool transB, int M, int N, int K) {
+  std::vector<T> A(M * K);
+  std::vector<T> B(K * N);
+
+  lut::Random random(MagicNumber);
+
+  fillRandom<T>(&random, lut::makeSpan(A));
+  fillRandom<T>(&random, lut::makeSpan(B));
+
+  std::vector<T> C(M * N);
+  std::vector<T> refC(M * N);
+  memset(C.data(), 0, C.size() * sizeof(T));
+  memset(refC.data(), 0, refC.size() * sizeof(T));
+
+  refGemm<T>(
+      transA,
+      transB,
+      M,
+      N,
+      K,
+      A.data(),
+      transA ? M : K,
+      B.data(),
+      transB ? K : N,
+      refC.data(),
+      N);
+
+  gemm<T>(
+      transA,
+      transB,
+      M,
+      N,
+      K,
+      A.data(),
+      transA ? M : K,
+      B.data(),
+      transB ? K : N,
+      C.data(),
+      N);
+
+  CATCH_REQUIRE(getRSquared<T>(C, refC) > 0.99995);
+}
+
+CATCH_TEST_CASE("test sgemm", "[op][cpu][kernel][sgemm]") {
+  int (*pshape)[3];
+  
+  for (pshape = &gemmTestShapes[0]; **pshape != 0; ++pshape) {
+    int m = (*pshape)[0];
+    int k = (*pshape)[1];
+    int n = (*pshape)[2];
+
+    testGemm<float>(true, true, m, n, k);
+    testGemm<float>(true, false, m, n, k);
+    testGemm<float>(false, true, m, n, k);
+    testGemm<float>(false, false, m, n, k);
+  }
+}
+
+void testHalfToFloat(int n) {
+  std::vector<float> y(n);
+  std::vector<float> yr(n);
+  std::vector<Float16> x(n);
+
+  lut::Random random(MagicNumber);
+  random.fill(lut::makeSpan(yr));
+  std::transform(yr.begin(), yr.end(), x.begin(), [](float x) {
+    return cvt_s2h(x);
+  });
+
+  convertHalfToFloat(n, x.data(), y.data());
+  CATCH_REQUIRE(isClose<float>(yr, y, 1e-4, 1e-3));
+}
 
 #ifdef LIBLLM_ARCH_X86_64
 
@@ -237,8 +393,8 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
 
   std::vector<uint8_t> x(DIM / 2);
   std::vector<float> scaleXFp32(DIM / GroupSizeQ4);
-  std::vector<Fp16> scaleX(DIM / GroupSizeQ4);
-  std::vector<UInt8> zeroX(DIM / GroupSizeQ4 / 2);
+  std::vector<Float16> scaleX(DIM / GroupSizeQ4);
+  std::vector<uint8_t> zeroX(DIM / GroupSizeQ4 / 2);
   std::vector<float> y(DIM);
   std::vector<float> yRef(DIM);
 
@@ -249,27 +405,50 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
   random.fill(lut::makeSpan(scaleXFp32));
   std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), cvt_s2h);
 
-  DequantQ4FallbackKernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, yRef.data());
-  DequantQ4Avx2Kernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
+  DequantQ4FallbackKernel::apply(DIM, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()},
+      0,
+      yRef.data());
+  DequantQ4Avx2Kernel::apply(DIM, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()},
+      0,
+      y.data());
   CATCH_REQUIRE(isClose<float>(y, yRef));
 
   random.fill(lut::makeSpan(y));
   random.fill(lut::makeSpan(yRef));
-  DequantQ4FallbackKernel::apply(
-      GroupSizeQ4, {x.data(), scaleX.data(), zeroX.data()}, DequantMinElemPerThread, yRef.data());
-  DequantQ4Avx2Kernel::apply(
-      GroupSizeQ4, {x.data(), scaleX.data(), zeroX.data()}, DequantMinElemPerThread, y.data());
+  DequantQ4FallbackKernel::apply(GroupSizeQ4, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()}, DequantMinElemPerThread, yRef.data());
+  DequantQ4Avx2Kernel::apply(GroupSizeQ4, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()}, DequantMinElemPerThread, y.data());
   CATCH_REQUIRE(isClose<float>(lut::makeConstSpan(y).subspan(0, GroupSizeQ4),
                                lut::makeConstSpan(yRef).subspan(0, GroupSizeQ4)));
 
   // test api.
   random.fill(lut::makeSpan(y));
-  DequantQ4FallbackKernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, yRef.data());
-  DequantQ4Avx2().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
+  DequantQ4FallbackKernel::apply(DIM, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()}, 0, yRef.data());
+  DequantQ4Avx2().apply(DIM, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()}, 0, y.data());
   CATCH_REQUIRE(isClose<float>(y, yRef));
 
   random.fill(lut::makeSpan(y));
-  DequantQ4Avx2OMP().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
+  DequantQ4Avx2OMP().apply(DIM, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()}, 0, y.data());
   CATCH_REQUIRE(isClose<float>(y, yRef));
 }
 
@@ -277,10 +456,10 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
   constexpr int DIM = 1024;
 
   std::vector<float> x(DIM);
-  std::vector<Q4x2> y(DIM / 2);
+  std::vector<uint8_t> y(DIM / 2);
   std::vector<float> scaleYFp32(DIM / GroupSizeQ4);
-  std::vector<UInt8> zeroY(DIM / GroupSizeQ4 / 2);
-  std::vector<Fp16> scaleY(DIM / GroupSizeQ4);
+  std::vector<uint8_t> zeroY(DIM / GroupSizeQ4 / 2);
+  std::vector<Float16> scaleY(DIM / GroupSizeQ4);
 
   lut::Random random(MagicNumber);
   random.fillUInt8(lut::makeSpan(y));
@@ -289,9 +468,14 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
   random.fill(lut::makeSpan(x));
   std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), cvt_s2h);
 
-  float a = DotQ4Avx2Kernel::apply(DIM, x.data(), {y.data(), scaleY.data(), zeroY.data()}, 0);
-  float aRef = DotQ4FallbackKernel::apply(
-      DIM, x.data(), {y.data(), scaleY.data(), zeroY.data()}, 0);
+  float a = DotQ4Avx2Kernel::apply(DIM, x.data(), {
+      (const UInt4x2 *)y.data(),
+      scaleY.data(),
+      (const UInt4x2 *)zeroY.data()}, 0);
+  float aRef = DotQ4FallbackKernel::apply(DIM, x.data(), {
+      (const UInt4x2 *)y.data(),
+      scaleY.data(),
+      (const UInt4x2 *)zeroY.data()}, 0);
 
   CATCH_REQUIRE(isClose(a, aRef));
 }
@@ -304,10 +488,10 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
 
   std::vector<float> x(NUM_COL);
   std::vector<float> y(NUM_ROW);
-  std::vector<Q4x2> A(NUMEL / 2);
+  std::vector<uint8_t> A(NUMEL / 2);
   std::vector<float> scaleAFp32(NUMEL / GroupSizeQ4);
-  std::vector<UInt8> zeroA(NUMEL / GroupSizeQ4 / 2);
-  std::vector<Fp16> scaleA(NUMEL / GroupSizeQ4);
+  std::vector<uint8_t> zeroA(NUMEL / GroupSizeQ4 / 2);
+  std::vector<Float16> scaleA(NUMEL / GroupSizeQ4);
 
   lut::Random random(MagicNumber);
   random.fillUInt8(lut::makeSpan(A));
@@ -317,7 +501,7 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   std::transform(scaleAFp32.begin(), scaleAFp32.end(), scaleA.begin(), cvt_s2h);
 
   Q4GemvArgs gemvArgs;
-  gemvArgs.A = {A.data(), scaleA.data(), zeroA.data()};
+  gemvArgs.A = {(const UInt4x2 *)A.data(), scaleA.data(), (const UInt4x2 *)zeroA.data()};
   gemvArgs.incX = 1;
   gemvArgs.incY = 1;
   gemvArgs.M = NUM_ROW;
@@ -334,104 +518,17 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   std::copy(x.begin(), x.end(), x2.begin() + NUM_COL);
 
 
-  float a = DotQ4Avx2Kernel::apply(NUM_COL * 2, x2.data(), {A.data(), scaleA.data(), zeroA.data()}, 0);
+  float a = DotQ4Avx2Kernel::apply(NUM_COL * 2, x2.data(), {
+      (const UInt4x2 *)A.data(),
+      scaleA.data(),
+      (const UInt4x2 *)zeroA.data()}, 0);
   CATCH_REQUIRE(isClose(a, a0 + a1));
 }
-#endif  // LIBLLM_ARCH_X86_64
 
-CATCH_TEST_CASE("test lymath_q4gemm", "[lymath][api][q4]") {
+CATCH_TEST_CASE("test sqint4gemm", "[lymath][api][q4]") {
   testGemmQ4(true, 1, 32, 128);
   testGemmQ4(true, 1, 64, 4096);
   testGemmQ4(true, 64, 64, 256);
-}
-
-void testSgemm(bool transA, bool transB, int M, int N, int K) {
-  std::vector<float> A(M * K);
-  std::vector<float> B(K * N);
-
-  lut::Random random(MagicNumber);
-
-  random.fill(lut::makeSpan(A));
-  random.fill(lut::makeSpan(B));
-
-  std::vector<float> C(M * N);
-  std::vector<float> refC(M * N);
-
-  refSgemm(
-      transA,
-      transB,
-      M,
-      N,
-      K,
-      A.data(),
-      transA ? M : K,
-      B.data(),
-      transB ? K : N,
-      refC.data(),
-      N);
-
-  sgemm(
-      transA,
-      transB,
-      M,
-      N,
-      K,
-      A.data(),
-      transA ? M : K,
-      B.data(),
-      transB ? K : N,
-      C.data(),
-      N);
-
-  CATCH_REQUIRE(isClose<float>(C, refC));
-}
-
-int gemmTestShapes[][3] = {
-  {16, 5000, 16},
-  {50, 50, 1},
-  {1, 1, 1},
-  {2, 2, 2},
-  {50, 50, 1},
-  {513, 2, 513},
-  {200, 1, 300},
-  {1, 200, 300},
-  {200, 300, 1},
-  {16, 16, 5000},
-  {16, 512, 16},
-  {16, 1024, 16},
-  {5000, 16, 16},
-  {0, 0, 0}
-};
-
-CATCH_TEST_CASE("test lymath_sgemm", "[lymath][sgemm]") {
-  int (*pshape)[3];
-  
-  for (pshape = &gemmTestShapes[0]; **pshape != 0; ++pshape) {
-    int m = (*pshape)[0];
-    int k = (*pshape)[1];
-    int n = (*pshape)[2];
-
-    testSgemm(true, true, m, n, k);
-    testSgemm(true, false, m, n, k);
-    testSgemm(false, true, m, n, k);
-    testSgemm(false, false, m, n, k);
-  }
-}
-
-
-void testHalfToFloat(int n) {
-  std::vector<float> y(n);
-  std::vector<float> yr(n);
-  std::vector<Fp16> x(n);
-
-  lut::Random random(MagicNumber);
-  random.fill(lut::makeSpan(yr));
-  std::transform(yr.begin(), yr.end(), x.begin(), [](float x) {
-    return cvt_s2h(x);
-  });
-
-  convertHalfToFloat(n, x.data(), y.data());
-  CATCH_REQUIRE(isClose<float>(yr, y, 1e-4, 1e-3));
 }
 
 CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {
@@ -442,33 +539,52 @@ CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {
 }
 
 
+#endif  // LIBLLM_ARCH_X86_64
+
+#ifdef __aarch64__
+CATCH_TEST_CASE("test hgemm", "[op][cpu][kernel][hgemm]") {
+  int (*pshape)[3];
+  
+  for (pshape = &gemmTestShapes[0]; **pshape != 0; ++pshape) {
+    int m = (*pshape)[0];
+    int k = (*pshape)[1];
+    int n = (*pshape)[2];
+
+    testGemm<Float16>(true, true, m, n, k);
+    testGemm<Float16>(true, false, m, n, k);
+    testGemm<Float16>(false, true, m, n, k);
+    testGemm<Float16>(false, false, m, n, k);
+  }
+}
+#endif
+
 template<class TAxpyHalfKernel>
 void testAxpyHalfKernel(int n) {
-  std::vector<Fp16> x(n);
-  std::vector<Fp16> y(n);
-  std::vector<Fp16> yr(n);
+  std::vector<Float16> x(n);
+  std::vector<Float16> y(n);
+  std::vector<Float16> yr(n);
 
   lut::Random random(MagicNumber);
-  fillRandomHalf(&random, lut::makeSpan<Fp16>(x));
-  Fp16 a = x[0];
+  fillRandom<Float16>(&random, lut::makeSpan<Float16>(x));
+  Float16 a = x[0];
 
   TAxpyHalfKernel::apply(n, a, x.data(), y.data());
   AxpyHalfFallbackKernel::apply(n, a, x.data(), yr.data());
 
-  CATCH_REQUIRE(isClose<Fp16>(yr, y));
+  CATCH_REQUIRE(isClose<Float16>(yr, y));
 }
 
 template<class TDotHalfKernel>
 void testDotHalfKernel(int n, float rtol = 1e-3) {
-  std::vector<Fp16> x(n);
-  std::vector<Fp16> y(n);
+  std::vector<Float16> x(n);
+  std::vector<Float16> y(n);
 
   lut::Random random(MagicNumber);
-  fillRandomHalf(&random, lut::makeSpan<Fp16>(x));
-  fillRandomHalf(&random, lut::makeSpan<Fp16>(y));
+  fillRandom<Float16>(&random, lut::makeSpan<Float16>(x));
+  fillRandom<Float16>(&random, lut::makeSpan<Float16>(y));
 
-  Fp16 z = TDotHalfKernel::apply(n, x.data(), y.data());
-  Fp16 zr = DotHalfFallbackKernel::apply(n, x.data(), y.data());
+  Float16 z = TDotHalfKernel::apply(n, x.data(), y.data());
+  Float16 zr = DotHalfFallbackKernel::apply(n, x.data(), y.data());
 
   CATCH_REQUIRE(isClose(z, zr, 0, rtol));
 }
@@ -482,20 +598,20 @@ struct GemmMicroKernelTester {
     int MR = TGemmHalfKernel::MR;
     int NR = TGemmHalfReferenceKernel::NR;
 
-    std::vector<Fp16> A(MR * k);
-    std::vector<Fp16> B(NR * k);
-    std::vector<Fp16> C(MR * NR);
-    std::vector<Fp16> Cr(MR * NR);
+    std::vector<Float16> A(MR * k);
+    std::vector<Float16> B(NR * k);
+    std::vector<Float16> C(MR * NR);
+    std::vector<Float16> Cr(MR * NR);
 
     lut::Random random(MagicNumber);
-    fillRandomHalf(&random, lut::makeSpan<Fp16>(A));
-    fillRandomHalf(&random, lut::makeSpan<Fp16>(B));
-    fillRandomHalf(&random, lut::makeSpan<Fp16>(C));
+    fillRandom<Float16>(&random, lut::makeSpan<Float16>(A));
+    fillRandom<Float16>(&random, lut::makeSpan<Float16>(B));
+    fillRandom<Float16>(&random, lut::makeSpan<Float16>(C));
     std::copy(C.begin(), C.end(), Cr.begin());
 
     TGemmHalfKernel::apply(k, A.data(), B.data(), C.data(), NR);
     TGemmHalfReferenceKernel::apply(k, A.data(), B.data(), Cr.data(), NR);
-    CATCH_REQUIRE(getRSquared<Fp16>(C, Cr) > 0.99995);
+    CATCH_REQUIRE(getRSquared<Float16>(C, Cr) > 0.99995);
   }
 };
 

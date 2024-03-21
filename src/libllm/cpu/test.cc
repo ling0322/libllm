@@ -103,6 +103,14 @@ int gemmTestShapes[][3] = {
   {0, 0, 0}
 };
 
+int gemvTestShapes[][2] = {
+  {2, 8},
+  {50, 10},
+  {1, 1},
+  {1024, 3},
+  {0, 0}
+};
+
 CATCH_TEST_CASE("float32 GEMM BVT", "[core][nn][gemm]") {
   int (*pshape)[3];
   
@@ -117,14 +125,6 @@ CATCH_TEST_CASE("float32 GEMM BVT", "[core][nn][gemm]") {
   }
 }
 
-int gemvTestShapes[][2] = {
-  {2, 8},
-  {50, 10},
-  {1, 1},
-  {1024, 3},
-  {0, 0}
-};
-
 CATCH_TEST_CASE("float32 GEMV BVT", "[core][nn][gemv]") {
   int (*pshape)[2];
   
@@ -135,6 +135,19 @@ CATCH_TEST_CASE("float32 GEMV BVT", "[core][nn][gemv]") {
     testGEMV(m, n, false);
     testGEMV(m, n, true);
   }
+}
+
+CATCH_TEST_CASE("test rand q4", "[ly][operators][cpu][rand]") {
+  constexpr uint64_t seed = 12345;
+
+  lut::Random r(seed);
+  Tensor x = F::rand({16, 256}, DType::kFloat, Device::getCpu(), &r);
+  x = F::cast(x, DType::kQ4);
+  x = F::cast(x, DType::kFloat);
+
+  CATCH_REQUIRE(F::allClose(op::cpu::fingerprint(x), Tensor::create<float>({8}, {
+    -0.5298, 0.6500, 0.0000e+00, 0.2649, 0.2529, -0.9152, -0.5269, 0.2615
+  })));
 }
 
 CATCH_TEST_CASE("test embedding lookup", "[core][nn][operators]") {
@@ -174,19 +187,6 @@ CATCH_TEST_CASE("test softmax", "[core][nn][operators]") {
   input = Tensor::create<float>({3}, {0.1f, 0.2f, -inf});
   output = Tensor::create<float>({3}, {0.4750f, 0.5250f, 0.0f});
   CATCH_REQUIRE(F::allClose(F::softmax(input), output));
-}
-
-CATCH_TEST_CASE("test rand q4", "[ly][operators][cpu][rand]") {
-  constexpr uint64_t seed = 12345;
-
-  lut::Random r(seed);
-  Tensor x = F::rand({16, 256}, DType::kFloat, Device::getCpu(), &r);
-  x = F::cast(x, DType::kQ4);
-  x = F::cast(x, DType::kFloat);
-
-  CATCH_REQUIRE(F::allClose(op::cpu::fingerprint(x), Tensor::create<float>({8}, {
-    -0.5298, 0.6500, 0.0000e+00, 0.2649, 0.2529, -0.9152, -0.5269, 0.2615
-  })));
 }
 
 }  // cpu

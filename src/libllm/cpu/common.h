@@ -47,9 +47,9 @@ inline void applyDequant<Q4>(
   int64_t offset, int n, const TensorData *data, float *tgt) {
   kernel::dequantQ4(
       n,
-      (const kernel::Q4x2 *)data->getData<Q4>(),
-      (const kernel::Fp16 *)data->getSlot(1)->getData<Float16>(),
-      (const kernel::UInt8 *)data->getSlot(2)->getData<UInt8>(),
+      (const kernel::UInt4x2 *)data->getData<Q4>(),
+      (const kernel::Float16 *)data->getSlot(1)->getData<Float16>(),
+      (const kernel::UInt4x2 *)data->getSlot(2)->getData<UInt8>(),
       offset,
       tgt);
 }

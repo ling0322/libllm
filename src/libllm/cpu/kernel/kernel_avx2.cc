@@ -23,9 +23,9 @@
 #include <stdint.h>
 #include "libllm/cpu/kernel/args.h"
 #include "libllm/cpu/kernel/common.h"
-#include "libllm/cpu/kernel/kernel_half.h"
-#include "libllm/cpu/kernel/kernel_q4.h"
-#include "libllm/cpu/kernel/kernel_float.h"
+#include "libllm/cpu/kernel/kernel_h.h"
+#include "libllm/cpu/kernel/kernel_sq4.h"
+#include "libllm/cpu/kernel/kernel_s.h"
 
 
 // UInt4x2 -> UInt8 SIMD
@@ -86,7 +86,7 @@ LIBLLM_KERNEL_FORCE_INLINE float hsum(__m256 ymm) {
   return _mm_cvtss_f32(x);
 }
 
-void SGemm6x16Avx2Kernel::apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_t rs_c) {
+void SGemm6x16Avx2Kernel::apply(int64_t kc, float *a, float *b, float *c, int64_t rs_c) {
   // a: kc x MR
   // b: kc x NR
 
@@ -184,7 +184,7 @@ void SGemm6x16Avx2Kernel::apply(int64_t kc, PFp32 a, PFp32 b, PFp32 c, int64_t r
   pc += rs_c;
 }
 
-void SAxpyAvx2Kernel::apply(int64_t n, float a, PCFp32 x, PFp32 y) {
+void SAxpyAvx2Kernel::apply(int64_t n, float a, const float *x, float *y) {
   __m256 a00 = _mm256_broadcast_ss(&a);
   __m256 x00, y00;
 
@@ -252,7 +252,7 @@ LIBLLM_KERNEL_FORCE_INLINE __m256i loadNibble32ToByte32(const void *nibbleAddr) 
   return vbyte;
 }
 
-LIBLLM_KERNEL_FORCE_INLINE float half2float(Fp16 half) {
+LIBLLM_KERNEL_FORCE_INLINE float half2float(Float16 half) {
 #if LIBLLM_KERNEL_MSVC
   return libllm_cvtsh_ss(*reinterpret_cast<uint16_t *>(&half));
 #else
@@ -280,7 +280,7 @@ LIBLLM_KERNEL_FORCE_INLINE __m256 extractFloat8FromByte32Block3(__m256i src) {
       8)));
 }
 
-float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY) {
+float DotQ4Avx2Kernel::apply(int64_t n, const float *x, DataQ4 y, int64_t offsetY) {
   __m256 vx, vy, vsum, vscale;
   __m256i vbytey, vzero;
 
@@ -289,8 +289,8 @@ float DotQ4Avx2Kernel::apply(int64_t n, PCFp32 x, DataQ4 y, int64_t offsetY) {
   int64_t nb = n / GroupSizeQ4;
   assert(offsetY % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
 
-  PCFp32 px = x;
-  PCQ4x2 py = y.getDataByGroup(groupIdx);
+  const float *px = x;
+  const UInt4x2 *py = y.getDataByGroup(groupIdx);
   for (int i = groupIdx; i < groupIdx + nb; ++i) {
     vscale = _mm256_set1_ps(half2float(y.getScaleValByGroup(i)));
     vzero = _mm256_set1_epi8(y.getZeroValByGroup(i));  
@@ -420,7 +420,7 @@ float DotQ4Avx2Kernel::applyRow(const Q4GemvArgs &args, int row) {
   return apply(args.N, args.x, args.A, offset);
 }
 
-void DequantQ4Avx2Kernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
+void DequantQ4Avx2Kernel::apply(int n, DataQ4 x, int64_t offsetX, float *y) {
   __m256 vx, vscale;
   __m256i vbytex, vzero;
   
@@ -428,8 +428,8 @@ void DequantQ4Avx2Kernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
   int64_t nb = n / GroupSizeQ4;
   assert(offsetX % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
 
-  PCQ4x2 px = x.getDataByGroup(groupIdx);
-  PFp32 py = y;
+  const UInt4x2 *px = x.getDataByGroup(groupIdx);
+  float *py = y;
 
   for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
     vscale = _mm256_set1_ps(half2float(x.getScaleValByGroup(i)));
@@ -501,7 +501,7 @@ void DequantQ4Avx2Kernel::apply(int n, DataQ4 x, int64_t offsetX, PFp32 y) {
   }
 }
 
-void CvtHalfToFloatAvx2Kernel::apply(int64_t n, PCFp16 x, PFp32 y) {
+void CvtHalfToFloatAvx2Kernel::apply(int64_t n, const Float16 *x, float *y) {
   int nb = n / 8;
   for (int i = 0; i < nb; ++i) {
     __m128i x0 = _mm_loadu_si128((const __m128i *)x);
@@ -515,8 +515,8 @@ void CvtHalfToFloatAvx2Kernel::apply(int64_t n, PCFp16 x, PFp32 y) {
   int nr = n % 8;
   if (nr == 0) return;
 
-  Fp16 xr[8]; 
-  Fp32 yr[8];
+  Float16 xr[8]; 
+  float yr[8];
   for (int i = 0; i < nr; ++i) {
     xr[i] = x[i];
   }

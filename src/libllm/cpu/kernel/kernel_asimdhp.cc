@@ -24,14 +24,14 @@
 #include <stdint.h>
 #include "libllm/cpu/kernel/args.h"
 #include "libllm/cpu/kernel/common.h"
-#include "libllm/cpu/kernel/kernel_half.h"
+#include "libllm/cpu/kernel/kernel_h.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-LIBLLM_KERNEL_FORCE_INLINE __fp16 hsum(float16x8_t q0) {
+LIBLLM_KERNEL_FORCE_INLINE _Float16 hsum(float16x8_t q0) {
   q0 = vpaddq_f16(q0, q0);
   q0 = vpaddq_f16(q0, q0);
   q0 = vpaddq_f16(q0, q0);
@@ -39,8 +39,8 @@ LIBLLM_KERNEL_FORCE_INLINE __fp16 hsum(float16x8_t q0) {
   return vgetq_lane_f16(q0, 0);
 }
 
-void AxpyHalfAsimdhpKernel::apply(int64_t n, Fp16 a, PCFp16 x, PFp16 y) {
-  float16x8_t a00 = vld1q_dup_f16(reinterpret_cast<__fp16 *>(&a));
+void AxpyHalfAsimdhpKernel::apply(int64_t n, Float16 a, const Float16 *x, Float16 *y) {
+  float16x8_t a00 = vld1q_dup_f16(reinterpret_cast<Float16 *>(&a));
   float16x8_t x00, y00;
 
   int64_t nb = n / 8;
@@ -66,6 +66,10 @@ void AxpyHalfAsimdhpKernel::apply(int64_t n, Fp16 a, PCFp16 x, PFp16 y) {
   }
 }
 
+void AxpyHalfAsimdhpKernel::applyColumn(const GemvArgs<Float16> &args, int column, Float16 *y) {
+  apply(args.N, args.x[column], args.A + column * args.lda, y);
+}
+
 #define LIBLLM_DotHalfAsimdhpKernel_FmaBlock \
     x00 = vld1q_f16(px); \
     y00 = vld1q_f16(py); \
@@ -73,7 +77,7 @@ void AxpyHalfAsimdhpKernel::apply(int64_t n, Fp16 a, PCFp16 x, PFp16 y) {
     px += 8; \
     py += 8;
 
-Fp16 DotHalfAsimdhpKernel::apply(int64_t n, PCFp16 x, PCFp16 y) {
+Float16 DotHalfAsimdhpKernel::apply(int64_t n, const Float16 *x, const Float16 *y) {
   float16x8_t x00, y00, ha00;
   float32x4_t sa00, sa01;
 
@@ -118,6 +122,10 @@ Fp16 DotHalfAsimdhpKernel::apply(int64_t n, PCFp16 x, PCFp16 y) {
   return vget_lane_f16(vcvt_f16_f32(vsetq_lane_f32(sum0, vdupq_n_f32(0), 0)), 0);
 }
 
+Float16 DotHalfAsimdhpKernel::applyRow(const GemvArgs<Float16> &args, int row) {
+  return apply(args.N, args.A + row * args.lda, args.x);
+}
+
 #define LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(m) \
     c ## m ## 0 = vld1q_f16(pc); \
     c ## m ## 1 = vld1q_f16(pc + 8); \
@@ -133,7 +141,8 @@ Fp16 DotHalfAsimdhpKernel::apply(int64_t n, PCFp16 x, PCFp16 y) {
     vst1q_f16(pc + 8, c ## m ## 1); \
     pc += rs_c;
 
-void GemmHalf12x16AsimdhpKernel::apply(int64_t kc, PFp16 a, PFp16 b, PFp16 c, int64_t rs_c) {
+void GemmHalf12x16AsimdhpKernel::apply(
+    int64_t kc, Float16 *a, Float16 *b, Float16 *c, int64_t rs_c) {
   // a: kc x MR
   // b: kc x NR
 
