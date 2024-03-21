@@ -371,21 +371,6 @@ CATCH_TEST_CASE("test sgemm", "[op][cpu][kernel][sgemm]") {
   }
 }
 
-CATCH_TEST_CASE("test hgemm", "[op][cpu][kernel][hgemm]") {
-  int (*pshape)[3];
-  
-  for (pshape = &gemmTestShapes[0]; **pshape != 0; ++pshape) {
-    int m = (*pshape)[0];
-    int k = (*pshape)[1];
-    int n = (*pshape)[2];
-
-    testGemm<Float16>(true, true, m, n, k);
-    testGemm<Float16>(true, false, m, n, k);
-    testGemm<Float16>(false, true, m, n, k);
-    testGemm<Float16>(false, false, m, n, k);
-  }
-}
-
 void testHalfToFloat(int n) {
   std::vector<float> y(n);
   std::vector<float> yr(n);
@@ -409,7 +394,7 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
   std::vector<uint8_t> x(DIM / 2);
   std::vector<float> scaleXFp32(DIM / GroupSizeQ4);
   std::vector<Float16> scaleX(DIM / GroupSizeQ4);
-  std::vector<UInt8> zeroX(DIM / GroupSizeQ4 / 2);
+  std::vector<uint8_t> zeroX(DIM / GroupSizeQ4 / 2);
   std::vector<float> y(DIM);
   std::vector<float> yRef(DIM);
 
@@ -420,27 +405,50 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
   random.fill(lut::makeSpan(scaleXFp32));
   std::transform(scaleXFp32.begin(), scaleXFp32.end(), scaleX.begin(), cvt_s2h);
 
-  DequantQ4FallbackKernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, yRef.data());
-  DequantQ4Avx2Kernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
+  DequantQ4FallbackKernel::apply(DIM, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()},
+      0,
+      yRef.data());
+  DequantQ4Avx2Kernel::apply(DIM, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()},
+      0,
+      y.data());
   CATCH_REQUIRE(isClose<float>(y, yRef));
 
   random.fill(lut::makeSpan(y));
   random.fill(lut::makeSpan(yRef));
-  DequantQ4FallbackKernel::apply(
-      GroupSizeQ4, {x.data(), scaleX.data(), zeroX.data()}, DequantMinElemPerThread, yRef.data());
-  DequantQ4Avx2Kernel::apply(
-      GroupSizeQ4, {x.data(), scaleX.data(), zeroX.data()}, DequantMinElemPerThread, y.data());
+  DequantQ4FallbackKernel::apply(GroupSizeQ4, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()}, DequantMinElemPerThread, yRef.data());
+  DequantQ4Avx2Kernel::apply(GroupSizeQ4, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()}, DequantMinElemPerThread, y.data());
   CATCH_REQUIRE(isClose<float>(lut::makeConstSpan(y).subspan(0, GroupSizeQ4),
                                lut::makeConstSpan(yRef).subspan(0, GroupSizeQ4)));
 
   // test api.
   random.fill(lut::makeSpan(y));
-  DequantQ4FallbackKernel::apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, yRef.data());
-  DequantQ4Avx2().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
+  DequantQ4FallbackKernel::apply(DIM, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()}, 0, yRef.data());
+  DequantQ4Avx2().apply(DIM, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()}, 0, y.data());
   CATCH_REQUIRE(isClose<float>(y, yRef));
 
   random.fill(lut::makeSpan(y));
-  DequantQ4Avx2OMP().apply(DIM, {x.data(), scaleX.data(), zeroX.data()}, 0, y.data());
+  DequantQ4Avx2OMP().apply(DIM, {
+      (const UInt4x2 *)x.data(),
+      scaleX.data(),
+      (const UInt4x2 *)zeroX.data()}, 0, y.data());
   CATCH_REQUIRE(isClose<float>(y, yRef));
 }
 
@@ -448,9 +456,9 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
   constexpr int DIM = 1024;
 
   std::vector<float> x(DIM);
-  std::vector<Q4x2> y(DIM / 2);
+  std::vector<uint8_t> y(DIM / 2);
   std::vector<float> scaleYFp32(DIM / GroupSizeQ4);
-  std::vector<UInt8> zeroY(DIM / GroupSizeQ4 / 2);
+  std::vector<uint8_t> zeroY(DIM / GroupSizeQ4 / 2);
   std::vector<Float16> scaleY(DIM / GroupSizeQ4);
 
   lut::Random random(MagicNumber);
@@ -460,9 +468,14 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
   random.fill(lut::makeSpan(x));
   std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), cvt_s2h);
 
-  float a = DotQ4Avx2Kernel::apply(DIM, x.data(), {y.data(), scaleY.data(), zeroY.data()}, 0);
-  float aRef = DotQ4FallbackKernel::apply(
-      DIM, x.data(), {y.data(), scaleY.data(), zeroY.data()}, 0);
+  float a = DotQ4Avx2Kernel::apply(DIM, x.data(), {
+      (const UInt4x2 *)y.data(),
+      scaleY.data(),
+      (const UInt4x2 *)zeroY.data()}, 0);
+  float aRef = DotQ4FallbackKernel::apply(DIM, x.data(), {
+      (const UInt4x2 *)y.data(),
+      scaleY.data(),
+      (const UInt4x2 *)zeroY.data()}, 0);
 
   CATCH_REQUIRE(isClose(a, aRef));
 }
@@ -475,9 +488,9 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
 
   std::vector<float> x(NUM_COL);
   std::vector<float> y(NUM_ROW);
-  std::vector<Q4x2> A(NUMEL / 2);
+  std::vector<uint8_t> A(NUMEL / 2);
   std::vector<float> scaleAFp32(NUMEL / GroupSizeQ4);
-  std::vector<UInt8> zeroA(NUMEL / GroupSizeQ4 / 2);
+  std::vector<uint8_t> zeroA(NUMEL / GroupSizeQ4 / 2);
   std::vector<Float16> scaleA(NUMEL / GroupSizeQ4);
 
   lut::Random random(MagicNumber);
@@ -488,7 +501,7 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   std::transform(scaleAFp32.begin(), scaleAFp32.end(), scaleA.begin(), cvt_s2h);
 
   Q4GemvArgs gemvArgs;
-  gemvArgs.A = {A.data(), scaleA.data(), zeroA.data()};
+  gemvArgs.A = {(const UInt4x2 *)A.data(), scaleA.data(), (const UInt4x2 *)zeroA.data()};
   gemvArgs.incX = 1;
   gemvArgs.incY = 1;
   gemvArgs.M = NUM_ROW;
@@ -505,7 +518,10 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   std::copy(x.begin(), x.end(), x2.begin() + NUM_COL);
 
 
-  float a = DotQ4Avx2Kernel::apply(NUM_COL * 2, x2.data(), {A.data(), scaleA.data(), zeroA.data()}, 0);
+  float a = DotQ4Avx2Kernel::apply(NUM_COL * 2, x2.data(), {
+      (const UInt4x2 *)A.data(),
+      scaleA.data(),
+      (const UInt4x2 *)zeroA.data()}, 0);
   CATCH_REQUIRE(isClose(a, a0 + a1));
 }
 
@@ -524,6 +540,23 @@ CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {
 
 
 #endif  // LIBLLM_ARCH_X86_64
+
+#ifdef __aarch64__
+CATCH_TEST_CASE("test hgemm", "[op][cpu][kernel][hgemm]") {
+  int (*pshape)[3];
+  
+  for (pshape = &gemmTestShapes[0]; **pshape != 0; ++pshape) {
+    int m = (*pshape)[0];
+    int k = (*pshape)[1];
+    int n = (*pshape)[2];
+
+    testGemm<Float16>(true, true, m, n, k);
+    testGemm<Float16>(true, false, m, n, k);
+    testGemm<Float16>(false, true, m, n, k);
+    testGemm<Float16>(false, false, m, n, k);
+  }
+}
+#endif
 
 template<class TAxpyHalfKernel>
 void testAxpyHalfKernel(int n) {

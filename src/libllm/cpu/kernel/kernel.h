@@ -37,7 +37,7 @@ struct BYTE {
 #ifdef __aarch64__
 typedef _Float16 Float16;
 #else
-typedef WORD Fp16;
+typedef WORD Float16;
 #endif
 
 typedef BYTE UInt4x2;

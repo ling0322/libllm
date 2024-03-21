@@ -49,7 +49,7 @@ Float16 cvt_s2h(float vf) {
   float16x4_t b00 = vcvt_f16_f32(a00);
   return vget_lane_f16(b00, 0);
 #else
-  return Fp16{lut::cvtss_sh(vf)};
+  return Float16{lut::cvtss_sh(vf)};
 #endif
 }
 
