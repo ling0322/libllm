@@ -29,7 +29,6 @@ namespace kernel {
 struct WORD {
   uint16_t h;
 };
-#endif
 
 struct BYTE {
   uint8_t b;
