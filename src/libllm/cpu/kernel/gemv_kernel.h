@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "libllm/lut/c_ptr.h"
-#include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/cpu/kernel/util.h"
 
 namespace libllm {

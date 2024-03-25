@@ -23,8 +23,7 @@
 
 #include <stdint.h>
 #include <memory>
-#include "libllm/cpu/kernel/args.h"
-#include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/interfaces.h"
 
 namespace libllm {
 namespace op {

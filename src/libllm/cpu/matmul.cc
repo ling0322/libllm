@@ -53,7 +53,7 @@ Tensor gemmFp32(const Tensor &A, const Tensor &B) {
   Tensor C = op::cpu::zeros({A.getShape(0), B.getShape(1)}, DType::kFloat);
 
   GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
-  kernel::sgemm(
+  kernel::gemmFloat(
       gemmArgs.transA,
       gemmArgs.transB,
       gemmArgs.M,
@@ -103,7 +103,7 @@ Tensor bmmFp32(const Tensor &A, const Tensor &B) {
 
   #pragma omp parallel for
   for (int i = 0; i < mA.getLength(); ++i) {
-    kernel::sgemm(
+    kernel::gemmFloat(
         gemmArgs.transA,
         gemmArgs.transB,
         gemmArgs.M,
@@ -135,7 +135,7 @@ Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
 
   GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
   const TensorData *dataObjectB = B.getDataObject();
-  kernel::gemmQ4(
+  kernel::gemmFloatQInt4(
       gemmArgs.transA,
       gemmArgs.transB,
       gemmArgs.M,

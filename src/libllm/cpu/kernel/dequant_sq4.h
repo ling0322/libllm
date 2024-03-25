@@ -17,10 +17,13 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Deuqant qint4 (q4) to single (s).
+
 #pragma once
 
 #include <omp.h>
-#include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/interfaces.h"
+#include "libllm/cpu/kernel/dequant_common.h"
 #include "libllm/cpu/kernel/kernel_sq4.h"
 #include "libllm/lut/log.h"
 
@@ -29,42 +32,11 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-class DequantQ4 {
- public:
-  virtual ~DequantQ4() = default;
-  virtual void apply(int n, DataQ4 x, int64_t offsetX, float *y) const = 0;
-};
-
-template<class TKernel, Mode MODE>
-class DequantQ4Impl : public DequantQ4 {
- public:
-  void apply(int n, DataQ4 x, int64_t offsetX, float *y) const override {
-    CHECK(n % GroupSizeQ4 == 0);
-    int nb = (n + DequantMinElemPerThread - 1) / DequantMinElemPerThread;
-
-    if (MODE == Mode::OMP && nb > 1) {
-      int nr = (n - 1) % DequantMinElemPerThread + 1;
-      int numThreads = std::min(nb, omp_get_max_threads());
-
-      #pragma omp parallel for num_threads(numThreads)
-      for (int i = 0; i < nb; ++i) {
-        int ne = (i == nb - 1) ? nr : DequantMinElemPerThread;
-        TKernel::apply(
-            ne,
-            x,
-            offsetX + i * DequantMinElemPerThread,
-            y + i * DequantMinElemPerThread);
-      }
-    } else {
-      TKernel::apply(n, x, offsetX, y);
-    }
-  }
-};
-
-typedef DequantQ4Impl<DequantQ4Avx2Kernel, Mode::SingleThread> DequantQ4Avx2;
-typedef DequantQ4Impl<DequantQ4FallbackKernel, Mode::SingleThread> DequantQ4Fallback;
-typedef DequantQ4Impl<DequantQ4Avx2Kernel, Mode::OMP> DequantQ4Avx2OMP;
-typedef DequantQ4Impl<DequantQ4FallbackKernel, Mode::OMP> DequantQ4FallbackOMP;
+typedef DequantQInt4Impl<float, DequantQInt4Avx2Kernel, Mode::SingleThread> DequantQInt4Avx2;
+typedef DequantQInt4Impl<float, DequantQInt4FallbackKernel, Mode::SingleThread>
+    DequantQInt4Fallback;
+typedef DequantQInt4Impl<float, DequantQInt4Avx2Kernel, Mode::OMP> DequantQInt4Avx2OMP;
+typedef DequantQInt4Impl<float, DequantQInt4FallbackKernel, Mode::OMP> DequantQInt4FallbackOMP;
 
 }  // namespace kernel
 }  // namespace cpu

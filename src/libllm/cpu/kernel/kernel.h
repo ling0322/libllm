@@ -51,7 +51,7 @@ enum class Mode {
 void init();
 void destroy();
 
-void sgemm(
+void gemmFloat(
     bool transA,
     bool transB,
     int M,
@@ -65,7 +65,7 @@ void sgemm(
     int ldc,
     Mode mode = Mode::Auto);
 
-void hgemm(
+void gemmHalf(
     bool transA,
     bool transB,
     int M,
@@ -79,7 +79,7 @@ void hgemm(
     int ldc,
     Mode mode = Mode::Auto);
 
-void dequantQ4(
+void dequantQInt4ToFloat(
     int n,
     const UInt4x2 *data,
     const Float16 *scale,
@@ -88,9 +88,18 @@ void dequantQ4(
     float *tgt,
     Mode mode = Mode::Auto);
 
+void dequantQInt4ToHalf(
+    int n,
+    const UInt4x2 *data,
+    const Float16 *scale,
+    const UInt4x2 *zeroPoint,
+    int offset,
+    Float16 *tgt,
+    Mode mode = Mode::Auto);
+
 // GEMM: A is a float32 matrix, B is a matrix with 4-bit asymmetric quantization. C is a float32
 // matrix.
-void gemmQ4(
+void gemmFloatQInt4(
     bool transA,
     bool transB,
     int M,

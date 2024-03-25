@@ -22,9 +22,9 @@
 #include <arm_neon.h>
 #include <arm_fp16.h>
 #include <stdint.h>
-#include "libllm/cpu/kernel/args.h"
-#include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/cpu/kernel/kernel_h.h"
+#include "libllm/cpu/kernel/kernel_hq4.h"
 
 namespace libllm {
 namespace op {
@@ -206,6 +206,65 @@ void GemmHalf12x16AsimdhpKernel::apply(
   LIBLLM_GemmHalf12x16AsimdhpKernel_StC(9)
   LIBLLM_GemmHalf12x16AsimdhpKernel_StC(a)
   LIBLLM_GemmHalf12x16AsimdhpKernel_StC(b)
+}
+
+#define LIBLLM_DequantQInt4ToHalfAsimdhpKernel_DequantBlockFloat16x32 \
+    xu00 = vld1q_u8(px); \
+    px += 16; \
+    \
+    xu01 = vandq_u8(xu00, t0xf); \
+    xu02 = vshrq_n_u8(xu00, 4); \
+    x00 = vreinterpretq_s8_u8(vzip1q_u8(xu01, xu02)); \
+    x01 = vreinterpretq_s8_u8(vzip2q_u8(xu01, xu02)); \
+    x00 = vsubq_s8(x00, z00); \
+    x01 = vsubq_s8(x01, z00); \
+    \
+    xf00 = vcvtq_f16_s16(vmovl_s8(vget_low_s8(x00))); \
+    xf01 = vcvtq_f16_s16(vmovl_s8(vget_high_s8(x00))); \
+    xf02 = vcvtq_f16_s16(vmovl_s8(vget_low_s8(x01))); \
+    xf03 = vcvtq_f16_s16(vmovl_s8(vget_high_s8(x01))); \
+    \
+    xf00 = vmulq_f16(xf00, s00); \
+    vst1q_f16(py, xf00); \
+    py += 8; \
+    \
+    xf01 = vmulq_f16(xf01, s00); \
+    vst1q_f16(py, xf01); \
+    py += 8; \
+    \
+    xf02 = vmulq_f16(xf02, s00); \
+    vst1q_f16(py, xf02); \
+    py += 8; \
+    \
+    xf03 = vmulq_f16(xf03, s00); \
+    vst1q_f16(py, xf03); \
+    py += 8;
+
+
+void DequantQInt4ToHalfAsimdhpKernel::apply(int n, DataQInt4 x, int64_t offsetX, Float16 *y) {
+  int64_t groupIdx = offsetX / GroupSizeQInt4;
+  int64_t nb = n / GroupSizeQInt4;
+  assert(offsetX % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
+
+  const uint8_t *px = reinterpret_cast<const uint8_t *>(x.getDataByGroup(groupIdx)); 
+  __fp16 *py = reinterpret_cast<__fp16 *>(y); 
+
+  uint8x16_t xu00, xu01, xu02;
+  uint8x16_t t0xf = vdupq_n_u8(0xf);
+  int8x16_t x00, x01;
+  int8x16_t z00;
+  float16x8_t s00, xf00, xf01, xf02, xf03;
+
+  // uint8_t * 16 -> qint4 * 32
+  for (int64_t i = 0; i < nb; ++i) {
+    s00 = vdupq_n_f16(x.getScaleValByGroup(i));
+    z00 = vdupq_n_s8(x.getZeroValByGroup(i));
+
+    LIBLLM_DequantQInt4ToHalfAsimdhpKernel_DequantBlockFloat16x32
+    LIBLLM_DequantQInt4ToHalfAsimdhpKernel_DequantBlockFloat16x32
+    LIBLLM_DequantQInt4ToHalfAsimdhpKernel_DequantBlockFloat16x32
+    LIBLLM_DequantQInt4ToHalfAsimdhpKernel_DequantBlockFloat16x32
+  }
 }
 
 }  // namespace kernel

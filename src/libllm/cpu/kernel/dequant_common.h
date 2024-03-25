@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -19,56 +19,40 @@
 
 #pragma once
 
-#include <stdint.h>
-#include "libllm/cpu/kernel/common.h"
+#include <omp.h>
+#include "libllm/cpu/kernel/interfaces.h"
+#include "libllm/cpu/kernel/kernel_sq4.h"
+#include "libllm/lut/log.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-template<typename T>
-struct GemvArgs {
-  typedef T VecType;
+template<typename T, class TKernel, Mode MODE>
+class DequantQInt4Impl : public DequantQInt4<T> {
+ public:
+  void apply(int n, DataQInt4 x, int64_t offsetX, T *y) const override {
+    CHECK(n % GroupSizeQInt4 == 0);
+    int nb = (n + DequantMinElemPerThread - 1) / DequantMinElemPerThread;
 
-  bool transA;
-  int M;
-  int N;
-  const T *A;
-  int lda;
-  const T *x;
-  int incX;
-  T *y;
-  int incY;
-};
+    if (MODE == Mode::OMP && nb > 1) {
+      int nr = (n - 1) % DequantMinElemPerThread + 1;
+      int numThreads = std::min(nb, omp_get_max_threads());
 
-typedef GemvArgs<float> SGEMVArgs;
-typedef GemvArgs<Float16> HGemvArgs;
-
-struct Q4GemvArgs {
-  typedef float VecType;
-
-  bool transA;
-  int M;
-  int N;
-  DataQ4 A;
-  const float *x;
-  int incX;
-  float *y;
-  int incY;
-};
-
-struct GemmQ4Args {
-  bool transA;
-  bool transB;
-  int M;
-  int N;
-  int K;
-  const float *A;
-  int lda;
-  DataQ4 B;
-  float *C;
-  int ldc;
+      #pragma omp parallel for num_threads(numThreads)
+      for (int i = 0; i < nb; ++i) {
+        int ne = (i == nb - 1) ? nr : DequantMinElemPerThread;
+        TKernel::apply(
+            ne,
+            x,
+            offsetX + i * DequantMinElemPerThread,
+            y + i * DequantMinElemPerThread);
+      }
+    } else {
+      TKernel::apply(n, x, offsetX, y);
+    }
+  }
 };
 
 }  // namespace kernel

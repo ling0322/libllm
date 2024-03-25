@@ -17,11 +17,13 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
+
 #pragma once
 
 #include <stdint.h>
 #include <memory>
-#include "libllm/cpu/kernel/args.h"
+#include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/lut/log.h"
 
 
@@ -38,21 +40,21 @@ struct AxpyQ4NotImplKernel {
 };
 
 struct DotQ4FallbackKernel {
-  static float apply(int64_t n, const float *x, DataQ4 y, int64_t offsetY);
+  static float apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY);
   static float applyRow(const Q4GemvArgs &args, int row);
 };
 
 struct DotQ4Avx2Kernel {
-  static float apply(int64_t n, const float *x, DataQ4 y, int64_t offsetY);
+  static float apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY);
   static float applyRow(const Q4GemvArgs &args, int row);
 };
 
-struct DequantQ4Avx2Kernel {
-  static void apply(int n, DataQ4 x, int64_t offsetX, float *y);
+struct DequantQInt4Avx2Kernel {
+  static void apply(int n, DataQInt4 x, int64_t offsetX, float *y);
 };
 
-struct DequantQ4FallbackKernel {
-  static void apply(int n, DataQ4 x, int64_t offsetX, float *y);
+struct DequantQInt4FallbackKernel {
+  static void apply(int n, DataQInt4 x, int64_t offsetX, float *y);
 };
 
 }  // namespace kernel

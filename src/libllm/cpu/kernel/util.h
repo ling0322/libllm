@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 #include <memory>
-#include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/lut/c_ptr.h"
 #include "libllm/lut/span.h"
 #include "libllm/lut/platform.h"

@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 #include <memory>
-#include "libllm/cpu/kernel/args.h"
+#include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/cpu/kernel/kernel.h"
 #include "libllm/cpu/kernel/gemv_kernel.h"
 #include "libllm/cpu/kernel/kernel_s.h"

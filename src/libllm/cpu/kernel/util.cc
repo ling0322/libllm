@@ -19,7 +19,7 @@
 
 #include "libllm/cpu/kernel/util.h"
 
-#include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/lut/half.h"
 #include "libllm/lut/platform.h"
 

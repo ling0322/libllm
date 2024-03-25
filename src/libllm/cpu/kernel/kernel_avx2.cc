@@ -21,8 +21,7 @@
 #include <assert.h>
 #include <immintrin.h>
 #include <stdint.h>
-#include "libllm/cpu/kernel/args.h"
-#include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/cpu/kernel/kernel_h.h"
 #include "libllm/cpu/kernel/kernel_sq4.h"
 #include "libllm/cpu/kernel/kernel_s.h"
@@ -280,14 +279,14 @@ LIBLLM_KERNEL_FORCE_INLINE __m256 extractFloat8FromByte32Block3(__m256i src) {
       8)));
 }
 
-float DotQ4Avx2Kernel::apply(int64_t n, const float *x, DataQ4 y, int64_t offsetY) {
+float DotQ4Avx2Kernel::apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY) {
   __m256 vx, vy, vsum, vscale;
   __m256i vbytey, vzero;
 
   vsum = _mm256_setzero_ps();  
-  int64_t groupIdx = offsetY / GroupSizeQ4;
-  int64_t nb = n / GroupSizeQ4;
-  assert(offsetY % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
+  int64_t groupIdx = offsetY / GroupSizeQInt4;
+  int64_t nb = n / GroupSizeQInt4;
+  assert(offsetY % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
 
   const float *px = x;
   const UInt4x2 *py = y.getDataByGroup(groupIdx);
@@ -420,13 +419,13 @@ float DotQ4Avx2Kernel::applyRow(const Q4GemvArgs &args, int row) {
   return apply(args.N, args.x, args.A, offset);
 }
 
-void DequantQ4Avx2Kernel::apply(int n, DataQ4 x, int64_t offsetX, float *y) {
+void DequantQInt4Avx2Kernel::apply(int n, DataQInt4 x, int64_t offsetX, float *y) {
   __m256 vx, vscale;
   __m256i vbytex, vzero;
   
-  int64_t groupIdx = offsetX / GroupSizeQ4;
-  int64_t nb = n / GroupSizeQ4;
-  assert(offsetX % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
+  int64_t groupIdx = offsetX / GroupSizeQInt4;
+  int64_t nb = n / GroupSizeQInt4;
+  assert(offsetX % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
 
   const UInt4x2 *px = x.getDataByGroup(groupIdx);
   float *py = y;

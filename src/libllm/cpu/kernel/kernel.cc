@@ -25,7 +25,7 @@
 #include "libllm/lut/log.h"
 #include "libllm/lut/platform.h"
 #include "libllm/lut/strings.h"
-#include "libllm/cpu/kernel/args.h"
+#include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/cpu/kernel/cvt_h.h"
 #include "libllm/cpu/kernel/dequant_sq4.h"
 #include "libllm/cpu/kernel/gemm_h.h"
@@ -95,7 +95,7 @@ class Api {
   const Gemm<Float16> *getHgemm() const { return _hgemm.get(); }
   const Gemm<Float16> *getHgemmOmp() const { return _hgemmOmp.get(); }
   const GemmQ4 *getGemmQ4() const { return _q4gemm.get(); }
-  const DequantQ4 *getDequantQ4() const { return _q4dequant.get(); }
+  const DequantQInt4<float> *getDequantQInt4() const { return _q4dequant.get(); }
   const CvtHalfToFloat *getCvtHalfToFloat() const { return _cvtHalfToFloat.get(); }
 
  private:
@@ -107,7 +107,7 @@ class Api {
   std::unique_ptr<Gemm<Float16>> _hgemmOmp;
   std::unique_ptr<Gemm<Float16>> _hgemm;
   std::unique_ptr<GemmQ4> _q4gemm;
-  std::unique_ptr<DequantQ4> _q4dequant;
+  std::unique_ptr<DequantQInt4<float>> _q4dequant;
   std::unique_ptr<CvtHalfToFloat> _cvtHalfToFloat;
 };
     
@@ -127,14 +127,14 @@ void Api::init() {
       _instance->_sgemm = std::make_unique<SGEMMImplAvx512>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplAvx512OMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmAvx512OMP>();
-      _instance->_q4dequant = std::make_unique<DequantQ4Avx2OMP>();
+      _instance->_q4dequant = std::make_unique<DequantQInt4Avx2OMP>();
       _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatAvx2OMP>();
       break;
     case CPUMathBackend::AVX2:
       _instance->_sgemm = std::make_unique<SGEMMImplAvx2>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplAvx2OMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmAvx2OMP>();
-      _instance->_q4dequant = std::make_unique<DequantQ4Avx2OMP>();
+      _instance->_q4dequant = std::make_unique<DequantQInt4Avx2OMP>();
       _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatAvx2OMP>();
       break;
 #endif  // LIBLLM_ARCH_X86_64
@@ -145,7 +145,7 @@ void Api::init() {
       _instance->_sgemm = std::make_unique<SGEMMImplDefault>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplDefaultOMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmFallbackOMP>();
-      _instance->_q4dequant = std::make_unique<DequantQ4FallbackOMP>();
+      _instance->_q4dequant = std::make_unique<DequantQInt4FallbackOMP>();
       _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatFallbackOMP>();
       break;
 #endif  // LIBLLM_ARCH_AARCH64
@@ -153,7 +153,7 @@ void Api::init() {
       _instance->_sgemm = std::make_unique<SGEMMImplDefault>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplDefaultOMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmFallbackOMP>();
-      _instance->_q4dequant = std::make_unique<DequantQ4FallbackOMP>();
+      _instance->_q4dequant = std::make_unique<DequantQInt4FallbackOMP>();
       _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatFallbackOMP>();
 
     default:
@@ -183,7 +183,7 @@ void destroy() {
   Api::destroy();
 }
 
-void sgemm(
+void gemmFloat(
     bool transA,
     bool transB,
     int M,
@@ -196,22 +196,33 @@ void sgemm(
     float *C,
     int ldc,
     Mode mode) {
+  GemmArgs<float> args;
+  args.transA = transA;
+  args.transB = transB;
+  args.M = M;
+  args.N = N;
+  args.K = K;
+  args.A = A;
+  args.lda = lda;
+  args.B = B;
+  args.ldb = ldb;
+  args.C = C;
+  args.ldc = ldc;
+
   switch (mode) {
     case Mode::Auto:
     case Mode::OMP:
-      Api::getInstance()->getSgemmOmp()->apply(
-          transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+      Api::getInstance()->getSgemmOmp()->apply(args);
       break;
     case Mode::SingleThread:
-      Api::getInstance()->getSgemm()->apply(
-          transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+      Api::getInstance()->getSgemm()->apply(args);
       break;
     default:
       NOT_IMPL();
   }
 }
 
-void hgemm(
+void gemmHalf(
     bool transA,
     bool transB,
     int M,
@@ -224,22 +235,33 @@ void hgemm(
     Float16 *C,
     int ldc,
     Mode mode) {
+  GemmArgs<Float16> args;
+  args.transA = transA;
+  args.transB = transB;
+  args.M = M;
+  args.N = N;
+  args.K = K;
+  args.A = A;
+  args.lda = lda;
+  args.B = B;
+  args.ldb = ldb;
+  args.C = C;
+  args.ldc = ldc;
+
   switch (mode) {
     case Mode::Auto:
     case Mode::OMP:
-      Api::getInstance()->getHgemmOmp()->apply(
-          transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+      Api::getInstance()->getHgemmOmp()->apply(args);
       break;
     case Mode::SingleThread:
-      Api::getInstance()->getHgemm()->apply(
-          transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+      Api::getInstance()->getHgemm()->apply(args);
       break;
     default:
       NOT_IMPL();
   }
 }
 
-void dequantQ4(
+void dequantQInt4ToFloat(
     int n,
     const UInt4x2 *data,
     const Float16 *scale,
@@ -247,11 +269,11 @@ void dequantQ4(
     int offset,
     float *tgt,
     Mode mode) {
-  DataQ4 x(data, scale, zeroPoint);
+  DataQInt4 x(data, scale, zeroPoint);
 
   switch (mode) {
     case Mode::Auto:
-      Api::getInstance()->getDequantQ4()->apply(
+      Api::getInstance()->getDequantQInt4()->apply(
           n,
           x,
           offset,
@@ -262,7 +284,7 @@ void dequantQ4(
   }
 }
 
-void gemmQ4(
+void gemmFloatQInt4(
     bool transA,
     bool transB,
     int M,
@@ -276,7 +298,7 @@ void gemmQ4(
     float *C,
     int ldc,
     Mode mode) {
-  DataQ4 B(dataB, scaleB, zeroPointB);
+  DataQInt4 B(dataB, scaleB, zeroPointB);
 
   switch (mode) {
     case Mode::Auto:

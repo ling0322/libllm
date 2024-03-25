@@ -20,7 +20,7 @@
 #pragma once
 
 #include <omp.h>
-#include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/cpu/kernel/kernel_h.h"
 #include "libllm/lut/log.h"
 

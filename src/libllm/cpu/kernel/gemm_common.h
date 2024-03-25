@@ -31,142 +31,68 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-template<typename T>
-class Gemm {
- public:
-  virtual ~Gemm() = default;
-
-  virtual void apply(
-      bool transA,
-      bool transB,
-      int M,
-      int N,
-      int K,
-      const T *A,
-      int lda,
-      const T *B,
-      int ldb,
-      T *C,
-      int ldc) const = 0;
-};
-
 /// @brief Provides GEMM interface with dispatcher for GEMM/GEMV.
 template<class TGemmKernel, class TGemvKernel, typename T>
 class GemmImpl : public Gemm<T> {
  public:
-  void apply(
-      bool transA,
-      bool transB,
-      int M,
-      int N,
-      int K,
-      const T *A,
-      int lda,
-      const T *B,
-      int ldb,
-      T *C,
-      int ldc) const override {
-    if (M == 1) {
-      applyGemvRowVectorA(transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
-    } else if (N == 1) {
-      applyGemvColumnVectorB(transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+  void apply(const GemmArgs<T> &args) const override {
+    if (args.M == 1) {
+      applyGemvRowVectorA(args);
+    } else if (args.N == 1) {
+      applyGemvColumnVectorB(args);
     } else {
-      TGemmKernel().Apply(transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+      TGemmKernel().apply(args);
     }
   }
 
  private:
   // row vector and matrix multiplication using SGEMV.
-  void applyGemvRowVectorA(
-      bool transA,
-      bool transB,
-      int M,
-      int N,
-      int K,
-      const T *A,
-      int lda,
-      const T *B,
-      int ldb,
-      T *C,
-      int ldc) const;
+  void applyGemvRowVectorA(const GemmArgs<T> &args) const;
 
   // row vector and matrix multiplication using SGEMV.
-  void applyGemvColumnVectorB(
-      bool transA,
-      bool transB,
-      int M,
-      int N,
-      int K,
-      const T *A,
-      int lda,
-      const T *B,
-      int ldb,
-      T *C,
-      int ldc) const;
+  void applyGemvColumnVectorB(const GemmArgs<T> &args) const;
 };
 
 template<class TGemmKernel, class TGemvKernel, typename T>
-void GemmImpl<TGemmKernel, TGemvKernel, T>::applyGemvRowVectorA(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const T *A,
-    int lda,
-    const T *B,
-    int ldb,
-    T *C,
-    int ldc) const {
-  CHECK(M == 1);
+void GemmImpl<TGemmKernel, TGemvKernel, T>::applyGemvRowVectorA(const GemmArgs<T> &args) const {
+  CHECK(args.M == 1);
 
   // fill C with zero.
-  std::fill(C, C + N, 0.0f);
+  std::fill(args.C, args.C + args.N, 0.0f);
 
   TGemvKernel().apply(GemvArgs<T>{
-    !transB,
-    transB ? N : K,
-    transB ? K : N,
-    B,
-    ldb,
-    A,
-    transA ? lda : 1,
-    C,
+    !args.transB,
+    args.transB ? args.N : args.K,
+    args.transB ? args.K : args.N,
+    args.B,
+    args.ldb,
+    args.A,
+    args.transA ? args.lda : 1,
+    args.C,
     1});
 }
 
 template<class TGemmKernel, class TGemvKernel, typename T>
-void GemmImpl<TGemmKernel, TGemvKernel, T>::applyGemvColumnVectorB(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const T *A,
-    int lda,
-    const T *B,
-    int ldb,
-    T *C,
-    int ldc) const {
-  CHECK(N == 1);
+void GemmImpl<TGemmKernel, TGemvKernel, T>::applyGemvColumnVectorB(const GemmArgs<T> &args) const {
+  CHECK(args.N == 1);
 
-  bool needPackC = ldc != 1;
-  if (ldc != 1) {
+  bool needPackC = args.ldc != 1;
+  if (args.ldc != 1) {
     NOT_IMPL();
   } else {
-    std::fill(C, C + M, 0.0f);
+    std::fill(args.C, args.C + args.M, 0.0f);
   }
 
   TGemvKernel().apply(GemvArgs<T>{
-      transA,
-      transA ? K : M,
-      transA ? M : K,
-      A,
-      lda,
-      B,
-      transB ? 1 : ldb,
-      C,
-      ldc});
+      args.transA,
+      args.transA ? args.K : args.M,
+      args.transA ? args.M : args.K,
+      args.A,
+      args.lda,
+      args.B,
+      args.transB ? 1 : args.ldb,
+      args.C,
+      args.ldc});
 }
 
 }  // namespace kernel

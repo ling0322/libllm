@@ -20,8 +20,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <algorithm>
-#include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/cpu/kernel/kernel_h.h"
+#include "libllm/cpu/kernel/kernel_hq4.h"
 #include "libllm/cpu/kernel/kernel_sq4.h"
 #include "libllm/cpu/kernel/kernel_s.h"
 #include "libllm/cpu/kernel/util.h"
@@ -57,16 +58,16 @@ void SGemm6x16DefaultKernel::apply(int64_t kc, float *a, float *b, float *c, int
   }
 }
 
-void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, float *y) {
-  int64_t groupIdx = offsetX / GroupSizeQ4;
-  int64_t nb = n / GroupSizeQ4;
-  assert(offsetX % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
+void DequantQInt4FallbackKernel::apply(int n, DataQInt4 x, int64_t offsetX, float *y) {
+  int64_t groupIdx = offsetX / GroupSizeQInt4;
+  int64_t nb = n / GroupSizeQInt4;
+  assert(offsetX % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
 
   for (int i = groupIdx; i < groupIdx + nb; ++i) {
     float scale = cvt_h2s(x.getScaleValByGroup(i));
     uint8_t zero = x.getZeroValByGroup(i);
     const UInt4x2 *p = x.getDataByGroup(i);
-    for (int j = 0; j < GroupSizeQ4 / 2; ++j) {
+    for (int j = 0; j < GroupSizeQInt4 / 2; ++j) {
       *y++ = scale * (static_cast<int>(p->b & 0xf) - zero);
       *y++ = scale * ((static_cast<int>(p->b) >> 4) - zero);
       ++p;
@@ -74,10 +75,10 @@ void DequantQ4FallbackKernel::apply(int n, DataQ4 x, int64_t offsetX, float *y) 
   }
 }
 
-float DotQ4FallbackKernel::apply(int64_t n, const float *x, DataQ4 y, int64_t offsetY) {
-  int64_t groupIdx = offsetY / GroupSizeQ4;
-  int64_t nb = n / GroupSizeQ4;
-  assert(offsetY % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
+float DotQ4FallbackKernel::apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY) {
+  int64_t groupIdx = offsetY / GroupSizeQInt4;
+  int64_t nb = n / GroupSizeQInt4;
+  assert(offsetY % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
 
   float sum = 0.0f;
 
@@ -86,7 +87,7 @@ float DotQ4FallbackKernel::apply(int64_t n, const float *x, DataQ4 y, int64_t of
   for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
     float scale = cvt_h2s(y.getScaleValByGroup(i));
     uint8_t zero = y.getZeroValByGroup(i);
-    for (int j = 0; j < GroupSizeQ4 / 2; ++j) {
+    for (int j = 0; j < GroupSizeQInt4 / 2; ++j) {
       sum += *x++ * scale * (static_cast<int>(py->b & 0xf) - zero);
       sum += *x++ * scale * ((static_cast<int>(py->b) >> 4) - zero);
       ++py;
@@ -163,6 +164,23 @@ void GemmHalfFallbackKernel<MR, NR>::apply(
         sum += cvt_h2s(a[k * MR + m]) * cvt_h2s(b[k * NR + n]);
       }
       c[m * rs_c + n] = cvt_s2h(sum);
+    }
+  }
+}
+
+void DequantQInt4ToHalfFallbackKernel::apply(int n, DataQInt4 x, int64_t offsetX, Float16 *y) {
+  int64_t groupIdx = offsetX / GroupSizeQInt4;
+  int64_t nb = n / GroupSizeQInt4;
+  assert(offsetX % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
+
+  for (int i = groupIdx; i < groupIdx + nb; ++i) {
+    float scale = cvt_h2s(x.getScaleValByGroup(i));
+    uint8_t zero = x.getZeroValByGroup(i);
+    const UInt4x2 *p = x.getDataByGroup(i);
+    for (int j = 0; j < GroupSizeQInt4 / 2; ++j) {
+      *y++ = cvt_s2h(scale * (static_cast<int>(p->b & 0xf) - zero));
+      *y++ = cvt_s2h(scale * ((static_cast<int>(p->b) >> 4) - zero));
+      ++p;
     }
   }
 }
