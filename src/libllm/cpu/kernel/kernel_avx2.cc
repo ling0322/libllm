@@ -22,7 +22,6 @@
 #include <immintrin.h>
 #include <stdint.h>
 #include "libllm/cpu/kernel/interfaces.h"
-#include "libllm/cpu/kernel/common.h"
 #include "libllm/cpu/kernel/kernel_h.h"
 #include "libllm/cpu/kernel/kernel_sq4.h"
 #include "libllm/cpu/kernel/kernel_s.h"
@@ -285,9 +284,9 @@ float DotQ4Avx2Kernel::apply(int64_t n, const float *x, DataQInt4 y, int64_t off
   __m256i vbytey, vzero;
 
   vsum = _mm256_setzero_ps();  
-  int64_t groupIdx = offsetY / GroupSizeQ4;
-  int64_t nb = n / GroupSizeQ4;
-  assert(offsetY % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
+  int64_t groupIdx = offsetY / GroupSizeQInt4;
+  int64_t nb = n / GroupSizeQInt4;
+  assert(offsetY % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
 
   const float *px = x;
   const UInt4x2 *py = y.getDataByGroup(groupIdx);
@@ -424,9 +423,9 @@ void DequantQInt4Avx2Kernel::apply(int n, DataQInt4 x, int64_t offsetX, float *y
   __m256 vx, vscale;
   __m256i vbytex, vzero;
   
-  int64_t groupIdx = offsetX / GroupSizeQ4;
-  int64_t nb = n / GroupSizeQ4;
-  assert(offsetX % GroupSizeQ4 == 0 && n % GroupSizeQ4 == 0);
+  int64_t groupIdx = offsetX / GroupSizeQInt4;
+  int64_t nb = n / GroupSizeQInt4;
+  assert(offsetX % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
 
   const UInt4x2 *px = x.getDataByGroup(groupIdx);
   float *py = y;

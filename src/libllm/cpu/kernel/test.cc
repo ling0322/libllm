@@ -482,12 +482,12 @@ void testDotHalfKernel(int n, float rtol = 1e-3) {
 #ifdef LIBLLM_ARCH_X86_64
 
 CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
-  constexpr int DIM = DequantMinElemPerThread * 2 + GroupSizeQ4;
+  constexpr int DIM = DequantMinElemPerThread * 2 + GroupSizeQInt4;
 
   std::vector<uint8_t> x(DIM / 2);
-  std::vector<float> scaleXFp32(DIM / GroupSizeQ4);
-  std::vector<Float16> scaleX(DIM / GroupSizeQ4);
-  std::vector<uint8_t> zeroX(DIM / GroupSizeQ4 / 2);
+  std::vector<float> scaleXFp32(DIM / GroupSizeQInt4);
+  std::vector<Float16> scaleX(DIM / GroupSizeQInt4);
+  std::vector<uint8_t> zeroX(DIM / GroupSizeQInt4 / 2);
   std::vector<float> y(DIM);
   std::vector<float> yRef(DIM);
 
@@ -514,16 +514,16 @@ CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
 
   random.fill(lut::makeSpan(y));
   random.fill(lut::makeSpan(yRef));
-  DequantQInt4FallbackKernel::apply(GroupSizeQ4, {
+  DequantQInt4FallbackKernel::apply(GroupSizeQInt4, {
       (const UInt4x2 *)x.data(),
       scaleX.data(),
       (const UInt4x2 *)zeroX.data()}, DequantMinElemPerThread, yRef.data());
-  DequantQInt4Avx2Kernel::apply(GroupSizeQ4, {
+  DequantQInt4Avx2Kernel::apply(GroupSizeQInt4, {
       (const UInt4x2 *)x.data(),
       scaleX.data(),
       (const UInt4x2 *)zeroX.data()}, DequantMinElemPerThread, y.data());
-  CATCH_REQUIRE(isClose<float>(lut::makeConstSpan(y).subspan(0, GroupSizeQ4),
-                               lut::makeConstSpan(yRef).subspan(0, GroupSizeQ4)));
+  CATCH_REQUIRE(isClose<float>(lut::makeConstSpan(y).subspan(0, GroupSizeQInt4),
+                               lut::makeConstSpan(yRef).subspan(0, GroupSizeQInt4)));
 
   // test api.
   random.fill(lut::makeSpan(y));
@@ -550,9 +550,9 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
 
   std::vector<float> x(DIM);
   std::vector<uint8_t> y(DIM / 2);
-  std::vector<float> scaleYFp32(DIM / GroupSizeQ4);
-  std::vector<uint8_t> zeroY(DIM / GroupSizeQ4 / 2);
-  std::vector<Float16> scaleY(DIM / GroupSizeQ4);
+  std::vector<float> scaleYFp32(DIM / GroupSizeQInt4);
+  std::vector<uint8_t> zeroY(DIM / GroupSizeQInt4 / 2);
+  std::vector<Float16> scaleY(DIM / GroupSizeQInt4);
 
   lut::Random random(MagicNumber);
   random.fillUInt8(lut::makeSpan(y));
@@ -582,9 +582,9 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   std::vector<float> x(NUM_COL);
   std::vector<float> y(NUM_ROW);
   std::vector<uint8_t> A(NUMEL / 2);
-  std::vector<float> scaleAFp32(NUMEL / GroupSizeQ4);
-  std::vector<uint8_t> zeroA(NUMEL / GroupSizeQ4 / 2);
-  std::vector<Float16> scaleA(NUMEL / GroupSizeQ4);
+  std::vector<float> scaleAFp32(NUMEL / GroupSizeQInt4);
+  std::vector<uint8_t> zeroA(NUMEL / GroupSizeQInt4 / 2);
+  std::vector<Float16> scaleA(NUMEL / GroupSizeQInt4);
 
   lut::Random random(MagicNumber);
   random.fillUInt8(lut::makeSpan(A));
