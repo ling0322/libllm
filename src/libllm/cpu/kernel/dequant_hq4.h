@@ -17,43 +17,31 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Deuqant qint4 (q4) to single (s).
+
 #pragma once
 
-#include "libllm/tensor.h"
-#include "libllm/cpu/accessor.h"
-#include "libllm/cpu/kernel/kernel.h"
-#include "libllm/lut/span.h"
+#include <omp.h>
+#include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/dequant_common.h"
+#include "libllm/cpu/kernel/kernel_hq4.h"
+#include "libllm/lut/log.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
+namespace kernel {
 
-Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> shape);
-bool isShapeMatch(const Tensor &A, const Tensor &B);
+typedef DequantQInt4Impl<Float16, DequantQInt4ToHalfAsimdhpKernel, Mode::SingleThread> 
+    DequantQInt4ToHalfAsimdhp;
+typedef DequantQInt4Impl<Float16, DequantQInt4ToHalfFallbackKernel, Mode::SingleThread>
+    DequantQInt4ToHalfFallback;
+typedef DequantQInt4Impl<Float16, DequantQInt4ToHalfAsimdhpKernel, Mode::OMP>
+    DequantQInt4ToHalfAsimdhpOMP;
+typedef DequantQInt4Impl<Float16, DequantQInt4ToHalfFallbackKernel, Mode::OMP>
+    DequantQInt4ToHalfFallbackOMP;
 
-template<typename T>
-void copyVector(TensorAccessor<T, 1> dest, TensorAccessor<const T, 1> src) {
-  CHECK(dest.getShape(0) == src.getShape(0));
-  for (int i = 0; i < src.getShape(0); ++i) {
-    dest[i] = src[i];
-  }
-}
-
-template<typename T>
-void applyDequant(int64_t offset, int n, const TensorData *data, float *tgt);
-
-template<>
-inline void applyDequant<Q4>(
-  int64_t offset, int n, const TensorData *data, float *tgt) {
-  kernel::dequantQInt4ToFloat(
-      n,
-      (const kernel::UInt4x2 *)data->getData<Q4>(),
-      (const kernel::Float16 *)data->getSlot(1)->getData<Float16>(),
-      (const kernel::UInt4x2 *)data->getSlot(2)->getData<UInt8>(),
-      offset,
-      tgt);
-}
-
-}  // cpu
-}  // op
-}  // ly
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

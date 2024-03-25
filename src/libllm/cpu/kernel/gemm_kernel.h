@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "libllm/cpu/kernel/common.h"
+#include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/lut/log.h"
 #include "libllm/lut/time.h"
 
@@ -66,12 +66,7 @@ class GemmKernel {
   static constexpr int NR = TMicroKernel::NR;
 
   // Compute C <- A * B
-  void Apply(
-      bool TransA, bool TransB,
-      int M, int N, int K,
-      const T *A, int lda,
-      const T *B, int ldb,
-      T *C, int ldc);
+  void apply(const GemmArgs<T> &args);
 
  private:
   T *_packedBuffer;
@@ -341,15 +336,10 @@ inline void GemmKernel<MC, KC, NC, T, TMicroKernel, MODE>::split2ByMC(
 }
 
 template<int MC, int KC, int NC, typename T, class TMicroKernel, Mode MODE>
-inline void GemmKernel<MC, KC, NC, T, TMicroKernel, MODE>::Apply(
-    bool transa, bool transb,
-    int m, int n, int k,
-    const T *A, int lda,
-    const T *B, int ldb,
-    T *C, int ldc) {
-  _inputA = Block<T> { (T *)A, lda, m, k, transa };
-  _inputB = Block<T> { (T *)B, ldb, k, n, transb };
-  _inputC = Block<T> { (T *)C, ldc, m, n, false };
+inline void GemmKernel<MC, KC, NC, T, TMicroKernel, MODE>::apply(const GemmArgs<T> &args) {
+  _inputA = Block<T> { (T *)args.A, args.lda, args.M, args.K, args.transA };
+  _inputB = Block<T> { (T *)args.B, args.ldb, args.K, args.N, args.transB };
+  _inputC = Block<T> { (T *)args.C, args.ldc, args.M, args.N, false };
 
   split0ByNC();
 }
