@@ -22,7 +22,6 @@
 #pragma once
 
 #include <omp.h>
-#include "libllm/cpu/kernel/common.h"
 #include "libllm/cpu/kernel/dequant_common.h"
 #include "libllm/cpu/kernel/kernel_hq4.h"
 #include "libllm/lut/log.h"

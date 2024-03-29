@@ -28,6 +28,7 @@ namespace lut {
 class Random {
  public:
   static constexpr int32_t RandMax = 2147483647;  // 2^31-1
+  static constexpr float PI = 3.1415926f;
 
   // initialize the random number generator by current time.
   Random();
@@ -36,6 +37,9 @@ class Random {
   // fill `l` with a list of float numbers in range [0, 1) or [min, max).
   void fill(Span<float> l);
   void fill(Span<float> l, float min, float max);
+
+  // fill `l` with floats sampled from Gaussian distribution. l.size() % 2 MUST equal to 0.
+  void fillGaussian(Span<float> l, float mean = 0.0f, float sigma = 1.0f);
 
   // fill `l` with a list of uint8_t numbers in range [0, 255].
   void fillUInt8(Span<uint8_t> l);

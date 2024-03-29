@@ -86,16 +86,17 @@ struct GemvArgs {
 typedef GemvArgs<float> SGEMVArgs;
 typedef GemvArgs<Float16> HGemvArgs;
 
-struct Q4GemvArgs {
-  typedef float VecType;
+template<typename T>
+struct QInt4GemvArgs {
+  typedef T VecType;
 
   bool transA;
   int M;
   int N;
   DataQInt4 A;
-  const float *x;
+  const T *x;
   int incX;
-  float *y;
+  T *y;
   int incY;
 };
 
@@ -114,16 +115,17 @@ struct GemmArgs {
   int ldc;
 };
 
-struct GemmQ4Args {
+template<typename T>
+struct QInt4GemmArgs {
   bool transA;
   bool transB;
   int M;
   int N;
   int K;
-  const float *A;
+  const T *A;
   int lda;
   DataQInt4 B;
-  float *C;
+  T *C;
   int ldc;
 };
 
@@ -141,10 +143,11 @@ class Gemm {
   virtual void apply(const GemmArgs<T> &args) const = 0;
 };
 
-class GemmQ4 {
+template<typename T>
+class QInt4Gemm {
  public:
-  virtual ~GemmQ4() = default;
-  virtual void apply(const GemmQ4Args &args) const = 0;
+  virtual ~QInt4Gemm() = default;
+  virtual void apply(const QInt4GemmArgs<T> &args) const = 0;
 };
 
 }  // namespace kernel

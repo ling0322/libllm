@@ -64,7 +64,8 @@ set(libllm_SOURCES
     "../../third_party/ruapu/ruapu.cc")
 
 set(unittest_SOURCES
-    "cpu/kernel/test.cc"
+    "cpu/kernel/unittest_api.cc"
+    "cpu/kernel/unittest_kernel.cc"
     "cpu/test.cc"
     "lut/path_test.cc"
     "lut/strings_test.cc"

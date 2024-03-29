@@ -95,6 +95,48 @@ void GemmImpl<TGemmKernel, TGemvKernel, T>::applyGemvColumnVectorB(const GemmArg
       args.ldc});
 }
 
+template<typename T, class TGemmKernel, class TGemvImpl, class TDequantQInt4Impl>
+class QInt4GemmImpl : public QInt4Gemm<T> {
+ public:
+  void apply(const QInt4GemmArgs<T> &args) const override {
+    if (args.M == 1) {
+      // fill C with zero.
+      std::fill(args.C, args.C + args.N, 0.0f);
+
+      TGemvImpl().apply(QInt4GemvArgs<T>{
+        !args.transB,
+        args.transB ? args.N : args.K,
+        args.transB ? args.K : args.N,
+        args.B,
+        args.A,
+        args.transA ? args.lda : 1,
+        args.C,
+        1});
+    } else {
+      int numelB = args.K * args.N;
+      lut::c_ptr<T> B = alignedAlloc<T>(numelB);
+      TDequantQInt4Impl().apply(numelB, args.B, 0, B.get());
+
+      int ldb = args.transB ? args.K : args.N;
+
+      GemmArgs<T> gemmArgs {
+        args.transA,
+        args.transB,
+        args.M,
+        args.N,
+        args.K,
+        args.A,
+        args.lda,
+        B.get(),
+        ldb, 
+        args.C,
+        args.ldc
+      };
+      TGemmKernel().apply(gemmArgs);
+    }
+  }
+};
+
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op

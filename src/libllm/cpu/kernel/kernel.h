@@ -79,6 +79,21 @@ void gemmHalf(
     int ldc,
     Mode mode = Mode::Auto);
 
+void gemmHalfQInt4(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const Float16 *A,
+    int lda,
+    const UInt4x2 *dataB,
+    const Float16 *scaleB,
+    const UInt4x2 *zeroPointB,
+    Float16 *C,
+    int ldc,
+    Mode mode = Mode::Auto);
+
 void dequantQInt4ToFloat(
     int n,
     const UInt4x2 *data,

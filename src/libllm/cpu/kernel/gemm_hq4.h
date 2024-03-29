@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,15 +17,13 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
 #pragma once
 
-#include <stdint.h>
-#include <memory>
 #include "libllm/cpu/kernel/interfaces.h"
-#include "libllm/lut/log.h"
-
+#include "libllm/cpu/kernel/gemv_kernel.h"
+#include "libllm/cpu/kernel/dequant_hq4.h"
+#include "libllm/cpu/kernel/kernel_hq4.h"
+#include "libllm/cpu/kernel/gemm_h.h"
 
 namespace libllm {
 namespace op {
@@ -33,29 +31,22 @@ namespace cpu {
 namespace kernel {
 
 
-struct SQInt4AxpyNotImplKernel {
-  static void applyColumn(const QInt4GemvArgs<float> &args, int col, float *y) {
-    NOT_IMPL();
-  }
-};
+template<class TDotKernel, Mode MODE>
+using HQInt4GemvImpl = GemvKernel<QInt4GemvArgs<Float16>,
+                                  HQInt4AxpyNotImplKernel,
+                                  TDotKernel,
+                                  MODE>;
 
-struct SQInt4DotFallbackKernel {
-  static float apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY);
-  static float applyRow(const QInt4GemvArgs<float> &args, int row);
-};
+typedef HQInt4GemvImpl<HQInt4DotAsimdhpKernel, Mode::SingleThread> HQInt4GemvImplAsimdhp;
+typedef HQInt4GemvImpl<HQInt4DotAsimdhpKernel, Mode::OMP> HQInt4GemvImplAsimdhpOMP;
+  
+template<class TGemmKernel, class TGemvImpl, class TDequantQInt4Impl>
+using HQInt4GemmImpl = QInt4GemmImpl<Float16, TGemmKernel, TGemvImpl, TDequantQInt4Impl>;
 
-struct SQInt4DotAvx2Kernel {
-  static float apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY);
-  static float applyRow(const QInt4GemvArgs<float> &args, int row);
-};
-
-struct DequantQInt4Avx2Kernel {
-  static void apply(int n, DataQInt4 x, int64_t offsetX, float *y);
-};
-
-struct DequantQInt4FallbackKernel {
-  static void apply(int n, DataQInt4 x, int64_t offsetX, float *y);
-};
+typedef HQInt4GemmImpl<HGemmAsimdhp, HQInt4GemvImplAsimdhp, DequantQInt4ToHalfAsimdhp>
+    HQInt4GemmAsimdhp;
+typedef HQInt4GemmImpl<HGemmAsimdhpOMP, HQInt4GemvImplAsimdhpOMP, DequantQInt4ToHalfAsimdhpOMP> 
+    HQInt4GemmAsimdhpOMP;
 
 }  // namespace kernel
 }  // namespace cpu

@@ -279,7 +279,7 @@ LIBLLM_KERNEL_FORCE_INLINE __m256 extractFloat8FromByte32Block3(__m256i src) {
       8)));
 }
 
-float DotQ4Avx2Kernel::apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY) {
+float SQInt4DotAvx2Kernel::apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY) {
   __m256 vx, vy, vsum, vscale;
   __m256i vbytey, vzero;
 
@@ -414,7 +414,7 @@ float DotQ4Avx2Kernel::apply(int64_t n, const float *x, DataQInt4 y, int64_t off
   return hsum(vsum);
 }
 
-float DotQ4Avx2Kernel::applyRow(const Q4GemvArgs &args, int row) {
+float SQInt4DotAvx2Kernel::applyRow(const QInt4GemvArgs<float> &args, int row) {
   int64_t offset = row * args.N;
   return apply(args.N, args.x, args.A, offset);
 }
