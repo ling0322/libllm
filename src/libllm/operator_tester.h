@@ -44,9 +44,6 @@ class OperatorTester {
   LUT_CHECK_RETURN bool testLookup();
   LUT_CHECK_RETURN bool testLookupQInt4();
   LUT_CHECK_RETURN bool testMatmul(ShapeType shapeA, ShapeType shapeB);
-  LUT_CHECK_RETURN bool testMatmulBmmByGemm();
-
-  void benchmarkCopy(std::initializer_list<int> shape, bool transpose);
 
  private:
   bool _printBenchmarkInfo;
