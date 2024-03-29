@@ -42,13 +42,13 @@ struct CvtHalfToFloatFallbackKernel {
 struct AxpyHalfAsimdhpKernel {
   typedef Float16 ValueType;
 
-  static void apply(int64_t n, Float16 a, const Float16 *x, Float16 *y);
-  static void applyColumn(const GemvArgs<Float16> &args, int row, Float16 *y);
+  static void apply(int64_t n, Float16 a, const Float16 *x, float *y);
+  static void applyColumn(const GemvArgs<Float16> &args, int row, float *y);
 };
 
 struct AxpyHalfFallbackKernel {
   typedef Float16 ValueType;
-  static void apply(int64_t n, Float16 a, const Float16 *x, Float16 *y);
+  static void apply(int64_t n, Float16 a, const Float16 *x, float *y);
 };
 
 struct DotHalfAsimdhpKernel {

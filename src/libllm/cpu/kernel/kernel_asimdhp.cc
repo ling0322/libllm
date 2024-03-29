@@ -39,34 +39,34 @@ LIBLLM_KERNEL_FORCE_INLINE _Float16 hsum(float16x8_t q0) {
   return vgetq_lane_f16(q0, 0);
 }
 
-void AxpyHalfAsimdhpKernel::apply(int64_t n, Float16 a, const Float16 *x, Float16 *y) {
-  float16x8_t a00 = vld1q_dup_f16(reinterpret_cast<Float16 *>(&a));
-  float16x8_t x00, y00;
+void AxpyHalfAsimdhpKernel::apply(int64_t n, Float16 a, const Float16 *x, float *y) {
+  float32x4_t a00 = vcvt_f32_f16(vld1_dup_f16(reinterpret_cast<__fp16 *>(&a)));
+  float32x4_t x00, y00;
 
-  int64_t nb = n / 8;
-  int64_t nr = n % 8;
+  int64_t nb = n / 4;
+  int64_t nr = n % 4;
 
   const __fp16 *px = reinterpret_cast<const __fp16 *>(x);
-  __fp16 * py = reinterpret_cast<__fp16 *>(y);
+  float *py = y;
   for (int i = 0; i < nb; ++i) {
-    x00 = vld1q_f16(px);
-    y00 = vld1q_f16(py);
+    x00 = vcvt_f32_f16(vld1_f16(px));
+    y00 = vld1q_f32(py);
 
-    y00 = vfmaq_f16(y00, x00, a00);
-    vst1q_f16(py, y00);
+    y00 = vfmaq_f32(y00, x00, a00);
+    vst1q_f32(py, y00);
 
-    px += 8;
-    py += 8;
+    px += 4;
+    py += 4;
   }
 
   for (int i = 0; i < nr; ++i) {
-    *py = vaddh_f16(*py, vmulh_f16(a,  *px));
+    *py += a * *px;
     ++px;
     ++py;
   }
 }
 
-void AxpyHalfAsimdhpKernel::applyColumn(const GemvArgs<Float16> &args, int column, Float16 *y) {
+void AxpyHalfAsimdhpKernel::applyColumn(const GemvArgs<Float16> &args, int column, float *y) {
   apply(args.N, args.x[column], args.A + column * args.lda, y);
 }
 
@@ -126,19 +126,18 @@ Float16 DotHalfAsimdhpKernel::applyRow(const GemvArgs<Float16> &args, int row) {
   return apply(args.N, args.A + row * args.lda, args.x);
 }
 
-#define LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(m) \
-    c ## m ## 0 = vld1q_f16(pc); \
-    c ## m ## 1 = vld1q_f16(pc + 8); \
-    pc += rs_c;
-
 #define LIBLLM_GemmHalf12x16AsimdhpKernel_FmaBlock(m, r, rl) \
     a00 = vdupq_n_f16(vget_lane_f16(ra0 ## r, rl)); \
     c ## m ## 0 = vfmaq_f16(c ## m ## 0, a00, b00); \
     c ## m ## 1 = vfmaq_f16(c ## m ## 1, a00, b01);
 
-#define LIBLLM_GemmHalf12x16AsimdhpKernel_StC(m) \
-    vst1q_f16(pc, c ## m ## 0); \
-    vst1q_f16(pc + 8, c ## m ## 1); \
+#define LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(m) \
+    a00 = vld1q_f16(pc); \
+    c##m##0 = vaddq_f16(a00, c##m##0); \
+    vst1q_f16(pc, c##m##0); \
+    a00 = vld1q_f16(pc + 8); \
+    c##m##1 = vaddq_f16(a00, c##m##1); \
+    vst1q_f16(pc + 8, c##m##1); \
     pc += rs_c;
 
 void GemmHalf12x16AsimdhpKernel::apply(
@@ -147,25 +146,33 @@ void GemmHalf12x16AsimdhpKernel::apply(
   // b: kc x NR
 
   // C: MR x NR
-  float16x8_t c00, c01, c10, c11, c20, c21, c30, c31, c40, c41, c50, c51, c60, c61, c70, c71;
-  float16x8_t c80, c81, c90, c91, ca0, ca1, cb0, cb1;
+  float16x8_t c00 = vdupq_n_f16(0),
+              c01 = vdupq_n_f16(0),
+              c10 = vdupq_n_f16(0),
+              c11 = vdupq_n_f16(0),
+              c20 = vdupq_n_f16(0),
+              c21 = vdupq_n_f16(0),
+              c30 = vdupq_n_f16(0),
+              c31 = vdupq_n_f16(0),
+              c40 = vdupq_n_f16(0),
+              c41 = vdupq_n_f16(0),
+              c50 = vdupq_n_f16(0),
+              c51 = vdupq_n_f16(0),
+              c60 = vdupq_n_f16(0),
+              c61 = vdupq_n_f16(0),
+              c70 = vdupq_n_f16(0),
+              c71 = vdupq_n_f16(0),
+              c80 = vdupq_n_f16(0),
+              c81 = vdupq_n_f16(0),
+              c90 = vdupq_n_f16(0),
+              c91 = vdupq_n_f16(0),
+              ca0 = vdupq_n_f16(0),
+              ca1 = vdupq_n_f16(0),
+              cb0 = vdupq_n_f16(0),
+              cb1 = vdupq_n_f16(0);
   float16x8_t a00, b00, b01;
   float16x4_t ra00, ra01, ra02;
 
-  __fp16 *pc = reinterpret_cast<__fp16 *>(c);
-
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(0)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(1)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(2)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(3)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(4)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(5)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(6)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(7)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(8)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(9)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(a)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_LdC(b)
 
   const __fp16 *pa = reinterpret_cast<const __fp16 *>(a);
   const __fp16 *pb = reinterpret_cast<const __fp16 *>(b);
@@ -192,51 +199,58 @@ void GemmHalf12x16AsimdhpKernel::apply(
     LIBLLM_GemmHalf12x16AsimdhpKernel_FmaBlock(b, 2, 3)
   }
 
-  pc = reinterpret_cast<__fp16 *>(c);
+  __fp16 *pc = reinterpret_cast<__fp16 *>(c);
 
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(0)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(1)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(2)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(3)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(4)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(5)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(6)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(7)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(8)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(9)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(a)
-  LIBLLM_GemmHalf12x16AsimdhpKernel_StC(b)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(0)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(1)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(2)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(3)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(4)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(5)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(6)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(7)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(8)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(9)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(a)
+  LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(b)
 }
 
+// convert 32 * QInt4 nibbles from ru0 to 32 * Int8, then substract the zero point (rz0) and store
+// to ri0 and ri1.
+#define LIBLLM_KernelAsimdhpCommon_ConvertInt4ToInt8(ru0, ru1, ru2, r0xf, ri0, ri1) \
+    ru1 = vandq_u8(ru0, r0xf); \
+    ru2 = vshrq_n_u8(ru0, 4); \
+    ri0 = vreinterpretq_s8_u8(vzip1q_u8(ru1, ru2)); \
+    ri1 = vreinterpretq_s8_u8(vzip2q_u8(ru1, ru2));
+  
+// dequant 32 * Int8 (ri[0] and ri[1]) to 32 * half (rh[0:3]) with specified zero point (rz0) and
+// scale (rs0).
+// NOTE: ri[0] and ri[1] will be modified.
+#define LIBLLM_KernelAsimdhpCommon_DequantInt8ToHalf(ri, rh, rz0, rs0) \
+    ri##0 = vsubq_s8(ri##0, rz0); \
+    ri##1 = vsubq_s8(ri##1, rz0); \
+    rh##0 = vcvtq_f16_s16(vmovl_s8(vget_low_s8(ri##0))); \
+    rh##1 = vcvtq_f16_s16(vmovl_s8(vget_high_s8(ri##0))); \
+    rh##2 = vcvtq_f16_s16(vmovl_s8(vget_low_s8(ri##1))); \
+    rh##3 = vcvtq_f16_s16(vmovl_s8(vget_high_s8(ri##1))); \
+    rh##0 = vmulq_f16(rh##0, s00); \
+    rh##1 = vmulq_f16(rh##1, s00); \
+    rh##2 = vmulq_f16(rh##2, s00); \
+    rh##3 = vmulq_f16(rh##3, s00);
+
 #define LIBLLM_DequantQInt4ToHalfAsimdhpKernel_DequantBlockFloat16x32 \
-    xu00 = vld1q_u8(px); \
+    u00 = vld1q_u8(px); \
     px += 16; \
     \
-    xu01 = vandq_u8(xu00, t0xf); \
-    xu02 = vshrq_n_u8(xu00, 4); \
-    x00 = vreinterpretq_s8_u8(vzip1q_u8(xu01, xu02)); \
-    x01 = vreinterpretq_s8_u8(vzip2q_u8(xu01, xu02)); \
-    x00 = vsubq_s8(x00, z00); \
-    x01 = vsubq_s8(x01, z00); \
+    LIBLLM_KernelAsimdhpCommon_ConvertInt4ToInt8(u00, u01, u02, t0xf, i00, i01) \
+    LIBLLM_KernelAsimdhpCommon_DequantInt8ToHalf(i0, xf0, z00, s00) \
     \
-    xf00 = vcvtq_f16_s16(vmovl_s8(vget_low_s8(x00))); \
-    xf01 = vcvtq_f16_s16(vmovl_s8(vget_high_s8(x00))); \
-    xf02 = vcvtq_f16_s16(vmovl_s8(vget_low_s8(x01))); \
-    xf03 = vcvtq_f16_s16(vmovl_s8(vget_high_s8(x01))); \
-    \
-    xf00 = vmulq_f16(xf00, s00); \
     vst1q_f16(py, xf00); \
     py += 8; \
-    \
-    xf01 = vmulq_f16(xf01, s00); \
     vst1q_f16(py, xf01); \
     py += 8; \
-    \
-    xf02 = vmulq_f16(xf02, s00); \
     vst1q_f16(py, xf02); \
     py += 8; \
-    \
-    xf03 = vmulq_f16(xf03, s00); \
     vst1q_f16(py, xf03); \
     py += 8;
 
@@ -249,22 +263,82 @@ void DequantQInt4ToHalfAsimdhpKernel::apply(int n, DataQInt4 x, int64_t offsetX,
   const uint8_t *px = reinterpret_cast<const uint8_t *>(x.getDataByGroup(groupIdx)); 
   __fp16 *py = reinterpret_cast<__fp16 *>(y); 
 
-  uint8x16_t xu00, xu01, xu02;
+  uint8x16_t u00, u01, u02;
   uint8x16_t t0xf = vdupq_n_u8(0xf);
-  int8x16_t x00, x01;
+  int8x16_t i00, i01;
   int8x16_t z00;
   float16x8_t s00, xf00, xf01, xf02, xf03;
 
   // uint8_t * 16 -> qint4 * 32
   for (int64_t i = 0; i < nb; ++i) {
-    s00 = vdupq_n_f16(x.getScaleValByGroup(i));
-    z00 = vdupq_n_s8(x.getZeroValByGroup(i));
+    s00 = vdupq_n_f16(x.getScaleValByGroup(groupIdx + i));
+    z00 = vdupq_n_s8(x.getZeroValByGroup(groupIdx + i));
 
     LIBLLM_DequantQInt4ToHalfAsimdhpKernel_DequantBlockFloat16x32
     LIBLLM_DequantQInt4ToHalfAsimdhpKernel_DequantBlockFloat16x32
     LIBLLM_DequantQInt4ToHalfAsimdhpKernel_DequantBlockFloat16x32
     LIBLLM_DequantQInt4ToHalfAsimdhpKernel_DequantBlockFloat16x32
   }
+}
+
+#define LIBLLM_HQInt4DotAsimdhpKernel_FmaBlock(ry0) \
+    x00 = vld1q_f16(px); \
+    ha00 = vfmaq_f16(ha00, x00, ry0); \
+    px += 8;
+
+#define LIBLLM_HQInt4DotAsimdhpKernel_DotQInt4x32 \
+    u00 = vld1q_u8(py); \
+    py += 16; \
+    \
+    LIBLLM_KernelAsimdhpCommon_ConvertInt4ToInt8(u00, u01, u02, t0xf, i00, i01) \
+    LIBLLM_KernelAsimdhpCommon_DequantInt8ToHalf(i0, h0, z00, s00) \
+    \
+    LIBLLM_HQInt4DotAsimdhpKernel_FmaBlock(h00) \
+    LIBLLM_HQInt4DotAsimdhpKernel_FmaBlock(h01) \
+    LIBLLM_HQInt4DotAsimdhpKernel_FmaBlock(h02) \
+    LIBLLM_HQInt4DotAsimdhpKernel_FmaBlock(h03)
+
+Float16 HQInt4DotAsimdhpKernel::apply(int64_t n, const Float16 *x, DataQInt4 y, int64_t offsetY) {
+  int64_t groupIdx = offsetY / GroupSizeQInt4;
+  int64_t nb = n / GroupSizeQInt4;
+  assert(offsetY % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
+
+  const __fp16 *px = reinterpret_cast<const __fp16 *>(x); 
+  const uint8_t *py = reinterpret_cast<const uint8_t *>(y.getDataByGroup(groupIdx));
+
+  uint8x16_t u00, u01, u02;
+  uint8x16_t t0xf = vdupq_n_u8(0xf);
+  int8x16_t i00, i01;
+  int8x16_t z00;
+  float16x8_t x00, s00, h00, h01, h02, h03;
+  float16x8_t ha00;
+  float32x4_t sa00 = vdupq_n_f32(0),
+              sa01 = vdupq_n_f32(0);
+
+  for (int64_t i = 0; i < nb; ++i) {
+    s00 = vdupq_n_f16(y.getScaleValByGroup(groupIdx + i));
+    z00 = vdupq_n_s8(y.getZeroValByGroup(groupIdx + i));
+    ha00 = vdupq_n_f16(0);
+
+    LIBLLM_HQInt4DotAsimdhpKernel_DotQInt4x32
+    LIBLLM_HQInt4DotAsimdhpKernel_DotQInt4x32
+    LIBLLM_HQInt4DotAsimdhpKernel_DotQInt4x32
+    LIBLLM_HQInt4DotAsimdhpKernel_DotQInt4x32
+
+    sa00 = vaddq_f32(sa00, vcvt_f32_f16(vget_low_f16(ha00)));
+    sa01 = vaddq_f32(sa01, vcvt_f32_f16(vget_high_f16(ha00)));
+  }
+
+  sa00 = vpaddq_f32(sa00, sa01);
+  sa00 = vpaddq_f32(sa00, sa00);
+  sa00 = vpaddq_f32(sa00, sa00);
+
+  return vget_lane_f16(vcvt_f16_f32(sa00), 0);
+}
+
+Float16 HQInt4DotAsimdhpKernel::applyRow(const QInt4GemvArgs<Float16> &args, int row) {
+  int64_t offset = row * args.N;
+  return apply(args.N, args.x, args.A, offset);
 }
 
 }  // namespace kernel

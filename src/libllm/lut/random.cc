@@ -71,4 +71,14 @@ void Random::reset(uint64_t seed) {
   _x = seed % RandMax;
 }
 
+void Random::fillGaussian(Span<float> l, float mean, float sigma) {
+  std::vector<float> U(l.size() * 2);
+  fill(lut::makeSpan(U), 0.0f, 1.0f);
+
+  for (int64_t i = 0; i < l.size(); ++i) {
+    l[i] = cosf(2 * M_PI * U[i]) * sqrtf(-2 * logf(U[l.size() + i]));
+    l[i] = mean + l[i] * sigma;
+  }
+}
+
 } // namespace lut

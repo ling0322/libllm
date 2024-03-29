@@ -111,27 +111,32 @@ void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYTransA(
   int numThreads = std::min(mp, omp_get_max_threads());
 
   if (MODE == Mode::SingleThread || numThreads <= 1) {
+    lut::c_ptr<float> y = alignedAlloc<float>(args.N);
+    memset(y.get(), 0, args.N * sizeof(float));
+
     for (int m = 0; m < args.M; ++m) {
-      TAxpyKernel::applyColumn(args, m, args.y);
+      TAxpyKernel::applyColumn(args, m, y.get());
+    }
+    for (int i = 0; i < args.N; ++i) {
+      args.y[i] += y.get()[i];
     }
   } else if (MODE == Mode::OMP) {
     // initialize numThreads y buffers.
     // TODO: sfill
-    lut::c_ptr<typename TArgs::VecType> ys = alignedAlloc<typename TArgs::VecType>(
-        args.N * numThreads);
-    memset(ys.get(), 0, args.N * numThreads * sizeof(typename TArgs::VecType));
+    lut::c_ptr<float> ys = alignedAlloc<float_t>(args.N * numThreads);
+    memset(ys.get(), 0, args.N * numThreads * sizeof(float));
 
     // compute axpy.
     #pragma omp parallel for num_threads(numThreads)
     for (int m = 0; m < args.M; ++m) {
-      typename TArgs::VecType *py = ys.get() + omp_get_thread_num() * args.N;
+      float *py = ys.get() + omp_get_thread_num() * args.N;
       TAxpyKernel::applyColumn(args, m, py);
     }
 
     // accumulate ys.
     // TODO: vAdd.
     for (int p = 0; p < numThreads; ++p) {
-      typename TArgs::VecType *py = ys.get() + p * args.N;
+      float *py = ys.get() + p * args.N;
       for (int i = 0; i < args.N; ++i) {
         args.y[i] += py[i];
       }

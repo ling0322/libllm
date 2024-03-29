@@ -31,6 +31,22 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
+struct HQInt4AxpyNotImplKernel {
+  static void applyColumn(const QInt4GemvArgs<Float16> &args, int col, float *y) {
+    NOT_IMPL();
+  }
+};
+
+struct HQInt4DotAsimdhpKernel {
+  static Float16 apply(int64_t n, const Float16 *x, DataQInt4 y, int64_t offsetY);
+  static Float16 applyRow(const QInt4GemvArgs<Float16> &args, int row);
+};
+
+struct HQInt4DotFallbackKernel {
+  static Float16 apply(int64_t n, const Float16 *x, DataQInt4 y, int64_t offsetY);
+};
+
+
 struct DequantQInt4ToHalfAsimdhpKernel {
   static void apply(int n, DataQInt4 x, int64_t offsetX, Float16 *y);
 };

@@ -29,6 +29,7 @@
 #include "libllm/cpu/kernel/cvt_h.h"
 #include "libllm/cpu/kernel/dequant_sq4.h"
 #include "libllm/cpu/kernel/gemm_h.h"
+#include "libllm/cpu/kernel/gemm_hq4.h"
 #include "libllm/cpu/kernel/gemm_sq4.h"
 #include "libllm/cpu/kernel/gemm_s.h"
 #include "ruapu/ruapu.h"
@@ -94,7 +95,8 @@ class Api {
   const Gemm<float> *getSgemmOmp() const { return _sgemmOmp.get(); }
   const Gemm<Float16> *getHgemm() const { return _hgemm.get(); }
   const Gemm<Float16> *getHgemmOmp() const { return _hgemmOmp.get(); }
-  const GemmQ4 *getGemmQ4() const { return _q4gemm.get(); }
+  const QInt4Gemm<float> *getGemmQ4() const { return _q4gemm.get(); }
+  const QInt4Gemm<Float16> *getHQInt4Gemm() const { return _hq4gemmParallel.get(); }
   const DequantQInt4<float> *getDequantQInt4() const { return _q4dequant.get(); }
   const CvtHalfToFloat *getCvtHalfToFloat() const { return _cvtHalfToFloat.get(); }
 
@@ -106,7 +108,8 @@ class Api {
   std::unique_ptr<Gemm<float>> _sgemmOmp;
   std::unique_ptr<Gemm<Float16>> _hgemmOmp;
   std::unique_ptr<Gemm<Float16>> _hgemm;
-  std::unique_ptr<GemmQ4> _q4gemm;
+  std::unique_ptr<QInt4Gemm<float>> _q4gemm;
+  std::unique_ptr<QInt4Gemm<Float16>> _hq4gemmParallel;
   std::unique_ptr<DequantQInt4<float>> _q4dequant;
   std::unique_ptr<CvtHalfToFloat> _cvtHalfToFloat;
 };
@@ -138,17 +141,18 @@ void Api::init() {
       _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatAvx2OMP>();
       break;
 #endif  // LIBLLM_ARCH_X86_64
-#ifdef LIBLLM_ARCH_AARCH64
+#ifdef __aarch64__
     case CPUMathBackend::ASIMDHP:
       _instance->_hgemm = std::make_unique<HGemmAsimdhp>();
       _instance->_hgemmOmp = std::make_unique<HGemmAsimdhpOMP>();
       _instance->_sgemm = std::make_unique<SGEMMImplDefault>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplDefaultOMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmFallbackOMP>();
+      _instance->_hq4gemmParallel = std::make_unique<HQInt4GemmAsimdhpOMP>();
       _instance->_q4dequant = std::make_unique<DequantQInt4FallbackOMP>();
       _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatFallbackOMP>();
       break;
-#endif  // LIBLLM_ARCH_AARCH64
+#endif  // __aarch64__
     case CPUMathBackend::DEFAULT:
       _instance->_sgemm = std::make_unique<SGEMMImplDefault>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplDefaultOMP>();
@@ -302,7 +306,42 @@ void gemmFloatQInt4(
 
   switch (mode) {
     case Mode::Auto:
-      Api::getInstance()->getGemmQ4()->apply(GemmQ4Args{
+      Api::getInstance()->getGemmQ4()->apply(QInt4GemmArgs<float>{
+          transA,
+          transB,
+          M,
+          N,
+          K,
+          A,
+          lda,
+          B,
+          C,
+          ldc});
+      break;
+    default:
+      NOT_IMPL();
+  }
+}
+
+void gemmHalfQInt4(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const Float16 *A,
+    int lda,
+    const UInt4x2 *dataB,
+    const Float16 *scaleB,
+    const UInt4x2 *zeroPointB,
+    Float16 *C,
+    int ldc,
+    Mode mode) {
+  DataQInt4 B(dataB, scaleB, zeroPointB);
+
+  switch (mode) {
+    case Mode::Auto:
+      Api::getInstance()->getHQInt4Gemm()->apply(QInt4GemmArgs<Float16>{
           transA,
           transB,
           M,

@@ -58,34 +58,43 @@ void SGemm6x16DefaultKernel::apply(int64_t kc, float *a, float *b, float *c, int
   }
 }
 
-void DequantQInt4FallbackKernel::apply(int n, DataQInt4 x, int64_t offsetX, float *y) {
+template<typename T>
+void dequantQInt4Fallback(int n, DataQInt4 x, int64_t offsetX, T *y) {
   int64_t groupIdx = offsetX / GroupSizeQInt4;
   int64_t nb = n / GroupSizeQInt4;
   assert(offsetX % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
 
   for (int i = groupIdx; i < groupIdx + nb; ++i) {
-    float scale = cvt_h2s(x.getScaleValByGroup(i));
+    float scale = cvtf<float>(x.getScaleValByGroup(i));
     uint8_t zero = x.getZeroValByGroup(i);
     const UInt4x2 *p = x.getDataByGroup(i);
     for (int j = 0; j < GroupSizeQInt4 / 2; ++j) {
-      *y++ = scale * (static_cast<int>(p->b & 0xf) - zero);
-      *y++ = scale * ((static_cast<int>(p->b) >> 4) - zero);
+      *y++ = cvtf<T>(scale * (static_cast<int>(p->b & 0xf) - zero));
+      *y++ = cvtf<T>(scale * ((static_cast<int>(p->b) >> 4) - zero));
       ++p;
     }
   }
 }
 
-float DotQ4FallbackKernel::apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY) {
+void DequantQInt4FallbackKernel::apply(int n, DataQInt4 x, int64_t offsetX, float *y) {
+  dequantQInt4Fallback<float>(n, x, offsetX, y);
+}
+
+void DequantQInt4ToHalfFallbackKernel::apply(int n, DataQInt4 x, int64_t offsetX, Float16 *y) {
+  dequantQInt4Fallback<Float16>(n, x, offsetX, y);
+}
+
+template<typename T>
+T dotQInt4Fallback(int64_t n, const T *x, DataQInt4 y, int64_t offsetY) {
   int64_t groupIdx = offsetY / GroupSizeQInt4;
   int64_t nb = n / GroupSizeQInt4;
   assert(offsetY % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
 
   float sum = 0.0f;
-
   const UInt4x2 *py = y.getDataByGroup(groupIdx);
   const UInt4x2 *zeroY = y.getZeroByGroup(groupIdx);
   for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
-    float scale = cvt_h2s(y.getScaleValByGroup(i));
+    T scale = cvtf<T>(y.getScaleValByGroup(i));
     uint8_t zero = y.getZeroValByGroup(i);
     for (int j = 0; j < GroupSizeQInt4 / 2; ++j) {
       sum += *x++ * scale * (static_cast<int>(py->b & 0xf) - zero);
@@ -94,12 +103,20 @@ float DotQ4FallbackKernel::apply(int64_t n, const float *x, DataQInt4 y, int64_t
     }
   }
 
-  return sum;
+  return cvtf<T>(sum);
 }
 
-float DotQ4FallbackKernel::applyRow(const Q4GemvArgs &args, int row) {
+float SQInt4DotFallbackKernel::apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY) {
+  return dotQInt4Fallback<float>(n, x, y, offsetY);
+}
+
+float SQInt4DotFallbackKernel::applyRow(const QInt4GemvArgs<float> &args, int row) {
   int64_t offset = args.N * row;
   return apply(args.N, args.x, args.A, offset);
+}
+
+Float16 HQInt4DotFallbackKernel::apply(int64_t n, const Float16 *x, DataQInt4 y, int64_t offsetY) {
+  return dotQInt4Fallback<Float16>(n, x, y, offsetY);
 }
 
 void SAxpyFallbackKernel::apply(int64_t n, float a, const float *x, float *y) {
@@ -135,23 +152,23 @@ void CvtHalfToFloatFallbackKernel::apply(int64_t n, const Float16 *x, float *y) 
   }
 }
 
-void AxpyHalfFallbackKernel::apply(int64_t n, Float16 a, const Float16 *x, Float16 *y) {
+void AxpyHalfFallbackKernel::apply(int64_t n, Float16 a, const Float16 *x, float *y) {
   const Float16 *px = x;
-  Float16 *py = y;
+  float *py = y;
   for (int i = 0; i < n; ++i) {
-    *py = cvt_s2h(cvt_h2s(*py) + cvt_h2s(a) * cvt_h2s(*px));
+    *py += cvt_h2s(a) * cvt_h2s(*px);
     ++px;
     ++py;
   }
 }
 
 Float16 DotHalfFallbackKernel::apply(int64_t n, const Float16 *x, const Float16 *y) {
-  float sum = 0;
+  Float16 sum = 0;
   for (int i = 0; i < n; ++i) {
-    sum += cvt_h2s(x[i]) * cvt_h2s(y[i]);
+    sum += x[i] * y[i];
   }
 
-  return cvt_s2h(sum);
+  return sum;
 }
 
 template<int MR, int NR>
@@ -164,23 +181,6 @@ void GemmHalfFallbackKernel<MR, NR>::apply(
         sum += cvt_h2s(a[k * MR + m]) * cvt_h2s(b[k * NR + n]);
       }
       c[m * rs_c + n] = cvt_s2h(sum);
-    }
-  }
-}
-
-void DequantQInt4ToHalfFallbackKernel::apply(int n, DataQInt4 x, int64_t offsetX, Float16 *y) {
-  int64_t groupIdx = offsetX / GroupSizeQInt4;
-  int64_t nb = n / GroupSizeQInt4;
-  assert(offsetX % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
-
-  for (int i = groupIdx; i < groupIdx + nb; ++i) {
-    float scale = cvt_h2s(x.getScaleValByGroup(i));
-    uint8_t zero = x.getZeroValByGroup(i);
-    const UInt4x2 *p = x.getDataByGroup(i);
-    for (int j = 0; j < GroupSizeQInt4 / 2; ++j) {
-      *y++ = cvt_s2h(scale * (static_cast<int>(p->b & 0xf) - zero));
-      *y++ = cvt_s2h(scale * ((static_cast<int>(p->b) >> 4) - zero));
-      ++p;
     }
   }
 }

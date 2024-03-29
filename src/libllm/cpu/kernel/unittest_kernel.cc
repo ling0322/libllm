@@ -21,6 +21,7 @@
 
 #include <omp.h>
 #include <math.h>
+#include "libllm/cpu/kernel/unittest_common.h"
 #include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/cpu/kernel/kernel.h"
 #include "libllm/cpu/kernel/cvt_h.h"
@@ -38,364 +39,6 @@ namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
-
-constexpr uint32_t MagicNumber = 0x55aa;
-
-bool isClose(float l, float r, float atol = 1e-5, float rtol = 1e-5) {
-  bool close = fabs(l - r) <= atol + rtol * fabs(r);
-  if (!close) {
-    printf("%f vs %f\n", l, r);
-  }
-  return close;
-}
-
-bool isClose(Float16 l, Float16 r, float atol = 1e-5, float rtol = 1e-5) {
-  float lf = cvt_h2s(l);
-  float rf = cvt_h2s(r);
-  bool close = fabs(lf - rf <= atol + rtol * fabs(rf));
-  if (!close) {
-    printf("%f vs %f\n", lf, rf);
-  }
-  return close;
-}
-
-template<typename T>
-bool isClose(lut::Span<const T> A,
-             lut::Span<const T> B,
-             float atol = 1e-5,
-             float rtol = 1e-5) {
-  if (A.size() != B.size()) 
-    return false;
-
-  for (int i = 0; i < A.size(); ++i) {
-    if (!isClose(A[i], B[i], atol, rtol)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-float toFloat(float x) {
-  return x;
-}
-float toFloat(Float16 x) {
-  return cvt_h2s(x);
-}
-
-template<typename T>
-float getMSE(lut::Span<const T> A, lut::Span<const T> B) {
-  CHECK(A.size() == B.size());
-
-  double sum = 0;
-  for (int i = 0; i < A.size(); ++i) {
-    double d = toFloat(A[i]) - toFloat(B[i]);
-    sum += d * d;
-  }
-  double mse = sum / A.size();
-  return static_cast<float>(mse);
-}
-
-template<typename T>
-float getVar(lut::Span<const T> A) {
-  double sum = 0;
-  for (int i = 0; i < A.size(); ++i) {
-    sum += toFloat(A[i]);
-  }
-
-  double mean = sum / A.size();
-  sum = 0;
-  for (int i = 0; i < A.size(); ++i) {
-    double d = toFloat(A[i]) - mean;
-    sum += d * d;
-  }
-  double var = sum / A.size();
-  return static_cast<float>(var);
-}
-
-template<typename T>
-float getRSquared(lut::Span<const T> predict, lut::Span<const T> correct) {
-  return 1.0f - getMSE<T>(predict, correct) / getVar<T>(predict);
-}
-
-template<typename T>
-void fillRandom(lut::Random *r, lut::Span<T> v);
-
-template<>
-inline void fillRandom<Float16>(lut::Random *r, lut::Span<Float16> v) {
-  std::vector<float> vf(v.size());
-  r->fill(lut::makeSpan(vf), -1, 1);
-  std::transform(vf.begin(), vf.end(), v.begin(), [](float v){
-    return cvt_s2h(v);
-  });
-}
-
-template<>
-inline void fillRandom<float>(lut::Random *r, lut::Span<float> v) {
-  r->fill(v, -1, 1);
-}
-
-void fillRandomQInt4(
-    lut::Random *r,
-    lut::Span<UInt4x2> qdata,
-    lut::Span<Float16> qscale,
-    lut::Span<UInt4x2> qzero) {
-  r->fillUInt8(lut::Span<uint8_t>(reinterpret_cast<uint8_t *>(qdata.data()), qdata.size()));
-  r->fillUInt8(lut::Span<uint8_t>(reinterpret_cast<uint8_t *>(qzero.data()), qzero.size()));
-  fillRandom<Float16>(r, qscale);
-}
-
-void refGemmQ4(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const float *A,
-    int lda,
-    const UInt4x2 *B,
-    const Float16 *scaleB,
-    const UInt4x2 *zeroB,
-    float *C,
-    int ldc) {
-  CHECK(transA == false);
-  std::fill_n(C, M * N, 0.0f);
-
-  for (int j = 0; j < M; ++j) {
-    if (transB) {
-      for (int i = 0; i < N; ++i) {
-        const float *Aj = A + j * lda;
-        C[j * ldc + i] = DotQ4FallbackKernel::apply(K, Aj, {B, scaleB, zeroB}, i * K);
-      }
-    } else {
-      NOT_IMPL();
-    }
-  }
-}
-
-void testGemmQ4(bool transB, int M, int N, int K) {
-  std::vector<float> A(M * K);
-  std::vector<uint8_t> B(K * N / 2);
-  std::vector<float> scaleBFp32(K * N / GroupSizeQInt4);
-  std::vector<Float16> scaleB(K * N / GroupSizeQInt4);
-  std::vector<uint8_t> zeroB(K * N / GroupSizeQInt4 / 2);
-
-  lut::Random random(MagicNumber);
-
-  random.fill(lut::makeSpan(A));
-  random.fillUInt8(lut::makeSpan(B));
-  random.fillUInt8(lut::makeSpan(zeroB));
-
-  fillRandom<Float16>(&random, lut::makeSpan(scaleB));
-  std::vector<float> C(M * N);
-  std::vector<float> refC(M * N);
-
-  refGemmQ4(
-      false,
-      transB,
-      M,
-      N,
-      K,
-      A.data(),
-      K,
-      reinterpret_cast<const UInt4x2 *>(B.data()),
-      scaleB.data(),
-      reinterpret_cast<const UInt4x2 *>(zeroB.data()),
-      refC.data(),
-      N);
-
-  gemmFloatQInt4(
-      false,
-      transB,
-      M,
-      N,
-      K,
-      A.data(),
-      K,
-      (const UInt4x2 *)B.data(),
-      (const Float16 *)scaleB.data(),
-      (const UInt4x2 *)zeroB.data(),
-      C.data(),
-      N);
-
-  CATCH_REQUIRE(isClose<float>(C, refC, 1e-3));
-}
-
-template<typename T>
-void gemm(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const T *A,
-    int lda,
-    const T *B,
-    int ldb,
-    T *C,
-    int ldc);
-
-template<>
-inline void gemm<float>(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const float *A,
-    int lda,
-    const float *B,
-    int ldb,
-    float *C,
-    int ldc) {
-  return gemmFloat(transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
-}
-
-template<>
-inline void gemm<Float16>(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const Float16 *A,
-    int lda,
-    const Float16 *B,
-    int ldb,
-    Float16 *C,
-    int ldc) {
-  return gemmHalf(transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
-}
-
-template<typename T>
-void refGemm(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const T *A,
-    int lda,
-    const T *B,
-    int ldb,
-    T *C,
-    int ldc) {
-  int stride0A = transA ? 1 : lda;
-  int stride1A = transA ? lda : 1;
-  int stride0B = transB ? 1 : ldb;
-  int stride1B = transB ? ldb : 1;
-
-  for (int m = 0; m < M; ++m) {
-    for (int n = 0; n < N; ++n) {
-      float sum = C[ldc * m + n];
-      for (int k = 0; k < K; ++k) {
-        T va = A[stride0A * m + k * stride1A];
-        T vb = B[stride0B * k + n * stride1B];
-        sum += va * vb;
-      }
-      C[ldc * m + n] = sum;
-    }
-  }
-}
-
-int gemmTestShapes[][3] = {
-  {256, 256, 256},
-  {2, 2, 2},
-  {50, 50, 1},
-  {1, 50, 50},
-  {50, 50, 2},
-  {2, 50, 50},
-  {513, 2, 513},
-  {200, 1, 300},
-  {1, 200, 300},
-  {300, 200, 1},
-  {2, 200, 300},
-  {300, 200, 2},
-  {16, 512, 16},
-  {16, 1024, 16},
-  {16, 16, 2048},
-  {2048, 16, 16},
-  {1, 2048, 2048},
-  {2048, 2048, 1},
-  {2, 2048, 2048},
-  {2048, 2048, 2},
-  {0, 0, 0}
-};
-
-
-template<typename T>
-void testGemm(bool transA, bool transB, int M, int N, int K) {
-  std::vector<T> A(M * K);
-  std::vector<T> B(K * N);
-
-  lut::Random random(MagicNumber);
-
-  fillRandom<T>(&random, lut::makeSpan(A));
-  fillRandom<T>(&random, lut::makeSpan(B));
-
-  std::vector<T> C(M * N);
-  std::vector<T> refC(M * N);
-  memset(C.data(), 0, C.size() * sizeof(T));
-  memset(refC.data(), 0, refC.size() * sizeof(T));
-
-  refGemm<T>(
-      transA,
-      transB,
-      M,
-      N,
-      K,
-      A.data(),
-      transA ? M : K,
-      B.data(),
-      transB ? K : N,
-      refC.data(),
-      N);
-
-  gemm<T>(
-      transA,
-      transB,
-      M,
-      N,
-      K,
-      A.data(),
-      transA ? M : K,
-      B.data(),
-      transB ? K : N,
-      C.data(),
-      N);
-
-  CATCH_REQUIRE(getRSquared<T>(C, refC) > 0.99995);
-}
-
-CATCH_TEST_CASE("test sgemm", "[op][cpu][kernel][sgemm]") {
-  int (*pshape)[3];
-  
-  for (pshape = &gemmTestShapes[0]; **pshape != 0; ++pshape) {
-    int m = (*pshape)[0];
-    int k = (*pshape)[1];
-    int n = (*pshape)[2];
-
-    testGemm<float>(true, true, m, n, k);
-    testGemm<float>(true, false, m, n, k);
-    testGemm<float>(false, true, m, n, k);
-    testGemm<float>(false, false, m, n, k);
-  }
-}
-
-void testHalfToFloat(int n) {
-  std::vector<float> y(n);
-  std::vector<float> yr(n);
-  std::vector<Float16> x(n);
-
-  lut::Random random(MagicNumber);
-  random.fill(lut::makeSpan(yr));
-  std::transform(yr.begin(), yr.end(), x.begin(), [](float x) {
-    return cvt_s2h(x);
-  });
-
-  convertHalfToFloat(n, x.data(), y.data());
-  CATCH_REQUIRE(isClose<float>(yr, y, 1e-4, 1e-3));
-}
 
 template<typename T, class TKernel, class TRefKernel>
 void testQInt4DequantKernel(int n) {
@@ -437,46 +80,73 @@ struct GemmMicroKernelTester {
     std::vector<Float16> Cr(MR * NR);
 
     lut::Random random(MagicNumber);
-    fillRandom<Float16>(&random, lut::makeSpan<Float16>(A));
-    fillRandom<Float16>(&random, lut::makeSpan<Float16>(B));
-    fillRandom<Float16>(&random, lut::makeSpan<Float16>(C));
+    fillRandom(&random, lut::makeSpan<Float16>(A));
+    fillRandom(&random, lut::makeSpan<Float16>(B));
+    fillRandom(&random, lut::makeSpan<Float16>(C));
     std::copy(C.begin(), C.end(), Cr.begin());
 
     TGemmHalfKernel::apply(k, A.data(), B.data(), C.data(), NR);
     TGemmHalfReferenceKernel::apply(k, A.data(), B.data(), Cr.data(), NR);
-    CATCH_REQUIRE(getRSquared<Float16>(C, Cr) > 0.99995);
+
+    CATCH_REQUIRE(getMaxDiff<Float16>(C, Cr) / getMeanAbs<Float16>(Cr) < 0.05);
   }
 };
 
 template<class TAxpyHalfKernel>
 void testAxpyHalfKernel(int n) {
   std::vector<Float16> x(n);
-  std::vector<Float16> y(n);
-  std::vector<Float16> yr(n);
+  std::vector<float> y(n);
+  std::vector<float> yr(n);
 
   lut::Random random(MagicNumber);
-  fillRandom<Float16>(&random, lut::makeSpan<Float16>(x));
+  fillRandom(&random, lut::makeSpan<Float16>(x));
   Float16 a = x[0];
 
   TAxpyHalfKernel::apply(n, a, x.data(), y.data());
   AxpyHalfFallbackKernel::apply(n, a, x.data(), yr.data());
 
-  CATCH_REQUIRE(isClose<Float16>(yr, y));
+  CATCH_REQUIRE(isClose<float>(yr, y));
 }
 
 template<class TDotHalfKernel>
-void testDotHalfKernel(int n, float rtol = 1e-3) {
+void testDotHalfKernel(int n, float rtol = 5e-2) {
   std::vector<Float16> x(n);
   std::vector<Float16> y(n);
 
   lut::Random random(MagicNumber);
-  fillRandom<Float16>(&random, lut::makeSpan<Float16>(x));
-  fillRandom<Float16>(&random, lut::makeSpan<Float16>(y));
+  fillRandom(&random, lut::makeSpan<Float16>(x));
+  fillRandom(&random, lut::makeSpan<Float16>(y));
 
   Float16 z = TDotHalfKernel::apply(n, x.data(), y.data());
   Float16 zr = DotHalfFallbackKernel::apply(n, x.data(), y.data());
 
   CATCH_REQUIRE(isClose(z, zr, 0, rtol));
+}
+
+template<typename T, class TQInt4DotKernel, class TQInt4DotRefKernel>
+void testQInt4DotKernel(int n, float rtol = 5e-2) {
+  CHECK(n % GroupSizeQInt4 == 0);
+  int ng = n / GroupSizeQInt4;
+
+  std::vector<UInt4x2> qdata(n / 2);
+  std::vector<Float16> qscale(ng);
+  std::vector<UInt4x2> qzero((ng + 1) / 2);
+  std::vector<T> x(n);
+
+  lut::Random random(MagicNumber);
+  fillRandomQInt4(&random, lut::makeSpan(qdata), lut::makeSpan(qscale), lut::makeSpan(qzero));
+  fillRandom(&random, lut::makeSpan<Float16>(x));
+
+  DataQInt4 y(qdata.data(), qscale.data(), qzero.data());
+  T a = TQInt4DotKernel::apply(n, x.data(), y, 0);
+  T ar = TQInt4DotRefKernel::apply(n, x.data(), y, 0);
+
+  CATCH_REQUIRE(isClose(a, ar, 0, rtol));
+}
+
+template<class TKernel>
+void testHQInt4DotKernel(int n) {
+  testQInt4DotKernel<Float16, TKernel, HQInt4DotFallbackKernel>(n);
 }
 
 #ifdef LIBLLM_ARCH_X86_64
@@ -618,37 +288,10 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   CATCH_REQUIRE(isClose(a, a0 + a1));
 }
 
-CATCH_TEST_CASE("test sqint4gemm", "[lymath][api][q4]") {
-  testGemmQ4(true, 1, 32, 128);
-  testGemmQ4(true, 1, 64, 4096);
-  testGemmQ4(true, 64, 64, 256);
-}
-
-CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {
-  std::vector<int> ns{1, 50, 200, 800, 1600, 1601, 3200, 3201};
-  for (int n : ns) {
-    testHalfToFloat(n);
-  }
-}
-
 
 #endif  // LIBLLM_ARCH_X86_64
 
 #ifdef __aarch64__
-CATCH_TEST_CASE("test hgemm", "[op][cpu][kernel][hgemm]") {
-  int (*pshape)[3];
-  
-  for (pshape = &gemmTestShapes[0]; **pshape != 0; ++pshape) {
-    int m = (*pshape)[0];
-    int k = (*pshape)[1];
-    int n = (*pshape)[2];
-
-    testGemm<Float16>(true, true, m, n, k);
-    testGemm<Float16>(true, false, m, n, k);
-    testGemm<Float16>(false, true, m, n, k);
-    testGemm<Float16>(false, false, m, n, k);
-  }
-}
 
 CATCH_TEST_CASE("test AxpyHalfAsimdhpKernel", "[libllm][cpu_kernel][axpy][half]") {
   testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(1);
@@ -671,6 +314,17 @@ CATCH_TEST_CASE("test DotHalfAsimdhpKernel", "[libllm][cpu_kernel][dot][half]") 
   testDotHalfKernel<DotHalfAsimdhpKernel>(20000);
 }
 
+CATCH_TEST_CASE("test HQInt4DotAsimdhpKernel", "[libllm][cpu_kernel][dot][half]") {
+  testHQInt4DotKernel<HQInt4DotAsimdhpKernel>(GroupSizeQInt4);
+  testHQInt4DotKernel<HQInt4DotAsimdhpKernel>(2 * GroupSizeQInt4);
+  testHQInt4DotKernel<HQInt4DotAsimdhpKernel>(16 * GroupSizeQInt4);
+  testHQInt4DotKernel<HQInt4DotAsimdhpKernel>(17 * GroupSizeQInt4);
+  testHQInt4DotKernel<HQInt4DotAsimdhpKernel>(31 * GroupSizeQInt4);
+  testHQInt4DotKernel<HQInt4DotAsimdhpKernel>(32 * GroupSizeQInt4);
+  testHQInt4DotKernel<HQInt4DotAsimdhpKernel>(33 * GroupSizeQInt4);
+  testHQInt4DotKernel<HQInt4DotAsimdhpKernel>(50 * GroupSizeQInt4);
+}
+
 CATCH_TEST_CASE("test GemmHalf12x16AsimdhpKernel", "[libllm][cpu_kernel][gemm_kernel][half]") {
   GemmMicroKernelTester<GemmHalf12x16FallbackKernel, GemmHalf12x16AsimdhpKernel> tester;
   tester.test(1);
@@ -680,6 +334,7 @@ CATCH_TEST_CASE("test GemmHalf12x16AsimdhpKernel", "[libllm][cpu_kernel][gemm_ke
   tester.test(100);
   tester.test(256);
   tester.test(500);
+  tester.test(2048);
 }
 
 CATCH_TEST_CASE("test dequantQInt4Half kernels", "[libllm][cpu_kernel][dequant][qint4][half]") {

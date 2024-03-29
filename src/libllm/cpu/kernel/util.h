@@ -49,6 +49,34 @@ lut::c_ptr<T> alignedAlloc(int64_t n) {
 float cvt_h2s(Float16 vh);
 Float16 cvt_s2h(float vf);
 
+template<typename T>
+T cvtf(float v);
+template<>
+inline float cvtf(float v) {
+  return v;
+}
+template<>
+inline Float16 cvtf(float v) {
+  return cvt_s2h(v);
+}
+
+template<typename T>
+T cvtf(Float16 v);
+template<>
+inline float cvtf(Float16 v) {
+  return cvt_h2s(v);
+}
+template<>
+inline Float16 cvtf(Float16 v) {
+  return v;
+}
+
+void quantFloatToQInt4(
+    lut::Span<const float> x,
+    lut::Span<UInt4x2> qdata,
+    lut::Span<Float16> qscale,
+    lut::Span<UInt4x2> qzero);
+
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
