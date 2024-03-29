@@ -21,6 +21,7 @@
 
 #include <cuda_fp16.h>
 #include <algorithm>
+#include <vector>
 #include "libllm/device.h"
 #include "libllm/functional.h"
 #include "libllm/cpu/cpu_tensor_data.h"
@@ -98,7 +99,7 @@ CATCH_TEST_CASE("test cuda copy", "[ly][op][cuda]") {
 
   // cudaMemcpy path.
   x = F::cast(x, DType::kFloat16);
-  Tensor x2 = F::createTensorLike(x);
+  Tensor x2 = F::tensorLike(x);
   F::copy(x, x2);
   x2 = F::cast(x2, DType::kFloat);
   x2 = F::to(Device::getCpu(), x2);
@@ -108,7 +109,7 @@ CATCH_TEST_CASE("test cuda copy", "[ly][op][cuda]") {
   x = F::to(Device::getCuda(), tensor);
   x = F::cast(x, DType::kFloat16);
   x = x.transpose(1, 0);
-  x2 = F::createTensorLike(x);
+  x2 = F::tensorLike(x);
   F::copy(x, x2);
 
   x2 = F::cast(x2, DType::kFloat);
@@ -125,7 +126,7 @@ CATCH_TEST_CASE("benchmark copy", "[ly][op][cuda]") {
   x = F::to(Device::getCuda(), tensor);
   x = F::cast(x, DType::kFloat16);
   x = x.transpose(1, 0);
-  Tensor x2 = F::createTensorLike(x);
+  Tensor x2 = F::tensorLike(x);
 
   LOG_TIME(F::copy(x, x2), "F::copy(x, x2)");
 
@@ -142,7 +143,7 @@ CATCH_TEST_CASE("test cuda copy (int64_t)", "[ly][op][cuda]") {
 
   // cudaMemcpy path (op::cuda::transform path is not supported for int16_t)
   Tensor x = F::to(Device::getCuda(), tensor);
-  Tensor x2 = F::createTensorLike(x);
+  Tensor x2 = F::tensorLike(x);
   F::copy(x, x2);
   x2 = F::to(Device::getCpu(), x2);
 

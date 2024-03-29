@@ -49,11 +49,11 @@ namespace cpu {
 CPUOperators::CPUOperators() {}
 
 
-Tensor CPUOperators::createTensor(lut::Span<const int> shape, DType dtype) {
+Tensor CPUOperators::tensor(lut::Span<const int> shape, DType dtype) {
   return op::cpu::tensor(shape, dtype);
 }
 
-Tensor CPUOperators::createTensorLike(Tensor input) {
+Tensor CPUOperators::tensorLike(Tensor input) {
   return op::cpu::tensorLike(input);
 }
 

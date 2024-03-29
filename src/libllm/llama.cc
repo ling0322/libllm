@@ -166,7 +166,7 @@ int Attention::getCtxLength(const StateMap &past) const {
 }
 
 Tensor Attention::rotateHalf(Tensor x) const {
-  Tensor rotated = F::createTensorLike(x);
+  Tensor rotated = F::tensorLike(x);
   int lastDim = x.getDim() - 1;
   int halfShape = x.getShape(lastDim) / 2;
 

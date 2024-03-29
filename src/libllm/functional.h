@@ -89,7 +89,7 @@ Tensor gelu(Tensor input);
 //   dtype: data type of the new tensor.
 // Returns:
 //   the tensor with specified shape and dtype.
-Tensor createTensor(lut::Span<const int> shape, DType dtype, Device device = Device::getCpu());
+Tensor tensor(lut::Span<const int> shape, DType dtype, Device device = Device::getCpu());
 
 /// @brief Generate a tensor filled with random numbers in range [min, max)
 /// @param shape shape of the tensor to generated.
@@ -103,7 +103,7 @@ Tensor rand(lut::Span<const int> shape, DType dtype, Device device = Device::get
             lut::Random *generator = nullptr, float min = -1.0f, float max = 1.0f);
 
 // returns a uninitialized tensor with the same shape and dtype as input
-Tensor createTensorLike(Tensor input);
+Tensor tensorLike(Tensor input);
 
 // Returns a tensor filled with 0
 Tensor zeros(lut::Span<const int> shape, DType dtype, Device device = Device::getCpu());

@@ -93,13 +93,13 @@ Tensor CudaOperators::applRotaryPosEmb(Tensor A, Tensor roPE) {
   return op::cuda::applyRotaryPosEmb(A, roPE);
 }
 
-Tensor CudaOperators::createTensor(lut::Span<const int> shape, DType dtype) {
+Tensor CudaOperators::tensor(lut::Span<const int> shape, DType dtype) {
   if (dtype == DType::kFloat16) return createCudaTensorHalf(shape);
 
   NOT_IMPL();
 }
 
-Tensor CudaOperators::createTensorLike(Tensor input) {
+Tensor CudaOperators::tensorLike(Tensor input) {
   CHECK(input.getDevice().getType() == Device::kCuda);
 
   if (input.getDType() == DType::kFloat16) return createCudaTensorHalf(input.getShape());

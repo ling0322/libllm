@@ -46,8 +46,8 @@ class CudaOperators : public Operators {
   Tensor mul(Tensor input, Tensor other) override;
   Tensor softmax(Tensor input) override;
   Tensor add(Tensor a, Tensor b) override;
-  Tensor createTensor(lut::Span<const int> shape, DType dtype) override;
-  Tensor createTensorLike(Tensor input) override;
+  Tensor tensor(lut::Span<const int> shape, DType dtype) override;
+  Tensor tensorLike(Tensor input) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor causalMask(int max_len) override;
   Tensor applRotaryPosEmb(Tensor A, Tensor roPE) override;

@@ -40,8 +40,8 @@ class Operators {
   virtual Tensor softmax(Tensor input);
   virtual Tensor add(Tensor input, Tensor other);
   virtual Tensor gelu(Tensor input);
-  virtual Tensor createTensor(lut::Span<const int> shape, DType dtype);
-  virtual Tensor createTensorLike(Tensor input);
+  virtual Tensor tensor(lut::Span<const int> shape, DType dtype);
+  virtual Tensor tensorLike(Tensor input);
   virtual Tensor rand(std::initializer_list<int> shape, DType dtype);
   virtual Tensor zeros(lut::Span<const int> shape, DType dtype);
   virtual bool allClose(Tensor A, Tensor B, float rtol, float atol);
