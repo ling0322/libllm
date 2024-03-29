@@ -19,6 +19,8 @@
 
 #include "libllm/cpu/kernel/util.h"
 
+#include <math.h>
+#include <algorithm>
 #include "libllm/cpu/kernel/interfaces.h"
 #include "libllm/lut/half.h"
 #include "libllm/lut/platform.h"

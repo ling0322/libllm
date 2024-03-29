@@ -123,7 +123,7 @@ void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYTransA(
   } else if (MODE == Mode::OMP) {
     // initialize numThreads y buffers.
     // TODO: sfill
-    lut::c_ptr<float> ys = alignedAlloc<float_t>(args.N * numThreads);
+    lut::c_ptr<float> ys = alignedAlloc<float>(args.N * numThreads);
     memset(ys.get(), 0, args.N * numThreads * sizeof(float));
 
     // compute axpy.

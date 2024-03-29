@@ -317,9 +317,9 @@ void testHalfToFloat(int n) {
 #ifdef LIBLLM_ARCH_X86_64
 
 CATCH_TEST_CASE("test sqint4gemm", "[lymath][api][q4]") {
-  testGemmQ4(true, 1, 32, 128);
-  testGemmQ4(true, 1, 64, 4096);
-  testGemmQ4(true, 64, 64, 256);
+  testGemmQInt4<float>(true, 1, 32, 128);
+  testGemmQInt4<float>(true, 1, 64, 4096);
+  testGemmQInt4<float>(true, 64, 64, 256);
 }
 
 CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {

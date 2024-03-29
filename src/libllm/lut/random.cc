@@ -19,6 +19,8 @@
 
 #include "libllm/lut/random.h"
 
+#include <math.h>
+
 namespace lut {
 
 Random::Random() {

@@ -97,8 +97,8 @@ T dotQInt4Fallback(int64_t n, const T *x, DataQInt4 y, int64_t offsetY) {
     T scale = cvtf<T>(y.getScaleValByGroup(i));
     uint8_t zero = y.getZeroValByGroup(i);
     for (int j = 0; j < GroupSizeQInt4 / 2; ++j) {
-      sum += *x++ * scale * (static_cast<int>(py->b & 0xf) - zero);
-      sum += *x++ * scale * ((static_cast<int>(py->b) >> 4) - zero);
+      sum += cvtf<float>(*x++) * cvtf<float>(scale) * (static_cast<int>(py->b & 0xf) - zero);
+      sum += cvtf<float>(*x++) * cvtf<float>(scale) * ((static_cast<int>(py->b) >> 4) - zero);
       ++py;
     }
   }
@@ -163,12 +163,12 @@ void AxpyHalfFallbackKernel::apply(int64_t n, Float16 a, const Float16 *x, float
 }
 
 Float16 DotHalfFallbackKernel::apply(int64_t n, const Float16 *x, const Float16 *y) {
-  Float16 sum = 0;
+  float sum = 0;
   for (int i = 0; i < n; ++i) {
-    sum += x[i] * y[i];
+    sum += cvtf<float>(x[i]) * cvtf<float>(y[i]);
   }
 
-  return sum;
+  return cvtf<Float16>(sum);
 }
 
 template<int MR, int NR>

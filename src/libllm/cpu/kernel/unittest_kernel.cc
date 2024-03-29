@@ -231,11 +231,11 @@ CATCH_TEST_CASE("test q4 dot kernels", "[lymath][dot][q4]") {
   random.fill(lut::makeSpan(x));
   std::transform(scaleYFp32.begin(), scaleYFp32.end(), scaleY.begin(), cvt_s2h);
 
-  float a = DotQ4Avx2Kernel::apply(DIM, x.data(), {
+  float a = SQInt4DotAvx2Kernel::apply(DIM, x.data(), {
       (const UInt4x2 *)y.data(),
       scaleY.data(),
       (const UInt4x2 *)zeroY.data()}, 0);
-  float aRef = DotQ4FallbackKernel::apply(DIM, x.data(), {
+  float aRef = SQInt4DotFallbackKernel::apply(DIM, x.data(), {
       (const UInt4x2 *)y.data(),
       scaleY.data(),
       (const UInt4x2 *)zeroY.data()}, 0);
@@ -263,7 +263,7 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   random.fill(lut::makeSpan(x));
   std::transform(scaleAFp32.begin(), scaleAFp32.end(), scaleA.begin(), cvt_s2h);
 
-  Q4GemvArgs gemvArgs;
+  QInt4GemvArgs<float> gemvArgs;
   gemvArgs.A = {(const UInt4x2 *)A.data(), scaleA.data(), (const UInt4x2 *)zeroA.data()};
   gemvArgs.incX = 1;
   gemvArgs.incY = 1;
@@ -273,15 +273,15 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
   gemvArgs.x = x.data();
   gemvArgs.y = nullptr;
 
-  float a0 = DotQ4Avx2Kernel::applyRow(gemvArgs, 0);
-  float a1 = DotQ4Avx2Kernel::applyRow(gemvArgs, 1);
+  float a0 = SQInt4DotAvx2Kernel::applyRow(gemvArgs, 0);
+  float a1 = SQInt4DotAvx2Kernel::applyRow(gemvArgs, 1);
 
   std::vector<float> x2(NUM_COL * 2);
   std::copy(x.begin(), x.end(), x2.begin());
   std::copy(x.begin(), x.end(), x2.begin() + NUM_COL);
 
 
-  float a = DotQ4Avx2Kernel::apply(NUM_COL * 2, x2.data(), {
+  float a = SQInt4DotAvx2Kernel::apply(NUM_COL * 2, x2.data(), {
       (const UInt4x2 *)A.data(),
       scaleA.data(),
       (const UInt4x2 *)zeroA.data()}, 0);
