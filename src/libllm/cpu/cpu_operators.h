@@ -45,8 +45,8 @@ class CPUOperators : public Operators {
   Tensor mul(Tensor input, Tensor other) override;
   Tensor softmax(Tensor input) override;
   Tensor add(Tensor a, Tensor b) override;
-  Tensor createTensor(lut::Span<const int> shape, DType dtype) override;
-  Tensor createTensorLike(Tensor input) override;
+  Tensor tensor(lut::Span<const int> shape, DType dtype) override;
+  Tensor tensorLike(Tensor input) override;
   Tensor zeros(lut::Span<const int> shape, DType dtype) override;
   bool allClose(Tensor A, Tensor B, float rtol, float atol) override;
   void print(Tensor tensor) override;

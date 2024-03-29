@@ -67,12 +67,12 @@ Tensor gelu(Tensor input) {
   return getOperators(input.getDevice().getType())->gelu(input);
 }
 
-Tensor createTensor(lut::Span<const int> shape, DType dtype, Device device) {
-  return getOperators(device.getType())->createTensor(shape, dtype);
+Tensor tensor(lut::Span<const int> shape, DType dtype, Device device) {
+  return getOperators(device.getType())->tensor(shape, dtype);
 }
 
-Tensor createTensorLike(Tensor input) {
-  return getOperators(input.getDevice().getType())->createTensorLike(input);
+Tensor tensorLike(Tensor input) {
+  return getOperators(input.getDevice().getType())->tensorLike(input);
 }
 
 Tensor rand(lut::Span<const int> shape, DType dtype, Device device, lut::Random *generator,
@@ -90,7 +90,7 @@ Tensor zeros(lut::Span<const int> shape, DType dtype, Device device) {
 }
 
 Tensor contiguous(Tensor input) {
-  Tensor x = createTensorLike(input);
+  Tensor x = tensorLike(input);
   F::copy(input, x);
   
   return x;
@@ -118,7 +118,7 @@ Tensor cat(Tensor A, Tensor B, int dim) {
   int dB = B.getShape(dim);
   shape[dim] = dA + dB;
 
-  Tensor C = createTensor(shape, A.getDType(), A.getDevice());
+  Tensor C = tensor(shape, A.getDType(), A.getDevice());
   Tensor sA = C.slice(dim, {0, dA});
   Tensor sB = C.slice(dim, {dA, dA + dB});
 

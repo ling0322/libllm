@@ -57,11 +57,11 @@ Tensor Operators::add(Tensor a, Tensor b) {
   NOT_IMPL();
 }
 
-Tensor Operators::createTensor(lut::Span<const int> shape, DType dtype) {
+Tensor Operators::tensor(lut::Span<const int> shape, DType dtype) {
   NOT_IMPL();
 }
 
-Tensor Operators::createTensorLike(Tensor input) {
+Tensor Operators::tensorLike(Tensor input) {
   NOT_IMPL();
 }
 
