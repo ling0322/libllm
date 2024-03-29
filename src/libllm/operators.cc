@@ -105,7 +105,7 @@ Tensor Operators::swiglu(Tensor A) {
   NOT_IMPL();
 }
 
-Tensor Operators::toDevice(Tensor tensor, Device device) {
+Tensor Operators::to(Device device, Tensor tensor) {
   NOT_IMPL();
 }
 

@@ -54,7 +54,7 @@ class CudaOperators : public Operators {
   void copy(Tensor src, Tensor dest) override;
   void print(Tensor tensor) override;
   Tensor swiglu(Tensor A) override;
-  Tensor toDevice(Tensor tensor, Device device) override;
+  Tensor to(Device device, Tensor tensor) override;
   Tensor cast(Tensor tensor, DType dtype) override;
   DType getDefaultFloatType() override;
 

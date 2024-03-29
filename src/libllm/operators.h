@@ -50,7 +50,7 @@ class Operators {
   virtual Tensor applRotaryPosEmb(Tensor A, Tensor roPE);
   virtual void copy(Tensor src, Tensor dest);
   virtual Tensor swiglu(Tensor A);
-  virtual Tensor toDevice(Tensor tensor, Device device);
+  virtual Tensor to(Device device, Tensor tensor);
   virtual Tensor cast(Tensor tensor, DType dtype);
   virtual Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min,
                       float max);

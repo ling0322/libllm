@@ -71,6 +71,7 @@ set(unittest_SOURCES
     "lut/strings_test.cc"
     "chatglm_test.cc"
     "module_test.cc"
+    "operator_tester.cc"
     "tensor_test.cc"
     "test_helper.cc"
     "test_main.cc")
@@ -165,7 +166,7 @@ if(LIBLLM_KERNEL_X86_64)
             PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mf16c")
     endif(UNIX)
 endif()
-if(LIBLLM_ARCH_AARCH64)
+if(LIBLLM_KERNEL_AARCH64)
     set(libllm_SOURCES ${libllm_SOURCES} "cpu/kernel/kernel_asimdhp.cc")
 endif()
 

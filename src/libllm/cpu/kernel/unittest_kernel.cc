@@ -149,7 +149,7 @@ void testHQInt4DotKernel(int n) {
   testQInt4DotKernel<Float16, TKernel, HQInt4DotFallbackKernel>(n);
 }
 
-#ifdef LIBLLM_ARCH_X86_64
+#ifdef LUT_ARCH_AMD64
 
 CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
   constexpr int DIM = DequantMinElemPerThread * 2 + GroupSizeQInt4;
@@ -289,9 +289,9 @@ CATCH_TEST_CASE("test q4 dot kernels apply row", "[lymath][dot][q4]") {
 }
 
 
-#endif  // LIBLLM_ARCH_X86_64
+#endif  // LUT_ARCH_AMD64
 
-#ifdef __aarch64__
+#ifdef LUT_ARCH_AARCH64
 
 CATCH_TEST_CASE("test AxpyHalfAsimdhpKernel", "[libllm][cpu_kernel][axpy][half]") {
   testAxpyHalfKernel<AxpyHalfAsimdhpKernel>(1);
@@ -348,7 +348,7 @@ CATCH_TEST_CASE("test dequantQInt4Half kernels", "[libllm][cpu_kernel][dequant][
   testQInt4HalfDequantKernel<DequantQInt4ToHalfAsimdhpKernel>(52 * GroupSizeQInt4);
 }
 
-#endif  // __aarch64__
+#endif  // LUT_ARCH_AARCH64
 
 }  // namespace kernel
 }  // namespace cpu

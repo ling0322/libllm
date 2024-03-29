@@ -177,7 +177,7 @@ Tensor to(Device device, Tensor tensor) {
     return tensor;
 
   if (srcDevice.getType() == Device::kCuda || device.getType() == Device::kCuda)
-    return getOperators(Device::kCuda)->toDevice(tensor, device);
+    return getOperators(Device::kCuda)->to(device, tensor);
   else
     NOT_IMPL();
 }
@@ -191,4 +191,4 @@ DType getDefaultFloatType(Device device) {
 }
 
 }  // F
-}  // ly
+}  // libllm

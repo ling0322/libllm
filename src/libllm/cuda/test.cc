@@ -24,6 +24,7 @@
 #include <vector>
 #include "libllm/device.h"
 #include "libllm/functional.h"
+#include "libllm/operator_tester.h"
 #include "libllm/cpu/cpu_tensor_data.h"
 #include "libllm/cuda/dequant.h"
 #include "libllm/cuda/matmul.h"
@@ -75,181 +76,48 @@ Tensor createRandomQ4Tensor2D(int numRow, int numCol) {
   return Tensor::create(tensorShape, tensorData);
 }
 
-CATCH_TEST_CASE("test cuda toDevice", "[ly][op][cuda]") {
-  Tensor xr = F::rand({100, 200}, DType::kFloat);
-  Tensor x = F::to(Device::getCuda(), xr);
-  x = F::to(Device::getCpu(), x);
+CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
+  OperatorTester tester = OperatorTester().withOperators(getOperators(Device::kCuda))
+                                          .withDevice(Device::getCuda())
+                                          .withFloatType(DType::kFloat16);
   
-  CATCH_REQUIRE(F::allClose(x, xr));
+  CATCH_SECTION("test toDevice") {
+    CATCH_REQUIRE(tester.testToDevice({100, 200}));
+  }
+
+  CATCH_SECTION("test cast") {
+    CATCH_REQUIRE(tester.testCast({100, 200}));
+  }
+
+  CATCH_SECTION("test copy") {
+    CATCH_REQUIRE(tester.testCopy({2, 10, 50}, false));
+    CATCH_REQUIRE(tester.testCopy({2, 10, 50}, true));
+    CATCH_REQUIRE(tester.testCopyLongType());
+    CATCH_REQUIRE(tester.testCopy5D());
+  }
+
+  CATCH_SECTION("test lookup") {
+    CATCH_REQUIRE(tester.testLookup());
+    CATCH_REQUIRE(tester.testLookupQInt4());
+  }
+
+  CATCH_SECTION("test matmul") {
+    CATCH_REQUIRE(tester.testMatmul({10, 20}, {40, 30}));
+    CATCH_REQUIRE(tester.testMatmul({5, 10, 20}, {40, 30}));
+    CATCH_REQUIRE(tester.testMatmul({5, 10, 5, 20}, {10, 40, 30}));
+  }
 }
 
-CATCH_TEST_CASE("test cuda cast", "[ly][op][cuda]") {
-  Tensor xr = F::rand({100, 20, 50}, DType::kFloat);
-  Tensor x = F::to(Device::getCuda(), xr);
-  x = F::cast(x, DType::kFloat16);
-  x = F::cast(x, DType::kFloat);
-  x = F::to(Device::getCpu(), x);
+CATCH_TEST_CASE("benchmark CUDA operators", "[op][cuda][benchmark]") {
+  OperatorTester tester = OperatorTester().withOperators(getOperators(Device::kCuda))
+                                          .withDevice(Device::getCuda())
+                                          .withFloatType(DType::kFloat16)
+                                          .withPrintBenchmarkInfo(true);
 
-  CATCH_REQUIRE(F::allClose(x, xr));
-}
-
-CATCH_TEST_CASE("test cuda copy", "[ly][op][cuda]") {
-  Tensor tensor = F::rand({2, 5, 20}, DType::kFloat);
-  Tensor x = F::to(Device::getCuda(), tensor);
-
-  // cudaMemcpy path.
-  x = F::cast(x, DType::kFloat16);
-  Tensor x2 = F::tensorLike(x);
-  F::copy(x, x2);
-  x2 = F::cast(x2, DType::kFloat);
-  x2 = F::to(Device::getCpu(), x2);
-  CATCH_REQUIRE(F::allClose(tensor, x2));
-
-  // other path.
-  x = F::to(Device::getCuda(), tensor);
-  x = F::cast(x, DType::kFloat16);
-  x = x.transpose(1, 0);
-  x2 = F::tensorLike(x);
-  F::copy(x, x2);
-
-  x2 = F::cast(x2, DType::kFloat);
-  x2 = F::to(Device::getCpu(), x2);
-
-  CATCH_REQUIRE(F::allClose(tensor, x2.transpose(1, 0)));
-}
-
-CATCH_TEST_CASE("benchmark copy", "[ly][op][cuda]") {
-  Tensor tensor = F::rand({2, 4096, 4096}, DType::kFloat);
-  Tensor x = F::to(Device::getCuda(), tensor);
-
-  // other path.
-  x = F::to(Device::getCuda(), tensor);
-  x = F::cast(x, DType::kFloat16);
-  x = x.transpose(1, 0);
-  Tensor x2 = F::tensorLike(x);
-
-  LOG_TIME(F::copy(x, x2), "F::copy(x, x2)");
-
-  x2 = F::cast(x2, DType::kFloat);
-  x2 = F::to(Device::getCpu(), x2);
-
-  CATCH_REQUIRE(F::allClose(tensor, x2.transpose(1, 0)));
-}
-
-CATCH_TEST_CASE("test cuda copy (int64_t)", "[ly][op][cuda]") {
-  Tensor tensor = Tensor::create<LongType>({2, 5}, {
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 0
-  });
-
-  // cudaMemcpy path (op::cuda::transform path is not supported for int16_t)
-  Tensor x = F::to(Device::getCuda(), tensor);
-  Tensor x2 = F::tensorLike(x);
-  F::copy(x, x2);
-  x2 = F::to(Device::getCpu(), x2);
-
-  const LongType *px = tensor.getData<LongType>(), 
-                       *pr = x2.getData<LongType>();
-  x2.throwIfInvalidShape(tensor.getShape());
-  CATCH_REQUIRE(std::equal(px, px + x2.getNumEl(), pr));
-}
-
-CATCH_TEST_CASE("test cuda contiguous (copy) 5D", "[ly][op][cuda]") {
-  Tensor tensor = F::rand({10, 2, 5, 20}, DType::kFloat);
-
-  Tensor x = F::to(Device::getCuda(), tensor);
-  x = F::cast(x, DType::kFloat16);
-  x = x.unsqueeze(1).expand({10, 4, 2, 5, 20});
-  x = F::contiguous(x);
-  x = F::cast(x, DType::kFloat);
-  x = F::to(Device::getCpu(), x);
-
-  Tensor xr = tensor.unsqueeze(1).expand({10, 4, 2, 5, 20});
-  xr = F::contiguous(x);
-  CATCH_REQUIRE(F::allClose(x, xr));
-}
-
-CATCH_TEST_CASE("test lookup half", "[ly][op][cuda]") {
-  Tensor embd = F::rand({10, 20}, DType::kFloat);
-  Tensor ids = Tensor::create<LongType>({2, 3}, {1, 2, 3, 4, 5, 6});
-
-  Tensor x = F::to(Device::getCuda(), embd);
-  x = F::cast(x, DType::kFloat16);
-
-  Tensor y = F::to(Device::getCuda(), ids);
-  x = F::lookup(x, y);
-  x = F::cast(x, DType::kFloat);
-  x = F::to(Device::getCpu(), x);
-
-  Tensor xr = F::lookup(embd, ids);
-  CATCH_REQUIRE(F::allClose(x, xr));
-}
-
-CATCH_TEST_CASE("test lookup q4", "[ly][op][cuda]") {
-  Tensor embd = createRandomQ4Tensor2D(10, 256);
-  Tensor ids = Tensor::create<LongType>({2, 3}, {1, 2, 3, 4, 5, 6});
-
-  Tensor x = F::to(Device::getCuda(), embd);
-  Tensor y = F::to(Device::getCuda(), ids);
-  x = F::lookup(x, y);
-  x = F::cast(x, DType::kFloat);
-  x = F::to(Device::getCpu(), x);
-
-  Tensor xr = F::lookup(embd, ids);
-  CATCH_REQUIRE(F::allClose(x, xr));
-}
-
-CATCH_TEST_CASE("test matmul gemm", "[ly][op][cuda]") {
-  Tensor a = F::rand({10, 20}, DType::kFloat);
-  Tensor b = F::rand({40, 30}, DType::kFloat);
-  Tensor xr = F::matmul(a, b.slice(1, {5, 25}).transpose(1, 0));
-
-  Tensor x = F::to(Device::getCuda(), a);
-  Tensor y = F::to(Device::getCuda(), b);
-  x = F::cast(x, DType::kFloat16);
-  y = F::cast(y, DType::kFloat16);
-  y = y.slice(1, {5, 25});
-  y = y.transpose(1, 0);
-  x = F::matmul(x, y);
-  x = F::cast(x, DType::kFloat);
-  x = F::to(Device::getCpu(), x);
-
-  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
-}
-
-CATCH_TEST_CASE("test matmul bmm (gemm)", "[ly][op][cuda]") {
-  Tensor a = F::rand({5, 10, 20}, DType::kFloat);
-  Tensor b = F::rand({40, 30}, DType::kFloat);
-  Tensor xr = F::matmul(a, b.slice(1, {5, 25}).transpose(1, 0));
-
-  Tensor x = F::to(Device::getCuda(), a);
-  Tensor y = F::to(Device::getCuda(), b);
-  x = F::cast(x, DType::kFloat16);
-  y = F::cast(y, DType::kFloat16);
-  y = y.slice(1, {5, 25});
-  y = y.transpose(1, 0);
-  x = F::matmul(x, y);
-  x = F::cast(x, DType::kFloat);
-  x = F::to(Device::getCpu(), x);
-
-  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
-}
-
-CATCH_TEST_CASE("test matmul bmm", "[ly][op][cuda]") {
-  Tensor a = F::rand({5, 10, 5, 20}, DType::kFloat);
-  Tensor b = F::rand({10, 30, 20}, DType::kFloat);
-  Tensor xr = F::matmul(a, b.slice(1, {5, 25}).transpose(-1, -2));
-
-  Tensor x = F::to(Device::getCuda(), a);
-  Tensor y = F::to(Device::getCuda(), b);
-  x = F::cast(x, DType::kFloat16);
-  y = F::cast(y, DType::kFloat16);
-  y = y.slice(1, {5, 25});
-  y = y.transpose(-1, -2);
-  x = F::matmul(x, y);
-  x = F::cast(x, DType::kFloat);
-  x = F::to(Device::getCpu(), x);
-
-  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f, 2e-2f));
+  CATCH_SECTION("benchmark copy") {
+    CATCH_REQUIRE(tester.testCopy({2, 4096, 4096}, false));
+    CATCH_REQUIRE(tester.testCopy({2, 4096, 4096}, true));
+  }
 }
 
 CATCH_TEST_CASE("test matmul q4", "[ly][op][cuda]") {
@@ -582,5 +450,8 @@ CATCH_TEST_CASE("benchmark cutlass hgemm", "[ly][op][cuda]") {
 }
 
 #endif  // LIBLLM_CUTLASS_ENABLED
+
+
+
 
 }  // namespace libllm

@@ -147,7 +147,7 @@ Tensor CPUOperators::swiglu(Tensor A) {
   return cpu::swiglu(A);
 }
 
-Tensor CPUOperators::toDevice(Tensor tensor, Device device) {
+Tensor CPUOperators::to(Device device, Tensor tensor) {
   NOT_IMPL();
 }
 

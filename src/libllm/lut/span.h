@@ -42,7 +42,7 @@ class Span : public internal::BaseArray<T> {
             typename = typename std::enable_if<std::is_const<T>::value, U>::type>
   constexpr Span(std::initializer_list<
           typename internal::BaseArray<T>::value_type
-      > v LY_LIFETIME_BOUND) noexcept
+      > v LUT_LIFETIME_BOUND) noexcept
       : Span(v.begin(), v.size()) {}
 
   // automatic convert std::vector<T> to Span<const T>.
@@ -52,7 +52,7 @@ class Span : public internal::BaseArray<T> {
   template <typename U = T,
             typename = typename std::enable_if<std::is_const<T>::value, U>::type>
   constexpr Span(
-      const std::vector<typename internal::BaseArray<T>::value_type> &v LY_LIFETIME_BOUND) noexcept
+      const std::vector<typename internal::BaseArray<T>::value_type> &v LUT_LIFETIME_BOUND) noexcept
       : Span(v.data(), v.size()) {}
 
   // automatic convert std::array<T> to Span<const T>.
@@ -63,7 +63,7 @@ class Span : public internal::BaseArray<T> {
             std::size_t N,
             typename = typename std::enable_if<std::is_const<T>::value, U>::type>
   constexpr Span(const std::array<
-      typename internal::BaseArray<T>::value_type, N> &v LY_LIFETIME_BOUND) noexcept
+      typename internal::BaseArray<T>::value_type, N> &v LUT_LIFETIME_BOUND) noexcept
           : Span(v.data(), v.size()) {}
 
   constexpr Span<T> subspan(

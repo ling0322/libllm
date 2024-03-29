@@ -314,7 +314,7 @@ void testHalfToFloat(int n) {
   CATCH_REQUIRE(isClose<float>(yr, y, 1e-4, 1e-3));
 }
 
-#ifdef LIBLLM_ARCH_X86_64
+#ifdef LUT_ARCH_AMD64
 
 CATCH_TEST_CASE("test sqint4gemm", "[lymath][api][q4]") {
   testGemmQInt4<float>(true, 1, 32, 128);
@@ -330,9 +330,9 @@ CATCH_TEST_CASE("test lymath_half2float", "[lymath][cvt]") {
 }
 
 
-#endif  // LIBLLM_ARCH_X86_64
+#endif  // LUT_ARCH_AMD64
 
-#ifdef __aarch64__
+#ifdef LUT_ARCH_AARCH64
 CATCH_TEST_CASE("test hgemm", "[op][cpu][kernel][hgemm]") {
   int (*pshape)[3];
   
@@ -354,7 +354,7 @@ CATCH_TEST_CASE("test gemmHalfQInt4", "[op][cpu][kernel][hqint4gemm]") {
   testGemmQInt4<Float16>(true, 64, 200, 4096);
 }
 
-#endif  // __aarch64__
+#endif  // LUT_ARCH_AARCH64
 
 }  // namespace kernel
 }  // namespace cpu

@@ -25,7 +25,7 @@
 #include "libllm/lut/half.h"
 #include "libllm/lut/platform.h"
 
-#ifdef __aarch64__
+#ifdef LUT_ARCH_AARCH64
 #include <arm_neon.h>
 #endif
 
@@ -36,7 +36,7 @@ namespace kernel {
 
 
 float cvt_h2s(Float16 vh) {
-#ifdef __aarch64__
+#ifdef LUT_ARCH_AARCH64
   float16x4_t a00 = vld1_dup_f16(&vh);
   float32x4_t b00 = vcvt_f32_f16(a00);
   return vgetq_lane_f32(b00, 0);
@@ -46,7 +46,7 @@ float cvt_h2s(Float16 vh) {
 }
 
 Float16 cvt_s2h(float vf) {
-#ifdef __aarch64__
+#ifdef LUT_ARCH_AARCH64
   float32x4_t a00 = vld1q_dup_f32(&vf);
   float16x4_t b00 = vcvt_f16_f32(a00);
   return vget_lane_f16(b00, 0);

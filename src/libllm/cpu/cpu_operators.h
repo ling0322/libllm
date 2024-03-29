@@ -55,7 +55,7 @@ class CPUOperators : public Operators {
   Tensor applRotaryPosEmb(Tensor A, Tensor roPE) override;
   void copy(Tensor src, Tensor dest) override;
   Tensor swiglu(Tensor A) override;
-  Tensor toDevice(Tensor tensor, Device device) override;
+  Tensor to(Device device, Tensor tensor) override;
   Tensor cast(Tensor tensor, DType dtype) override;
   Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min,
               float max) override;

@@ -119,7 +119,7 @@ Tensor toCuda(const Tensor &tensor) {
   return toDevice<Device::kCuda>(tensor);
 }
 
-Tensor toDevice(const Tensor &tensor, Device device) {
+Tensor toDevice(Device device, const Tensor &tensor) {
   if (Device::kCpu == device.getType()) return toCpu(tensor);
   if (Device::kCuda == device.getType()) return toCuda(tensor);
   
