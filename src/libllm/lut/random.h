@@ -28,6 +28,7 @@ namespace lut {
 class Random {
  public:
   static constexpr int32_t RandMax = 2147483647;  // 2^31-1
+  static constexpr float PI = 3.1415926f;
 
   // initialize the random number generator by current time.
   Random();
