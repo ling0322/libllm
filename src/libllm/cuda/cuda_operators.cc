@@ -89,7 +89,7 @@ Tensor CudaOperators::causalMask(int max_len) {
   return op::cuda::causalMask(max_len);
 }
 
-Tensor CudaOperators::applRotaryPosEmb(Tensor A, Tensor roPE) {
+Tensor CudaOperators::applyRotaryPosEmb(Tensor A, Tensor roPE) {
   return op::cuda::applyRotaryPosEmb(A, roPE);
 }
 
@@ -129,8 +129,8 @@ Tensor CudaOperators::swiglu(Tensor A) {
   return op::cuda::swiglu(A);
 }
 
-Tensor CudaOperators::toDevice(Tensor tensor, Device device) {
-  return cuda::toDevice(tensor, device);
+Tensor CudaOperators::to(Device device, Tensor tensor) {
+  return cuda::toDevice(device, tensor);
 }
 
 Tensor CudaOperators::cast(Tensor tensor, DType dtype) {

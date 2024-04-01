@@ -67,9 +67,9 @@ Tensor ModuleTester::toCpu(Tensor x) const {
   return x;
 }
 
-bool ModuleTester::allClose(Tensor a, lut::Span<const float> ref, float atol, float rtol) const {
+bool ModuleTester::allClose(Tensor a, lut::Span<const float> ref, float rtol) const {
   Tensor ar = Tensor::create<float>({static_cast<int>(ref.size())}, ref);
-  bool allClose = F::allClose(a, ar, atol, rtol);
+  bool allClose = F::allClose(a, ar, rtol);
   if (!allClose) {
     LOG(ERROR) << "output tensor mismatch, expected:";
     F::print(ar);

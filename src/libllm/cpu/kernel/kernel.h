@@ -20,6 +20,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "libllm/lut/attributes.h"
 
 namespace libllm {
 namespace op {
@@ -34,7 +35,7 @@ struct BYTE {
   uint8_t b;
 };
 
-#ifdef __aarch64__
+#ifdef LUT_ARCH_AARCH64
 typedef _Float16 Float16;
 #else
 typedef WORD Float16;

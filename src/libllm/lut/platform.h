@@ -21,17 +21,7 @@
 #pragma once
 
 #include <stdint.h>
-
-#ifdef __APPLE__
-#define LY_PLATFORM_APPLE
-#elif defined(linux) || defined(__linux) || defined(__linux__)
-#define LY_PLATFORM_LINUX
-#elif defined(WIN32) || defined(__WIN32__) || defined(_MSC_VER) || \
-      defined(_WIN32) || defined(__MINGW32__)
-#define LY_PLATFORM_WINDOWS
-#else
-#error unknown platform
-#endif
+#include "libllm/lut/attributes.h"
 
 namespace lut {
 

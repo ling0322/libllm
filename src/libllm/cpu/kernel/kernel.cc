@@ -49,7 +49,7 @@ enum class CPUMathBackend {
 CPUMathBackend findBestCpuMathBackend() {
   ruapu_init();
 
-#ifdef LIBLLM_ARCH_X86_64
+#ifdef LUT_ARCH_AMD64
   bool isaAvx2 = ruapu_supports("avx2") > 0;
   bool isaAvx512f = ruapu_supports("avx512f") > 0;
   bool isaF16c = ruapu_supports("f16c") > 0;
@@ -66,12 +66,12 @@ CPUMathBackend findBestCpuMathBackend() {
     LOG(INFO) << "Use Avx2 backend.";
     return CPUMathBackend::AVX2;
   }
-#endif  // LIBLLM_ARCH_X86_64
+#endif  // LUT_ARCH_AMD64
 
-#ifdef LIBLLM_ARCH_AARCH64
+#ifdef LUT_ARCH_AARCH64
   LOG(INFO) << "Use asimdhp backend.";
   return CPUMathBackend::ASIMDHP;
-#endif  // LIBLLM_ARCH_AARCH64
+#endif  // LUT_ARCH_AARCH64
 
   LOG(FATAL) << "CPU not supported.";
   NOT_IMPL();
@@ -125,7 +125,7 @@ void Api::init() {
 
   _instance = new Api();
   switch (findBestCpuMathBackend()) {
-#ifdef LIBLLM_ARCH_X86_64
+#ifdef LUT_ARCH_AMD64
     case CPUMathBackend::AVX512:
       _instance->_sgemm = std::make_unique<SGEMMImplAvx512>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplAvx512OMP>();
@@ -140,8 +140,8 @@ void Api::init() {
       _instance->_q4dequant = std::make_unique<DequantQInt4Avx2OMP>();
       _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatAvx2OMP>();
       break;
-#endif  // LIBLLM_ARCH_X86_64
-#ifdef __aarch64__
+#endif  // LUT_ARCH_AMD64
+#ifdef LUT_ARCH_AARCH64
     case CPUMathBackend::ASIMDHP:
       _instance->_hgemm = std::make_unique<HGemmAsimdhp>();
       _instance->_hgemmOmp = std::make_unique<HGemmAsimdhpOMP>();
@@ -152,7 +152,7 @@ void Api::init() {
       _instance->_q4dequant = std::make_unique<DequantQInt4FallbackOMP>();
       _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatFallbackOMP>();
       break;
-#endif  // __aarch64__
+#endif  // LUT_ARCH_AARCH64
     case CPUMathBackend::DEFAULT:
       _instance->_sgemm = std::make_unique<SGEMMImplDefault>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplDefaultOMP>();

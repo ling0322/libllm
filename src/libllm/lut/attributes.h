@@ -20,13 +20,52 @@
 #pragma once
 
 #if defined(__cplusplus) && defined(__has_cpp_attribute)
-#define LY_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
+#define LUT_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
 #else
-#define LY_HAS_CPP_ATTRIBUTE(x) 0
+#define LUT_HAS_CPP_ATTRIBUTE(x) 0
 #endif
 
-#if LY_HAS_CPP_ATTRIBUTE(clang::lifetimebound)
-#define LY_LIFETIME_BOUND [[clang::lifetimebound]]
+#if LUT_HAS_CPP_ATTRIBUTE(clang::lifetimebound)
+#define LUT_LIFETIME_BOUND [[clang::lifetimebound]]
 #else
-#define LY_LIFETIME_BOUND
+#define LUT_LIFETIME_BOUND
+#endif
+
+#ifdef __APPLE__
+#define LUT_PLATFORM_APPLE
+#elif defined(linux) || defined(__linux) || defined(__linux__)
+#define LUT_PLATFORM_LINUX
+#elif defined(WIN32) || defined(__WIN32__) || defined(_MSC_VER) || \
+      defined(_WIN32) || defined(__MINGW32__)
+#define LUT_PLATFORM_WINDOWS
+#else
+#error unknown platform
+#endif
+
+#if defined(__clang__)
+#define LUT_COMPILER_CLANG
+#elif defined(__GNUC__) || defined(__GNUG__)
+#define LUT_COMPILER_GCC
+#elif defined(_MSC_VER)
+#define LUT_COMPILER_MSVC
+#else
+#error unknown compiler
+#endif
+
+#if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201703L) || __cplusplus >= 201703L)
+#define LUT_CHECK_RETURN [[nodiscard]]
+#elif defined(LUT_COMPILER_MSVC)
+#define LUT_CHECK_RETURN _Check_return_
+#elif defined(LUT_COMPILER_GCC)
+#define LUT_CHECK_RETURN __attribute__((warn_unused_result))
+#else
+#define LUT_CHECK_RETURN
+#endif
+
+#if (defined(_M_AMD64) || defined(__amd64__) || defined(__x86_64__))
+#define LUT_ARCH_AMD64
+#elif defined(_M_ARM64) || defined(__aarch64__)
+#define LUT_ARCH_AARCH64
+#else
+#error unknown CPU architecture
 #endif

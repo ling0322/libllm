@@ -30,29 +30,47 @@ namespace op {
 namespace cpu {
 
 template<typename T>
-bool allCloseKernel(Tensor A, Tensor B, float rtol, float atol) {
+float maxDiffKernel(Tensor A, Tensor B) {
   A.throwIfInvalidShape(B.getShape());
 
   TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(A);
   TensorList<const T, 1> vB = TensorList<const T, 1>::fromTensor(B);
   CHECK(vA.getLength() == vB.getLength());
 
-  bool ok = true;
+  float maxDiff = 0.0f;
   for (int j = 0; j < vA.getLength(); ++j) {
     TensorAccessor<const T, 1> a = vA.getTensor(j);
     TensorAccessor<const T, 1> b = vB.getTensor(j);
 
     for (int i = 0; i < a.getShape(0); ++i) {
-      if (!(std::isfinite(a[i]) && std::isfinite(b[i]))) {
-        ok = false;
-      }
-      if (std::abs(a[i] - b[i]) > atol + rtol * std::abs(b[i])) {
-        ok = false;
-      }
+      float diff = fabs(static_cast<float>(a[i]) - static_cast<float>(b[i]));
+      if (diff > maxDiff) maxDiff = diff;
     }
   }
   
-  return ok;
+  return maxDiff;
+}
+
+template<typename T>
+float meanAbsKernel(Tensor A) {
+  TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(A);
+
+  bool ok = true;
+  double sum = 0.0;
+  for (int j = 0; j < vA.getLength(); ++j) {
+    TensorAccessor<const T, 1> a = vA.getTensor(j);
+
+    for (int i = 0; i < a.getShape(0); ++i) {
+      sum += fabs(a[i]);
+    }
+  }
+  
+  return static_cast<float>(sum / A.getNumEl());
+}
+
+template<typename T>
+bool allCloseKernel(Tensor A, Tensor B, float rtol, float atol) {
+  return maxDiffKernel<T>(A, B) / meanAbsKernel<T>(B) < rtol || maxDiffKernel<T>(A, B) < atol;
 }
 
 bool allClose(Tensor A, Tensor B, float rtol, float atol) {

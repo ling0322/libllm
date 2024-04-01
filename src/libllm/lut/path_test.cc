@@ -25,7 +25,7 @@ namespace lut {
 
 Path toPath(const char *pcs) {
   std::string s = pcs;
-#ifdef LY_PLATFORM_WINDOWS
+#ifdef LUT_PLATFORM_WINDOWS
   for (char &ch : s) {
     if (ch == '/') ch = '\\';
   }

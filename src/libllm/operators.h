@@ -47,10 +47,10 @@ class Operators {
   virtual bool allClose(Tensor A, Tensor B, float rtol, float atol);
   virtual void print(Tensor tensor);
   virtual Tensor causalMask(int max_len);
-  virtual Tensor applRotaryPosEmb(Tensor A, Tensor roPE);
+  virtual Tensor applyRotaryPosEmb(Tensor A, Tensor roPE);
   virtual void copy(Tensor src, Tensor dest);
   virtual Tensor swiglu(Tensor A);
-  virtual Tensor toDevice(Tensor tensor, Device device);
+  virtual Tensor to(Device device, Tensor tensor);
   virtual Tensor cast(Tensor tensor, DType dtype);
   virtual Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min,
                       float max);

@@ -28,7 +28,7 @@ namespace cuda {
 Tensor toCpu(const Tensor &tensor);
 Tensor toCuda(const Tensor &tensor);
 
-Tensor toDevice(const Tensor &tensor, Device device);
+Tensor toDevice(Device device, const Tensor &tensor);
 
 }  // cuda
 }  // op
