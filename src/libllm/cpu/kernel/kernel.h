@@ -20,6 +20,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "libllm/lut/attributes.h"
 
 namespace libllm {
 namespace op {
