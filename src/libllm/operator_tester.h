@@ -28,6 +28,13 @@ namespace libllm {
 class OperatorTester {
  public:
   using ShapeType = std::initializer_list<int>;
+  
+  enum class OperatorType {
+    Add,
+    Mul,
+    Softmax,
+    Swiglu
+  };
 
   OperatorTester();
 
@@ -44,6 +51,13 @@ class OperatorTester {
   LUT_CHECK_RETURN bool testLookup();
   LUT_CHECK_RETURN bool testLookupQInt4();
   LUT_CHECK_RETURN bool testMatmul(ShapeType shapeA, ShapeType shapeB);
+  LUT_CHECK_RETURN bool testMatmulQInt4(ShapeType shapeA, ShapeType shapeB, bool transposeB);
+  LUT_CHECK_RETURN bool testMulScale();
+  LUT_CHECK_RETURN bool testBinaryOp(OperatorType op);
+  LUT_CHECK_RETURN bool testUnaryOp(OperatorType op, ShapeType shape);
+  LUT_CHECK_RETURN bool testRmsNorm(ShapeType shape);
+  LUT_CHECK_RETURN bool testCausalMask();
+  LUT_CHECK_RETURN bool testRoPE();
 
  private:
   bool _printBenchmarkInfo;

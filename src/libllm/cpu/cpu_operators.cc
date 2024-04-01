@@ -135,7 +135,7 @@ Tensor CPUOperators::causalMask(int max_len) {
   return op::cpu::causalMask(max_len, DType::kFloat);
 }
 
-Tensor CPUOperators::applRotaryPosEmb(Tensor A, Tensor roPE) {
+Tensor CPUOperators::applyRotaryPosEmb(Tensor A, Tensor roPE) {
   return cpu::applyRotaryPosEmb(A, roPE);
 }
 

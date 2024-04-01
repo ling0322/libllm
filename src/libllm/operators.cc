@@ -93,7 +93,7 @@ Tensor Operators::causalMask(int max_len) {
   NOT_IMPL();
 }
 
-Tensor Operators::applRotaryPosEmb(Tensor A, Tensor roPE) {
+Tensor Operators::applyRotaryPosEmb(Tensor A, Tensor roPE) {
   NOT_IMPL();
 }
 

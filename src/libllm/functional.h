@@ -113,7 +113,7 @@ Tensor contiguous(Tensor input);
 
 // return true if two tensors are element-wise equal within a tolerance
 // (rtol=1e-05, atol=1e-08)
-bool allClose(Tensor A, Tensor B, float atol = 1e-5, float rtol = 1e-3);
+bool allClose(Tensor A, Tensor B, float rtol = 1e-3, float atol = 1e-5);
 
 // Print the tensor to stdout,
 void print(Tensor tensor);

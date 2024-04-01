@@ -50,7 +50,7 @@ class CudaOperators : public Operators {
   Tensor tensorLike(Tensor input) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor causalMask(int max_len) override;
-  Tensor applRotaryPosEmb(Tensor A, Tensor roPE) override;
+  Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) override;
   void copy(Tensor src, Tensor dest) override;
   void print(Tensor tensor) override;
   Tensor swiglu(Tensor A) override;

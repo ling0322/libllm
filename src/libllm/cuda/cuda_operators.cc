@@ -89,7 +89,7 @@ Tensor CudaOperators::causalMask(int max_len) {
   return op::cuda::causalMask(max_len);
 }
 
-Tensor CudaOperators::applRotaryPosEmb(Tensor A, Tensor roPE) {
+Tensor CudaOperators::applyRotaryPosEmb(Tensor A, Tensor roPE) {
   return op::cuda::applyRotaryPosEmb(A, roPE);
 }
 

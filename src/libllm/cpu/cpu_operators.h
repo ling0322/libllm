@@ -52,7 +52,7 @@ class CPUOperators : public Operators {
   void print(Tensor tensor) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor causalMask(int max_len) override;
-  Tensor applRotaryPosEmb(Tensor A, Tensor roPE) override;
+  Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) override;
   void copy(Tensor src, Tensor dest) override;
   Tensor swiglu(Tensor A) override;
   Tensor to(Device device, Tensor tensor) override;

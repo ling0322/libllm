@@ -96,8 +96,8 @@ Tensor contiguous(Tensor input) {
   return x;
 }
 
-bool allClose(Tensor A, Tensor B, float atol, float rtol) {
-  return getOperators(A.getDevice().getType())->allClose(A, B, atol, rtol);
+bool allClose(Tensor A, Tensor B, float rtol, float atol) {
+  return getOperators(A.getDevice().getType())->allClose(A, B, rtol, atol);
 }
 
 void print(Tensor tensor) {
@@ -129,7 +129,7 @@ Tensor cat(Tensor A, Tensor B, int dim) {
 }
 
 Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) {
-  return getOperators(A.getDevice().getType())->applRotaryPosEmb(A, roPE);
+  return getOperators(A.getDevice().getType())->applyRotaryPosEmb(A, roPE);
 }
 
 void copy(Tensor src, Tensor dest) {

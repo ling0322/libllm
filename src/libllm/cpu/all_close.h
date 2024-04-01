@@ -27,6 +27,10 @@ namespace cpu {
 
 bool allClose(Tensor A, Tensor B, float rtol, float atol);
 
+float meanAbs(Tensor A);
+float maxDiff(Tensor A, Tensor B);
+
+
 }  // cpu
 }  // op
 }  // libllm

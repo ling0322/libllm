@@ -66,7 +66,7 @@ class ModuleTester {
   /// @brief Check if the data in tensor `a` is equal (with tolerance) to the elements in ref.
   /// @param a the tensor to check.
   /// @param ref the reference data.
-  bool allClose(Tensor a, lut::Span<const float> ref, float atol = 1e-3, float rtol = 5e-3) const;
+  bool allClose(Tensor a, lut::Span<const float> ref, float rtol = 5e-3) const;
 
   
   DType getWeightType() const { return _weightType; }

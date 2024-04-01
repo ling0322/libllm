@@ -45,7 +45,6 @@ OperatorTester::OperatorTester() :
     _op(nullptr),
     _testDevice(Device::getCpu()),
     _testFloatType(DType::kFloat) {
-  _referenceOp = getOperators(Device::getCpu().getType());
 }
 
 OperatorTester OperatorTester::withOperators(Operators *operators) {
@@ -78,7 +77,7 @@ bool OperatorTester::testToDevice(std::initializer_list<int> shape) {
   Tensor x = _op->to(_testDevice, xr);
   x = _op->to(Device::getCpu(), x);
   
-  return F::allClose(x, xr, _atol, _rtol);
+  return F::allClose(x, xr, _rtol);
 }
 
 bool OperatorTester::testCast(std::initializer_list<int> shape) {
@@ -100,7 +99,7 @@ bool OperatorTester::testCopy(std::initializer_list<int> shape, bool transpose) 
   if (transpose) x = x.transpose(1, 0);
   Tensor x2 = _op->tensorLike(x);
   if (_printBenchmarkInfo) {
-    LOG_TIME(_op->copy(x, x2), lut::sprintf("F::copy(x, x2) t=%d", transpose));
+    LOG_TIME(_op->copy(x, x2), lut::sprintf("OP::copy(x, x2) t=%d", transpose));
   } else {
     _op->copy(x, x2);
   }
@@ -130,7 +129,7 @@ bool OperatorTester::testCopyLongType() {
 
 bool OperatorTester::testCopy5D() {
   Tensor tensor = F::rand({10, 2, 5, 20}, DType::kFloat);
-  Tensor x = _op->to(Device::getCuda(), tensor);
+  Tensor x = _op->to(_testDevice, tensor);
 
   x = _op->cast(x, _testFloatType);
   x = x.unsqueeze(1).expand({10, 4, 2, 5, 20});
@@ -148,10 +147,10 @@ bool OperatorTester::testLookup() {
   Tensor embd = F::rand({10, 20}, DType::kFloat);
   Tensor ids = Tensor::create<LongType>({2, 3}, {1, 2, 3, 4, 5, 6});
 
-  Tensor x = _op->to(Device::getCuda(), embd);
+  Tensor x = _op->to(_testDevice, embd);
   x = _op->cast(x, _testFloatType);
 
-  Tensor y = _op->to(Device::getCuda(), ids);
+  Tensor y = _op->to(_testDevice, ids);
   x = _op->lookup(x, y);
   x = _op->cast(x, DType::kFloat);
   x = _op->to(Device::getCpu(), x);
@@ -164,8 +163,8 @@ bool OperatorTester::testLookupQInt4() {
   Tensor embd = F::rand({10, 256}, DType::kQ4);
   Tensor ids = Tensor::create<LongType>({2, 3}, {1, 2, 3, 4, 5, 6});
 
-  Tensor x = _op->to(Device::getCuda(), embd);
-  Tensor y = _op->to(Device::getCuda(), ids);
+  Tensor x = _op->to(_testDevice, embd);
+  Tensor y = _op->to(_testDevice, ids);
   x = _op->lookup(x, y);
   x = _op->cast(x, DType::kFloat);
   x = _op->to(Device::getCpu(), x);
@@ -179,17 +178,163 @@ bool OperatorTester::testMatmul(ShapeType shapeA, ShapeType shapeB) {
   Tensor b = F::rand(shapeB, DType::kFloat);
   Tensor xr = F::matmul(a, b.slice(-1, {5, 25}).transpose(-1, -2));
 
-  Tensor x = _op->to(Device::getCuda(), a);
-  Tensor y = _op->to(Device::getCuda(), b);
-  x = _op->cast(x, DType::kFloat16);
-  y = _op->cast(y, DType::kFloat16);
+  Tensor x = _op->to(_testDevice, a);
+  Tensor y = _op->to(_testDevice, b);
+  x = _op->cast(x, _testFloatType);
+  y = _op->cast(y, _testFloatType);
   y = y.slice(-1, {5, 25});
   y = y.transpose(-1, -2);
   x = _op->matmul(x, y);
   x = _op->cast(x, DType::kFloat);
   x = _op->to(Device::getCpu(), x);
 
-  return F::allClose(x, xr, 1e-5f, 2e-2f);
+  return F::allClose(x, xr, 5e-3f);
+}
+
+bool OperatorTester::testMatmulQInt4(ShapeType shapeA, ShapeType shapeB, bool transposeB) {
+  Tensor a = F::rand(shapeA, DType::kFloat);
+  Tensor b = F::rand(shapeB, DType::kQ4);
+  Tensor xr = F::matmul(a, transposeB ? b.transpose(-1, -2) : b);
+
+  Tensor x = _op->to(_testDevice, a);
+  Tensor y = _op->to(_testDevice, b);
+  x = _op->cast(x, _testFloatType);
+  x = _op->matmul(x, transposeB ? y.transpose(-1, -2) : y);
+  x = _op->cast(x, DType::kFloat);
+  x = _op->to(Device::getCpu(), x);
+
+  return F::allClose(x, xr, 5e-3f);
+}
+
+bool OperatorTester::testMulScale() {
+  Tensor a = F::rand({2, 5, 10}, DType::kFloat);
+  Tensor xr = F::mul(a.transpose(2, 1).slice(1, {1, 9}), 0.1f);
+
+  Tensor x = _op->to(_testDevice, a);
+  x = _op->cast(x, _testFloatType);
+  x = x.transpose(2, 1);
+  x = x.slice(1, {1, 9});
+  x = _op->mul(x, 0.1f);
+  x = _op->cast(x, DType::kFloat);
+  x = _op->to(Device::getCpu(), x);
+
+  return F::allClose(x, xr, 1e-3f, 1e-4f);
+}
+
+bool OperatorTester::testBinaryOp(OperatorTester::OperatorType op) {
+  Tensor a = F::rand({2, 5, 10}, DType::kFloat);
+  Tensor b = F::rand({5}, DType::kFloat);
+  Tensor at = a.transpose(2, 1).slice(1, {1, 9});
+  Tensor xr;
+  switch (op) {
+    case OperatorType::Add:
+      xr = F::add(at, b);
+      break;
+    case OperatorType::Mul:
+      xr = F::mul(at, b);
+      break;
+    default:
+      NOT_IMPL();
+  }
+
+  Tensor x = _op->to(_testDevice, a);
+  Tensor y = _op->to(_testDevice, b);
+  x = _op->cast(x, _testFloatType);
+  y = _op->cast(y, _testFloatType);
+  x = x.transpose(2, 1);
+  x = x.slice(1, {1, 9});
+  switch (op) {
+    case OperatorType::Add:
+      x = _op->add(x, y);
+      break;
+    case OperatorType::Mul:
+      x = _op->mul(x, y);
+      break;
+    default:
+      NOT_IMPL();
+  }
+  x = _op->cast(x, DType::kFloat);
+  x = _op->to(Device::getCpu(), x);
+
+  return F::allClose(x, xr, 2e-3f);
+}
+
+bool OperatorTester::testUnaryOp(OperatorTester::OperatorType op, ShapeType shape) {
+  Tensor a = F::rand(shape, DType::kFloat);
+  Tensor xr;
+  switch (op) {
+    case OperatorType::Softmax:
+      xr = F::softmax(a);
+      break;
+    case OperatorType::Swiglu:
+      xr = F::swiglu(a);
+      break;
+    default:
+      NOT_IMPL();
+  }
+  
+  Tensor x = _op->to(_testDevice, a);
+
+  x = _op->cast(x, _testFloatType);
+  if (op == OperatorType::Softmax && _printBenchmarkInfo) {
+    LOG_TIME(x = _op->softmax(x), lut::sprintf("shape=%s OP::softmax(x)", a.getShapeString()));
+  }
+  if (op == OperatorType::Softmax && !_printBenchmarkInfo) x = _op->softmax(x);
+  if (op == OperatorType::Swiglu) x = _op->swiglu(x);
+
+  x = _op->cast(x, DType::kFloat);
+  x = _op->to(Device::getCpu(), x);
+
+  return F::allClose(x, xr, 5e-3f);
+}
+
+bool OperatorTester::testRmsNorm(ShapeType shape) {
+  lut::Random r(0x55aa);
+  Tensor a = F::rand(shape, DType::kFloat, Device::kCpu, &r);
+  Tensor b = F::rand({a.getShape(-1)}, DType::kFloat, Device::kCpu, &r);
+  Tensor xr = F::rmsNorm(a, b, 1e-5);
+
+  Tensor x = _op->to(_testDevice, a);
+  Tensor y = _op->to(_testDevice, b);
+  x = _op->cast(x, _testFloatType);
+  y = _op->cast(y, _testFloatType);
+  if (_printBenchmarkInfo) {
+    LOG_TIME(x = _op->rmsNorm(x, y, 1e-5),
+             lut::sprintf("shape=%s OP::rmsNorm", a.getShapeString()));
+  } else {
+    x = _op->rmsNorm(x, y, 1e-5);
+  }
+  ;
+  x = _op->cast(x, DType::kFloat);
+  x = _op->to(Device::getCpu(), x);
+
+  return F::allClose(x, xr, 5e-3f);
+}
+
+bool OperatorTester::testCausalMask() {
+  constexpr int DIM = 129;
+  Tensor xr = F::softmax(F::causalMask(DIM));
+  Tensor x = _op->softmax(_op->causalMask(DIM));
+  x = _op->cast(x, DType::kFloat);
+  x = _op->to(Device::getCpu(), x);
+
+  return F::allClose(x, xr, 1e-3, 1e-4);
+}
+
+bool OperatorTester::testRoPE() {
+  Tensor a = F::rand({2, 5, 2, 16}, DType::kFloat);
+  Tensor b = F::rand({5, 1, 16}, DType::kFloat);
+  Tensor xr = F::applyRotaryPosEmb(a, b);
+
+  Tensor x = _op->to(_testDevice, a);
+  Tensor y = _op->to(_testDevice, b);
+  x = _op->cast(x, _testFloatType);
+  y = _op->cast(y, _testFloatType);
+  x = _op->applyRotaryPosEmb(x, y);
+  x = _op->cast(x, DType::kFloat);
+  x = _op->to(Device::getCpu(), x);
+
+  return F::allClose(x, xr, 5e-3f);
 }
 
 }  // namespace libllm
