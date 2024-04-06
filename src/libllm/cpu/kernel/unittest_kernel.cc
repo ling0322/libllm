@@ -149,6 +149,32 @@ void testHQInt4DotKernel(int n) {
   testQInt4DotKernel<Float16, TKernel, HQInt4DotFallbackKernel>(n);
 }
 
+template<typename TSrc, typename TTgt, class TCvtKernel, class TRefCvtKernel>
+void testCvtKernel(int n) {
+  std::vector<TSrc> x(n);
+  std::vector<TTgt> y(n);
+  std::vector<TTgt> yr(n);
+
+  lut::Random random(MagicNumber);
+  fillRandom(&random, lut::makeSpan<TSrc>(x));
+  fillRandom(&random, lut::makeSpan<TTgt>(y));
+
+  TCvtKernel::apply(n, x.data(), y.data());
+  TRefCvtKernel::apply(n, x.data(), yr.data());
+
+  CATCH_REQUIRE(isClose<TTgt>(y, yr));
+}
+
+template<class TKernel>
+void testCvtHalfToFloatKernel(int n) {
+  testCvtKernel<Float16, float, TKernel, CvtHalfToFloatFallbackKernel>(n);
+}
+
+template<class TKernel>
+void testCvtFloatToHalfKernel(int n) {
+  testCvtKernel<float, Float16, TKernel, CvtFloatToHalfFallbackKernel>(n);
+}
+
 #ifdef LUT_ARCH_AMD64
 
 CATCH_TEST_CASE("test q4 dequantization", "[lymath][dequant][q4]") {
@@ -346,6 +372,32 @@ CATCH_TEST_CASE("test dequantQInt4Half kernels", "[libllm][cpu_kernel][dequant][
   testQInt4HalfDequantKernel<DequantQInt4ToHalfAsimdhpKernel>(50 * GroupSizeQInt4);
   testQInt4HalfDequantKernel<DequantQInt4ToHalfAsimdhpKernel>(51 * GroupSizeQInt4);
   testQInt4HalfDequantKernel<DequantQInt4ToHalfAsimdhpKernel>(52 * GroupSizeQInt4);
+}
+
+CATCH_TEST_CASE("test CvtHalfToFloatAsimdhpKernel kernel", "[libllm][cpu_kernel][cvt][half]") {
+  testCvtHalfToFloatKernel<CvtHalfToFloatAsimdhpKernel>(1);
+  testCvtHalfToFloatKernel<CvtHalfToFloatAsimdhpKernel>(7);
+  testCvtHalfToFloatKernel<CvtHalfToFloatAsimdhpKernel>(8);
+  testCvtHalfToFloatKernel<CvtHalfToFloatAsimdhpKernel>(9);
+  testCvtHalfToFloatKernel<CvtHalfToFloatAsimdhpKernel>(63);
+  testCvtHalfToFloatKernel<CvtHalfToFloatAsimdhpKernel>(64);
+  testCvtHalfToFloatKernel<CvtHalfToFloatAsimdhpKernel>(65);
+  testCvtHalfToFloatKernel<CvtHalfToFloatAsimdhpKernel>(127);
+  testCvtHalfToFloatKernel<CvtHalfToFloatAsimdhpKernel>(128);
+  testCvtHalfToFloatKernel<CvtHalfToFloatAsimdhpKernel>(129);
+}
+
+CATCH_TEST_CASE("test CvtFloatToHalfAsimdhpKernel kernel", "[libllm][cpu_kernel][cvt][half]") {
+  testCvtFloatToHalfKernel<CvtFloatToHalfAsimdhpKernel>(1);
+  testCvtFloatToHalfKernel<CvtFloatToHalfAsimdhpKernel>(7);
+  testCvtFloatToHalfKernel<CvtFloatToHalfAsimdhpKernel>(8);
+  testCvtFloatToHalfKernel<CvtFloatToHalfAsimdhpKernel>(9);
+  testCvtFloatToHalfKernel<CvtFloatToHalfAsimdhpKernel>(63);
+  testCvtFloatToHalfKernel<CvtFloatToHalfAsimdhpKernel>(64);
+  testCvtFloatToHalfKernel<CvtFloatToHalfAsimdhpKernel>(65);
+  testCvtFloatToHalfKernel<CvtFloatToHalfAsimdhpKernel>(127);
+  testCvtFloatToHalfKernel<CvtFloatToHalfAsimdhpKernel>(128);
+  testCvtFloatToHalfKernel<CvtFloatToHalfAsimdhpKernel>(129);
 }
 
 #endif  // LUT_ARCH_AARCH64

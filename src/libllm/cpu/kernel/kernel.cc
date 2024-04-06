@@ -98,7 +98,7 @@ class Api {
   const QInt4Gemm<float> *getGemmQ4() const { return _q4gemm.get(); }
   const QInt4Gemm<Float16> *getHQInt4Gemm() const { return _hq4gemmParallel.get(); }
   const DequantQInt4<float> *getDequantQInt4() const { return _q4dequant.get(); }
-  const CvtHalfToFloat *getCvtHalfToFloat() const { return _cvtHalfToFloat.get(); }
+  const CvtHalf *getCvtHalf() const { return _cvtHalf.get(); }
 
  private:
   static Api *_instance;
@@ -111,7 +111,7 @@ class Api {
   std::unique_ptr<QInt4Gemm<float>> _q4gemm;
   std::unique_ptr<QInt4Gemm<Float16>> _hq4gemmParallel;
   std::unique_ptr<DequantQInt4<float>> _q4dequant;
-  std::unique_ptr<CvtHalfToFloat> _cvtHalfToFloat;
+  std::unique_ptr<CvtHalf> _cvtHalf;
 };
     
 
@@ -131,14 +131,14 @@ void Api::init() {
       _instance->_sgemmOmp = std::make_unique<SGEMMImplAvx512OMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmAvx512OMP>();
       _instance->_q4dequant = std::make_unique<DequantQInt4Avx2OMP>();
-      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatAvx2OMP>();
+      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfAvx2OMP>();
       break;
     case CPUMathBackend::AVX2:
       _instance->_sgemm = std::make_unique<SGEMMImplAvx2>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplAvx2OMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmAvx2OMP>();
       _instance->_q4dequant = std::make_unique<DequantQInt4Avx2OMP>();
-      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatAvx2OMP>();
+      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfAvx2OMP>();
       break;
 #endif  // LUT_ARCH_AMD64
 #ifdef LUT_ARCH_AARCH64
@@ -150,7 +150,7 @@ void Api::init() {
       _instance->_q4gemm = std::make_unique<Q4GemmFallbackOMP>();
       _instance->_hq4gemmParallel = std::make_unique<HQInt4GemmAsimdhpOMP>();
       _instance->_q4dequant = std::make_unique<DequantQInt4FallbackOMP>();
-      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatFallbackOMP>();
+      _instance->_cvtHalf = std::make_unique<CvtHalfAsimdhpOMP>();
       break;
 #endif  // LUT_ARCH_AARCH64
     case CPUMathBackend::DEFAULT:
@@ -158,7 +158,7 @@ void Api::init() {
       _instance->_sgemmOmp = std::make_unique<SGEMMImplDefaultOMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmFallbackOMP>();
       _instance->_q4dequant = std::make_unique<DequantQInt4FallbackOMP>();
-      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfToFloatFallbackOMP>();
+      _instance->_cvtHalf = std::make_unique<CvtHalfFallbackOMP>();
 
     default:
       NOT_IMPL();
@@ -361,7 +361,17 @@ void gemmHalfQInt4(
 void convertHalfToFloat(int n, const Float16 *x, float *y, Mode mode) {
   switch (mode) {
     case Mode::Auto:
-      Api::getInstance()->getCvtHalfToFloat()->apply(n, x, y);
+      Api::getInstance()->getCvtHalf()->cvtHalfToFloat(n, x, y);
+      break;
+    default:
+      NOT_IMPL();
+  }
+}
+
+void convertFloatToHalf(int n, const float *x, Float16 *y, Mode mode) {
+  switch (mode) {
+    case Mode::Auto:
+      Api::getInstance()->getCvtHalf()->cvtFloatToHalf(n, x, y);
       break;
     default:
       NOT_IMPL();

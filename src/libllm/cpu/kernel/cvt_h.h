@@ -53,22 +53,32 @@ class CvtCommon {
   }
 };
 
-class CvtHalfToFloat {
+class CvtHalf {
  public:
-  virtual ~CvtHalfToFloat() = default;
-  virtual void apply(int64_t n, const Float16 *x, float *y) const = 0;
+  virtual ~CvtHalf() = default;
+  virtual void cvtHalfToFloat(int64_t n, const Float16 *x, float *y) const = 0;
+  virtual void cvtFloatToHalf(int64_t n, const float *x, Float16 *y) const = 0;
 };
 
-template<class TKernel, Mode MODE>
-class CvtHalfToFloatImpl : public CvtHalfToFloat {
+template<class THalfToFloatKernel, class TFloatToHalfKernel, Mode MODE>
+class CvtHalfImpl : public CvtHalf {
  public:
-  void apply(int64_t n, const Float16 *x, float *y) const override {
-    CvtCommon<TKernel, Float16, float, MODE>::apply(n, x, y);
+  void cvtHalfToFloat(int64_t n, const Float16 *x, float *y) const override {
+    CvtCommon<THalfToFloatKernel, Float16, float, MODE>::apply(n, x, y);
+  }
+
+  void cvtFloatToHalf(int64_t n, const float *x, Float16 *y) const override {
+    CvtCommon<TFloatToHalfKernel, float, Float16, MODE>::apply(n, x, y);
   }
 };
 
-typedef CvtHalfToFloatImpl<CvtHalfToFloatAvx2Kernel, Mode::OMP> CvtHalfToFloatAvx2OMP;
-typedef CvtHalfToFloatImpl<CvtHalfToFloatFallbackKernel, Mode::OMP> CvtHalfToFloatFallbackOMP;
+typedef CvtHalfImpl<CvtHalfToFloatAvx2Kernel, CvtFloatToHalfFallbackKernel, Mode::OMP>
+    CvtHalfAvx2OMP;
+typedef CvtHalfImpl<CvtHalfToFloatAsimdhpKernel, CvtFloatToHalfAsimdhpKernel, Mode::OMP>
+    CvtHalfAsimdhpOMP;
+typedef CvtHalfImpl<CvtHalfToFloatFallbackKernel, CvtFloatToHalfFallbackKernel, Mode::OMP>
+    CvtHalfFallbackOMP;
+
 
 }  // namespace kernel
 }  // namespace cpu

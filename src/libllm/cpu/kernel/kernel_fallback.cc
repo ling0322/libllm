@@ -148,7 +148,13 @@ float SDotFallbackKernel::applyRow(const SGEMVArgs &args, int row) {
 
 void CvtHalfToFloatFallbackKernel::apply(int64_t n, const Float16 *x, float *y) {
   for (int i = 0; i < n; ++i) {
-    y[i] = cvt_h2s(x[i]);
+    y[i] = cvtf<float>(x[i]);
+  }
+}
+
+void CvtFloatToHalfFallbackKernel::apply(int64_t n, const float *x, Float16 *y) {
+  for (int i = 0; i < n; ++i) {
+    y[i] = cvtf<Float16>(x[i]);
   }
 }
 

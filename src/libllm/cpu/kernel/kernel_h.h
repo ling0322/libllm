@@ -34,10 +34,21 @@ struct CvtHalfToFloatAvx2Kernel {
   static void apply(int64_t n, const Float16 *x, float *y);
 };
 
+struct CvtHalfToFloatAsimdhpKernel {
+  static void apply(int64_t n, const Float16 *x, float *y);
+};
+
+struct CvtFloatToHalfAsimdhpKernel {
+  static void apply(int64_t n, const float *x, Float16 *y);
+};
+
 struct CvtHalfToFloatFallbackKernel {
   static void apply(int64_t n, const Float16 *x, float *y);
 };
 
+struct CvtFloatToHalfFallbackKernel {
+  static void apply(int64_t n, const float *x, Float16 *y);
+};
 
 struct AxpyHalfAsimdhpKernel {
   typedef Float16 ValueType;
