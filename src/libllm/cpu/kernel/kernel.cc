@@ -131,14 +131,14 @@ void Api::init() {
       _instance->_sgemmOmp = std::make_unique<SGEMMImplAvx512OMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmAvx512OMP>();
       _instance->_q4dequant = std::make_unique<DequantQInt4Avx2OMP>();
-      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfAvx2OMP>();
+      _instance->_cvtHalf = std::make_unique<CvtHalfAvx2OMP>();
       break;
     case CPUMathBackend::AVX2:
       _instance->_sgemm = std::make_unique<SGEMMImplAvx2>();
       _instance->_sgemmOmp = std::make_unique<SGEMMImplAvx2OMP>();
       _instance->_q4gemm = std::make_unique<Q4GemmAvx2OMP>();
       _instance->_q4dequant = std::make_unique<DequantQInt4Avx2OMP>();
-      _instance->_cvtHalfToFloat = std::make_unique<CvtHalfAvx2OMP>();
+      _instance->_cvtHalf = std::make_unique<CvtHalfAvx2OMP>();
       break;
 #endif  // LUT_ARCH_AMD64
 #ifdef LUT_ARCH_AARCH64
