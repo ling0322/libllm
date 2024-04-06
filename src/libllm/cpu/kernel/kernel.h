@@ -131,6 +131,7 @@ void gemmFloatQInt4(
     Mode mode = Mode::Auto);
 
 void convertHalfToFloat(int n, const Float16 *x, float *y, Mode mode = Mode::Auto);
+void convertFloatToHalf(int n, const float *x, Float16 *y, Mode mode = Mode::Auto);
 
 }  // namespace kernel
 }  // namespace cpu

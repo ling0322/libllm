@@ -341,6 +341,63 @@ Float16 HQInt4DotAsimdhpKernel::applyRow(const QInt4GemvArgs<Float16> &args, int
   return apply(args.N, args.x, args.A, offset);
 }
 
+#define LIBLLM_CvtHalfToFloatAsimdhpKernel_CvtBlock \
+    x00 = vld1q_f16(px); \
+    y00 = vcvt_f32_f16(vget_low_f16(x00)); \
+    y01 = vcvt_f32_f16(vget_high_f16(x00)); \
+    vst1q_f32(py, y00); \
+    vst1q_f32(py + 4, y01); \
+    px += 8; \
+    py += 8;
+
+void CvtHalfToFloatAsimdhpKernel::apply(int64_t n, const Float16 *x, float *y) {
+  float16x8_t x00;
+  float32x4_t y00, y01;
+
+  int64_t nb = n / 8;
+  int64_t nr = n % 8;
+
+  const __fp16 *px = reinterpret_cast<const __fp16 *>(x);
+  float *py = y;
+  for (int64_t i = 0; i < nb; ++i) {
+    LIBLLM_CvtHalfToFloatAsimdhpKernel_CvtBlock
+  }
+
+  for (int64_t i = 0; i < nr; ++i) {
+    *py = *reinterpret_cast<const Float16 *>(px);
+    ++py;
+    ++px;
+  }
+}
+
+#define LIBLLM_CvtFloatToHalfAsimdhpKernel_CvtBlock \
+    x00 = vld1q_f32(px); \
+    x01 = vld1q_f32(px + 4); \
+    y00 = vcombine_f16(vcvt_f16_f32(x00), vcvt_f16_f32(x01)); \
+    vst1q_f16(py, y00); \
+    px += 8; \
+    py += 8;
+
+void CvtFloatToHalfAsimdhpKernel::apply(int64_t n, const float *x, Float16 *y) {
+  float32x4_t x00, x01;
+  float16x8_t y00;
+
+  int64_t nb = n / 8;
+  int64_t nr = n % 8;
+
+  const float *px = x;
+  __fp16 *py = reinterpret_cast<__fp16 *>(y);
+  for (int64_t i = 0; i < nb; ++i) {
+    LIBLLM_CvtFloatToHalfAsimdhpKernel_CvtBlock
+  }
+
+  for (int64_t i = 0; i < nr; ++i) {
+    *reinterpret_cast<Float16 *>(py) = *px;
+    ++py;
+    ++px;
+  }
+}
+
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
