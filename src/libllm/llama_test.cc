@@ -70,8 +70,6 @@ class LlamaTester : public ModuleTester {
       xr0 = {-0.1778, -0.1569, 0.0550, -0.1257, 0.0480, 3.1704e-03, 0.2766, -0.589};
       xr1 = {-0.4089, 0.1488, -0.0555, -0.4014, 0.5508, 0.0278, 0.1433, -0.1969};
     }
-    LOG(INFO) << "x vs xr0";
-    F::print(op::cpu::fingerprint(toCpu(x)));
     CATCH_REQUIRE(allClose(op::cpu::fingerprint(toCpu(x)), xr0));
 
     // forward next token.

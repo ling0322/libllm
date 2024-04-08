@@ -47,7 +47,7 @@ enum class CPUMathBackend {
 };
 
 CPUMathBackend findBestCpuMathBackend() {
-  // ruapu_init();
+  ruapu_init();
 
 #ifdef LUT_ARCH_AMD64
   bool isaAvx2 = ruapu_supports("avx2") > 0;

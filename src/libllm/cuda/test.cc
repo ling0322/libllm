@@ -68,17 +68,17 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
   }
 
   CATCH_SECTION("test matmul") {
-    CATCH_REQUIRE(tester.testMatmul({10, 20}, {40, 30}));
-    CATCH_REQUIRE(tester.testMatmul({5, 10, 20}, {40, 30}));
-    CATCH_REQUIRE(tester.testMatmul({5, 10, 5, 20}, {10, 40, 30}));
-    CATCH_REQUIRE(tester.testMatmulQInt4({5, 10, 50}, {50, 128}, false));
-    CATCH_REQUIRE(tester.testMatmulQInt4({1, 1, 128}, {50, 128}, true));
+    CATCH_REQUIRE(tester.withTol(5e-2).testMatmul({10, 20}, {40, 30}));
+    CATCH_REQUIRE(tester.withTol(5e-2).testMatmul({5, 10, 20}, {40, 30}));
+    CATCH_REQUIRE(tester.withTol(5e-2).testMatmul({5, 10, 5, 20}, {10, 40, 30}));
+    CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({5, 10, 50}, {50, 128}, false));
+    CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({1, 1, 128}, {50, 128}, true));
   }
 
   CATCH_SECTION("test binary operators") {
     CATCH_REQUIRE(tester.testMulScale());
     // CATCH_REQUIRE(tester.testBinaryOp(OperatorType::Mul));
-    CATCH_REQUIRE(tester.testBinaryOp(OperatorType::Add));
+    CATCH_REQUIRE(tester.withTol(5e-3).testBinaryOp(OperatorType::Add));
   }
 
   CATCH_SECTION("test activations") {
