@@ -52,6 +52,9 @@ Tensor transformKernel(const Tensor &A, float alpha, float beta) {
 
 Tensor transform(const Tensor &src, float alpha, float beta) {
   if (src.getDType() == DType::kFloat) return transformKernel<float>(src, alpha, beta);
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (src.getDType() == DType::kFloat16) return transformKernel<Float16>(src, alpha, beta);
+#endif
 
   NOT_IMPL();
 }

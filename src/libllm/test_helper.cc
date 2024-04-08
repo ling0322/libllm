@@ -67,9 +67,10 @@ Tensor ModuleTester::toCpu(Tensor x) const {
   return x;
 }
 
-bool ModuleTester::allClose(Tensor a, lut::Span<const float> ref, float rtol) const {
+bool ModuleTester::allClose(Tensor a, lut::Span<const float> ref) const {
   Tensor ar = Tensor::create<float>({static_cast<int>(ref.size())}, ref);
-  bool allClose = F::allClose(a, ar, rtol);
+  ar = F::cast(ar, F::getDefaultFloatType(Device::getCpu()));
+  bool allClose = F::allClose(a, ar, getRtol());
   if (!allClose) {
     LOG(ERROR) << "output tensor mismatch, expected:";
     F::print(ar);
@@ -78,6 +79,15 @@ bool ModuleTester::allClose(Tensor a, lut::Span<const float> ref, float rtol) co
   }
 
   return allClose;
+}
+
+float ModuleTester::getRtol() const {
+  DType defaultFloatType = F::getDefaultFloatType(getDevice());
+  if (getDevice().getType() == Device::kCpu && defaultFloatType == DType::kFloat16) {
+    return 2e-2;
+  } else {
+    return 5e-3;
+  }
 }
 
 }  // namespace libllm

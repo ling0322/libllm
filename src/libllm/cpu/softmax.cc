@@ -30,8 +30,8 @@ namespace cpu {
 template<typename T>
 Tensor softmaxKernel(Tensor A) {
   Tensor C = tensorLike(A);
-  TensorList<const float, 1> vA = TensorList<const float, 1>::fromTensor(A);
-  TensorList<float, 1> vC = TensorList<float, 1>::fromTensor(C);
+  TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(A);
+  TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
   #pragma omp parallel for
@@ -41,12 +41,12 @@ Tensor softmaxKernel(Tensor A) {
 
     double sum = 0;
     for (int i = 0; i < a.getShape(0); ++i) {
-      sum += std::exp(a[i]);
+      sum += expf(a[i]);
     }
 
-    double logsum = std::log(sum);
+    double logsum = logf(sum);
     for (int i = 0; i < a.getShape(0); ++i) {
-      c[i] = static_cast<T>(std::exp(a[i] - logsum));
+      c[i] = static_cast<T>(expf(a[i] - logsum));
     }
   }
 
@@ -56,6 +56,9 @@ Tensor softmaxKernel(Tensor A) {
 
 Tensor softmax(Tensor A) {
   if (A.getDType() == DType::kFloat) return softmaxKernel<float>(A);
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (A.getDType() == DType::kFloat16) return softmaxKernel<Float16>(A);
+#endif
 
   NOT_IMPL();
 }

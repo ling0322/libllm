@@ -31,21 +31,21 @@ template<typename T>
 Tensor swigluKernel(const Tensor &A) {
   std::vector<int> shapeC = A.getShape();
   shapeC.back() /= 2;
-  Tensor C = tensor(shapeC, DType::kFloat);
+  Tensor C = tensor(shapeC, DType::getType<T>());
 
-  TensorList<const float, 1> vA = TensorList<const float, 1>::fromTensor(A);
-  TensorList<float, 1> vC = TensorList<float, 1>::fromTensor(C);
+  TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(A);
+  TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
   #pragma omp parallel for
   for (int j = 0; j < vA.getLength(); ++j) {
-    TensorAccessor<const float, 1> a = vA.getTensor(j);
-    TensorAccessor<float, 1> c = vC.getTensor(j);
+    TensorAccessor<const T, 1> a = vA.getTensor(j);
+    TensorAccessor<T, 1> c = vC.getTensor(j);
 
     int n = c.getShape(0);
     for (int i = 0; i < n; ++i) {
       T x = a[i];
-      x *= 1.0f / (1 + std::exp(-x));
+      x *= 1.0f / (1 + expf(-x));
       x *= a[i + n];
       c[i] = x;
     }
@@ -57,6 +57,9 @@ Tensor swiglu(const Tensor &A) {
   CHECK(A.getShape(-1) % 2 == 0);
 
   if (A.getDType() == DType::kFloat) return swigluKernel<float>(A);
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (A.getDType() == DType::kFloat16) return swigluKernel<Float16>(A);
+#endif
 
   NOT_IMPL();
 }

@@ -20,6 +20,7 @@
 #include "libllm/cpu/tensor.h"
 
 #include "libllm/cpu/cpu_tensor_data.h"
+#include "libllm/cpu/print.h"
 
 namespace libllm {
 namespace op {
@@ -54,17 +55,11 @@ void fillZeroKernel(Tensor tensor) {
 }
 
 void fillZero(Tensor tensor) {
-  if (tensor.getDType() == DType::kFloat) fillZeroKernel<float>(tensor);
-  else NOT_IMPL();
-}
-
-Tensor zerosLikeFp32(const Tensor &input) {
-  CHECK(input.getDType() == DType::kFloat);
-
-  Tensor x = tensorLike(input);
-  fillZero(x);
-
-  return x;
+  if (tensor.getDType() == DType::kFloat) { fillZeroKernel<float>(tensor); }
+#if LUT_CPU_ARCH == LUT_AARCH64
+  else if (tensor.getDType() == DType::kFloat16) { fillZeroKernel<Float16>(tensor); }
+#endif
+  else { NOT_IMPL(); }
 }
 
 Tensor zeros(lut::Span<const int> shape, DType dtype) {
@@ -75,9 +70,10 @@ Tensor zeros(lut::Span<const int> shape, DType dtype) {
 }
 
 Tensor zerosLike(const Tensor &input) {
-  if (input.getDType() == DType::kFloat) return zerosLikeFp32(input);
+  Tensor x = tensorLike(input);
+  fillZero(x);
 
-  NOT_IMPL();
+  return x;
 }
 
 template<typename T>
@@ -91,7 +87,7 @@ Tensor causalMaskKernel(int length) {
       row[j] = 0.0f;
     }
     for (int j = i + 1; j < length; ++j) {
-      row[j] = -std::numeric_limits<T>::infinity();
+      row[j] = -std::numeric_limits<float>::infinity();
     }
   }
 
@@ -100,6 +96,9 @@ Tensor causalMaskKernel(int length) {
 
 Tensor causalMask(int length, DType dtype) {
   if (dtype == DType::kFloat) return causalMaskKernel<float>(length);
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (dtype == DType::kFloat16) return causalMaskKernel<Float16>(length);
+#endif
 
   NOT_IMPL();
 }

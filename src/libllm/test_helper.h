@@ -36,6 +36,10 @@ class ModuleTester {
   ModuleTester(Device device, DType weightType);
   virtual ~ModuleTester() = default;
 
+  /// @brief Get the rtol according to the current device and dtype.
+  /// @return the rtol.
+  virtual float getRtol() const;
+
   /// @brief Generate a random float tensor with given shape and the internal random number
   /// generator. Then move it to target device and cast to default float type of that device.
   /// @param shape shape of the tensor to generate.
@@ -66,10 +70,11 @@ class ModuleTester {
   /// @brief Check if the data in tensor `a` is equal (with tolerance) to the elements in ref.
   /// @param a the tensor to check.
   /// @param ref the reference data.
-  bool allClose(Tensor a, lut::Span<const float> ref, float rtol = 5e-3) const;
+  bool allClose(Tensor a, lut::Span<const float> ref) const;
 
   
   DType getWeightType() const { return _weightType; }
+  Device getDevice() const { return _device; }
 
  protected:
   Device _device;

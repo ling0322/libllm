@@ -93,6 +93,18 @@ void MLP::initParameters(const StateMap &stateDict) {
   _wDownProj = moveAndCastFloat(_wDownProj, getCtx());
 }
 
+void MLP::initParameters(lut::Random *generator, DType weightType) {
+  Device dCpu = Device::getCpu();
+
+  float r = sqrtf(9.0f / _hiddenSize);
+  _wGateUpProj = F::rand({_intermediateSize * 2, _hiddenSize}, weightType, dCpu, generator, -r, r);
+  _wGateUpProj = moveAndCastFloat(_wGateUpProj, getCtx());
+
+  r = sqrtf(9.0f / _intermediateSize);
+  _wDownProj = F::rand({_hiddenSize, _intermediateSize}, weightType, dCpu, generator, -r, r);
+  _wDownProj = moveAndCastFloat(_wDownProj, getCtx());
+}
+
 Tensor MLP::forward(Tensor input) const {
   CHECK(!_wGateUpProj.empty());
 
@@ -154,6 +166,27 @@ void Attention::initParameters(const StateMap &stateDict) {
     _qkvProjBias = stateDict.getTensor(ctx.name("qkv_proj_bias"));
     _qkvProjBias.throwIfInvalidShape({_hiddenSize * 3});
     _qkvProjBias = moveAndCastFloat(_qkvProjBias, ctx);
+  }
+}
+
+void Attention::initParameters(lut::Random *generator, DType weightType) {
+  Device dCpu = Device::getCpu();
+
+  float r = sqrtf(9.0f / _hiddenSize);
+  _qkvProj = F::rand({_hiddenSize * 3, _hiddenSize}, weightType, dCpu, generator, -r, r);
+  _qkvProj = moveAndCastFloat(_qkvProj, getCtx());
+
+  _outProj = F::rand({_hiddenSize, _hiddenSize}, weightType, dCpu, generator, -r, r);
+  _outProj = moveAndCastFloat(_outProj, getCtx());
+
+  r = 0.5f;
+  _roPE = F::rand({2, _maxCtxLen, 1, _headDim}, DType::kFloat, dCpu, generator, -r, r);
+  _roPE = moveAndCastFloat(_roPE, getCtx());
+
+  if (_hasProjBias) {
+    r = 0.5f;
+    _qkvProjBias = F::rand({_hiddenSize * 3}, weightType, dCpu, generator, -r, r);
+    _qkvProjBias = moveAndCastFloat(_qkvProjBias, getCtx());
   }
 }
 
@@ -269,6 +302,13 @@ void DecodeLayer::initParameters(const StateMap &stateDict) {
   _postAttnNorm->initParameters(stateDict);
 }
 
+void DecodeLayer::initParameters(lut::Random *generator, DType weightType) {
+  _attn->initParameters(generator, weightType);
+  _mlp->initParameters(generator, weightType);
+  _inputNorm->initParameters(generator, weightType);
+  _postAttnNorm->initParameters(generator, weightType);
+}
+
 Tensor DecodeLayer::forward(StateMap &past, Tensor input) const {
   Tensor residual = input;
   
@@ -321,13 +361,28 @@ void LlamaModel::initParameters(const StateMap &stateDict) {
   _wOutput = moveAndCastFloat(_wOutput, getCtx());
 }
 
+void LlamaModel::initParameters(lut::Random *generator, DType weightType) {
+  Device dCpu = Device::getCpu();
+
+  _embedding->initParameters(generator, weightType);
+  _norm->initParameters(generator, weightType);
+
+  for (int i = 0; i < _config.numLayers; ++i) {
+    _layers[i]->initParameters(generator, weightType);
+  }
+
+  float r = sqrtf(9.0f / _config.hiddenSize);
+  _wOutput = F::rand({_config.vocabSize, _config.hiddenSize}, weightType, dCpu, generator, -r, r);
+  _wOutput = moveAndCastFloat(_wOutput, getCtx());
+}
+
 Tensor LlamaModel::forward(StateMap &past, Tensor input) const {
   Tensor x = _embedding->forward(input);
 
   for (int i = 0; i < _config.numLayers; ++i) {
     x = _layers[i]->forward(past, x);
   }
-
+  
   x = _norm->forward(x);
   return x;
 }

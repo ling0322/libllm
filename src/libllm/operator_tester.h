@@ -29,6 +29,7 @@ class OperatorTester {
  public:
   using ShapeType = std::initializer_list<int>;
   
+  static constexpr uint32_t MagicNumber = 0x33;
   enum class OperatorType {
     Add,
     Mul,
@@ -42,6 +43,7 @@ class OperatorTester {
   OperatorTester withDevice(Device device);
   OperatorTester withFloatType(DType dtype);
   OperatorTester withPrintBenchmarkInfo(bool isPrint);
+  OperatorTester withTol(float rtol = 1e-4, float atol = 1e-5);
 
   LUT_CHECK_RETURN bool testToDevice(std::initializer_list<int> shape);
   LUT_CHECK_RETURN bool testCast(std::initializer_list<int> shape);

@@ -65,10 +65,6 @@ Tensor Operators::tensorLike(Tensor input) {
   NOT_IMPL();
 }
 
-Tensor Operators::rand(std::initializer_list<int> shape, DType dtype) {
-  NOT_IMPL();
-}
-
 Tensor Operators::zeros(lut::Span<const int> shape, DType dtype) {
   NOT_IMPL();
 }

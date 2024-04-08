@@ -52,6 +52,7 @@ class MLP : public Module {
   static std::shared_ptr<MLP> create(const Context &ctx, const LlamaConfig &config);
 
   void initParameters(const StateMap &stateDict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
   Tensor forward(Tensor input) const;
 
  private:
@@ -69,6 +70,7 @@ class Attention : public Module {
   static std::shared_ptr<Attention> create(const Context &ctx, const LlamaConfig &config);
 
   void initParameters(const StateMap &stateDict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
   Tensor forward(StateMap &past, Tensor input) const;
 
  private:
@@ -101,6 +103,7 @@ class DecodeLayer : public Module {
   static std::shared_ptr<DecodeLayer> create(const Context &ctx, const LlamaConfig &config);
 
   void initParameters(const StateMap &stateDict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
   Tensor forward(StateMap &past, Tensor input) const;
 
  private:
@@ -118,6 +121,7 @@ class LlamaModel : public Module {
 
   static std::shared_ptr<LlamaModel> create(const Context &ctx, LlamaConfig config);
   void initParameters(const StateMap &stateDict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
 
   Tensor forward(StateMap &past, Tensor input) const;
   Tensor forwardHidden(Tensor hidden) const;

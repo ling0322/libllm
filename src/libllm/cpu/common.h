@@ -28,6 +28,12 @@ namespace libllm {
 namespace op {
 namespace cpu {
 
+#if LUT_CPU_ARCH == LUT_AARCH64
+typedef Float16 DefaultFloatType;
+#else
+typedef float DefaultFloatType;
+#endif
+
 Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> shape);
 bool isShapeMatch(const Tensor &A, const Tensor &B);
 
@@ -39,12 +45,7 @@ void copyVector(TensorAccessor<T, 1> dest, TensorAccessor<const T, 1> src) {
   }
 }
 
-template<typename T>
-void applyDequant(int64_t offset, int n, const TensorData *data, float *tgt);
-
-template<>
-inline void applyDequant<Q4>(
-  int64_t offset, int n, const TensorData *data, float *tgt) {
+inline void applyDequant(int64_t offset, int n, const TensorData *data, float *tgt) {
   kernel::dequantQInt4ToFloat(
       n,
       (const kernel::UInt4x2 *)data->getData<Q4>(),
@@ -52,6 +53,16 @@ inline void applyDequant<Q4>(
       (const kernel::UInt4x2 *)data->getSlot(2)->getData<UInt8>(),
       offset,
       tgt);
+}
+
+inline void applyDequant(int64_t offset, int n, const TensorData *data, Float16 *tgt) {
+  kernel::dequantQInt4ToHalf(
+      n,
+      (const kernel::UInt4x2 *)data->getData<Q4>(),
+      (const kernel::Float16 *)data->getSlot(1)->getData<Float16>(),
+      (const kernel::UInt4x2 *)data->getSlot(2)->getData<UInt8>(),
+      offset,
+      (kernel::Float16 *)tgt);
 }
 
 }  // cpu

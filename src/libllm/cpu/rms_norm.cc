@@ -49,13 +49,16 @@ Tensor rmsNormKernel(const Tensor &tensor, const Tensor &weight, float eps) {
 
     double sum = 0.0;
     for (int i = 0; i < a.getShape(0); ++i) {
-      sum += a[i] * a[i];
+      double va = a[i];
+      sum += va * va;
     }
     double mean = sum / a.getShape(0);
     double rms = std::sqrt(mean + eps);
 
     // compute rms-norm
     for (int i = 0; i < a.getShape(0); ++i) {
+      double va = a[i];
+      double vw = w[i];
       c[i] = static_cast<T>(a[i] * w[i] / rms);
     }
   }
@@ -65,6 +68,9 @@ Tensor rmsNormKernel(const Tensor &tensor, const Tensor &weight, float eps) {
 
 Tensor rmsNorm(const Tensor &tensor, const Tensor &weight, float eps) {
   if (tensor.getDType() == DType::kFloat) return rmsNormKernel<float>(tensor, weight, eps);
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (tensor.getDType() == DType::kFloat16) return rmsNormKernel<Float16>(tensor, weight, eps);
+#endif
 
   NOT_IMPL();
 }

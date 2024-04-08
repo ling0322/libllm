@@ -56,16 +56,21 @@
 #define LUT_CHECK_RETURN [[nodiscard]]
 #elif defined(LUT_COMPILER_MSVC)
 #define LUT_CHECK_RETURN _Check_return_
-#elif defined(LUT_COMPILER_GCC)
+#elif defined(LUT_COMPILER_GCC) || defined(LUT_COMPILER_CLANG)
 #define LUT_CHECK_RETURN __attribute__((warn_unused_result))
 #else
 #define LUT_CHECK_RETURN
 #endif
 
+#define LUT_AMD64   1
+#define LUT_AARCH64 2
+
 #if (defined(_M_AMD64) || defined(__amd64__) || defined(__x86_64__))
 #define LUT_ARCH_AMD64
+#define LUT_CPU_ARCH LUT_AMD64
 #elif defined(_M_ARM64) || defined(__aarch64__)
 #define LUT_ARCH_AARCH64
+#define LUT_CPU_ARCH LUT_AARCH64
 #else
 #error unknown CPU architecture
 #endif

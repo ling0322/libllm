@@ -47,7 +47,7 @@ enum class CPUMathBackend {
 };
 
 CPUMathBackend findBestCpuMathBackend() {
-  ruapu_init();
+  // ruapu_init();
 
 #ifdef LUT_ARCH_AMD64
   bool isaAvx2 = ruapu_supports("avx2") > 0;
@@ -98,6 +98,7 @@ class Api {
   const QInt4Gemm<float> *getGemmQ4() const { return _q4gemm.get(); }
   const QInt4Gemm<Float16> *getHQInt4Gemm() const { return _hq4gemmParallel.get(); }
   const DequantQInt4<float> *getDequantQInt4() const { return _q4dequant.get(); }
+  const DequantQInt4<Float16> *getDequantQInt4ToHalf() const { return _q4dequantHalf.get(); }
   const CvtHalf *getCvtHalf() const { return _cvtHalf.get(); }
 
  private:
@@ -111,6 +112,7 @@ class Api {
   std::unique_ptr<QInt4Gemm<float>> _q4gemm;
   std::unique_ptr<QInt4Gemm<Float16>> _hq4gemmParallel;
   std::unique_ptr<DequantQInt4<float>> _q4dequant;
+  std::unique_ptr<DequantQInt4<Float16>> _q4dequantHalf;
   std::unique_ptr<CvtHalf> _cvtHalf;
 };
     
@@ -150,6 +152,7 @@ void Api::init() {
       _instance->_q4gemm = std::make_unique<Q4GemmFallbackOMP>();
       _instance->_hq4gemmParallel = std::make_unique<HQInt4GemmAsimdhpOMP>();
       _instance->_q4dequant = std::make_unique<DequantQInt4FallbackOMP>();
+      _instance->_q4dequantHalf = std::make_unique<DequantQInt4ToHalfAsimdhpOMP>();
       _instance->_cvtHalf = std::make_unique<CvtHalfAsimdhpOMP>();
       break;
 #endif  // LUT_ARCH_AARCH64
@@ -278,6 +281,29 @@ void dequantQInt4ToFloat(
   switch (mode) {
     case Mode::Auto:
       Api::getInstance()->getDequantQInt4()->apply(
+          n,
+          x,
+          offset,
+          tgt);
+      break;
+    default:
+      NOT_IMPL();
+  }
+}
+
+void dequantQInt4ToHalf(
+    int n,
+    const UInt4x2 *data,
+    const Float16 *scale,
+    const UInt4x2 *zeroPoint,
+    int offset,
+    Float16 *tgt,
+    Mode mode) {
+  DataQInt4 x(data, scale, zeroPoint);
+
+  switch (mode) {
+    case Mode::Auto:
+      Api::getInstance()->getDequantQInt4ToHalf()->apply(
           n,
           x,
           offset,

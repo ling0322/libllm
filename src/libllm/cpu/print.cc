@@ -45,12 +45,21 @@ struct CpuPrinterImpl {
     LongType value = *pval;
     printf("%" PRId64, value);
   }
+#if LUT_CPU_ARCH == LUT_AARCH64
+  static void printValue(const Float16 *pval) {
+    float value = *pval;
+    printValue(&value);
+  }
+#endif
 };
 
 void print(const Tensor &tensor) {
   TensorPrinter<CpuPrinterImpl> printer;
 
   if (tensor.getDType() == DType::kFloat) printer.print<float>(tensor);
+#if LUT_CPU_ARCH == LUT_AARCH64
+  else if (tensor.getDType() == DType::kFloat16) printer.print<Float16>(tensor);
+#endif
   else if (tensor.getDType() == DType::kLong) printer.print<LongType>(tensor);
   else NOT_IMPL();
 }

@@ -42,11 +42,7 @@ std::vector<int> getBmmOutputShape(const Tensor &A, const Tensor &B);
 // greater than 2 (for BMM). throw exception if shape mismatch.
 GEMMArgs generateGemmArgs(const Tensor &A, const Tensor &B, const Tensor &C);
 
-Tensor matmulFp32(const Tensor &A, const Tensor &B);
-
-Tensor bmmFp32(const Tensor &A, const Tensor &B);
-Tensor bmmNx2Fp32(const Tensor &A, const Tensor &B);
-Tensor gemmFp32(const Tensor &A, const Tensor &B);
+Tensor matmul(const Tensor &A, const Tensor &B);
 
 // q4
 Tensor matmulFp32Q4Fp32(const Tensor &A, const Tensor &B);

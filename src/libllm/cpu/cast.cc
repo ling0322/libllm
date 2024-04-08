@@ -44,6 +44,8 @@ Tensor cast(Tensor A, DType dtype) {
     return castQ4ToFp32(A);
   } else if (A.getDType() == DType::kFloat16 && dtype == DType::kFloat) {
     return castFp16ToFp32(A);
+  } else if (A.getDType() == DType::kFloat && dtype == DType::kFloat16) {
+    return castFp32ToFp16(A);
   } else {
     NOT_IMPL();
   }
@@ -60,9 +62,20 @@ Tensor castFp16ToFp32(Tensor A) {
   return C;
 }
 
+Tensor castFp32ToFp16(Tensor A) {
+  CHECK(A.isContiguous()) << "unable to cast a non-contiguous half tensor to float";
+  Tensor C = op::cpu::tensor(A.getShape(), DType::kFloat16);
+  kernel::convertFloatToHalf(
+      A.getNumEl(),
+      A.getData<float>(),
+      reinterpret_cast<kernel::Float16 *>(C.getData<Float16>()));
+  
+  return C;
+}
+
 Tensor castQ4ToFp32(Tensor A) {
   Tensor x = op::cpu::tensor(A.getShape(), DType::kFloat);
-  op::cpu::applyDequant<Q4>(0, A.getNumEl(), A.getDataObject(), x.getData<float>());
+  op::cpu::applyDequant(0, A.getNumEl(), A.getDataObject(), x.getData<float>());
 
   return x;
 }

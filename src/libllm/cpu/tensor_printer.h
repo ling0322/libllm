@@ -94,7 +94,7 @@ class TensorPrinter {
       if (d) printf(", ");
       printf("%d", tensor.getShape(d));
     }
-    puts("))");
+    printf("), dtype=%s)\n", DType::getType<T>().toString().c_str());
   }
 };
 
