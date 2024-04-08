@@ -75,7 +75,7 @@ Tensor lookupQuantizedKernel2D(const Tensor &table, const Tensor &indices) {
       int64_t index = B[i][j];
       CHECK(index < vocabSize) << "indices out of range";
 
-      applyDequant<SrcT>(embdDim * index, embdDim, embdData, C[i][j].getData());
+      applyDequant(embdDim * index, embdDim, embdData, C[i][j].getData());
     }
   }
 
@@ -85,8 +85,10 @@ Tensor lookupQuantizedKernel2D(const Tensor &table, const Tensor &indices) {
 Tensor lookup(const Tensor &table, const Tensor &indices) {
   if (table.getDType() == DType::kFloat) return lookupKernel2D<float>(table, indices);
   if (table.getDType() == DType::kQ4)
-    return lookupQuantizedKernel2D<Q4, float>(table, indices);
-
+    return lookupQuantizedKernel2D<Q4, DefaultFloatType>(table, indices);
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (table.getDType() == DType::kFloat16) return lookupKernel2D<Float16>(table, indices);
+#endif
   NOT_IMPL();
 }
 

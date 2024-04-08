@@ -33,147 +33,6 @@ namespace libllm {
 namespace op {
 namespace cpu {
 
-Tensor matmulFp32(const Tensor &A, const Tensor &B) {
-  if (A.getDim() == 2 && B.getDim() == 2) {
-    return gemmFp32(A, B);
-  } else if (A.getDim() > 2 && A.isContiguous() && B.getDim() == 2) {
-    return bmmNx2Fp32(A, B);
-  } else if (A.getDim() >= 2 && B.getDim() >= 2) {
-    return bmmFp32(A, B);
-  } else {
-    NOT_IMPL();
-  }
-
-  return Tensor();
-}
-
-Tensor gemmFp32(const Tensor &A, const Tensor &B) {
-  CHECK(A.getDim() == B.getDim() && A.getDim() == 2);
-
-  Tensor C = op::cpu::zeros({A.getShape(0), B.getShape(1)}, DType::kFloat);
-
-  GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
-  kernel::gemmFloat(
-      gemmArgs.transA,
-      gemmArgs.transB,
-      gemmArgs.M,
-      gemmArgs.N,
-      gemmArgs.K,
-      A.getData<float>(),
-      gemmArgs.lda,
-      B.getData<float>(),
-      gemmArgs.ldb,
-      C.getData<float>(),
-      gemmArgs.ldc,
-      kernel::Mode::OMP);
-
-  return C;
-}
-
-Tensor bmmNx2Fp32(const Tensor &A, const Tensor &B) {
-  std::vector<int> shape = A.getShape();
-
-  Tensor xA = A.view({-1, A.getShape(-1)});
-  Tensor xC = gemmFp32(xA, B);
-
-  shape.back() = B.getShape(1);
-  return xC.view(shape);
-}
-
-Tensor bmmFp32(const Tensor &A, const Tensor &B) {
-  Tensor xB = B;
-  if (A.getDim() != B.getDim()) xB = expandBatchDims(B, A.getShape());
-  std::vector<int> shapeC = getBmmOutputShape(A, xB);
-
-  Tensor C = op::cpu::zeros(shapeC, DType::kFloat);
-
-  TensorList<const float, 2> mA = TensorList<const float, 2>::fromTensor(A);
-  TensorList<const float, 2> mB = TensorList<const float, 2>::fromTensor(xB);
-  TensorList<float, 2> mC = TensorList<float, 2>::fromTensor(C);
-
-  GEMMArgs gemmArgs = generateGemmArgs(A, xB, C);
-
-  // broadcast B.
-  CHECK(mA.getLength() == mC.getLength());
-  CHECK(mA.getLength() % mB.getLength() == 0);
-
-  const float *const *mAp = mA.getDataPtrList().data();
-  const float *const *mBp = mB.getDataPtrList().data();
-  float *const *mCp = mC.getDataPtrList().data();
-
-  #pragma omp parallel for
-  for (int i = 0; i < mA.getLength(); ++i) {
-    kernel::gemmFloat(
-        gemmArgs.transA,
-        gemmArgs.transB,
-        gemmArgs.M,
-        gemmArgs.N,
-        gemmArgs.K,
-        mAp[i],
-        gemmArgs.lda,
-        mBp[i],
-        gemmArgs.ldb,
-        mCp[i],
-        gemmArgs.ldc,
-        kernel::Mode::SingleThread);
-  }
-
-  return C;
-}
-
-Tensor bmmFp32QInt4Fp32(const Tensor &A, const Tensor &B) {
-  NOT_IMPL();
-  return Tensor();
-}
-
-// -- q4 ----------
-
-Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B) {
-  CHECK(A.getDim() == B.getDim() && A.getDim() == 2 && B.getDType() == DType::kQ4);
-
-  Tensor C = op::cpu::zeros({A.getShape(0), B.getShape(1)}, DType::kFloat);
-
-  GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
-  const TensorData *dataObjectB = B.getDataObject();
-  kernel::gemmFloatQInt4(
-      gemmArgs.transA,
-      gemmArgs.transB,
-      gemmArgs.M,
-      gemmArgs.N,
-      gemmArgs.K,
-      A.getData<float>(),
-      gemmArgs.lda,
-      reinterpret_cast<const kernel::UInt4x2 *>(dataObjectB->getData<Q4>()),
-      reinterpret_cast<const kernel::Float16 *>(dataObjectB->getSlot(1)->getData<Float16>()),
-      reinterpret_cast<const kernel::UInt4x2 *>(dataObjectB->getSlot(2)->getData<UInt8>()),
-      C.getData<float>(),
-      gemmArgs.ldc);
-
-  return C;
-}
-
-Tensor bmmNx2Fp32Q4Fp32(const Tensor &A, const Tensor &B) {
-  std::vector<int> shape = A.getShape();
-
-  Tensor xA = A.view({-1, A.getShape(-1)});
-  Tensor xC = gemmFp32Q4Fp32(xA, B);
-
-  shape.back() = B.getShape(1);
-  return xC.view(shape);
-}
-
-Tensor matmulFp32Q4Fp32(const Tensor &A, const Tensor &B) {
-  if (A.getDim() == 2 && B.getDim() == 2) {
-    return gemmFp32Q4Fp32(A, B);
-  } else if (A.getDim() > 2 && A.isContiguous() && B.getDim() == 2) {
-    return bmmNx2Fp32Q4Fp32(A, B);
-  } else {
-    NOT_IMPL();
-  }
-
-  return Tensor();
-}
-
 std::vector<int> getBmmOutputShape(const Tensor &A, const Tensor &B) {
   CHECK(A.getDim() >= B.getDim());
   CHECK(A.getDim() > 2 && A.getDim() <= 4 && B.getDim() >= 2);
@@ -243,6 +102,269 @@ GEMMArgs generateGemmArgs(const Tensor &A, const Tensor &B, const Tensor &C) {
   gemmArgs.transB = transB;
 
   return gemmArgs;
+}
+
+template<typename T>
+void callGemm(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const T *A,
+    int lda,
+    const T *B,
+    int ldb,
+    T *C,
+    int ldc,
+    kernel::Mode mode);
+
+template<>
+inline void callGemm<float>(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const float *A,
+    int lda,
+    const float *B,
+    int ldb,
+    float *C,
+    int ldc,
+    kernel::Mode mode) {
+  return kernel::gemmFloat(transA, transB, M, N, K, A, lda, B, ldb, C, ldc, mode);
+}
+
+template<>
+inline void callGemm<Float16>(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const Float16 *A,
+    int lda,
+    const Float16 *B,
+    int ldb,
+    Float16 *C,
+    int ldc,
+    kernel::Mode mode)  {
+  const kernel::Float16 *xA = reinterpret_cast<const kernel::Float16 *>(A);
+  const kernel::Float16 *xB = reinterpret_cast<const kernel::Float16 *>(B);
+  kernel::Float16 *xC = reinterpret_cast<kernel::Float16 *>(C);
+  return kernel::gemmHalf(transA, transB, M, N, K, xA, lda, xB, ldb, xC, ldc, mode);
+}
+
+template<typename T>
+Tensor gemm(const Tensor &A, const Tensor &B) {
+  CHECK(A.getDim() == B.getDim() && A.getDim() == 2);
+
+  Tensor C = op::cpu::zeros({A.getShape(0), B.getShape(1)}, DType::getType<T>());
+
+  GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
+  callGemm<T>(
+      gemmArgs.transA,
+      gemmArgs.transB,
+      gemmArgs.M,
+      gemmArgs.N,
+      gemmArgs.K,
+      A.getData<T>(),
+      gemmArgs.lda,
+      B.getData<T>(),
+      gemmArgs.ldb,
+      C.getData<T>(),
+      gemmArgs.ldc,
+      kernel::Mode::OMP);
+
+  return C;
+}
+
+template<typename T>
+Tensor bmmNx2(const Tensor &A, const Tensor &B) {
+  std::vector<int> shape = A.getShape();
+
+  Tensor xA = A.view({-1, A.getShape(-1)});
+  Tensor xC = gemm<T>(xA, B);
+
+  shape.back() = B.getShape(1);
+  return xC.view(shape);
+}
+
+template<typename T>
+Tensor bmm(const Tensor &A, const Tensor &B) {
+  Tensor xB = B;
+  if (A.getDim() != B.getDim()) xB = expandBatchDims(B, A.getShape());
+  std::vector<int> shapeC = getBmmOutputShape(A, xB);
+
+  Tensor C = op::cpu::zeros(shapeC, DType::getType<T>());
+
+  TensorList<const T, 2> mA = TensorList<const T, 2>::fromTensor(A);
+  TensorList<const T, 2> mB = TensorList<const T, 2>::fromTensor(xB);
+  TensorList<T, 2> mC = TensorList<T, 2>::fromTensor(C);
+
+  GEMMArgs gemmArgs = generateGemmArgs(A, xB, C);
+
+  // broadcast B.
+  CHECK(mA.getLength() == mC.getLength());
+  CHECK(mA.getLength() % mB.getLength() == 0);
+
+  const T *const *mAp = mA.getDataPtrList().data();
+  const T *const *mBp = mB.getDataPtrList().data();
+  T *const *mCp = mC.getDataPtrList().data();
+
+  #pragma omp parallel for
+  for (int i = 0; i < mA.getLength(); ++i) {
+    callGemm<T>(
+        gemmArgs.transA,
+        gemmArgs.transB,
+        gemmArgs.M,
+        gemmArgs.N,
+        gemmArgs.K,
+        mAp[i],
+        gemmArgs.lda,
+        mBp[i],
+        gemmArgs.ldb,
+        mCp[i],
+        gemmArgs.ldc,
+        kernel::Mode::SingleThread);
+  }
+
+  return C;
+}
+
+template<typename T>
+Tensor matmulFloat(const Tensor &A, const Tensor &B) {
+  if (A.getDim() == 2 && B.getDim() == 2) {
+    return gemm<T>(A, B);
+  } else if (A.getDim() > 2 && A.isContiguous() && B.getDim() == 2) {
+    return bmmNx2<T>(A, B);
+  } else if (A.getDim() >= 2 && B.getDim() >= 2) {
+    return bmm<T>(A, B);
+  } else {
+    NOT_IMPL();
+  }
+
+  return Tensor();
+}
+
+template<typename T>
+void callGemmQInt4(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const T *A,
+    int lda,
+    const kernel::UInt4x2 *dataB,
+    const kernel::Float16 *scaleB,
+    const kernel::UInt4x2 *zeroPointB,
+    T *C,
+    int ldc,
+    kernel::Mode mode);
+
+template<>
+inline void callGemmQInt4<float>(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const float *A,
+    int lda,
+    const kernel::UInt4x2 *dataB,
+    const kernel::Float16 *scaleB,
+    const kernel::UInt4x2 *zeroPointB,
+    float *C,
+    int ldc,
+    kernel::Mode mode) {
+  return kernel::gemmFloatQInt4(
+      transA, transB, M, N, K, A, lda, dataB, scaleB, zeroPointB, C, ldc, mode);
+}
+
+template<>
+inline void callGemmQInt4<Float16>(
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const Float16 *A,
+    int lda,
+    const kernel::UInt4x2 *dataB,
+    const kernel::Float16 *scaleB,
+    const kernel::UInt4x2 *zeroPointB,
+    Float16 *C,
+    int ldc,
+    kernel::Mode mode) {
+  const kernel::Float16 *xA = reinterpret_cast<const kernel::Float16 *>(A);
+  kernel::Float16 *xC = reinterpret_cast<kernel::Float16 *>(C);
+  return kernel::gemmHalfQInt4(
+      transA, transB, M, N, K, xA, lda, dataB, scaleB, zeroPointB, xC, ldc, mode);
+}
+
+template<typename T>
+Tensor gemmQInt4(const Tensor &A, const Tensor &B) {
+  CHECK(A.getDim() == B.getDim() && A.getDim() == 2 && B.getDType() == DType::kQ4);
+
+  Tensor C = op::cpu::zeros({A.getShape(0), B.getShape(1)}, DType::getType<T>());
+
+  GEMMArgs gemmArgs = generateGemmArgs(A, B, C);
+  const TensorData *dataObjectB = B.getDataObject();
+  callGemmQInt4(
+      gemmArgs.transA,
+      gemmArgs.transB,
+      gemmArgs.M,
+      gemmArgs.N,
+      gemmArgs.K,
+      A.getData<T>(),
+      gemmArgs.lda,
+      reinterpret_cast<const kernel::UInt4x2 *>(dataObjectB->getData<Q4>()),
+      reinterpret_cast<const kernel::Float16 *>(dataObjectB->getSlot(1)->getData<Float16>()),
+      reinterpret_cast<const kernel::UInt4x2 *>(dataObjectB->getSlot(2)->getData<UInt8>()),
+      C.getData<T>(),
+      gemmArgs.ldc,
+      kernel::Mode::Auto);
+
+  return C;
+}
+
+template<typename T>
+Tensor bmmNx2QInt4(const Tensor &A, const Tensor &B) {
+  std::vector<int> shape = A.getShape();
+
+  Tensor xA = A.view({-1, A.getShape(-1)});
+  Tensor xC = gemmQInt4<T>(xA, B);
+
+  shape.back() = B.getShape(1);
+  return xC.view(shape);
+}
+
+template<typename T>
+Tensor matmulQInt4(const Tensor &A, const Tensor &B) {
+  if (A.getDim() == 2 && B.getDim() == 2) {
+    return gemmQInt4<T>(A, B);
+  } else if (A.getDim() > 2 && A.isContiguous() && B.getDim() == 2) {
+    return bmmNx2QInt4<T>(A, B);
+  } else {
+    NOT_IMPL();
+  }
+}
+
+Tensor matmul(const Tensor &A, const Tensor &B) {
+  DType typeA = A.getDType();
+  DType typeB = B.getDType();
+
+  if (typeA == DType::kFloat && typeB == DType::kFloat) return matmulFloat<float>(A, B);
+  if (typeA == DType::kFloat && typeB == DType::kQ4) return matmulQInt4<float>(A, B);
+
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (typeA == DType::kFloat16 && typeB == DType::kFloat16) return matmulFloat<Float16>(A, B);
+  if (typeA == DType::kFloat16 && typeB == DType::kQ4) return matmulQInt4<Float16>(A, B);
+#endif
+
+  NOT_IMPL();
 }
 
 }  // cpu

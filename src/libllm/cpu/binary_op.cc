@@ -23,6 +23,7 @@
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
 #include "libllm/tensor.h"
+#include "libllm/lut/attributes.h"
 
 namespace libllm {
 namespace op {
@@ -66,6 +67,9 @@ Tensor binaryOpKernel(const Tensor &A, const Tensor &B, BinaryOp op) {
 // apply C <- BinaryOp(A, B)
 Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op) {
   if (A.getDType() == DType::kFloat) return binaryOpKernel<float>(A, B, op);
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (A.getDType() == DType::kFloat16) return binaryOpKernel<Float16>(A, B, op);
+#endif
 
   NOT_IMPL();
 }

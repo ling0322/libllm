@@ -28,7 +28,7 @@ namespace cpu {
 
 template<typename T>
 Tensor applyRotaryPosEmbKernel(const Tensor &input, const Tensor &roPE) {
-  CHECK(roPE.getDType() == DType::kFloat);
+  CHECK(roPE.getDType() == DType::kFloat || roPE.getDType() == DType::kFloat16);
 
   Tensor C = zerosLike(input);
   
@@ -60,6 +60,9 @@ Tensor applyRotaryPosEmb(const Tensor &input, Tensor roPE) {
   roPE = roPE.expand({input.getShape(0), roPE.getShape(1), input.getShape(2), roPE.getShape(3)});
 
   if (input.getDType() == DType::kFloat) return applyRotaryPosEmbKernel<float>(input, roPE);
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (input.getDType() == DType::kFloat16) return applyRotaryPosEmbKernel<Float16>(input, roPE);
+#endif
 
   NOT_IMPL();
 }

@@ -61,7 +61,7 @@ float meanAbsKernel(Tensor A) {
     TensorAccessor<const T, 1> a = vA.getTensor(j);
 
     for (int i = 0; i < a.getShape(0); ++i) {
-      sum += fabs(a[i]);
+      sum += fabs(static_cast<float>(a[i]));
     }
   }
   
@@ -70,11 +70,21 @@ float meanAbsKernel(Tensor A) {
 
 template<typename T>
 bool allCloseKernel(Tensor A, Tensor B, float rtol, float atol) {
-  return maxDiffKernel<T>(A, B) / meanAbsKernel<T>(B) < rtol || maxDiffKernel<T>(A, B) < atol;
+  bool ok = maxDiffKernel<T>(A, B) / meanAbsKernel<T>(B) < rtol || maxDiffKernel<T>(A, B) < atol;
+  if (!ok) {
+    LOG(INFO) << "maxDiffKernel<T>(A, B)=" << maxDiffKernel<T>(A, B);
+    LOG(INFO) << "meanAbsKernel<T>(B)=" << meanAbsKernel<T>(B);
+    LOG(INFO) << "relDiff=" << maxDiffKernel<T>(A, B) / meanAbsKernel<T>(B);
+  }
+
+  return ok;
 }
 
 bool allClose(Tensor A, Tensor B, float rtol, float atol) {
   if (A.getDType() == DType::kFloat) return allCloseKernel<float>(A, B, rtol, atol);
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (A.getDType() == DType::kFloat16) return allCloseKernel<Float16>(A, B, rtol, atol);
+#endif
 
   NOT_IMPL();
 }

@@ -91,7 +91,7 @@ Tensor gelu(Tensor input);
 //   the tensor with specified shape and dtype.
 Tensor tensor(lut::Span<const int> shape, DType dtype, Device device = Device::getCpu());
 
-/// @brief Generate a tensor filled with random numbers in range [min, max)
+/// @brief Generate a tensor filled with uniform random numbers in range [min, max)
 /// @param shape shape of the tensor to generated.
 /// @param dtype data type of the tensor.
 /// @param device device of the tensor.

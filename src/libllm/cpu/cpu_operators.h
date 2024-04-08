@@ -37,6 +37,7 @@ class CPUOperators : public Operators {
 
   // create a instance of CPUOperators
   static std::unique_ptr<Operators> create();
+  static std::unique_ptr<Operators> createFp32Only();
 
   // implement interface Operators
   Tensor lookup(Tensor table, Tensor indices) override;

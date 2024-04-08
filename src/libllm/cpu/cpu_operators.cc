@@ -28,6 +28,7 @@
 #include "libllm/cpu/apply_rotary_pos_emb.h"
 #include "libllm/cpu/binary_op.h"
 #include "libllm/cpu/cast.h"
+#include "libllm/cpu/common.h"
 #include "libllm/cpu/copy.h"
 #include "libllm/cpu/lookup.h"
 #include "libllm/cpu/matmul.h"
@@ -69,16 +70,7 @@ Tensor CPUOperators::zeros(lut::Span<const int> shape, DType dtype) {
 }
 
 Tensor CPUOperators::matmul(Tensor A, Tensor B) {
-  DType typeA = A.getDType();
-  DType typeB = B.getDType();
-  if (typeA == DType::kFloat && typeB == DType::kFloat) {
-    return matmulFp32(A, B);
-  } else if (typeA == DType::kFloat && typeB == DType::kQ4) {
-    return matmulFp32Q4Fp32(A, B);
-  } else {
-    NOT_IMPL();
-    return Tensor();
-  }
+  return cpu::matmul(A, B);
 }
 
 void CPUOperators::print(Tensor tensor) {
@@ -86,27 +78,11 @@ void CPUOperators::print(Tensor tensor) {
 }
 
 Tensor CPUOperators::add(Tensor input, Tensor other) {
-  switch (input.getDType()) {
-    case DType::kFloat:
-      return cpu::binaryOp(input, other, BinaryOp::ADD);
-      break;
-    default:
-      NOT_IMPL();
-  }
-
-  return Tensor();
+  return cpu::binaryOp(input, other, BinaryOp::ADD);
 }
 
 Tensor CPUOperators::softmax(Tensor input) {
-  switch (input.getDType()) {
-    case DType::kFloat:
-      return cpu::softmax(input);
-      break;
-    default:
-      NOT_IMPL();
-  }
-
-  return Tensor();
+  return cpu::softmax(input);
 }
 
 bool CPUOperators::allClose(Tensor A, Tensor B, float rtol, float atol) {
@@ -132,7 +108,7 @@ Tensor CPUOperators::rmsNorm(Tensor input, Tensor weight, float eps) {
 }
 
 Tensor CPUOperators::causalMask(int max_len) {
-  return op::cpu::causalMask(max_len, DType::kFloat);
+  return op::cpu::causalMask(max_len, getDefaultFloatType());
 }
 
 Tensor CPUOperators::applyRotaryPosEmb(Tensor A, Tensor roPE) {
@@ -148,6 +124,8 @@ Tensor CPUOperators::swiglu(Tensor A) {
 }
 
 Tensor CPUOperators::to(Device device, Tensor tensor) {
+  if (device.getType() == Device::kCpu) return tensor;
+
   NOT_IMPL();
 }
 
@@ -156,7 +134,7 @@ Tensor CPUOperators::cast(Tensor tensor, DType dtype) {
 }
 
 DType CPUOperators::getDefaultFloatType() {
-  return DType::kFloat;
+  return DType::getType<cpu::DefaultFloatType>();
 }
 
 }  // cpu

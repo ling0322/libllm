@@ -85,8 +85,10 @@ int Generator::sampleToken(const Tensor &logits) {
     x = F::mul(x, 1.0f / _config.temperature);
   }
   x = F::softmax(x);
-  if (x.getDevice().getType() == Device::kCuda) {
+  if (x.getDType() == DType::kFloat16) {
     x = F::cast(x, DType::kFloat);
+  }
+  if (x.getDevice().getType() == Device::kCuda) {
     x = F::to(Device::kCpu, x);
   }
 

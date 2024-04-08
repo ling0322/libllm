@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <type_traits>
 #include <string>
+#include "libllm/lut/attributes.h"
 
 namespace libllm {
 
@@ -31,9 +32,17 @@ struct Q4 {
 };
 static_assert(sizeof(Q4) == 1, "invalid size of Q4");
 
-struct Float16 {
+
+#if defined(LUT_ARCH_AARCH64)
+typedef _Float16 Float16;
+#elif defined(LUT_ARCH_AMD64)
+struct WORD {
   uint16_t v;
 };
+typedef WORD Float16;
+#else
+#error unknown CPU architecture
+#endif
 static_assert(sizeof(Float16) == 2, "invalid size of Float16");
 
 struct Int8 {

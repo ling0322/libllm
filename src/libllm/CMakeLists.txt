@@ -70,6 +70,7 @@ set(unittest_SOURCES
     "lut/path_test.cc"
     "lut/strings_test.cc"
     "chatglm_test.cc"
+    "llama_test.cc"
     "module_test.cc"
     "operator_tester.cc"
     "tensor_test.cc"
@@ -168,6 +169,7 @@ if(LIBLLM_KERNEL_X86_64)
 endif()
 if(LIBLLM_KERNEL_AARCH64)
     set(libllm_SOURCES ${libllm_SOURCES} "cpu/kernel/kernel_asimdhp.cc")
+    set(unittest_SOURCES ${unittest_SOURCES} "cpu/test_float16.cc")
 endif()
 
 add_library(lut STATIC ${lut_SOURCES})

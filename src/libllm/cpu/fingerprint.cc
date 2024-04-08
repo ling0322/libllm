@@ -144,6 +144,9 @@ Tensor fingerprintKernel(Tensor A) {
 
 Tensor fingerprint(Tensor A) {
   if (A.getDType() == DType::kFloat) return fingerprintKernel<float>(A);
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (A.getDType() == DType::kFloat16) return fingerprintKernel<Float16>(A);
+#endif
 
   NOT_IMPL();
 }
