@@ -80,6 +80,30 @@ double benchmarkSgemm(int M, int K, int N, int numLoops = 2) {
   return dt;
 }
 
+double benchmarkHgemm(int M, int K, int N, int numLoops = 2) {
+  std::vector<Float16> dA(M * K);
+  std::vector<Float16> dB(K * N);
+  std::vector<Float16> dC(M * N);
+
+  double t0 = lut::now();
+  for (int i = 0; i < numLoops; ++i)
+    libllm::op::cpu::kernel::gemmHalf(
+        false,
+        true,
+        M,
+        N,
+        K,
+        dA.data(),
+        K,
+        dB.data(),
+        K,
+        dC.data(),
+        N);
+
+  double dt = (lut::now() - t0) / numLoops;
+  return dt;
+}
+
 #ifdef MKL_ENABLED
 double benchmarkMklSgemm(int M, int K, int N, int numLoops = 2) {
   std::vector<float> dA(M * K);
@@ -126,7 +150,7 @@ CATCH_TEST_CASE("benchmark Pack", "[benchmark][lymath][pack]") {
 int gemmBenchmarkShapes[][4] = {
   {17, 4096, 27392, 2},
   {17, 13696, 4096, 2},
-  {4096, 4096, 4096, 2},
+  {4096, 4096, 4096, 10},
   {1, 4096, 27392, 10},
   {1, 13696, 4096, 10},
   {0, 0, 0, 0}
@@ -151,6 +175,24 @@ CATCH_TEST_CASE("benchmark SGEMM", "[benchmark][lymath][sgemm]") {
 #else
     LOG(INFO) << lut::sprintf("SGEMM (M,K,N)=(%d,%d,%d): libllm=%f", m, k, n, dLlm);
 #endif
+  }
+}
+
+#endif  // LUT_CPU_ARCH == LUT_AMD64
+
+#if LUT_CPU_ARCH == LUT_AARCH64
+
+CATCH_TEST_CASE("benchmark HGEMM", "[benchmark][cpu][kernel][hgemm]") {
+  int (*pshape)[4];
+  
+  for (pshape = &gemmBenchmarkShapes[0]; **pshape != 0; ++pshape) {
+    int m = (*pshape)[0];
+    int k = (*pshape)[1];
+    int n = (*pshape)[2];
+    int numLoops = (*pshape)[3];
+
+    double dLlm = benchmarkHgemm(m, k, n, numLoops);
+    LOG(INFO) << lut::sprintf("HGEMM (M,K,N)=(%d,%d,%d): libllm=%f", m, k, n, dLlm);
   }
 }
 

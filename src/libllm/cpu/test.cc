@@ -29,12 +29,6 @@ namespace libllm {
 namespace op {
 namespace cpu {
 
-OperatorTester getOperatorTesterFp32() {
-  return OperatorTester().withOperators(getOperators(Device::kCpu))
-                         .withDevice(Device::getCpu())
-                         .withFloatType(DType::kFloat);
-}
-
 Tensor RefMatMulFp32(const Tensor &A, const Tensor &B) {
   CATCH_REQUIRE(A.getDType() == B.getDType());
   CATCH_REQUIRE(A.getDim() == 2);
@@ -193,13 +187,6 @@ CATCH_TEST_CASE("test softmax", "[core][nn][operators]") {
   input = Tensor::create<float>({3}, {0.1f, 0.2f, -inf});
   output = Tensor::create<float>({3}, {0.4750f, 0.5250f, 0.0f});
   CATCH_REQUIRE(F::allClose(F::softmax(input), output));
-}
-
-CATCH_TEST_CASE("benchmark CPU matmul operators", "[op][cpu]") {
-  OperatorTester tester = getOperatorTesterFp32().withTol(5e-2);
-  CATCH_REQUIRE(tester.testMatmul({4096, 4096}, {4096, 4096}, true));
-  CATCH_REQUIRE(tester.testMatmul({4096, 4096}, {4096, 4096}, true));
-  CATCH_REQUIRE(tester.withPrintBenchmarkInfo(true).testMatmul({4096, 4096}, {4096, 4096}, true));
 }
 
 }  // cpu
