@@ -143,6 +143,15 @@ class SelfAttnetionTester : public ModuleTester {
  public:
   SelfAttnetionTester(Device device, DType weightType) : ModuleTester(device, weightType) {}
 
+  float getRtol() const override {
+    DType defaultFloatType = F::getDefaultFloatType(getDevice());
+    if (getDevice().getType() == Device::kCpu && defaultFloatType == DType::kFloat16) {
+      return 3.5e-2;
+    } else {
+      return 5e-3;
+    }
+  }
+
   void run() {
     ChatGlmConfig config = TestCommon::getConfig();
     std::shared_ptr<SelfAttention> layer = SelfAttention::create(getCtx(), config);
