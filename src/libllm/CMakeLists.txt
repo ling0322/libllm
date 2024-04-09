@@ -12,6 +12,7 @@ set(lut_SOURCES
     "lut/flags.cc"
     "lut/half.cc"
     "lut/ini_config.cc"
+    "lut/is_debug.cc"
     "lut/path.cc"
     "lut/random.cc"
     "lut/reader.cc"

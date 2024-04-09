@@ -22,6 +22,7 @@
 #include <omp.h>
 #include <stdlib.h>
 #include <memory>
+#include "libllm/lut/is_debug.h"
 #include "libllm/lut/log.h"
 #include "libllm/lut/platform.h"
 #include "libllm/lut/strings.h"
@@ -47,7 +48,7 @@ enum class CPUMathBackend {
 };
 
 CPUMathBackend findBestCpuMathBackend() {
-  ruapu_init();
+  if (!lut::isDebug()) ruapu_init();
 
 #ifdef LUT_ARCH_AMD64
   bool isaAvx2 = ruapu_supports("avx2") > 0;
