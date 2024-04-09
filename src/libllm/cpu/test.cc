@@ -29,7 +29,7 @@ namespace libllm {
 namespace op {
 namespace cpu {
 
-OperatorTester getOperatorTester() {
+OperatorTester getOperatorTesterFp32() {
   return OperatorTester().withOperators(getOperators(Device::kCpu))
                          .withDevice(Device::getCpu())
                          .withFloatType(DType::kFloat);
@@ -196,7 +196,7 @@ CATCH_TEST_CASE("test softmax", "[core][nn][operators]") {
 }
 
 CATCH_TEST_CASE("benchmark CPU matmul operators", "[op][cpu]") {
-  OperatorTester tester = getOperatorTester().withFloatType(DType::kFloat).withTol(5e-2);
+  OperatorTester tester = getOperatorTesterFp32().withTol(5e-2);
   CATCH_REQUIRE(tester.testMatmul({4096, 4096}, {4096, 4096}, true));
   CATCH_REQUIRE(tester.testMatmul({4096, 4096}, {4096, 4096}, true));
   CATCH_REQUIRE(tester.withPrintBenchmarkInfo(true).testMatmul({4096, 4096}, {4096, 4096}, true));
