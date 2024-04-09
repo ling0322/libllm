@@ -2,6 +2,7 @@
 
 #include "libllm/lut/is_debug.h"
 
+#include <ctype.h>
 #include <stdint.h>
 #include <string.h>
 
