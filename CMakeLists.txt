@@ -3,7 +3,9 @@ project(libllm LANGUAGES CXX C)
 include(CheckTypeSize)
 
 option(WITH_CUDA "CUDA compute support." OFF)
+option(WITH_MKL "MKL support (only for reference)." OFF)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
+option(MKL_PREFIX "Prefix for MKL headers and libraries." "/opt/intel/mkl")
 
 if(WITH_CUDA)
     add_definitions("-DLIBLLM_CUDA_ENABLED")
@@ -23,6 +25,18 @@ if(WITH_CUTLASS)
     add_definitions("-DLIBLLM_CUTLASS_ENABLED")
 endif()
 
+if(WITH_MKL)
+    add_definitions("-DMKL_ENABLED")
+    include_directories(${MKL_PREFIX}/include)
+    link_directories(${MKL_PREFIX}/lib/intel64)
+    if (NOT EXISTS ${MKL_PREFIX}/include/mkl.h)
+        message(FATAL_ERROR 
+        "invalid MKL_PREFIX \"${MKL_PREFIX}\": unable to find file "
+        "${MKL_PREFIX}/include/mkl.h, please "
+        "enusre MKL_PREFIX contains the MKL \"include\" directory.")
+    endif()
+endif()
+
 if (DEFINED CUTLASS_ROOT)
     include_directories(${CUTLASS_ROOT}/include)
     if (NOT EXISTS ${CUTLASS_ROOT}/include/cutlass/blas3.h)
@@ -35,7 +49,6 @@ endif()
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(MKL_PREFIX "/opt/intel/mkl" CACHE STRING "Prefix for MKL headers and libraries.")
 
 #add_compile_options(-fsanitize=address)
 #add_link_options(-fsanitize=address)

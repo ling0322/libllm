@@ -17,7 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "third_party/catch2/catch_amalgamated.hpp"
+#include "catch2/catch_amalgamated.hpp"
 
 #ifdef MKL_ENABLED
 #include <mkl.h>
@@ -25,21 +25,27 @@
 
 #include <chrono>
 #include <functional>
+#include "libllm/lut/attributes.h"
 #include "libllm/lut/log.h"
 #include "libllm/cpu/kernel/kernel.h"
 #include "libllm/lut/strings.h"
 #include "libllm/lut/time.h"
-#include "libllm/cpu/kernel/common.h"
-#include "libllm/cpu/kernel/gemm_common.h"
+#include "libllm/cpu/kernel/interfaces.h"
+#include "libllm/cpu/kernel/gemm_kernel.h"
 
-void benchmarkPack(Block A, Block Ap, int KC) {
+namespace libllm {
+namespace op {
+namespace cpu {
+namespace kernel {
+
+void benchmarkPack(Block<float> A, Block<float> Ap, int KC) {
   double t0 = lut::now();
   int kb = (A.numRows + KC - 1) / KC;
   int lastKc = A.numRows % KC;
   for (int i = 0; i < kb; ++i) {
     int kc = (i != kb - 1 || lastKc == 0) ? KC : lastKc;
-    Block Ai = A.sliceRow(i * KC, kc);
-    Pack<Mode::OMP>(Ai, Ap, Ap.stride);
+    Block<float> Ai = A.sliceRow(i * KC, kc);
+    Pack<float, Mode::OMP>(Ai, Ap, Ap.stride);
   }
   LOG(INFO) << lut::sprintf("pack (%d, %d) stride=%d KC=%d T=%d: %f",
       A.numRows,
@@ -57,7 +63,7 @@ double benchmarkSgemm(int M, int K, int N, int numLoops = 2) {
 
   double t0 = lut::now();
   for (int i = 0; i < numLoops; ++i)
-    libllm::op::cpu::kernel::sgemm(
+    libllm::op::cpu::kernel::gemmFloat(
         false,
         true,
         M,
@@ -112,18 +118,21 @@ CATCH_TEST_CASE("benchmark Pack", "[benchmark][lymath][pack]") {
   std::vector<float> dA(ROW * COL);
   std::vector<float> dAp(ROW * NC);
 
-  Block A = Block { dA.data(), ROW, ROW, COL, true };
-  Block Ap = Block { dAp.data(), NR, ROW * NC / NR, NR, false };
+  Block<float> A = Block<float> { dA.data(), ROW, ROW, COL, true };
+  Block<float> Ap = Block<float> { dAp.data(), NR, ROW * NC / NR, NR, false };
   benchmarkPack(A, Ap, NC);
 }
 
 int gemmBenchmarkShapes[][4] = {
   {17, 4096, 27392, 2},
   {17, 13696, 4096, 2},
+  {4096, 4096, 4096, 2},
   {1, 4096, 27392, 10},
   {1, 13696, 4096, 10},
   {0, 0, 0, 0}
 };
+
+#if LUT_CPU_ARCH == LUT_AMD64
 
 CATCH_TEST_CASE("benchmark SGEMM", "[benchmark][lymath][sgemm]") {
   int (*pshape)[4];
@@ -134,13 +143,20 @@ CATCH_TEST_CASE("benchmark SGEMM", "[benchmark][lymath][sgemm]") {
     int n = (*pshape)[2];
     int numLoops = (*pshape)[3];
 
-    double dLymath = benchmarkSgemm(m, k, n, numLoops);
+    double dLlm = benchmarkSgemm(m, k, n, numLoops);
 #ifdef MKL_ENABLED
     double dMkl = benchmarkMklSgemm(m, k, n, numLoops);
     LOG(INFO) << lut::sprintf(
-        "MKL SGEMM (M,K,N)=(%d,%d,%d): mkl=%f lymath=%f", m, k, n, dMkl, dLymath);
+        "SGEMM (M,K,N)=(%d,%d,%d): mkl=%f libllm=%f", m, k, n, dMkl, dLlm);
 #else
-    LOG(INFO) << lut::sprintf("MKL SGEMM (M,K,N)=(%d,%d,%d): lymath=%f", m, k, n, dLymath);
+    LOG(INFO) << lut::sprintf("SGEMM (M,K,N)=(%d,%d,%d): libllm=%f", m, k, n, dLlm);
 #endif
   }
 }
+
+#endif  // LUT_CPU_ARCH == LUT_AMD64
+
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm
