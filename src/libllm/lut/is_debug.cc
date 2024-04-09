@@ -3,6 +3,7 @@
 #include "libllm/lut/is_debug.h"
 
 #include <stdint.h>
+#include <string.h>
 
 #if defined _WIN32
 #include <windows.h>
