@@ -186,7 +186,29 @@ bool OperatorTester::testLookupQInt4() {
   return F::allClose(x, xr);
 }
 
-bool OperatorTester::testMatmul(ShapeType shapeA, ShapeType shapeB) {
+bool OperatorTester::testMatmul(ShapeType shapeA, ShapeType shapeB, bool transposeB) {
+  lut::Random random(MagicNumber);
+  Tensor a = F::rand(shapeA, DType::kFloat, Device::getCpu(), &random);
+  Tensor b = F::rand(shapeB, DType::kFloat, Device::getCpu(), &random);
+  Tensor xr = F::matmul(a, transposeB ? b.transpose(-1, -2) : b);
+
+  Tensor x = _op->to(_testDevice, a);
+  Tensor y = _op->to(_testDevice, b);
+  x = _op->cast(x, _testFloatType);
+  y = _op->cast(y, _testFloatType);
+  if (transposeB) y = y.transpose(-1, -2);
+  if (_printBenchmarkInfo) {
+    LOG_TIME(x = _op->matmul(x, y), lut::sprintf("OP::matmul(x, x2) t=%d", transposeB));
+  } else {
+    x = _op->matmul(x, y);
+  }
+  x = _op->cast(x, DType::kFloat);
+  x = _op->to(Device::getCpu(), x);
+
+  return F::allClose(x, xr, _rtol, _atol);
+}
+
+bool OperatorTester::testMatmulSlice(ShapeType shapeA, ShapeType shapeB) {
   lut::Random random(MagicNumber);
   Tensor a = F::rand(shapeA, DType::kFloat, Device::getCpu(), &random);
   Tensor b = F::rand(shapeB, DType::kFloat, Device::getCpu(), &random);

@@ -68,9 +68,9 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
   }
 
   CATCH_SECTION("test matmul") {
-    CATCH_REQUIRE(tester.withTol(5e-2).testMatmul({10, 20}, {40, 30}));
-    CATCH_REQUIRE(tester.withTol(5e-2).testMatmul({5, 10, 20}, {40, 30}));
-    CATCH_REQUIRE(tester.withTol(5e-2).testMatmul({5, 10, 5, 20}, {10, 40, 30}));
+    CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({10, 20}, {40, 30}));
+    CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 20}, {40, 30}));
+    CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 5, 20}, {10, 40, 30}));
     CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({5, 10, 50}, {50, 128}, false));
     CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({1, 1, 128}, {50, 128}, true));
   }

@@ -52,7 +52,8 @@ class OperatorTester {
   LUT_CHECK_RETURN bool testCopy5D();
   LUT_CHECK_RETURN bool testLookup();
   LUT_CHECK_RETURN bool testLookupQInt4();
-  LUT_CHECK_RETURN bool testMatmul(ShapeType shapeA, ShapeType shapeB);
+  LUT_CHECK_RETURN bool testMatmul(ShapeType shapeA, ShapeType shapeB, bool transposeB);
+  LUT_CHECK_RETURN bool testMatmulSlice(ShapeType shapeA, ShapeType shapeB);
   LUT_CHECK_RETURN bool testMatmulQInt4(ShapeType shapeA, ShapeType shapeB, bool transposeB);
   LUT_CHECK_RETURN bool testMulScale();
   LUT_CHECK_RETURN bool testBinaryOp(OperatorType op);

@@ -127,9 +127,8 @@ Float16 DotHalfAsimdhpKernel::applyRow(const GemvArgs<Float16> &args, int row) {
 }
 
 #define LIBLLM_GemmHalf12x16AsimdhpKernel_FmaBlock(m, r, rl) \
-    a00 = vdupq_n_f16(vget_lane_f16(ra0 ## r, rl)); \
-    c ## m ## 0 = vfmaq_f16(c ## m ## 0, a00, b00); \
-    c ## m ## 1 = vfmaq_f16(c ## m ## 1, a00, b01);
+    c##m##0 = vfmaq_lane_f16(c##m##0, b00, ra0##r, rl); \
+    c##m##1 = vfmaq_lane_f16(c##m##1, b01, ra0##r, rl);
 
 #define LIBLLM_GemmHalf12x16AsimdhpKernel_LdStC(m) \
     a00 = vld1q_f16(pc); \
