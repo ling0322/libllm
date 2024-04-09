@@ -50,9 +50,9 @@ CATCH_TEST_CASE("test CPU fp16 copy operators", "[op][cpu][float16]") {
 
 CATCH_TEST_CASE("test CPU fp16 matmul operators", "[op][cpu][float16]") {
   OperatorTester tester = getOperatorTester().withTol(5e-2);
-  CATCH_REQUIRE(tester.testMatmul({10, 20}, {40, 30}));
-  CATCH_REQUIRE(tester.testMatmul({5, 10, 20}, {40, 30}));
-  CATCH_REQUIRE(tester.testMatmul({5, 10, 5, 20}, {10, 40, 30}));
+  CATCH_REQUIRE(tester.testMatmulSlice({10, 20}, {40, 30}));
+  CATCH_REQUIRE(tester.testMatmulSlice({5, 10, 20}, {40, 30}));
+  CATCH_REQUIRE(tester.testMatmulSlice({5, 10, 5, 20}, {10, 40, 30}));
   CATCH_REQUIRE(tester.testMatmulQInt4({5, 10, 50}, {50, 128}, false));
   CATCH_REQUIRE(tester.testMatmulQInt4({1, 1, 128}, {50, 128}, true));
 }
@@ -71,6 +71,13 @@ CATCH_TEST_CASE("test CPU fp16 activation operators", "[op][cpu][float16]") {
 CATCH_TEST_CASE("test CPU fp16 tensor operators", "[op][cpu][float16]") {
   OperatorTester tester = getOperatorTester().withTol(5e-2);
   CATCH_REQUIRE(tester.testCausalMask());
+}
+
+CATCH_TEST_CASE("benchmark CPU fp16 matmul operators", "[op][cpu][float16]") {
+  OperatorTester tester = getOperatorTester().withFloatType(DType::kFloat).withTol(5e-2);
+  CATCH_REQUIRE(tester.testMatmul({4096, 4096}, {4096, 4096}, true));
+  CATCH_REQUIRE(tester.testMatmul({4096, 4096}, {4096, 4096}, true));
+  CATCH_REQUIRE(tester.withPrintBenchmarkInfo(true).testMatmul({4096, 4096}, {4096, 4096}, true));
 }
 
 }  // cpu
