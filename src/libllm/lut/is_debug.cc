@@ -9,6 +9,8 @@
 #endif
 
 #if defined __ANDROID__ || defined __linux__
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #endif
 
