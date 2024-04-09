@@ -74,7 +74,7 @@ CATCH_TEST_CASE("test CPU fp16 tensor operators", "[op][cpu][float16]") {
 }
 
 CATCH_TEST_CASE("benchmark CPU fp16 matmul operators", "[op][cpu][float16]") {
-  OperatorTester tester = getOperatorTester().withFloatType(DType::kFloat).withTol(5e-2);
+  OperatorTester tester = getOperatorTester().withFloatType(DType::kFloat16).withTol(5e-2);
   CATCH_REQUIRE(tester.testMatmul({4096, 4096}, {4096, 4096}, true));
   CATCH_REQUIRE(tester.testMatmul({4096, 4096}, {4096, 4096}, true));
   CATCH_REQUIRE(tester.withPrintBenchmarkInfo(true).testMatmul({4096, 4096}, {4096, 4096}, true));

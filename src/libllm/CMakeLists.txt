@@ -64,6 +64,7 @@ set(libllm_SOURCES
     "../../third_party/ruapu/ruapu.cc")
 
 set(unittest_SOURCES
+    "cpu/kernel/benchmark.cc"
     "cpu/kernel/unittest_api.cc"
     "cpu/kernel/unittest_kernel.cc"
     "cpu/test.cc"
@@ -194,10 +195,24 @@ if(UNIX AND NOT APPLE)
     target_link_options(libllm PUBLIC "-Wl,--no-undefined")
 endif()
 
+set(unittest_LIBADD
+    libllm_static
+    lut
+    catch2
+    OpenMP::OpenMP_CXX)
+if (WITH_MKL)
+    set(unittest_LIBADD
+        ${unittest_LIBADD}
+        mkl_intel_lp64
+        mkl_intel_thread
+        mkl_core
+        iomp5)
+endif()
+
 add_library(catch2 STATIC  "../../third_party/catch2/catch_amalgamated.cpp")
 add_executable(unittest ${unittest_SOURCES})
 target_include_directories(unittest PRIVATE ${libllm_INCDIR})
-target_link_libraries(unittest libllm_static lut catch2 OpenMP::OpenMP_CXX)
+target_link_libraries(unittest ${unittest_LIBADD})
 
 add_executable(llm ${llm_SOURCES})
 target_include_directories(llm PRIVATE ..)
