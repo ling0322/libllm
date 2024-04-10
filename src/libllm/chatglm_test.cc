@@ -167,7 +167,6 @@ class SelfAttnetionTester : public ModuleTester {
     // forward next token.
     x = generateTensor({1, 1, config.hiddenSize});
     x = layer->forward(past, x, roPE);
-    if (x.getDevice().getType() == Device::kCpu) F::print(op::cpu::fingerprint(toCpu(x)));
     CATCH_REQUIRE(allClose(op::cpu::fingerprint(toCpu(x)), xr1));
   }
 };
