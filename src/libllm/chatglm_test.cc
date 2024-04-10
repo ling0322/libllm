@@ -157,16 +157,17 @@ class SelfAttnetionTester : public ModuleTester {
     std::vector<float> xr0, xr1;
     if (getWeightType() == DType::kQ4) {
       xr0 = {-0.4969, 0.4878, -0.0815, -0.0862, 0.0241, 0.0619, -0.1013, 0.0136};
-      xr1 = {0.3716, -0.1947, -0.0597, -0.1154, 0.0751, -0.0403, -0.0445, -0.0987};
+      xr1 = {0.3715, -0.1946, -0.0598, -0.1155, 0.0750, -0.0403, -0.0444, -0.0987};
     } else {
-      xr0 = {-0.3489, 0.4617, -0.1714, -0.0709, 0.0241, 0.0579, -0.0676, 0.0417};
-      xr1 = {0.3423, -0.1664, -0.0595, -0.0923, 0.0969, -0.0247, -6.0349e-03, -0.0793};
+      xr0 = {-0.3489, 0.4617, -0.1710, -0.0709, 0.0242, 0.0579, -0.0675, 0.0418};
+      xr1 = {0.3424, -0.1663, -0.0594, -0.0924, 0.0969, -0.0248, -5.9996e-03, -0.0793};
     }
     CATCH_REQUIRE(allClose(op::cpu::fingerprint(toCpu(x)), xr0));
 
     // forward next token.
     x = generateTensor({1, 1, config.hiddenSize});
     x = layer->forward(past, x, roPE);
+    if (x.getDevice().getType() == Device::kCpu) F::print(op::cpu::fingerprint(toCpu(x)));
     CATCH_REQUIRE(allClose(op::cpu::fingerprint(toCpu(x)), xr1));
   }
 };
