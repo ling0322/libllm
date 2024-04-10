@@ -74,40 +74,31 @@ std::unique_ptr<MLP> MLP::create(const Context &ctx, ChatGlmConfig config) {
 
   layer->_ffnHiddenSize = config.ffnHiddenSize;
   layer->_hiddenSize = config.hiddenSize;
+
+  int dh = config.hiddenSize;
+  int df = config.ffnHiddenSize;
+  layer->_dense1 = Linear::create(ctx.withName("dense1"), dh, df * 2, false);
+  layer->_dense2 = Linear::create(ctx.withName("dense2"), df, dh, false);
+
   return layer;
 }
 
 void MLP::initParameters(const StateMap &stateDict) {
   const Context &ctx = getCtx();
 
-  _dense1Weight = stateDict.getTensor(ctx.name("dense1_weight"));
-  _dense2Weight = stateDict.getTensor(ctx.name("dense2_weight"));
-
-  _dense1Weight.throwIfInvalidShape({_ffnHiddenSize * 2, _hiddenSize});
-  _dense2Weight.throwIfInvalidShape({_hiddenSize, _ffnHiddenSize});
-
-  _dense1Weight = moveAndCastFloat(_dense1Weight, ctx);
-  _dense2Weight = moveAndCastFloat(_dense2Weight, ctx);
+  _dense1->initParameters(stateDict);
+  _dense2->initParameters(stateDict);
 }
 
 void MLP::initParameters(lut::Random *generator, DType weightType) {
-  Device dCpu = Device::getCpu();
-
-  float xs = sqrtf(6.0f / (_ffnHiddenSize * 2 + _hiddenSize));
-  _dense1Weight = F::rand({_ffnHiddenSize * 2, _hiddenSize}, weightType, dCpu, generator, -xs, xs);
-  _dense1Weight = moveAndCastFloat(_dense1Weight, getCtx());
-
-  xs = sqrtf(6.0f / (_ffnHiddenSize + _hiddenSize));
-  _dense2Weight = F::rand({_hiddenSize, _ffnHiddenSize}, weightType, dCpu, generator, -xs, xs);
-  _dense2Weight = moveAndCastFloat(_dense2Weight, getCtx());
+  _dense1->initParameters(generator, weightType);
+  _dense2->initParameters(generator, weightType);
 }
 
 Tensor MLP::forward(const Tensor &input) const {
-  CHECK(!_dense1Weight.empty());
-
-  Tensor x = F::matmul(input, _dense1Weight.transpose(0, 1));
+  Tensor x = _dense1->forward(input);
   x = F::swiglu(x);
-  x = F::matmul(x, _dense2Weight.transpose(0, 1));
+  x = _dense2->forward(x);
 
   return x;
 }
@@ -134,25 +125,20 @@ std::unique_ptr<SelfAttention> SelfAttention::create(
   }
 
   int qkvProjOutDim = layer->_qProjDim + 2 * layer->_kvProjDim;
-  layer->_qkvProj = Linear::create(ctx.withName("qkv_proj"), config.hiddenSize, qkvProjOutDim);
+  int dh = config.hiddenSize;
+  layer->_qkvProj = Linear::create(ctx.withName("qkv_proj"), dh, qkvProjOutDim, true);
+  layer->_outProj = Linear::create(ctx.withName("out_proj"), dh, dh, false);
   return layer;
 }
 
 void SelfAttention::initParameters(const StateMap &stateDict) {
   _qkvProj->initParameters(stateDict);
-
-  int dModel = _qProjDim;
-  _denseWeight = stateDict.getTensor(getCtx().name("dense_weight"));
-  _denseWeight.throwIfInvalidShape({dModel, dModel});
-  _denseWeight = moveAndCastFloat(_denseWeight, getCtx());
+  _outProj->initParameters(stateDict);
 }
 
 void SelfAttention::initParameters(lut::Random *g, DType weightType) {
   _qkvProj->initParameters(g, weightType);
-
-  float xs = sqrtf(6.0f / (_qProjDim + _qProjDim));
-  _denseWeight = F::rand({_qProjDim, _qProjDim}, weightType, Device::getCpu(), g, -xs, xs);
-  _denseWeight = moveAndCastFloat(_denseWeight, getCtx());
+  _outProj->initParameters(g, weightType);
 }
 
 int SelfAttention::getCtxLength(StateMap *past) const {
@@ -230,7 +216,7 @@ Tensor SelfAttention::forward(StateMap &past, Tensor input, Tensor roPE) const {
                      : F::attention(q, k, v, F::causalMask(q.getShape(2), getCtx().getDevice()));
 
   x = F::contiguous(x.transpose(1, 2)).view({N, qL, qNH * D});
-  x = F::matmul(x, _denseWeight.transpose(0, 1));
+  x = _outProj->forward(x);
 
   return x;
 }
@@ -300,9 +286,11 @@ std::unique_ptr<ChatGlmModel> ChatGlmModel::create(const Context &ctx, ChatGlmCo
   std::unique_ptr<ChatGlmModel> model{new ChatGlmModel()};
   model->setCtx(ctx);
 
+  int dh = c.hiddenSize;
   model->_config = c;
-  model->_embedding = Embedding::create(ctx.withName("embd"), c.hiddenSize, c.vocabSize);
-  model->_finalNorm = RMSNorm::create(ctx.withName("final_norm"), c.hiddenSize, c.normEps);
+  model->_embedding = Embedding::create(ctx.withName("embd"), dh, c.vocabSize);
+  model->_finalNorm = RMSNorm::create(ctx.withName("final_norm"), dh, c.normEps);
+  model->_outProj = Linear::create(ctx.withName("out_proj"), dh, c.vocabSize, false);
   for (int i = 0; i < c.numLayers; ++i) {
     model->_blocks.emplace_back(
         GLMBlock::create(ctx.withName(lut::sprintf("%s%d", "block", i)), c));
@@ -320,20 +308,16 @@ void ChatGlmModel::initParameters(const StateMap &stateDict) {
 
   _embedding->initParameters(stateDict);
   _finalNorm->initParameters(stateDict);
-
-  _rope = stateDict.getTensor(ctx.name("rope"));
-  _rope.throwIfInvalidShape({_config.seqLength, _config.kvChannels / 4, 2});
-  _rope = _rope.view({_config.seqLength, 1, _config.kvChannels / 2});
-
-  _output = stateDict.getTensor(ctx.name("output_weight"));
-  _output.throwIfInvalidShape({_config.vocabSize, _config.hiddenSize});
+  _outProj->initParameters(stateDict);
 
   for (int i = 0; i < _config.numLayers; ++i) {
     _blocks[i]->initParameters(stateDict);
   }
 
+  _rope = stateDict.getTensor(ctx.name("rope"));
+  _rope.throwIfInvalidShape({_config.seqLength, _config.kvChannels / 4, 2});
+  _rope = _rope.view({_config.seqLength, 1, _config.kvChannels / 2});
   _rope = moveAndCastFloat(_rope, ctx);
-  _output = moveAndCastFloat(_output, ctx);
 }
 
 void ChatGlmModel::initParameters(lut::Random *generator, DType weightType) {
@@ -341,21 +325,15 @@ void ChatGlmModel::initParameters(lut::Random *generator, DType weightType) {
 
   _embedding->initParameters(generator, weightType);
   _finalNorm->initParameters(generator, weightType);
+  _outProj->initParameters(generator, weightType);
 
   _rope = F::rand({_config.seqLength, 1, _config.kvChannels / 2},
                   DType::kFloat,  // roPE must be float
                   Device::getCpu(),
-                  generator);
+                  generator,
+                  -0.2f,
+                  0.2f);
   _rope = moveAndCastFloat(_rope, ctx);
-
-  float xs = sqrtf(6.0f / (_config.vocabSize + _config.hiddenSize));
-  _output = F::rand({_config.vocabSize, _config.hiddenSize},
-                     weightType,
-                     Device::getCpu(),
-                     generator,
-                     -xs,
-                     xs);
-  _output = moveAndCastFloat(_output, ctx);
 
   for (int i = 0; i < _config.numLayers; ++i) {
     _blocks[i]->initParameters(generator, weightType);
@@ -363,7 +341,7 @@ void ChatGlmModel::initParameters(lut::Random *generator, DType weightType) {
 }
 
 Tensor ChatGlmModel::forwardHidden(Tensor hiddenState) const {
-  return F::matmul(hiddenState, _output.transpose(0, 1));
+  return _outProj->forward(hiddenState);
 }
 
 Tensor ChatGlmModel::forward(StateMap &past, Tensor input) const {

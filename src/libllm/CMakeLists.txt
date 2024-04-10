@@ -198,9 +198,8 @@ endif()
 
 set(unittest_LIBADD
     libllm_static
-    lut
-    catch2
-    OpenMP::OpenMP_CXX)
+    ${libllm_LIBADD}
+    catch2)
 if (WITH_MKL)
     set(unittest_LIBADD
         ${unittest_LIBADD}

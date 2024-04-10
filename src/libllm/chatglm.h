@@ -63,8 +63,8 @@ class SelfAttention : public Module {
   Tensor forward(StateMap &past, Tensor input, Tensor roPE) const;
 
  private:
-  std::unique_ptr<Linear> _qkvProj;
-  Tensor _denseWeight;
+  std::shared_ptr<Linear> _qkvProj;
+  std::shared_ptr<Linear> _outProj;
 
   int _kvProjDim;
   int _qProjDim;
@@ -90,8 +90,8 @@ class MLP : public Module {
   Tensor forward(const Tensor &input) const;
 
  private:
-  Tensor _dense1Weight;
-  Tensor _dense2Weight;
+  std::shared_ptr<Linear> _dense1;
+  std::shared_ptr<Linear> _dense2;
 
   int _hiddenSize;
   int _ffnHiddenSize;
@@ -138,7 +138,8 @@ class ChatGlmModel : public Module {
   std::vector<std::unique_ptr<GLMBlock>> _blocks;
   std::unique_ptr<RMSNorm> _finalNorm;
   Tensor _rope;
-  Tensor _output;
+
+  std::shared_ptr<Linear> _outProj;
 
   ChatGlmModel();
 };

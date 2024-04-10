@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <limits>
+#include <memory>
 #include "libllm/device.h"
 #include "libllm/dtype.h"
 #include "libllm/lut/fixed_array.h"

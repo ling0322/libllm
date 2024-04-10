@@ -42,7 +42,7 @@ class ChatGLMExporter(ModelExporter):
         for idx, layer in enumerate(model.encoder.layers):
             self.export_glm_block(ctx.with_subname(f"block{idx}"), layer)
         self.export_rms_norm(ctx.with_subname("final_norm"), model.encoder.final_layernorm)
-        self._write(ctx.with_subname("output_weight").with_quant(Quant.NONE), model.output_layer.weight)
+        self._write(ctx.with_subname("out_proj.weight").with_quant(Quant.NONE), model.output_layer.weight)
 
     def export_linear(self, ctx: Context, module: nn.Linear):
         self._write(ctx.with_subname("weight"), module.weight)
@@ -50,11 +50,11 @@ class ChatGLMExporter(ModelExporter):
 
     def export_self_attn(self, ctx, attn):
         self.export_linear(ctx.with_subname("qkv_proj"), attn.query_key_value)
-        self._write(ctx.with_subname("dense_weight"), attn.dense.weight)
+        self._write(ctx.with_subname("out_proj.weight"), attn.dense.weight)
 
     def export_mlp(self, ctx, mlp):
-        self._write(ctx.with_subname("dense1_weight"), mlp.dense_h_to_4h.weight)
-        self._write(ctx.with_subname("dense2_weight"), mlp.dense_4h_to_h.weight)
+        self._write(ctx.with_subname("dense1.weight"), mlp.dense_h_to_4h.weight)
+        self._write(ctx.with_subname("dense2.weight"), mlp.dense_4h_to_h.weight)
 
     def export_glm_block(self, ctx, block):
         self.export_rms_norm(ctx.with_subname("norm"), block.input_layernorm)

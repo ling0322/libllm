@@ -40,7 +40,7 @@ class Llama2Exporter(ModelExporter):
         self._export_rope(ctx.with_subname("rope"), base_model.layers[0].self_attn.rotary_emb)
         for idx, block in enumerate(base_model.layers):
             self._export_block(ctx.with_subname("block" + str(idx)), block)
-        self._write(ctx.with_subname("out_weight").with_quant(Quant.NONE), model.lm_head.weight)
+        self._write(ctx.with_subname("out_proj.weight").with_quant(Quant.NONE), model.lm_head.weight)
 
     def _export_rms_norm(self, ctx: Context, module):
         self._write(ctx.with_subname("weight").with_quant(Quant.NONE), module.weight)
@@ -64,15 +64,15 @@ class Llama2Exporter(ModelExporter):
         v_proj = attn_block.v_proj.weight
 
         qkv_proj = torch.cat((q_proj, k_proj, v_proj), dim=0)
-        self._write(ctx.with_subname("qkv_proj"), qkv_proj)
-        self._write(ctx.with_subname("out_proj"), attn_block.o_proj.weight)
+        self._write(ctx.with_subname("qkv_proj.weight"), qkv_proj)
+        self._write(ctx.with_subname("out_proj.weight"), attn_block.o_proj.weight)
 
     def _export_mlp(self, ctx: Context, attn_block):
         w_gate = attn_block.gate_proj.weight
         w_up = attn_block.up_proj.weight
         w_gate_up = torch.cat((w_gate, w_up), dim=0)
-        self._write(ctx.with_subname("gate_up_proj"), w_gate_up)
-        self._write(ctx.with_subname("down_proj"), attn_block.down_proj.weight)
+        self._write(ctx.with_subname("gate_up_proj.weight"), w_gate_up)
+        self._write(ctx.with_subname("down_proj.weight"), attn_block.down_proj.weight)
 
     @classmethod
     def generate_config(cls, llama_config) -> configparser.ConfigParser:

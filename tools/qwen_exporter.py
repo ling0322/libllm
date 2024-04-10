@@ -46,9 +46,9 @@ class Qwen2Exporter(Llama2Exporter):
 
         qkv_proj = torch.cat((q_proj, k_proj, v_proj), dim=0)
         qkv_proj_bias = torch.cat((q_proj_bias, k_proj_bias, v_proj_bias), dim=0)
-        self._write(ctx.with_subname("qkv_proj"), qkv_proj)
-        self._write(ctx.with_subname("qkv_proj_bias").with_quant(Quant.NONE), qkv_proj_bias)
-        self._write(ctx.with_subname("out_proj"), attn_block.o_proj.weight)
+        self._write(ctx.with_subname("qkv_proj.weight"), qkv_proj)
+        self._write(ctx.with_subname("qkv_proj.bias").with_quant(Quant.NONE), qkv_proj_bias)
+        self._write(ctx.with_subname("out_proj.weight"), attn_block.o_proj.weight)
 
     @classmethod
     def generate_config(cls, qwen_config) -> configparser.ConfigParser:
