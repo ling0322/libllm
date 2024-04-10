@@ -32,6 +32,7 @@
 namespace libllm {
 namespace llama {
 
+constexpr char LlamaModel::RoPECtxKey[];
 
 // -----------------------------------------------------------------------------------------------+
 // class LlamaConfig                                                                              |
