@@ -24,6 +24,7 @@
 #include "libllm/state_map.h"
 #include "libllm/tensor.h"
 #include "libllm/lut/random.h"
+#include "tensor.h"
 
 namespace libllm {
 
@@ -135,7 +136,8 @@ class Embedding : public Module {
 class Linear : public Module {
  public:
   // create Linear module from context. 
-  static std::unique_ptr<Linear> create(const Context &ctx, int in_features, int out_features);
+  static std::unique_ptr<Linear> create(
+      const Context &ctx, int inDim, int outDim, bool hasBias = true);
 
   // implement interface Module
   void initParameters(const StateMap &state_dict) override;
@@ -152,8 +154,9 @@ class Linear : public Module {
   Tensor _w;
   Tensor _b;
 
-  int _inFeatures;
-  int _outFeatures;
+  int _inDim;
+  int _outDim;
+  bool _hasBias;
 
   Linear();
 };

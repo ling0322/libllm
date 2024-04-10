@@ -56,8 +56,8 @@ class MLP : public Module {
   Tensor forward(Tensor input) const;
 
  private:
-  Tensor _wGateUpProj;
-  Tensor _wDownProj;
+  std::shared_ptr<Linear> _gateUpProj;
+  std::shared_ptr<Linear> _downProj;
 
   int _hiddenSize;
   int _intermediateSize;
@@ -74,9 +74,8 @@ class Attention : public Module {
   Tensor forward(StateMap &past, Tensor input) const;
 
  private:
-  Tensor _qkvProj;
-  Tensor _qkvProjBias;
-  Tensor _outProj;
+  std::shared_ptr<Linear> _qkvProj;
+  std::shared_ptr<Linear> _outProj;
   Tensor _roPE;
 
   std::string _namePastK;
@@ -131,7 +130,7 @@ class LlamaModel : public Module {
   std::shared_ptr<Embedding> _embedding;
   std::shared_ptr<RMSNorm> _norm;
   std::vector<std::shared_ptr<DecodeLayer>> _layers;
-  Tensor _wOutput;
+  std::shared_ptr<Linear> _outProj;
 
   LlamaModel() = default;
 };

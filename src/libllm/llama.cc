@@ -78,39 +78,29 @@ std::shared_ptr<MLP> MLP::create(const Context &ctx, const LlamaConfig &config) 
 
   mlp->_hiddenSize = config.hiddenSize;
   mlp->_intermediateSize = config.intermediateSize;
-  
+
+  int d = config.hiddenSize;
+  int di = config.intermediateSize;
+  mlp->_gateUpProj = Linear::create(ctx.withName("gate_up_proj"), d, di * 2, false);
+  mlp->_downProj = Linear::create(ctx.withName("down_proj"), di, d, false);
+
   return mlp;
 }
 
 void MLP::initParameters(const StateMap &stateDict) {
-  _wGateUpProj = stateDict.getTensor(getCtx().name("gate_up_proj"));
-  _wDownProj = stateDict.getTensor(getCtx().name("down_proj"));
-
-  _wGateUpProj.throwIfInvalidShape({_intermediateSize * 2, _hiddenSize});
-  _wDownProj.throwIfInvalidShape({_hiddenSize, _intermediateSize});
-
-  _wGateUpProj = moveAndCastFloat(_wGateUpProj, getCtx());
-  _wDownProj = moveAndCastFloat(_wDownProj, getCtx());
+  _gateUpProj->initParameters(stateDict);
+  _downProj->initParameters(stateDict);
 }
 
 void MLP::initParameters(lut::Random *generator, DType weightType) {
-  Device dCpu = Device::getCpu();
-
-  float r = sqrtf(9.0f / _hiddenSize);
-  _wGateUpProj = F::rand({_intermediateSize * 2, _hiddenSize}, weightType, dCpu, generator, -r, r);
-  _wGateUpProj = moveAndCastFloat(_wGateUpProj, getCtx());
-
-  r = sqrtf(9.0f / _intermediateSize);
-  _wDownProj = F::rand({_hiddenSize, _intermediateSize}, weightType, dCpu, generator, -r, r);
-  _wDownProj = moveAndCastFloat(_wDownProj, getCtx());
+  _gateUpProj->initParameters(generator, weightType);
+  _downProj->initParameters(generator, weightType);
 }
 
 Tensor MLP::forward(Tensor input) const {
-  CHECK(!_wGateUpProj.empty());
-
-  Tensor x = F::matmul(input, _wGateUpProj.transpose(0, 1));
+  Tensor x = _gateUpProj->forward(input);
   x = F::swiglu(x);
-  x = F::matmul(x, _wDownProj.transpose(0, 1));
+  x = _downProj->forward(x);
 
   return x;
 }
@@ -143,51 +133,32 @@ std::shared_ptr<Attention> Attention::create(const Context &ctx, const LlamaConf
   layer->_namePastV = ctx.name("v");
   layer->_namePastLen = ctx.name("len");
 
+  int d = config.hiddenSize;
+  layer->_qkvProj = Linear::create(ctx.withName("qkv_proj"), d, d * 3, config.qkvProjBias);
+  layer->_outProj = Linear::create(ctx.withName("out_proj"), d, d, false);
+
   return layer;
 }
 
 void Attention::initParameters(const StateMap &stateDict) {
   const Context &ctx = getCtx();
 
-  _qkvProj = stateDict.getTensor(ctx.name("qkv_proj"));
-  _outProj = stateDict.getTensor(ctx.name("out_proj"));
+  _qkvProj->initParameters(stateDict);
+  _outProj->initParameters(stateDict);
+
   _roPE = stateDict.getTensor(ctx.get(LlamaModel::RoPECtxKey));
-
-  _qkvProj.throwIfInvalidShape({_hiddenSize * 3, _hiddenSize});
-  _outProj.throwIfInvalidShape({_hiddenSize, _hiddenSize});
-  _roPE.throwIfInvalidShape({2, _maxCtxLen, _headDim});
   _roPE = _roPE.view({2, _maxCtxLen, 1, _headDim});
-
-  _qkvProj = moveAndCastFloat(_qkvProj, ctx);
-  _outProj = moveAndCastFloat(_outProj, ctx);
   _roPE = moveAndCastFloat(_roPE, ctx);
-
-  if (_hasProjBias) {
-    _qkvProjBias = stateDict.getTensor(ctx.name("qkv_proj_bias"));
-    _qkvProjBias.throwIfInvalidShape({_hiddenSize * 3});
-    _qkvProjBias = moveAndCastFloat(_qkvProjBias, ctx);
-  }
 }
 
 void Attention::initParameters(lut::Random *generator, DType weightType) {
+  _qkvProj->initParameters(generator, weightType);
+  _outProj->initParameters(generator, weightType);
+
   Device dCpu = Device::getCpu();
-
-  float r = sqrtf(9.0f / _hiddenSize);
-  _qkvProj = F::rand({_hiddenSize * 3, _hiddenSize}, weightType, dCpu, generator, -r, r);
-  _qkvProj = moveAndCastFloat(_qkvProj, getCtx());
-
-  _outProj = F::rand({_hiddenSize, _hiddenSize}, weightType, dCpu, generator, -r, r);
-  _outProj = moveAndCastFloat(_outProj, getCtx());
-
-  r = 0.5f;
+  float r = 0.2f;
   _roPE = F::rand({2, _maxCtxLen, 1, _headDim}, DType::kFloat, dCpu, generator, -r, r);
   _roPE = moveAndCastFloat(_roPE, getCtx());
-
-  if (_hasProjBias) {
-    r = 0.5f;
-    _qkvProjBias = F::rand({_hiddenSize * 3}, weightType, dCpu, generator, -r, r);
-    _qkvProjBias = moveAndCastFloat(_qkvProjBias, getCtx());
-  }
 }
 
 int Attention::getCtxLength(const StateMap &past) const {
@@ -226,9 +197,7 @@ Tensor Attention::applyRoPE(Tensor input, Tensor roPE) const {
 Tensor Attention::forward(StateMap &past, Tensor input) const {
   CHECK(input.getDim() == 3);
 
-  Tensor qkv = F::matmul(input, _qkvProj.transpose(0, 1));
-  if (_hasProjBias) qkv = F::add(qkv, _qkvProjBias);
-  
+  Tensor qkv = _qkvProj->forward(input);
   Tensor q = qkv.slice(-1, {0, _hiddenSize});
   Tensor k = qkv.slice(-1, {_hiddenSize, 2 * _hiddenSize});
   Tensor v = qkv.slice(-1, {2 * _hiddenSize, 3 * _hiddenSize});
@@ -268,7 +237,7 @@ Tensor Attention::forward(StateMap &past, Tensor input) const {
                        : F::attention(q, k, v, F::causalMask(q.getShape(2), getCtx().getDevice()));
 
   x = F::contiguous(x.transpose(1, 2)).view({N, qLen, _hiddenSize});
-  x = F::matmul(x, _outProj.transpose(0, 1));
+  x = _outProj->forward(x);
 
   return x;
 }
@@ -291,7 +260,7 @@ std::shared_ptr<DecodeLayer> DecodeLayer::create(const Context &ctx, const Llama
       ctx.withName("post_attn_norm"),
       config.hiddenSize,
       config.normEps);
-  
+
   return layer;
 }
 
@@ -338,27 +307,27 @@ std::shared_ptr<LlamaModel> LlamaModel::create(const Context &fromCtx, LlamaConf
   ctx.set(RoPECtxKey, ctx.name("rope"));
   model->setCtx(ctx);
   
+  int dh = config.hiddenSize;
   model->_config = config;
-  model->_embedding = Embedding::create(ctx.withName("embd"), config.hiddenSize, config.vocabSize);
-  model->_norm = RMSNorm::create(ctx.withName("norm"), config.hiddenSize, config.normEps);
+  model->_embedding = Embedding::create(ctx.withName("embd"), dh, config.vocabSize);
+  model->_norm = RMSNorm::create(ctx.withName("norm"), dh, config.normEps);
   for (int i = 0; i < config.numLayers; ++i) {
     model->_layers.emplace_back(
         DecodeLayer::create(ctx.withName(lut::sprintf("block%d", i)), config));
   }
+
+  model->_outProj = Linear::create(ctx.withName("out_proj"), dh, config.vocabSize, false);
   return model;
 }
 
 void LlamaModel::initParameters(const StateMap &stateDict) {
   _embedding->initParameters(stateDict);
   _norm->initParameters(stateDict);
+  _outProj->initParameters(stateDict);
 
   for (int i = 0; i < _config.numLayers; ++i) {
     _layers[i]->initParameters(stateDict);
   }
-
-  _wOutput = stateDict.getTensor(getCtx().name("out_weight"));
-  _wOutput.throwIfInvalidShape({_config.vocabSize, _config.hiddenSize});
-  _wOutput = moveAndCastFloat(_wOutput, getCtx());
 }
 
 void LlamaModel::initParameters(lut::Random *generator, DType weightType) {
@@ -366,14 +335,11 @@ void LlamaModel::initParameters(lut::Random *generator, DType weightType) {
 
   _embedding->initParameters(generator, weightType);
   _norm->initParameters(generator, weightType);
+  _outProj->initParameters(generator, weightType);
 
   for (int i = 0; i < _config.numLayers; ++i) {
     _layers[i]->initParameters(generator, weightType);
   }
-
-  float r = sqrtf(9.0f / _config.hiddenSize);
-  _wOutput = F::rand({_config.vocabSize, _config.hiddenSize}, weightType, dCpu, generator, -r, r);
-  _wOutput = moveAndCastFloat(_wOutput, getCtx());
 }
 
 Tensor LlamaModel::forward(StateMap &past, Tensor input) const {
@@ -388,7 +354,7 @@ Tensor LlamaModel::forward(StateMap &past, Tensor input) const {
 }
 
 Tensor LlamaModel::forwardHidden(Tensor hidden) const {
-  return F::matmul(hidden, _wOutput.transpose(0, 1));
+  return _outProj->forward(hidden);
 }
 
 // -----------------------------------------------------------------------------------------------+

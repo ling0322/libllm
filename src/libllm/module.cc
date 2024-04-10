@@ -21,6 +21,7 @@
 
 #include <math.h>
 #include "libllm/lut/error.h"
+#include "libllm/lut/strings.h"
 #include "libllm/functional.h"
 
 namespace libllm {
@@ -83,18 +84,17 @@ Tensor Embedding::forward(const Tensor &input) const {
 constexpr char Linear::kWeight[];
 constexpr char Linear::kBias[];
 
-Linear::Linear() : _inFeatures(0), _outFeatures(0) {}
+Linear::Linear() : _inDim(0), _outDim(0), _hasBias(true) {}
 
-std::unique_ptr<Linear> Linear::create(const Context &ctx, int inFeatures, int outFeatures) {
+std::unique_ptr<Linear> Linear::create(
+    const Context &ctx, int inDim, int outDim, bool hasBias) {
+  if (inDim <= 0 || outDim <= 0) throw lut::AbortedError("invalid d_model");
+
   std::unique_ptr<Linear> linear{new Linear()};
   linear->setCtx(ctx);
-
-  if (inFeatures <= 0 || outFeatures <= 0) {
-    throw lut::AbortedError("invalid d_model");
-  }
-
-  linear->_inFeatures = inFeatures;
-  linear->_outFeatures = outFeatures;
+  linear->_inDim = inDim;
+  linear->_outDim = outDim;
+  linear->_hasBias = hasBias;
   return linear;
 }
 
@@ -105,23 +105,30 @@ void Linear::initParameters(const StateMap &stateDict) {
   std::string nameB = ctx.name(kBias);
 
   _w = stateDict.getTensor(nameW);
-  _b = stateDict.getTensor(nameB);
-
-  _w.throwIfInvalidShape({_outFeatures, _inFeatures});
-  _b.throwIfInvalidShape({_outFeatures});
-
+  _w.throwIfInvalidShape({_outDim, _inDim});
   _w = moveAndCastFloat(_w, ctx);
-  _b = moveAndCastFloat(_b, ctx);
 
+  if (_hasBias) {
+    _b = stateDict.getTensor(nameB);
+    _b.throwIfInvalidShape({_outDim});
+    _b = moveAndCastFloat(_b, ctx);
+  } else {
+    if (stateDict.hasTensor(nameB)) {
+      throw lut::AbortedError(lut::sprintf(
+          "In module %s: hasBias=false but bias weight found in state_map.", ctx.name()));
+    }
+  }
 }
 
 void Linear::initParameters(lut::Random *generator, DType weightType) {
-  float xs = sqrtf(6.0f / (_outFeatures + _inFeatures));
-  _w = F::rand({_outFeatures, _inFeatures}, weightType, Device::getCpu(), generator, -xs, xs);
+  float xs = sqrtf(3.0f / _inDim);
+  _w = F::rand({_outDim, _inDim}, weightType, Device::getCpu(), generator, -xs, xs);
   _w = moveAndCastFloat(_w, getCtx());
 
-  _b = F::rand({_outFeatures}, DType::kFloat, Device::getCpu(), generator);
-  _b = moveAndCastFloat(_b, getCtx());
+  if (_hasBias) {
+    _b = F::rand({_outDim}, DType::kFloat, Device::getCpu(), generator, -0.2f, 0.2f);
+    _b = moveAndCastFloat(_b, getCtx());
+  }
 }
 
 Tensor Linear::forward(const Tensor &input) const {
@@ -131,7 +138,10 @@ Tensor Linear::forward(const Tensor &input) const {
   } else {
     NOT_IMPL();
   }
-  x = F::add(x, _b);
+
+  if (_hasBias) {
+    x = F::add(x, _b);
+  }
 
   return x;
 }
