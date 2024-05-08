@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -21,15 +21,16 @@
 
 #include <math.h>
 #include <string.h>
+
 #include <algorithm>
-#include "libllm/lut/half.h"
-#include "libllm/cpu/kernel/kernel.h"
-#include "libllm/tensor.h"
+
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/cpu_tensor_data.h"
+#include "libllm/cpu/kernel/interface.h"
 #include "libllm/cpu/lookup.h"
 #include "libllm/cpu/tensor.h"
-
+#include "libllm/lut/half.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
@@ -38,9 +39,9 @@ namespace cpu {
 Tensor cast(Tensor A, DType dtype) {
   if (A.getDType() == dtype) {
     return A;
-  } else if (A.getDType() == DType::kFloat && dtype == DType::kQ4) {
+  } else if (A.getDType() == DType::kFloat && dtype == DType::kQInt4x32) {
     return castFp32ToQ4(A);
-  } else if (A.getDType() == DType::kQ4 && dtype == DType::kFloat) {
+  } else if (A.getDType() == DType::kQInt4x32 && dtype == DType::kFloat) {
     return castQ4ToFp32(A);
   } else if (A.getDType() == DType::kFloat16 && dtype == DType::kFloat) {
     return castFp16ToFp32(A);
@@ -57,8 +58,10 @@ Tensor castFp16ToFp32(Tensor A) {
   kernel::convertHalfToFloat(
       A.getNumEl(),
       reinterpret_cast<const kernel::Float16 *>(A.getData<Float16>()),
-      C.getData<float>());
-  
+      C.getData<float>(),
+      kernel::Mode::OMP,
+      kernel::CpuMathBackend::DEFAULT);
+
   return C;
 }
 
@@ -68,8 +71,10 @@ Tensor castFp32ToFp16(Tensor A) {
   kernel::convertFloatToHalf(
       A.getNumEl(),
       A.getData<float>(),
-      reinterpret_cast<kernel::Float16 *>(C.getData<Float16>()));
-  
+      reinterpret_cast<kernel::Float16 *>(C.getData<Float16>()),
+      kernel::Mode::OMP,
+      kernel::CpuMathBackend::DEFAULT);
+
   return C;
 }
 
@@ -81,61 +86,21 @@ Tensor castQ4ToFp32(Tensor A) {
 }
 
 Tensor castFp32ToQ4(Tensor A) {
-  CHECK(A.getDim() == 2);
-  CHECK(A.getShape(1) % Q4::GroupSize == 0);
-  CHECK(A.isContiguous()) << "unable to cast a non-contiguous tensor to Q4";
-
   int64_t numel = A.getNumEl();
-  const float *dataA = A.getData<float>();
-  std::vector<uint8_t> data(numel / 2);
-  std::vector<uint16_t> qscale(numel / Q4::GroupSize);
-  std::vector<uint8_t> qzero(numel / Q4::GroupSize / 2);
+  int64_t groupSize = DType(DType::kQInt4x32).getGroupSize();
+  CHECK(numel % groupSize == 0);
 
-  int nb = numel / Q4::GroupSize;
-  for (int i = 0; i < nb; ++i) {
-    int begin = i * Q4::GroupSize;
-    int end = (i + 1) * Q4::GroupSize;
-
-    float minVal = *std::min_element(dataA + begin, dataA + end);
-    float maxVal = *std::max_element(dataA + begin, dataA + end);
-
-    float scale = (maxVal - minVal) / 15.0;
-    float zeroFp32 = roundf(-minVal / scale);
-    CHECK(zeroFp32 >= 0.0f && zeroFp32 <= 15.0f);
-    uint8_t zero = static_cast<uint8_t>(zeroFp32);
-
-    for (int j = 0; j < Q4::GroupSize; j += 2) {
-      float dlFp32 = roundf((dataA[begin + j] - minVal) / scale);
-      float dhFp32 = roundf((dataA[begin + j + 1] - minVal) / scale);
-      CHECK(dlFp32 >= 0.0f && dlFp32 <= 15.0f && dhFp32 >= 0.0f && dhFp32 <= 15.0f);
-
-      uint8_t dl = static_cast<uint8_t>(dlFp32);
-      uint8_t dh = static_cast<uint8_t>(dhFp32);
-      data[(begin + j) / 2] = (dh << 4) | dl;
-    }
-
-    if (i % 2 == 0) {
-      qzero[i / 2] = 0;
-      qzero[i / 2] |= zero;
-    } else {
-      qzero[i / 2] |= (zero << 4);
-    }
-
-    qscale[i] = lut::cvtss_sh(scale);
-  }
-
-  auto tensorData = CpuTensorData::create({
-      {numel, DType::kQ4},
-      {numel / Q4::GroupSize, DType::kFloat16},
-      {numel / Q4::GroupSize / 2, DType::kUInt8}});
-  memcpy(tensorData->getSlot(0)->getRawData(), data.data(), data.size());
-  memcpy(tensorData->getSlot(1)->getRawData(), qscale.data(), qscale.size() * sizeof(uint16_t));
-  memcpy(tensorData->getSlot(2)->getRawData(), qzero.data(), qzero.size());
-
+  auto tensorData = CpuTensorData::create({{numel / groupSize, DType::kQInt4x32}});
+  kernel::quantFloatToQInt4(
+      numel,
+      A.getData<float>(),
+      0,
+      (kernel::QInt4x32 *)tensorData->getData<QInt4x32>(0),
+      kernel::Mode::OMP);
   auto tensorShape = std::make_shared<TensorShape>(A.getShape());
   return Tensor::create(tensorShape, tensorData);
 }
 
-}  // cpu
-}  // op
-}  // ly
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm`

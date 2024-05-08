@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,45 +17,39 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
 #pragma once
 
-#include <stdint.h>
-#include <memory>
-#include "libllm/cpu/kernel/interfaces.h"
-#include "libllm/lut/log.h"
+#include <omp.h>
 
+#include "libllm/cpu/kernel/abstract.h"
+#include "libllm/lut/log.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
+template<typename ElementA, typename ElementC, CpuMathBackend TYPE, Mode MODE>
+void cvt(int64_t n, const ElementA *x, int64_t offsetX, ElementC *y) {
+  int nb = (n + CvtMinElemPerThread - 1) / CvtMinElemPerThread;
 
-struct SQInt4AxpyNotImplKernel {
-  static void applyColumn(const QInt4GemvArgs<float> &args, int col, float *y) {
-    NOT_IMPL();
+  if (MODE == Mode::OMP && nb > 1) {
+    int nr = (n - 1) % CvtMinElemPerThread + 1;
+    int numThreads = std::min(nb, omp_get_max_threads());
+
+#pragma omp parallel for num_threads(numThreads)
+    for (int i = 0; i < nb; ++i) {
+      int ne = (i == nb - 1) ? nr : CvtMinElemPerThread;
+      cvtKernel<ElementA, ElementC, TYPE>(
+          ne,
+          x,
+          offsetX + i * CvtMinElemPerThread,
+          y + i * CvtMinElemPerThread);
+    }
+  } else {
+    cvtKernel<ElementA, ElementC, TYPE>(n, x, offsetX, y);
   }
-};
-
-struct SQInt4DotFallbackKernel {
-  static float apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY);
-  static float applyRow(const QInt4GemvArgs<float> &args, int row);
-};
-
-struct SQInt4DotAvx2Kernel {
-  static float apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY);
-  static float applyRow(const QInt4GemvArgs<float> &args, int row);
-};
-
-struct DequantQInt4Avx2Kernel {
-  static void apply(int n, DataQInt4 x, int64_t offsetX, float *y);
-};
-
-struct DequantQInt4FallbackKernel {
-  static void apply(int n, DataQInt4 x, int64_t offsetX, float *y);
-};
+}
 
 }  // namespace kernel
 }  // namespace cpu

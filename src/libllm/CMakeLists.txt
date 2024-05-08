@@ -22,7 +22,7 @@ set(lut_SOURCES
 
 set(libllm_SOURCES
     "cpu/kernel/kernel.cc"
-    "cpu/kernel/kernel_fallback.cc"
+    "cpu/kernel/fallback.cc"
     "cpu/kernel/util.cc"
     "cpu/all_close.cc"
     "cpu/apply_rotary_pos_emb.cc"
@@ -170,7 +170,7 @@ if(LIBLLM_KERNEL_X86_64)
     endif(UNIX)
 endif()
 if(LIBLLM_KERNEL_AARCH64)
-    set(libllm_SOURCES ${libllm_SOURCES} "cpu/kernel/kernel_asimdhp.cc")
+    set(libllm_SOURCES ${libllm_SOURCES} "cpu/kernel/asimdhp.cc")
     set(unittest_SOURCES ${unittest_SOURCES} "cpu/test_float16.cc")
 endif()
 

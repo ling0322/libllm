@@ -33,7 +33,7 @@ constexpr int16_t DType::kFloat;
 constexpr int16_t DType::kLong;
 constexpr int16_t DType::kUInt8;
 constexpr int16_t DType::kFloat16;
-constexpr int16_t DType::kQ4;
+constexpr int16_t DType::kQInt4x32;
 constexpr int16_t DType::kInt8;
 
 DType::DType(int16_t dtype) : _dtype(dtype) {}
@@ -55,8 +55,8 @@ DType DType::getTypeImpl<Float16>() {
   return DType::kFloat16;
 }
 template<>
-DType DType::getTypeImpl<Q4>() {
-  return DType::kQ4;
+DType DType::getTypeImpl<QInt4x32>() {
+  return DType::kQInt4x32;
 }
 template<>
 DType DType::getTypeImpl<Int8>() {
@@ -78,9 +78,9 @@ int64_t DType::getTotalSize(int64_t numel) const {
       return 2 * numel;
     case DType::kLong:
       return 8 * numel;
-    case DType::kQ4:
-      CHECK(numel % 2 == 0);
-      return numel / 2;
+    case DType::kQInt4x32:
+      CHECK(numel % 32 == 0);
+      return numel / 32 * sizeof(QInt4x32);
     case DType::kInt8:
     case DType::kUInt8:
       return numel;
@@ -96,7 +96,7 @@ bool DType::isValid() const {
     case DType::kFloat16:
     case DType::kLong:
     case DType::kUInt8:
-    case DType::kQ4:
+    case DType::kQInt4x32:
     case DType::kInt8:
       return true;
     default:
@@ -106,7 +106,7 @@ bool DType::isValid() const {
 
 bool DType::isQuantized() const {
   switch (_dtype) {
-    case DType::kQ4:
+    case DType::kQInt4x32:
       return true;
     default:
       return false;
@@ -125,8 +125,8 @@ bool DType::isFloat() const {
 
 int DType::getGroupSize() const {
   switch (_dtype) {
-    case DType::kQ4:
-      return 128;
+    case DType::kQInt4x32:
+      return 32;
     default:
       NOT_IMPL();
   }
@@ -144,7 +144,7 @@ std::string DType::toString() const {
       return "int64";
     case DType::kUInt8:
       return "uint8";
-    case DType::kQ4:
+    case DType::kQInt4x32:
       return "q4";
     case DType::kInt8:
       return "int8";

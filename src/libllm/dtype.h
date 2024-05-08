@@ -55,6 +55,13 @@ struct UInt8 {
 };
 static_assert(sizeof(Int8) == 1, "invalid size of UInt8");
 
+struct QInt4x32 {
+  Float16 zero;
+  Float16 scale;
+  uint8_t data[16];
+};
+static_assert(sizeof(QInt4x32) == 20, "invalid size of QInt4x32");
+
 typedef int8_t Byte;
 typedef int64_t LongType;
 typedef int64_t LongType;
@@ -66,7 +73,7 @@ class DType {
   static constexpr int16_t kLong = 2;
   static constexpr int16_t kUInt8 = 3;
   static constexpr int16_t kFloat16 = 4;
-  static constexpr int16_t kQ4 = 5;
+  static constexpr int16_t kQInt4x32 = 5;
   static constexpr int16_t kInt8 = 6;
 
   // get DType from type T

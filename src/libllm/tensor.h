@@ -281,9 +281,6 @@ class TensorData {
   /// @brief Get total size in bytes of slot[0]
   /// @return slot[0] size in bytes.
   int64_t getSizeInBytes() const { return getSlot(0)->getSizeInBytes(); }
-
-  /// @brief throw if the tensor data is invalid.
-  void throwIfInvalid();
 };
 
 constexpr int None = std::numeric_limits<int>::min();

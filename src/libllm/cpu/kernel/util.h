@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 #include <memory>
-#include "libllm/cpu/kernel/interfaces.h"
+#include "libllm/cpu/kernel/abstract.h"
 #include "libllm/lut/c_ptr.h"
 #include "libllm/lut/span.h"
 #include "libllm/lut/platform.h"
@@ -70,12 +70,6 @@ template<>
 inline Float16 cvtf(Float16 v) {
   return v;
 }
-
-void quantFloatToQInt4(
-    lut::Span<const float> x,
-    lut::Span<UInt4x2> qdata,
-    lut::Span<Float16> qscale,
-    lut::Span<UInt4x2> qzero);
 
 }  // namespace kernel
 }  // namespace cpu

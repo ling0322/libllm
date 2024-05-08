@@ -27,26 +27,33 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-struct WORD {
-  uint16_t h;
-};
-
-struct BYTE {
-  uint8_t b;
-};
-
 #ifdef LUT_ARCH_AARCH64
 typedef _Float16 Float16;
 #else
-typedef WORD Float16;
+struct Float16 {
+  uint16_t h;
+};
 #endif
 
-typedef BYTE UInt4x2;
+struct QInt4x32 {
+  Float16 zero;
+  Float16 scale;
+  uint8_t data[16];
+};
+static_assert(sizeof(QInt4x32) == 20, "invalid size of QInt4x32");
 
 enum class Mode {
   OMP,
-  SingleThread,
-  Auto
+  SingleThread
+};
+
+enum class CpuMathBackend {
+  DEFAULT,
+  AVX2,
+  AVX512,
+  ASIMDHP,
+  FALLBACK,
+  UNKNOWN
 };
 
 void init();
@@ -64,7 +71,8 @@ void gemmFloat(
     int ldb,
     float *C,
     int ldc,
-    Mode mode = Mode::Auto);
+    Mode mode,
+    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
 
 void gemmHalf(
     bool transA,
@@ -78,7 +86,8 @@ void gemmHalf(
     int ldb,
     Float16 *C,
     int ldc,
-    Mode mode = Mode::Auto);
+    Mode mode,
+    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
 
 void gemmHalfQInt4(
     bool transA,
@@ -88,30 +97,35 @@ void gemmHalfQInt4(
     int K,
     const Float16 *A,
     int lda,
-    const UInt4x2 *dataB,
-    const Float16 *scaleB,
-    const UInt4x2 *zeroPointB,
+    const QInt4x32 *B,
     Float16 *C,
     int ldc,
-    Mode mode = Mode::Auto);
+    Mode mode,
+    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
 
 void dequantQInt4ToFloat(
     int n,
-    const UInt4x2 *data,
-    const Float16 *scale,
-    const UInt4x2 *zeroPoint,
+    const QInt4x32 *data,
     int offset,
     float *tgt,
-    Mode mode = Mode::Auto);
+    Mode mode,
+    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
+
+void quantFloatToQInt4(
+    int n,
+    const float *data,
+    int offset,
+    QInt4x32 *tgt,
+    Mode mode,
+    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
 
 void dequantQInt4ToHalf(
     int n,
-    const UInt4x2 *data,
-    const Float16 *scale,
-    const UInt4x2 *zeroPoint,
+    const QInt4x32 *data,
     int offset,
     Float16 *tgt,
-    Mode mode = Mode::Auto);
+    Mode mode,
+    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
 
 // GEMM: A is a float32 matrix, B is a matrix with 4-bit asymmetric quantization. C is a float32
 // matrix.
@@ -123,15 +137,25 @@ void gemmFloatQInt4(
     int K,
     const float *A,
     int lda,
-    const UInt4x2 *B,
-    const Float16 *scaleB,
-    const UInt4x2 *zeroPointB,
+    const QInt4x32 *B,
     float *C,
     int ldc,
-    Mode mode = Mode::Auto);
+    Mode mode,
+    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
 
-void convertHalfToFloat(int n, const Float16 *x, float *y, Mode mode = Mode::Auto);
-void convertFloatToHalf(int n, const float *x, Float16 *y, Mode mode = Mode::Auto);
+void convertHalfToFloat(
+    int n,
+    const Float16 *x,
+    float *y,
+    Mode mode,
+    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
+
+void convertFloatToHalf(
+    int n,
+    const float *x,
+    Float16 *y,
+    Mode mode,
+    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
 
 }  // namespace kernel
 }  // namespace cpu

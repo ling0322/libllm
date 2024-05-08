@@ -23,7 +23,7 @@
 #include <cmath>
 #include <limits>
 #include <memory>
-#include "libllm/cpu/kernel/kernel.h"
+#include "libllm/cpu/kernel/interface.h"
 #include "libllm/cpu/all_close.h"
 #include "libllm/cpu/apply_rotary_pos_emb.h"
 #include "libllm/cpu/binary_op.h"

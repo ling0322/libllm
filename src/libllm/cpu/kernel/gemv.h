@@ -22,8 +22,9 @@
 #include <omp.h>
 #include <stdlib.h>
 #include <string.h>
+#include <type_traits>
 #include "libllm/lut/c_ptr.h"
-#include "libllm/cpu/kernel/interfaces.h"
+#include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/util.h"
 
 namespace libllm {
@@ -31,82 +32,26 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-template<typename TArgs, class TSAxpyKernel, class TSDotKernel, Mode MODE>
-class GemvKernel {
- public:
-  void apply(const TArgs &args) const;
-
- private:
-  void applyContigousXY(const TArgs &args) const;
-  void applyContigousXYTransA(const TArgs &args) const;
-  void applyContigousXYNonTransA(const TArgs &args) const;
-};
-
-template<typename TArgs, class TAxpyKernel, class TDotKernel, Mode MODE>
-void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::apply(const TArgs &args) const {
-  if (args.incX == 1 && args.incY == 1) {
-    applyContigousXY(args);
-  } else {
-    lut::c_ptr<typename TArgs::VecType> packedXY = alignedAlloc<typename TArgs::VecType>(
-        args.M + args.N);
-
-    // On transposed A: dimemsion of (x, y) is (M, N)
-    // On non-transposed A: dimemsion of (x, y) is (N, M)
-    int dimX = args.transA ? args.M : args.N;
-    int dimY = args.transA ? args.N : args.M;
-
-    const typename TArgs::VecType *px = args.x;
-    typename TArgs::VecType *py = args.y;
-    if (args.incX != 1) {
-      px = packedXY.get();
-      copyVec<typename TArgs::VecType>(dimX, args.x, args.incX, packedXY.get(), 1);
-    }
-    if (args.incY != 1) {
-      py = packedXY.get() + dimX;
-      copyVec<typename TArgs::VecType>(dimY, args.y, args.incY, py, 1);
-    }
-
-    // apply GEMV kernel.
-    TArgs cArgs = args;
-    cArgs.x = px;
-    cArgs.y = py;
-    applyContigousXY(cArgs);
-
-    if (args.incY != 1) {
-      copyVec<typename TArgs::VecType>(dimY, py, 1, args.y, args.incY);
-    }
-  }
-}
-
-template<typename TArgs, class TAxpyKernel, class TDotKernel, Mode MODE>
-void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXY(const TArgs &args) const {
-  if (args.transA) {
-    applyContigousXYTransA(args);
-  } else {
-    applyContigousXYNonTransA(args);
-  }
-}
-
-template<typename TArgs, class TAxpyKernel, class TDotKernel, Mode MODE>
-void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYNonTransA(
-    const TArgs &args) const {
+template<typename ElementA, typename ElementB, typename ElementC, CpuMathBackend TYPE, Mode MODE>
+void gemvContigousN(const GemvArgs<ElementA, ElementB, ElementC> &args) {
   if (MODE == Mode::SingleThread) {
     for (int m = 0; m < args.M; ++m) {
-      args.y[m] += TDotKernel::applyRow(args, m);
+      args.y[m] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
+          args.N, args.x, args.A, m * args.N);
     }
   } else if (MODE == Mode::OMP) {
     #pragma omp parallel for
     for (int m = 0; m < args.M; ++m) {
-      args.y[m] += TDotKernel::applyRow(args, m);
+      args.y[m] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
+          args.N, args.x, args.A, m * args.N);
     }
   } else {
     NOT_IMPL();
   }
 }
 
-template<typename TArgs, class TAxpyKernel, class TDotKernel, Mode MODE>
-void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYTransA(
-    const TArgs &args) const {
+template<typename ElementA, typename ElementB, typename ElementC, CpuMathBackend TYPE, Mode MODE>
+void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
   int mp = (args.M + GEMVMinRowsPerThread - 1) / GEMVMinRowsPerThread;
   int numThreads = std::min(mp, omp_get_max_threads());
 
@@ -115,7 +60,8 @@ void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYTransA(
     memset(y.get(), 0, args.N * sizeof(float));
 
     for (int m = 0; m < args.M; ++m) {
-      TAxpyKernel::applyColumn(args, m, y.get());
+      axpyKernel<ElementB, ElementA, float, TYPE>(
+          args.N, args.x[m], args.A, m * args.N, y.get());
     }
     for (int i = 0; i < args.N; ++i) {
       args.y[i] += y.get()[i];
@@ -130,7 +76,8 @@ void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYTransA(
     #pragma omp parallel for num_threads(numThreads)
     for (int m = 0; m < args.M; ++m) {
       float *py = ys.get() + omp_get_thread_num() * args.N;
-      TAxpyKernel::applyColumn(args, m, py);
+      axpyKernel<ElementB, ElementA, float, TYPE>(
+          args.N, args.x[m], args.A, m * args.N, py);
     }
 
     // accumulate ys.
@@ -143,6 +90,51 @@ void GemvKernel<TArgs, TAxpyKernel, TDotKernel, MODE>::applyContigousXYTransA(
     }
   } else {
     NOT_IMPL();
+  }
+}
+
+template<typename ElementA, typename ElementB, typename ElementC, CpuMathBackend TYPE, Mode MODE>
+void gemvContigous(const GemvArgs<ElementA, ElementB, ElementC> &args) {
+  if (args.transA) {
+    gemvContigousN<ElementA, ElementB, ElementC, TYPE, MODE>(args);
+  } else {
+    gemvContigousT<ElementA, ElementB, ElementC, TYPE, MODE>(args);
+  }
+}
+
+template<typename ElementA, typename ElementB, typename ElementC, CpuMathBackend TYPE, Mode MODE>
+void gemv(const GemvArgs<ElementA, ElementB, ElementC> &args) {
+  if (args.incX == 1 && args.incY == 1) {
+    gemvContigous<ElementA, ElementB, ElementC, TYPE, MODE>(args);
+  } else {
+    static_assert(std::is_same<ElementB, ElementC>::value, "upsupported element type of X and Y");
+    lut::c_ptr<ElementB> packedXY = alignedAlloc<ElementB>(args.M + args.N);
+
+    // On transposed A: dimemsion of (x, y) is (M, N)
+    // On non-transposed A: dimemsion of (x, y) is (N, M)
+    int dimX = args.transA ? args.M : args.N;
+    int dimY = args.transA ? args.N : args.M;
+
+    const ElementB *px = args.x;
+    ElementC *py = args.y;
+    if (args.incX != 1) {
+      px = packedXY.get();
+      copyVec<ElementB>(dimX, args.x, args.incX, packedXY.get(), 1);
+    }
+    if (args.incY != 1) {
+      py = packedXY.get() + dimX;
+      copyVec<ElementC>(dimY, args.y, args.incY, py, 1);
+    }
+
+    // apply GEMV kernel.
+    GemvArgs<ElementA, ElementB, ElementC> cArgs = args;
+    cArgs.x = px;
+    cArgs.y = py;
+    gemvContigous<ElementA, ElementB, ElementC, TYPE, MODE>(cArgs);
+
+    if (args.incY != 1) {
+      copyVec<ElementC>(dimY, py, 1, args.y, args.incY);
+    }
   }
 }
 
