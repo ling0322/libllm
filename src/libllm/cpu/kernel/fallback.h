@@ -35,6 +35,7 @@ void qhcvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, Float16 *y);
 void hscvtFallbackKernel(int64_t n, const Float16 *x, float *y);
 void shcvtFallbackKernel(int64_t n, const float *x, Float16 *y);
 void sgemm6x16DefaultKernel(int64_t kc, const float *a, const float *b, float *c, int64_t rs_c);
+void sgemm12x32DefaultKernel(int64_t kc, const float *a, const float *b, float *c, int64_t rs_c);
 void hgemm12x16FallbackKernel(
     int64_t kc,
     const Float16 *a,
@@ -42,7 +43,7 @@ void hgemm12x16FallbackKernel(
     Float16 *c,
     int64_t rs_c);
 float sqdotFallbackKernel(int64_t n, const float *x, const QInt4x32 *y, int64_t offsetY);
-float hqdotFallbackKernel(int64_t n, const Float16 *x, const QInt4x32 *y, int64_t offsetY);
+Float16 hqdotFallbackKernel(int64_t n, const Float16 *x, const QInt4x32 *y, int64_t offsetY);
 float sdotFallbackKernel(int64_t n, const float *x, const float *y);
 Float16 hdotFallbackKernel(int64_t n, const Float16 *x, const Float16 *y);
 void haxpyFallbackKernel(int64_t n, Float16 a, const Float16 *x, float *y);
@@ -96,6 +97,15 @@ inline void gemmKernel<float, float, float, 6, 16, CpuMathBackend::FALLBACK>(
     float *c,
     int64_t rs_c) {
   return sgemm6x16DefaultKernel(kc, a, b, c, rs_c);
+}
+template<>
+inline void gemmKernel<float, float, float, 12, 32, CpuMathBackend::FALLBACK>(
+    int64_t kc,
+    const float *a,
+    const float *b,
+    float *c,
+    int64_t rs_c) {
+  return sgemm12x32DefaultKernel(kc, a, b, c, rs_c);
 }
 template<>
 inline void gemmKernel<Float16, Float16, Float16, 12, 16, CpuMathBackend::FALLBACK>(

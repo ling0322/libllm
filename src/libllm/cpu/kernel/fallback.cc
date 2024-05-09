@@ -20,6 +20,7 @@
 #include "libllm/cpu/kernel/fallback.h"
 
 #include <assert.h>
+#include <math.h>
 #include <stdlib.h>
 
 #include <algorithm>
@@ -33,26 +34,6 @@ namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
-
-void sgemm6x16DefaultKernel(int64_t kc, const float *a, const float *b, float *c, int64_t rs_c) {
-  // a: kc x MR
-  // b: kc x NR
-  constexpr int64_t MR = 6;
-  constexpr int64_t NR = 16;
-
-  for (int k = 0; k < kc; ++k) {
-    const float *Ak = a + k * MR;
-    for (int m = 0; m < MR; ++m) {
-      float *Cm = c + m * rs_c;
-      float Akm = Ak[m];
-      const float *Bk = b + k * NR;
-
-      for (int n = 0; n < NR; ++n) {
-        Cm[n] += Akm * Bk[n];
-      }
-    }
-  }
-}
 
 template<typename T>
 void qfcvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, T *y) {
@@ -79,9 +60,11 @@ void qscvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, float *y) {
   qfcvtFallbackKernel<float>(n, x, offsetX, y);
 }
 
+#if LUT_APU_ARCH == LUT_AARCH64
 void qhcvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, Float16 *y) {
   qfcvtFallbackKernel<Float16>(n, x, offsetX, y);
 }
+#endif
 
 template<typename T>
 T fqdotFallbackKernel(int64_t n, const T *x, const QInt4x32 *y, int64_t offsetY) {
@@ -109,7 +92,7 @@ float sqdotFallbackKernel(int64_t n, const float *x, const QInt4x32 *y, int64_t 
   return fqdotFallbackKernel<float>(n, x, y, offsetY);
 }
 
-float hqdotFallbackKernel(int64_t n, const Float16 *x, const QInt4x32 *y, int64_t offsetY) {
+Float16 hqdotFallbackKernel(int64_t n, const Float16 *x, const QInt4x32 *y, int64_t offsetY) {
   return fqdotFallbackKernel<Float16>(n, x, y, offsetY);
 }
 
@@ -163,17 +146,25 @@ Float16 hdotFallbackKernel(int64_t n, const Float16 *x, const Float16 *y) {
   return cvtf<Float16>(sum);
 }
 
-template<int MR, int NR>
-void hgemmFallbackKernel(int64_t kc, const Float16 *a, const Float16 *b, Float16 *c, int64_t rs_c) {
+template<typename T, int MR, int NR>
+void gemmFallbackKernel(int64_t kc, const T *a, const T *b, T *c, int64_t rs_c) {
   for (int64_t m = 0; m < MR; ++m) {
     for (int64_t n = 0; n < NR; ++n) {
-      float sum = cvt_h2s(c[m * rs_c + n]);
+      float sum = cvtf<float>(c[m * rs_c + n]);
       for (int64_t k = 0; k < kc; ++k) {
-        sum += cvt_h2s(a[k * MR + m]) * cvt_h2s(b[k * NR + n]);
+        sum += cvtf<float>(a[k * MR + m]) * cvtf<float>(b[k * NR + n]);
       }
-      c[m * rs_c + n] = cvt_s2h(sum);
+      c[m * rs_c + n] = cvtf<T>(sum);
     }
   }
+}
+
+void sgemm6x16DefaultKernel(int64_t kc, const float *a, const float *b, float *c, int64_t rs_c) {
+  return gemmFallbackKernel<float, 6, 16>(kc, a, b, c, rs_c);
+}
+
+void sgemm12x32DefaultKernel(int64_t kc, const float *a, const float *b, float *c, int64_t rs_c) {
+  return gemmFallbackKernel<float, 12, 32>(kc, a, b, c, rs_c);
 }
 
 void hgemm12x16FallbackKernel(
@@ -182,7 +173,7 @@ void hgemm12x16FallbackKernel(
     const Float16 *b,
     Float16 *c,
     int64_t rs_c) {
-  return hgemmFallbackKernel<12, 16>(kc, a, b, c, rs_c);
+  return gemmFallbackKernel<Float16, 12, 16>(kc, a, b, c, rs_c);
 }
 
 template<typename T>
@@ -219,9 +210,11 @@ void sqcvtFallbackKernel(int64_t n, const float *x, QInt4x32 *y) {
   fqcvtFallbackKernel<float>(n, x, y);
 }
 
+#if LUT_APU_ARCH == LUT_AARCH64
 void hqcvtFallbackKernel(int64_t n, const Float16 *x, QInt4x32 *y) {
   fqcvtFallbackKernel<Float16>(n, x, y);
 }
+#endif
 
 }  // namespace kernel
 }  // namespace cpu

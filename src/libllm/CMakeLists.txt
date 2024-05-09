@@ -150,24 +150,28 @@ endif()
 if(LIBLLM_KERNEL_X86_64)
     set(libllm_SOURCES
         ${libllm_SOURCES}
-        "cpu/kernel/kernel_avx2.cc"
-        "cpu/kernel/kernel_avx512.cc")
+        "cpu/kernel/avx2.cc"
+        "cpu/kernel/avx512.cc")
     if(WIN32)
         set_source_files_properties(
-            "cpu/kernel/kernel_avx512.cc"
+            "cpu/kernel/avx512.cc"
             PROPERTIES COMPILE_FLAGS /arch:AVX512)
         set_source_files_properties(
-            "cpu/kernel/kernel_avx2.cc"
+            "cpu/kernel/avx2.cc"
             PROPERTIES COMPILE_FLAGS /arch:AVX2)
     endif(WIN32)
     if(UNIX)
         set_source_files_properties(
-            "cpu/kernel/kernel_avx512.cc"
+            "cpu/kernel/avx512.cc"
             PROPERTIES COMPILE_FLAGS "-mavx512f")
         set_source_files_properties(
-            "cpu/kernel/kernel_avx2.cc"
+            "cpu/kernel/avx2.cc"
             PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mf16c")
     endif(UNIX)
+    set(unittest_SOURCES 
+        ${unittest_SOURCES}
+        "cpu/kernel/avx2_test.cc"
+        "cpu/kernel/avx512_test.cc")
 endif()
 if(LIBLLM_KERNEL_AARCH64)
     set(libllm_SOURCES ${libllm_SOURCES} "cpu/kernel/asimdhp.cc")

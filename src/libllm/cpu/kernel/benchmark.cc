@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -25,13 +25,14 @@
 
 #include <chrono>
 #include <functional>
-#include "libllm/lut/attributes.h"
-#include "libllm/lut/log.h"
-#include "libllm/cpu/kernel/interface.h"
-#include "libllm/lut/strings.h"
-#include "libllm/lut/time.h"
+
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/gemm.h"
+#include "libllm/cpu/kernel/interface.h"
+#include "libllm/lut/attributes.h"
+#include "libllm/lut/log.h"
+#include "libllm/lut/strings.h"
+#include "libllm/lut/time.h"
 
 namespace libllm {
 namespace op {
@@ -47,7 +48,8 @@ void benchmarkPack(Block<float> A, Block<float> Ap, int KC) {
     Block<float> Ai = A.sliceRow(i * KC, kc);
     Pack<float, Mode::OMP>(Ai, Ap, Ap.stride);
   }
-  LOG(INFO) << lut::sprintf("pack (%d, %d) stride=%d KC=%d T=%d: %f",
+  LOG(INFO) << lut::sprintf(
+      "pack (%d, %d) stride=%d KC=%d T=%d: %f",
       A.numRows,
       A.numCols,
       A.stride,
@@ -135,7 +137,7 @@ double benchmarkMklSgemm(int M, int K, int N, int numLoops = 2) {
 }
 #endif
 
-CATCH_TEST_CASE("benchmark Pack", "[benchmark][lymath][pack]") {
+CATCH_TEST_CASE("benchmark Pack", "[benchmark][cpu_kernel][pack]") {
   constexpr int ROW = 4096;
   constexpr int COL = 4096;
   constexpr int NR = 16;
@@ -144,25 +146,24 @@ CATCH_TEST_CASE("benchmark Pack", "[benchmark][lymath][pack]") {
   std::vector<float> dA(ROW * COL);
   std::vector<float> dAp(ROW * NC);
 
-  Block<float> A = Block<float> { dA.data(), ROW, ROW, COL, true };
-  Block<float> Ap = Block<float> { dAp.data(), NR, ROW * NC / NR, NR, false };
+  Block<float> A = Block<float>{dA.data(), ROW, ROW, COL, true};
+  Block<float> Ap = Block<float>{dAp.data(), NR, ROW * NC / NR, NR, false};
   benchmarkPack(A, Ap, NC);
 }
 
 int gemmBenchmarkShapes[][4] = {
-  {17, 4096, 27392, 2},
-  {17, 13696, 4096, 2},
-  {4096, 4096, 4096, 10},
-  {1, 4096, 27392, 10},
-  {1, 13696, 4096, 10},
-  {0, 0, 0, 0}
-};
+    {17, 4096, 27392, 2},
+    {17, 13696, 4096, 2},
+    {4096, 4096, 4096, 10},
+    {1, 4096, 27392, 10},
+    {1, 13696, 4096, 10},
+    {0, 0, 0, 0}};
 
 #if LUT_CPU_ARCH == LUT_AMD64
 
-CATCH_TEST_CASE("benchmark SGEMM", "[benchmark][lymath][sgemm]") {
-  int (*pshape)[4];
-  
+CATCH_TEST_CASE("benchmark SGEMM", "[benchmark][cpu_kernel][sgemm]") {
+  int(*pshape)[4];
+
   for (pshape = &gemmBenchmarkShapes[0]; **pshape != 0; ++pshape) {
     int m = (*pshape)[0];
     int k = (*pshape)[1];
@@ -172,8 +173,7 @@ CATCH_TEST_CASE("benchmark SGEMM", "[benchmark][lymath][sgemm]") {
     double dLlm = benchmarkSgemm(m, k, n, numLoops);
 #ifdef MKL_ENABLED
     double dMkl = benchmarkMklSgemm(m, k, n, numLoops);
-    LOG(INFO) << lut::sprintf(
-        "SGEMM (M,K,N)=(%d,%d,%d): mkl=%f libllm=%f", m, k, n, dMkl, dLlm);
+    LOG(INFO) << lut::sprintf("SGEMM (M,K,N)=(%d,%d,%d): mkl=%f libllm=%f", m, k, n, dMkl, dLlm);
 #else
     LOG(INFO) << lut::sprintf("SGEMM (M,K,N)=(%d,%d,%d): libllm=%f", m, k, n, dLlm);
 #endif
@@ -184,9 +184,9 @@ CATCH_TEST_CASE("benchmark SGEMM", "[benchmark][lymath][sgemm]") {
 
 #if LUT_CPU_ARCH == LUT_AARCH64
 
-CATCH_TEST_CASE("benchmark HGEMM", "[benchmark][cpu][kernel][hgemm]") {
-  int (*pshape)[4];
-  
+CATCH_TEST_CASE("benchmark HGEMM", "[benchmark][cpu][cpu_kernel][hgemm]") {
+  int(*pshape)[4];
+
   for (pshape = &gemmBenchmarkShapes[0]; **pshape != 0; ++pshape) {
     int m = (*pshape)[0];
     int k = (*pshape)[1];

@@ -25,6 +25,8 @@
 #include "catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/asimdhp.h"
+#include "libllm/cpu/kernel/avx2.h"
+#include "libllm/cpu/kernel/avx512.h"
 #include "libllm/cpu/kernel/fallback.h"
 #include "libllm/cpu/kernel/util.h"
 #include "libllm/lut/half.h"
