@@ -27,6 +27,7 @@
 
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/util.h"
+#include "libllm/lut/attributes.h"
 #include "libllm/lut/half.h"
 #include "libllm/lut/log.h"
 
@@ -60,7 +61,7 @@ void qscvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, float *y) {
   qfcvtFallbackKernel<float>(n, x, offsetX, y);
 }
 
-#if LUT_APU_ARCH == LUT_AARCH64
+#if LUT_CPU_ARCH == LUT_AARCH64
 void qhcvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, Float16 *y) {
   qfcvtFallbackKernel<Float16>(n, x, offsetX, y);
 }
