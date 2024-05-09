@@ -301,7 +301,7 @@ Float16 hqdotAsimdhpKernel(int64_t n, const Float16 *x, const QInt4x32 *y, int64
     accSx4r0 = vaddq_f32(accSx4r0, vcvt_f32_f16(vget_low_f16(accHx8)));
     accSx4r1 = vaddq_f32(accSx4r1, vcvt_f32_f16(vget_high_f16(accHx8)));
 
-    ++px;
+    ++py;
   }
 
   accSx4r0 = vpaddq_f32(accSx4r0, accSx4r1);

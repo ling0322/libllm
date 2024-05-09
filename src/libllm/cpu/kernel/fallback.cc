@@ -61,13 +61,15 @@ void qfcvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, T *y) {
   assert(offsetX % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
 
   for (int i = groupIdx; i < groupIdx + nb; ++i) {
-    float scale = cvtf<float>(x[i].scale);
-    float zero = cvtf<float>(x[i].zero);
+    T scale = cvtf<T>(x[i].scale);
+    T zero = cvtf<T>(x[i].zero);
     const uint8_t *p = x[i].data;
     for (int j = 0; j < GroupSizeQInt4 / 2; ++j) {
       uint8_t b = *p;
-      *y++ = cvtf<T>(scale * static_cast<int>(b & 0xf) - zero);
-      *y++ = cvtf<T>(scale * static_cast<int>(b >> 4) - zero);
+      T b0 = static_cast<int>(b & 0xf);
+      T b1 = static_cast<int>(b >> 4);
+      *y++ = cvtf<T>(cvtf<T>(scale * b0) - zero);
+      *y++ = cvtf<T>(cvtf<T>(scale * b1) - zero);
       ++p;
     }
   }
@@ -196,7 +198,7 @@ void fqcvtFallbackKernel(int64_t n, const T *x, QInt4x32 *y) {
     float maxVal = *std::max_element(x + begin, x + end);
 
     float scale = (maxVal - minVal) / 15.0f;
-    float zero = -minVal / scale;
+    float zero = -minVal;
 
     for (int j = 0; j < GroupSizeQInt4; j += 2) {
       float dlFp32 = roundf((x[begin + j] - minVal) / scale);
@@ -205,7 +207,7 @@ void fqcvtFallbackKernel(int64_t n, const T *x, QInt4x32 *y) {
 
       uint8_t dl = static_cast<uint8_t>(dlFp32);
       uint8_t dh = static_cast<uint8_t>(dhFp32);
-      y[i].data[(begin + j) / 2] = (dh << 4) | dl;
+      y[i].data[j / 2] = (dh << 4) | dl;
     }
 
     y[i].scale = cvtf<Float16>(scale);

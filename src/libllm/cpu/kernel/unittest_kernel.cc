@@ -149,21 +149,7 @@ void testHQInt4DotKernel(int n) {
   testQInt4DotKernel<Float16, TKernel, HQInt4DotFallbackKernel>(n);
 }
 
-template<typename TSrc, typename TTgt, class TCvtKernel, class TRefCvtKernel>
-void testCvtKernel(int n) {
-  std::vector<TSrc> x(n);
-  std::vector<TTgt> y(n);
-  std::vector<TTgt> yr(n);
 
-  lut::Random random(MagicNumber);
-  fillRandom(&random, lut::makeSpan<TSrc>(x));
-  fillRandom(&random, lut::makeSpan<TTgt>(y));
-
-  TCvtKernel::apply(n, x.data(), y.data());
-  TRefCvtKernel::apply(n, x.data(), yr.data());
-
-  CATCH_REQUIRE(isClose<TTgt>(y, yr));
-}
 
 template<class TKernel>
 void testCvtHalfToFloatKernel(int n) {

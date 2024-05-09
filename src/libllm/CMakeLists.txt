@@ -21,8 +21,8 @@ set(lut_SOURCES
     "lut/zip_file.cc")
 
 set(libllm_SOURCES
-    "cpu/kernel/kernel.cc"
     "cpu/kernel/fallback.cc"
+    "cpu/kernel/interface.cc"
     "cpu/kernel/util.cc"
     "cpu/all_close.cc"
     "cpu/apply_rotary_pos_emb.cc"
@@ -66,8 +66,8 @@ set(libllm_SOURCES
 
 set(unittest_SOURCES
     "cpu/kernel/benchmark.cc"
-    "cpu/kernel/unittest_api.cc"
-    "cpu/kernel/unittest_kernel.cc"
+    "cpu/kernel/interface_test.cc"
+    # "cpu/kernel/unittest_kernel.cc"
     "cpu/test.cc"
     "lut/path_test.cc"
     "lut/strings_test.cc"
@@ -171,7 +171,10 @@ if(LIBLLM_KERNEL_X86_64)
 endif()
 if(LIBLLM_KERNEL_AARCH64)
     set(libllm_SOURCES ${libllm_SOURCES} "cpu/kernel/asimdhp.cc")
-    set(unittest_SOURCES ${unittest_SOURCES} "cpu/test_float16.cc")
+    set(unittest_SOURCES 
+        ${unittest_SOURCES}
+        "cpu/test_float16.cc"
+        "cpu/kernel/asimdhp_test.cc")
 endif()
 
 add_library(lut STATIC ${lut_SOURCES})

@@ -27,11 +27,11 @@
 #include <functional>
 #include "libllm/lut/attributes.h"
 #include "libllm/lut/log.h"
-#include "libllm/cpu/kernel/kernel.h"
+#include "libllm/cpu/kernel/interface.h"
 #include "libllm/lut/strings.h"
 #include "libllm/lut/time.h"
-#include "libllm/cpu/kernel/interfaces.h"
-#include "libllm/cpu/kernel/gemm_kernel.h"
+#include "libllm/cpu/kernel/abstract.h"
+#include "libllm/cpu/kernel/gemm.h"
 
 namespace libllm {
 namespace op {
@@ -74,7 +74,8 @@ double benchmarkSgemm(int M, int K, int N, int numLoops = 2) {
         dB.data(),
         K,
         dC.data(),
-        N);
+        N,
+        Mode::OMP);
 
   double dt = (lut::now() - t0) / numLoops;
   return dt;
@@ -98,7 +99,8 @@ double benchmarkHgemm(int M, int K, int N, int numLoops = 2) {
         dB.data(),
         K,
         dC.data(),
-        N);
+        N,
+        Mode::OMP);
 
   double dt = (lut::now() - t0) / numLoops;
   return dt;

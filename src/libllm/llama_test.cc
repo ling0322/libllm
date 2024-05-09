@@ -72,7 +72,7 @@ class LlamaTester : public ModuleTester {
     x = layer->forward(past, x);
 
     std::vector<float> xr0, xr1;
-    if (getWeightType() == DType::kQ4) {
+    if (getWeightType() == DType::kQInt4x32) {
       xr0 = {-0.2910, -0.0386, 0.0721, -8.9977e-03, -0.3615, -0.0410, -0.5501, 0.8590};
       xr1 = {-0.6325, -0.1097, -0.0948, -0.2883, 0.1964, 0.1077, 0.3942, 1.2019};
     } else {
@@ -106,7 +106,7 @@ class DecoderLayerTester : public ModuleTester {
     x = layer->forward(past, x);
 
     std::vector<float> xr0, xr1;
-    if (getWeightType() == DType::kQ4) {
+    if (getWeightType() == DType::kQInt4x32) {
       xr0 = {0.4071, 0.4578, 1.2138, 0.2646, -0.2826, 0.6677, 0.8812, -0.0571};
       xr1 = {-0.0470, -0.3500, -0.7148, -1.0967, -0.1069, -1.0815, 0.8218, 0.6185};
     } else {
@@ -135,7 +135,7 @@ class MlpTester : public ModuleTester {
     x = layer->forward(x);
 
     std::vector<float> xr;
-    if (getWeightType() == DType::kQ4) {
+    if (getWeightType() == DType::kQInt4x32) {
       xr = {-0.1206, 0.1169, -0.1546, -0.1551, -0.2475, -0.2213, 9.7308e-03, -0.1314};
     } else {
       xr = {-0.0846, 0.0652, -0.1784, -0.1916, -0.3176, -0.1829, 0.0203, -0.1310};
@@ -160,7 +160,7 @@ class AttnetionTester : public ModuleTester {
     x = layer->forward(past, x);
 
     std::vector<float> xr0, xr1;
-    if (getWeightType() == DType::kQ4) {
+    if (getWeightType() == DType::kQInt4x32) {
       xr0 = {-0.3951, 0.1561, 0.2562, -0.0787, 0.0139, -0.0715, -0.0726, -0.0688};
       xr1 = {0.0498, 0.0366, 0.0882, -0.1026, 0.0869, -0.0652, -0.0109, -0.0277};
     } else {
@@ -178,22 +178,22 @@ class AttnetionTester : public ModuleTester {
 
 CATCH_TEST_CASE("test llama::LlamaModel", "[llm][llama]") {
   LlamaTester(Device::getCpu(), DType::kFloat).run();
-  LlamaTester(Device::getCpu(), DType::kQ4).run();
+  LlamaTester(Device::getCpu(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test llama::DecoderLayer", "[llm][llama]") {
   DecoderLayerTester(Device::getCpu(), DType::kFloat).run();
-  DecoderLayerTester(Device::getCpu(), DType::kQ4).run();
+  DecoderLayerTester(Device::getCpu(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test llama::MLP", "[llm][llama]") {
   MlpTester(Device::getCpu(), DType::kFloat).run();
-  MlpTester(Device::getCpu(), DType::kQ4).run();
+  MlpTester(Device::getCpu(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test llama::Attnetion", "[llm][llama]") {
   AttnetionTester(Device::getCpu(), DType::kFloat).run();
-  AttnetionTester(Device::getCpu(), DType::kQ4).run();
+  AttnetionTester(Device::getCpu(), DType::kQInt4x32).run();
 }
 
 }  // namespace llama

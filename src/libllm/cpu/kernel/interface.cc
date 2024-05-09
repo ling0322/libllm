@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -21,18 +21,20 @@
 
 #include <omp.h>
 #include <stdlib.h>
+
 #include <memory>
+
+#include "libllm/cpu/kernel/abstract.h"
+#include "libllm/cpu/kernel/asimdhp.h"
+#include "libllm/cpu/kernel/cvt.h"
+#include "libllm/cpu/kernel/fallback.h"
+#include "libllm/cpu/kernel/gemm.h"
+#include "libllm/cpu/kernel/gemv.h"
+#include "libllm/cpu/kernel/interface.h"
 #include "libllm/lut/is_debug.h"
 #include "libllm/lut/log.h"
 #include "libllm/lut/platform.h"
 #include "libllm/lut/strings.h"
-#include "libllm/cpu/kernel/abstract.h"
-#include "libllm/cpu/kernel/interface.h"
-#include "libllm/cpu/kernel/cvt.h"
-#include "libllm/cpu/kernel/gemm.h"
-#include "libllm/cpu/kernel/gemv.h"
-#include "libllm/cpu/kernel/fallback.h"
-#include "libllm/cpu/kernel/asimdhp.h"
 #include "ruapu/ruapu.h"
 
 namespace libllm {
@@ -52,7 +54,7 @@ CpuMathBackend findDefaultCpuMathBackend() {
 
 CpuMathBackend findBestCpuMathBackend() {
   if (lut::isDebug()) return findDefaultCpuMathBackend();
-  
+
   ruapu_init();
 
 #if LUT_CPU_ARCH == LUT_AMD64
@@ -60,14 +62,14 @@ CpuMathBackend findBestCpuMathBackend() {
   bool isaAvx512f = ruapu_supports("avx512f") > 0;
   bool isaF16c = ruapu_supports("f16c") > 0;
 
-  LOG(INFO) << lut::sprintf(
-      "ISA support: AVX2=%d F16C=%d AVX512F=%d", isaAvx2, isaF16c, isaAvx512f);
-  
+  LOG(INFO)
+      << lut::sprintf("ISA support: AVX2=%d F16C=%d AVX512F=%d", isaAvx2, isaF16c, isaAvx512f);
+
   if (isaAvx512f && isaF16c) {
     LOG(INFO) << "Use Avx512 backend.";
     return CpuMathBackend::AVX512;
   }
-  
+
   if (isaAvx2 && isaF16c) {
     LOG(INFO) << "Use Avx2 backend.";
     return CpuMathBackend::AVX2;
@@ -86,19 +88,16 @@ CpuMathBackend gDefaultBackend = CpuMathBackend::UNKNOWN;
 
 CpuMathBackend getCpuMathBackend(CpuMathBackend fromBackend) {
   if (fromBackend == CpuMathBackend::DEFAULT) {
-    CHECK(gDefaultBackend == CpuMathBackend::UNKNOWN) << "math kernel not initialized";
+    CHECK(gDefaultBackend != CpuMathBackend::UNKNOWN) << "math kernel not initialized";
     return gDefaultBackend;
   } else {
     return fromBackend;
   }
 }
 
-void init() {
-  gDefaultBackend = findBestCpuMathBackend();
-}
+void init() { gDefaultBackend = findBestCpuMathBackend(); }
 
-void destroy() {
-}
+void destroy() {}
 
 void gemmFloat(
     bool transA,
@@ -128,18 +127,20 @@ void gemmFloat(
   args.ldc = ldc;
 
   backendType = getCpuMathBackend(backendType);
+  if (false) {
 #if LUT_CPU_ARCH == LUT_AMD64
-  if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP) {
     gemm<288, 512, 4096, 6, 16, float, CpuMathBackend::AVX2, Mode::OMP>(args);
-  if (backendType == CpuMathBackend::AVX2 && mode == Mode::SingleThread)
+  } else if (backendType == CpuMathBackend::AVX2 && mode == Mode::SingleThread) {
     gemm<288, 512, 4096, 6, 16, float, CpuMathBackend::AVX2, Mode::SingleThread>(args);
-  if (backendType == CpuMathBackend::AVX512 && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::AVX512 && mode == Mode::OMP) {
     gemm<576, 512, 4096, 12, 32, float, CpuMathBackend::AVX512, Mode::OMP>(args);
-  if (backendType == CpuMathBackend::AVX512 && mode == Mode::SingleThread)
+  } else if (backendType == CpuMathBackend::AVX512 && mode == Mode::SingleThread) {
     gemm<576, 512, 4096, 12, 32, float, CpuMathBackend::AVX512, Mode::SingleThread>(args);
 #endif
-
-  NOT_IMPL();
+  } else {
+    NOT_IMPL();
+  }
 }
 
 void gemmHalf(
@@ -170,14 +171,16 @@ void gemmHalf(
   args.ldc = ldc;
 
   backendType = getCpuMathBackend(backendType);
+  if (false) {
 #if LUT_CPU_ARCH == LUT_AARCH64
-  if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP) {
     gemm<576, 512, 4096, 12, 16, Float16, CpuMathBackend::ASIMDHP, Mode::OMP>(args);
-  if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::SingleThread)
+  } else if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::SingleThread) {
     gemm<576, 512, 4096, 12, 16, Float16, CpuMathBackend::ASIMDHP, Mode::SingleThread>(args);
 #endif
-
-  NOT_IMPL();
+  } else {
+    NOT_IMPL();
+  }
 }
 
 void dequantQInt4ToFloat(
@@ -189,12 +192,14 @@ void dequantQInt4ToFloat(
     CpuMathBackend backendType) {
   backendType = getCpuMathBackend(backendType);
 
+  if (false) {
 #if LUT_CPU_ARCH == LUT_AMD64
-  if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP) {
     cvt<QInt4x32, float, CpuMathBackend::AVX2, Mode::OMP>(n, data, offset, tgt);
 #endif
-
-  NOT_IMPL();
+  } else {
+    NOT_IMPL();
+  }
 }
 
 void quantFloatToQInt4(
@@ -204,10 +209,13 @@ void quantFloatToQInt4(
     QInt4x32 *tgt,
     Mode mode,
     CpuMathBackend backendType) {
-  if (mode == Mode::OMP)
+  if (mode == Mode::OMP) {
     cvt<float, QInt4x32, CpuMathBackend::FALLBACK, Mode::OMP>(n, data, offset, tgt);
-  if (mode == Mode::SingleThread)
+  } else if (mode == Mode::SingleThread) {
     cvt<float, QInt4x32, CpuMathBackend::FALLBACK, Mode::SingleThread>(n, data, offset, tgt);
+  } else {
+    NOT_IMPL();
+  }
 }
 
 void dequantQInt4ToHalf(
@@ -219,12 +227,14 @@ void dequantQInt4ToHalf(
     CpuMathBackend backendType) {
   backendType = getCpuMathBackend(backendType);
 
+  if (false) {
 #if LUT_CPU_ARCH == LUT_AARCH64
-  if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP) {
     cvt<QInt4x32, Float16, CpuMathBackend::ASIMDHP, Mode::OMP>(n, data, offset, tgt);
 #endif
-
-  NOT_IMPL();
+  } else {
+    NOT_IMPL();
+  }
 }
 
 void gemmFloatQInt4(
@@ -255,18 +265,20 @@ void gemmFloatQInt4(
 
   backendType = getCpuMathBackend(backendType);
 
+  if (false) {
 #if LUT_CPU_ARCH == LUT_AMD64
-  if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP) {
     qgemm<288, 512, 4096, 6, 16, float, CpuMathBackend::AVX2, Mode::OMP>(args);
-  if (backendType == CpuMathBackend::AVX2 && mode == Mode::SingleThread)
+  } else if (backendType == CpuMathBackend::AVX2 && mode == Mode::SingleThread) {
     qgemm<288, 512, 4096, 6, 16, float, CpuMathBackend::AVX2, Mode::SingleThread>(args);
-  if (backendType == CpuMathBackend::AVX512 && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::AVX512 && mode == Mode::OMP) {
     qgemm<576, 512, 4096, 12, 32, float, CpuMathBackend::AVX512, Mode::OMP>(args);
-  if (backendType == CpuMathBackend::AVX512 && mode == Mode::SingleThread)
+  } else if (backendType == CpuMathBackend::AVX512 && mode == Mode::SingleThread) {
     qgemm<576, 512, 4096, 12, 32, float, CpuMathBackend::AVX512, Mode::SingleThread>(args);
 #endif
-
-  NOT_IMPL();
+  } else {
+    NOT_IMPL();
+  }
 }
 
 void gemmHalfQInt4(
@@ -296,47 +308,49 @@ void gemmHalfQInt4(
 
   backendType = getCpuMathBackend(backendType);
 
+  if (false) {
 #if LUT_CPU_ARCH == LUT_AARCH64
-  if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP) {
     qgemm<576, 512, 4096, 12, 16, Float16, QInt4x32, CpuMathBackend::ASIMDHP, Mode::OMP>(args);
-  if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::SingleThread)
+  } else if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::SingleThread) {
     qgemm<576, 512, 4096, 12, 16, Float16, QInt4x32, CpuMathBackend::ASIMDHP, Mode::SingleThread>(
         args);
 #endif
-
-  NOT_IMPL();
+  } else {
+    NOT_IMPL();
+  }
 }
 
 void convertHalfToFloat(int n, const Float16 *x, float *y, Mode mode, CpuMathBackend backendType) {
   backendType = getCpuMathBackend(backendType);
 
+  if (false) {
 #if LUT_CPU_ARCH == LUT_AARCH64
-  if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP) {
     cvt<Float16, float, CpuMathBackend::ASIMDHP, Mode::OMP>(n, x, 0, y);
 #elif LUT_CPU_ARCH == LUT_AMD64
-  if (backendType == CpuMathBackend::AVX512) backendType =  CpuMathBackend::AVX2;
-
-  if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP) {
     cvt<Float16, float, CpuMathBackend::AVX2, Mode::OMP>(n, x, 0, y);
 #endif
-
-  NOT_IMPL();
+  } else {
+    NOT_IMPL();
+  }
 }
 
 void convertFloatToHalf(int n, const float *x, Float16 *y, Mode mode, CpuMathBackend backendType) {
   backendType = getCpuMathBackend(backendType);
 
+  if (false) {
 #if LUT_CPU_ARCH == LUT_AARCH64
-  if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP) {
     cvt<float, Float16, CpuMathBackend::ASIMDHP, Mode::OMP>(n, x, 0, y);
 #elif LUT_CPU_ARCH == LUT_AMD64
-  if (backendType == CpuMathBackend::AVX512) backendType =  CpuMathBackend::AVX2;
-
-  if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP)
+  } else if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP) {
     cvt<float, Float16, CpuMathBackend::AVX2, Mode::OMP>(n, x, 0, y);
 #endif
-
-  NOT_IMPL();
+  } else {
+    NOT_IMPL();
+  }
 }
 
 }  // namespace kernel

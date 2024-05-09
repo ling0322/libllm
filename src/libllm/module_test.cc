@@ -44,7 +44,7 @@ class LinearTester : public ModuleTester {
     x = layer->forward(x);
 
     std::vector<float> xr;
-    if (getWeightType() == DType::kQ4) {
+    if (getWeightType() == DType::kQInt4x32) {
       xr = {-0.2625, -0.5815, 0.5679, -1.0039, -0.2279, -0.0246, 0.7324, -0.5947};
     } else {
       xr = {-0.2527, -0.5044, 0.5332, -0.9336, -0.2615, 0.0964, 0.7007, -0.5781};
@@ -87,7 +87,7 @@ class EmbeddingTester : public ModuleTester {
     x = layer->forward(x);
 
     std::vector<float> xr;
-    if (getWeightType() == DType::kQ4) {
+    if (getWeightType() == DType::kQInt4x32) {
       xr = {-0.9160, 0.6548, -0.9067, -0.1317, -0.5322, 0.7900, -1.0605, 0.0};
     } else {
       xr = {-0.8596, 0.7052, -0.9062, -0.2155, -0.5044, 0.7694, -0.9440, -0.0745};
@@ -98,7 +98,7 @@ class EmbeddingTester : public ModuleTester {
 
 CATCH_TEST_CASE("test Linear", "[ly][nn][linear]") {
   LinearTester(Device::getCpu(), DType::kFloat).run();
-  LinearTester(Device::getCpu(), DType::kQ4).run();
+  LinearTester(Device::getCpu(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test RmsNorm", "[ly][nn][rms_norm]") {
@@ -107,13 +107,13 @@ CATCH_TEST_CASE("test RmsNorm", "[ly][nn][rms_norm]") {
 
 CATCH_TEST_CASE("test Embedding", "[ly][nn][embedding]") {
   EmbeddingTester(Device::getCpu(), DType::kFloat).run();
-  EmbeddingTester(Device::getCpu(), DType::kQ4).run();
+  EmbeddingTester(Device::getCpu(), DType::kQInt4x32).run();
 }
 
 #ifdef LIBLLM_CUDA_ENABLED
 CATCH_TEST_CASE("test Linear", "[ly][nn][linear][cuda]") {
   LinearTester(Device::getCuda(), DType::kFloat).run();
-  LinearTester(Device::getCuda(), DType::kQ4).run();
+  LinearTester(Device::getCuda(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test RmsNorm", "[ly][nn][rms_norm][cuda]") {
@@ -122,7 +122,7 @@ CATCH_TEST_CASE("test RmsNorm", "[ly][nn][rms_norm][cuda]") {
 
 CATCH_TEST_CASE("test Embedding (cuda)", "[ly][nn][embedding][cuda]") {
   EmbeddingTester(Device::getCuda(), DType::kFloat).run();
-  EmbeddingTester(Device::getCuda(), DType::kQ4).run();
+  EmbeddingTester(Device::getCuda(), DType::kQInt4x32).run();
 }
 
 #endif  // LIBLLM_CUDA_ENABLED

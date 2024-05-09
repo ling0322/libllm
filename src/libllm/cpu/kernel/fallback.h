@@ -115,7 +115,7 @@ inline float dotKernel<float, float, QInt4x32, CpuMathBackend::FALLBACK>(
   return sqdotFallbackKernel(n, x, y, offsetY);
 }
 template<>
-inline float dotKernel<float, Float16, QInt4x32, CpuMathBackend::FALLBACK>(
+inline Float16 dotKernel<Float16, Float16, QInt4x32, CpuMathBackend::FALLBACK>(
     int64_t n,
     const Float16 *x,
     const QInt4x32 *y,
@@ -131,7 +131,7 @@ inline float dotKernel<float, float, float, CpuMathBackend::FALLBACK>(
   return sdotFallbackKernel(n, x, y + offsetY);
 }
 template<>
-inline float dotKernel<float, Float16, Float16, CpuMathBackend::FALLBACK>(
+inline Float16 dotKernel<Float16, Float16, Float16, CpuMathBackend::FALLBACK>(
     int64_t n,
     const Float16 *x,
     const Float16 *y,

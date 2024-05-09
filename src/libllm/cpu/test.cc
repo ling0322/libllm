@@ -142,7 +142,7 @@ CATCH_TEST_CASE("test rand q4", "[ly][operators][cpu][rand]") {
 
   lut::Random r(seed);
   Tensor x = F::rand({16, 256}, DType::kFloat, Device::getCpu(), &r);
-  x = F::cast(x, DType::kQ4);
+  x = F::cast(x, DType::kQInt4x32);
   x = F::cast(x, DType::kFloat);
 
   CATCH_REQUIRE(F::allClose(op::cpu::fingerprint(x), Tensor::create<float>({8}, {

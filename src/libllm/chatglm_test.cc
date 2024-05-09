@@ -67,7 +67,7 @@ class ChatGlmTester : public ModuleTester {
     x = layer->forward(past, x);
 
     std::vector<float> xr0, xr1;
-    if (getWeightType() == DType::kQ4) {
+    if (getWeightType() == DType::kQInt4x32) {
       xr0 = {0.1227, 0.9854, -0.3079, 0.2357, 0.0835, 0.1189, -0.6709, 0.8042};
       xr1 = {-0.5444, 0.4097, 0.5439, 0.2766, -0.0801, 0.4790, 1.4492, 0.6235};
     } else {
@@ -101,7 +101,7 @@ class GlmBlockTester : public ModuleTester {
     x = layer->forward(past, x, roPE);
 
     std::vector<float> xr0, xr1;
-    if (getWeightType() == DType::kQ4) {
+    if (getWeightType() == DType::kQInt4x32) {
       xr0 = {-0.8677, -1.4365, 0.7910, 0.4990, 0.1694, -0.1394, 0.1875, 0.4575};
       xr1 = {0.0284, -0.5552, 0.9102, -0.7754, 0.5430, 0.2642, 0.0641, 0.0549};
     } else {
@@ -130,7 +130,7 @@ class MlpTester : public ModuleTester {
     x = layer->forward(x);
 
     std::vector<float> xr;
-    if (getWeightType() == DType::kQ4) {
+    if (getWeightType() == DType::kQInt4x32) {
       xr = {0.0764, -0.1021, -0.1920, 0.2137, -0.1087, -0.3198, 0.0374, 0.1409};
     } else {
       xr = {-4.1466e-03, -0.1296, -0.1753, 0.1750, -0.0217, -0.3584, -5.1689e-03, 0.1554};
@@ -164,7 +164,7 @@ class SelfAttnetionTester : public ModuleTester {
     x = layer->forward(past, x, roPE);
 
     std::vector<float> xr0, xr1;
-    if (getWeightType() == DType::kQ4) {
+    if (getWeightType() == DType::kQInt4x32) {
       xr0 = {-0.4969, 0.4878, -0.0815, -0.0862, 0.0241, 0.0619, -0.1013, 0.0136};
       xr1 = {0.3715, -0.1946, -0.0598, -0.1155, 0.0750, -0.0403, -0.0444, -0.0987};
     } else {
@@ -182,43 +182,43 @@ class SelfAttnetionTester : public ModuleTester {
 
 CATCH_TEST_CASE("test chatglm::ChatGlmModel", "[llm][chatglm]") {
   ChatGlmTester(Device::getCpu(), DType::kFloat).run();
-  ChatGlmTester(Device::getCpu(), DType::kQ4).run();
+  ChatGlmTester(Device::getCpu(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test chatglm::GLMBlock", "[llm][chatglm]") {
   GlmBlockTester(Device::getCpu(), DType::kFloat).run();
-  GlmBlockTester(Device::getCpu(), DType::kQ4).run();
+  GlmBlockTester(Device::getCpu(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test chatglm::MLP", "[llm][chatglm]") {
   MlpTester(Device::getCpu(), DType::kFloat).run();
-  MlpTester(Device::getCpu(), DType::kQ4).run();
+  MlpTester(Device::getCpu(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test chatglm::SelfAttnetion", "[llm][chatglm]") {
   SelfAttnetionTester(Device::getCpu(), DType::kFloat).run();
-  SelfAttnetionTester(Device::getCpu(), DType::kQ4).run();
+  SelfAttnetionTester(Device::getCpu(), DType::kQInt4x32).run();
 }
 
 #ifdef LIBLLM_CUDA_ENABLED
 CATCH_TEST_CASE("test chatglm::ChatGlmModel (cuda)", "[llm][chatglm][cuda]") {
   ChatGlmTester(Device::getCuda(), DType::kFloat).run();
-  ChatGlmTester(Device::getCuda(), DType::kQ4).run();
+  ChatGlmTester(Device::getCuda(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test chatglm::GLMBlock (cuda)", "[llm][chatglm][cuda]") {
   GlmBlockTester(Device::getCuda(), DType::kFloat).run();
-  GlmBlockTester(Device::getCuda(), DType::kQ4).run();
+  GlmBlockTester(Device::getCuda(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test chatglm::MLP (cuda)", "[llm][chatglm][cuda]") {
   MlpTester(Device::getCuda(), DType::kFloat).run();
-  MlpTester(Device::getCuda(), DType::kQ4).run();
+  MlpTester(Device::getCuda(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test chatglm::SelfAttnetion (cuda)", "[llm][chatglm][cuda]") {
   SelfAttnetionTester(Device::getCuda(), DType::kFloat).run();
-  SelfAttnetionTester(Device::getCuda(), DType::kQ4).run();
+  SelfAttnetionTester(Device::getCuda(), DType::kQInt4x32).run();
 }
 #endif
 

@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -22,10 +22,12 @@
 #include <omp.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <type_traits>
-#include "libllm/lut/c_ptr.h"
+
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/util.h"
+#include "libllm/lut/c_ptr.h"
 
 namespace libllm {
 namespace op {
@@ -36,14 +38,14 @@ template<typename ElementA, typename ElementB, typename ElementC, CpuMathBackend
 void gemvContigousN(const GemvArgs<ElementA, ElementB, ElementC> &args) {
   if (MODE == Mode::SingleThread) {
     for (int m = 0; m < args.M; ++m) {
-      args.y[m] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
-          args.N, args.x, args.A, m * args.N);
+      args.y[m] +=
+          dotKernel<ElementC, ElementB, ElementA, TYPE>(args.N, args.x, args.A, m * args.N);
     }
   } else if (MODE == Mode::OMP) {
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int m = 0; m < args.M; ++m) {
-      args.y[m] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
-          args.N, args.x, args.A, m * args.N);
+      args.y[m] +=
+          dotKernel<ElementC, ElementB, ElementA, TYPE>(args.N, args.x, args.A, m * args.N);
     }
   } else {
     NOT_IMPL();
@@ -60,8 +62,7 @@ void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
     memset(y.get(), 0, args.N * sizeof(float));
 
     for (int m = 0; m < args.M; ++m) {
-      axpyKernel<ElementB, ElementA, float, TYPE>(
-          args.N, args.x[m], args.A, m * args.N, y.get());
+      axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.N, y.get());
     }
     for (int i = 0; i < args.N; ++i) {
       args.y[i] += y.get()[i];
@@ -72,12 +73,11 @@ void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
     lut::c_ptr<float> ys = alignedAlloc<float>(args.N * numThreads);
     memset(ys.get(), 0, args.N * numThreads * sizeof(float));
 
-    // compute axpy.
-    #pragma omp parallel for num_threads(numThreads)
+// compute axpy.
+#pragma omp parallel for num_threads(numThreads)
     for (int m = 0; m < args.M; ++m) {
       float *py = ys.get() + omp_get_thread_num() * args.N;
-      axpyKernel<ElementB, ElementA, float, TYPE>(
-          args.N, args.x[m], args.A, m * args.N, py);
+      axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.N, py);
     }
 
     // accumulate ys.
@@ -96,9 +96,9 @@ void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
 template<typename ElementA, typename ElementB, typename ElementC, CpuMathBackend TYPE, Mode MODE>
 void gemvContigous(const GemvArgs<ElementA, ElementB, ElementC> &args) {
   if (args.transA) {
-    gemvContigousN<ElementA, ElementB, ElementC, TYPE, MODE>(args);
-  } else {
     gemvContigousT<ElementA, ElementB, ElementC, TYPE, MODE>(args);
+  } else {
+    gemvContigousN<ElementA, ElementB, ElementC, TYPE, MODE>(args);
   }
 }
 
