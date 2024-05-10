@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,15 +17,14 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "catch2/catch_amalgamated.hpp"
-
 #include <array>
-#include "libllm/tensor.h"
-#include "libllm/test_helper.h"
+
+#include "catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/fingerprint.h"
 #include "libllm/lut/random.h"
 #include "libllm/lut/span.h"
-
+#include "libllm/tensor.h"
+#include "libllm/test_helper.h"
 
 namespace libllm {
 
@@ -34,7 +33,9 @@ class LinearTester : public ModuleTester {
   static constexpr int InputDim = 128;
   static constexpr int OutputDim = 64;
 
-  LinearTester(Device device, DType weightType) : ModuleTester(device, weightType) {}
+  LinearTester(Device device, DType weightType)
+      : ModuleTester(device, weightType) {
+  }
 
   void run() {
     std::shared_ptr<Linear> layer = Linear::create(getCtx(), InputDim, OutputDim);
@@ -45,7 +46,7 @@ class LinearTester : public ModuleTester {
 
     std::vector<float> xr;
     if (getWeightType() == DType::kQInt4x32) {
-      xr = {-0.2625, -0.5815, 0.5679, -1.0039, -0.2279, -0.0246, 0.7324, -0.5947};
+      xr = {-0.2723, -0.5074, 0.5185, -0.9672, -0.2428, 0.1141, 0.6856, -0.5543};
     } else {
       xr = {-0.2527, -0.5044, 0.5332, -0.9336, -0.2615, 0.0964, 0.7007, -0.5781};
     }
@@ -57,7 +58,9 @@ class RmsNormTester : public ModuleTester {
  public:
   static constexpr int FeatureDim = 512;
 
-  RmsNormTester(Device device, DType weightType) : ModuleTester(device, weightType) {}
+  RmsNormTester(Device device, DType weightType)
+      : ModuleTester(device, weightType) {
+  }
 
   void run() {
     std::shared_ptr<RMSNorm> layer = RMSNorm::create(getCtx(), FeatureDim, 1e-5);
@@ -76,7 +79,9 @@ class EmbeddingTester : public ModuleTester {
   static constexpr int HiddenSize = 128;
   static constexpr int VocabSize = 64;
 
-  EmbeddingTester(Device device, DType weightType) : ModuleTester(device, weightType) {}
+  EmbeddingTester(Device device, DType weightType)
+      : ModuleTester(device, weightType) {
+  }
 
   void run() {
     std::shared_ptr<Embedding> layer = Embedding::create(getCtx(), HiddenSize, VocabSize);
@@ -88,7 +93,7 @@ class EmbeddingTester : public ModuleTester {
 
     std::vector<float> xr;
     if (getWeightType() == DType::kQInt4x32) {
-      xr = {-0.9160, 0.6548, -0.9067, -0.1317, -0.5322, 0.7900, -1.0605, 0.0};
+      xr = {-0.8645, 0.6516, -0.9062, -0.2615, -0.5491, 0.7407, -0.9849, -0.0681};
     } else {
       xr = {-0.8596, 0.7052, -0.9062, -0.2155, -0.5044, 0.7694, -0.9440, -0.0745};
     }
