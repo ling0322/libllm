@@ -84,6 +84,7 @@ CpuMathBackend findBestCpuMathBackend() {
   LOG(FATAL) << "CPU not supported.";
   NOT_IMPL();
 #endif
+  NOT_IMPL();
 }
 
 CpuMathBackend gDefaultBackend = CpuMathBackend::UNKNOWN;
@@ -197,6 +198,8 @@ void dequantQInt4ToFloat(
   if (false) {
 #if LUT_CPU_ARCH == LUT_AMD64
   } else if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP) {
+    cvt<QInt4x32, float, CpuMathBackend::AVX2, Mode::OMP>(n, data, offset, tgt);
+  } else if (backendType == CpuMathBackend::AVX512 && mode == Mode::OMP) {
     cvt<QInt4x32, float, CpuMathBackend::AVX2, Mode::OMP>(n, data, offset, tgt);
 #endif
   } else {

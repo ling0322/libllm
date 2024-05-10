@@ -7,3 +7,7 @@ AllowAllParametersOfDeclarationOnNextLine: false
 BinPackParameters: false
 BinPackArguments: false
 SpaceAfterTemplateKeyword: false
+AllowShortFunctionsOnASingleLine: false
+PenaltyBreakAssignment: 2000
+BreakConstructorInitializers: BeforeColon
+PackConstructorInitializers: Never

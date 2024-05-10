@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,18 +20,13 @@
 #pragma once
 
 #include <stdint.h>
-#include <type_traits>
+
 #include <string>
+#include <type_traits>
+
 #include "libllm/lut/attributes.h"
 
 namespace libllm {
-
-struct Q4 {
-  static constexpr int GroupSize = 128;
-  uint8_t int4x2;
-};
-static_assert(sizeof(Q4) == 1, "invalid size of Q4");
-
 
 #if defined(LUT_ARCH_AARCH64)
 typedef _Float16 Float16;
@@ -66,7 +61,7 @@ typedef int8_t Byte;
 typedef int64_t LongType;
 typedef int64_t LongType;
 
-class DType { 
+class DType {
  public:
   static constexpr int16_t kUnknown = 0;
   static constexpr int16_t kFloat = 1;
@@ -77,7 +72,7 @@ class DType {
   static constexpr int16_t kInt8 = 6;
 
   // get DType from type T
-  template <typename T>
+  template<typename T>
   static DType getType();
 
   DType(int16_t dtype);
@@ -109,11 +104,11 @@ class DType {
  private:
   int16_t _dtype;
 
-  template <typename T>
+  template<typename T>
   static DType getTypeImpl();
 };
 
-template <typename T>
+template<typename T>
 inline DType DType::getType() {
   return DType::getTypeImpl<typename std::remove_cv<T>::type>();
 }

@@ -39,13 +39,13 @@ void gemvContigousN(const GemvArgs<ElementA, ElementB, ElementC> &args) {
   if (MODE == Mode::SingleThread) {
     for (int m = 0; m < args.M; ++m) {
       args.y[m] +=
-          dotKernel<ElementC, ElementB, ElementA, TYPE>(args.N, args.x, args.A, m * args.N);
+          dotKernel<ElementC, ElementB, ElementA, TYPE>(args.N, args.x, args.A, m * args.lda);
     }
   } else if (MODE == Mode::OMP) {
 #pragma omp parallel for
     for (int m = 0; m < args.M; ++m) {
       args.y[m] +=
-          dotKernel<ElementC, ElementB, ElementA, TYPE>(args.N, args.x, args.A, m * args.N);
+          dotKernel<ElementC, ElementB, ElementA, TYPE>(args.N, args.x, args.A, m * args.lda);
     }
   } else {
     NOT_IMPL();
@@ -62,7 +62,7 @@ void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
     memset(y.get(), 0, args.N * sizeof(float));
 
     for (int m = 0; m < args.M; ++m) {
-      axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.N, y.get());
+      axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.lda, y.get());
     }
     for (int i = 0; i < args.N; ++i) {
       args.y[i] += y.get()[i];
@@ -77,7 +77,7 @@ void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
 #pragma omp parallel for num_threads(numThreads)
     for (int m = 0; m < args.M; ++m) {
       float *py = ys.get() + omp_get_thread_num() * args.N;
-      axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.N, py);
+      axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.lda, py);
     }
 
     // accumulate ys.

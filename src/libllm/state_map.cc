@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -26,7 +26,8 @@
 
 namespace libllm {
 
-StateMap::~StateMap() {}
+StateMap::~StateMap() {
+}
 
 // tensor_dict format
 //   byte[4]: "TDIC"
@@ -78,7 +79,7 @@ std::pair<std::string, Tensor> StateMap::readTensor(lut::Reader *fp) const {
       "tensor %s: shape=%s, dtype=%s",
       name,
       tensor.getShapeString(),
-      tensor.getDType().toString());  
+      tensor.getDType().toString());
 
   return std::make_pair(name, tensor);
 }
@@ -120,5 +121,4 @@ bool StateMap::hasValue<int>(const std::string &name) const {
   return _intDict.find(name) != _intDict.end();
 }
 
-
-}
+}  // namespace libllm

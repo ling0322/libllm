@@ -234,6 +234,7 @@ CATCH_TEST_CASE("test sqint4gemm", "[cpu_kernel][interface][q4]") {
   testGemmQInt4<float>(true, 1, 32, 128);
   testGemmQInt4<float>(true, 1, 64, 4096);
   testGemmQInt4<float>(true, 64, 64, 256);
+  testGemmQInt4<float>(true, 8, 1024, 4096);
 }
 
 CATCH_TEST_CASE("test lymath_half2float", "[cpu_kernel][interface][cvt]") {

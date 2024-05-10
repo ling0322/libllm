@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,14 +20,16 @@
 #include "libllm/llama.h"
 
 #include <math.h>
+
 #include <memory>
+
+#include "libllm/constants.h"
+#include "libllm/functional.h"
 #include "libllm/lut/error.h"
 #include "libllm/lut/ini_config.h"
 #include "libllm/lut/strings.h"
-#include "libllm/constants.h"
-#include "libllm/functional.h"
-#include "libllm/module.h"
 #include "libllm/model_for_generation.h"
+#include "libllm/module.h"
 
 namespace libllm {
 namespace llama {
@@ -38,15 +40,16 @@ constexpr char LlamaModel::RoPECtxKey[];
 // class LlamaConfig                                                                              |
 // -----------------------------------------------------------------------------------------------+
 
-LlamaConfig::LlamaConfig() :
-    hiddenSize(0),
-    numHeads(0),
-    intermediateSize(0),
-    normEps(0.0f),
-    numLayers(0),
-    vocabSize(0),
-    maxContextLength(0),
-    qkvProjBias(false) {}
+LlamaConfig::LlamaConfig()
+    : hiddenSize(0),
+      numHeads(0),
+      intermediateSize(0),
+      normEps(0.0f),
+      numLayers(0),
+      vocabSize(0),
+      maxContextLength(0),
+      qkvProjBias(false) {
+}
 
 LlamaConfig LlamaConfig::loadConfig(const lut::IniSection &section) {
   LlamaConfig config;
@@ -70,7 +73,10 @@ LlamaConfig LlamaConfig::loadConfig(const lut::IniSection &section) {
 // class MLP                                                                                      |
 // -----------------------------------------------------------------------------------------------+
 
-MLP::MLP() : _hiddenSize(0), _intermediateSize(0) {}
+MLP::MLP()
+    : _hiddenSize(0),
+      _intermediateSize(0) {
+}
 
 std::shared_ptr<MLP> MLP::create(const Context &ctx, const LlamaConfig &config) {
   std::shared_ptr<MLP> mlp{new MLP()};
@@ -109,12 +115,13 @@ Tensor MLP::forward(Tensor input) const {
 // class Attention                                                                                |
 // -----------------------------------------------------------------------------------------------+
 
-Attention::Attention() : 
-    _hiddenSize(0),
-    _numHead(0),
-    _headDim(0),
-    _maxCtxLen(0),
-    _hasProjBias(false) {}
+Attention::Attention()
+    : _hiddenSize(0),
+      _numHead(0),
+      _headDim(0),
+      _maxCtxLen(0),
+      _hasProjBias(false) {
+}
 
 std::shared_ptr<Attention> Attention::create(const Context &ctx, const LlamaConfig &config) {
   std::shared_ptr<Attention> layer{new Attention()};
@@ -122,7 +129,7 @@ std::shared_ptr<Attention> Attention::create(const Context &ctx, const LlamaConf
 
   if (config.hiddenSize % config.numHeads != 0)
     throw lut::AbortedError("invalid hidden_size and num_heads");
-  
+
   layer->_hiddenSize = config.hiddenSize;
   layer->_numHead = config.numHeads;
   layer->_headDim = config.hiddenSize / config.numHeads;
@@ -220,7 +227,7 @@ Tensor Attention::forward(StateMap &past, Tensor input) const {
   if (past.hasTensor(_namePastK) && past.hasTensor(_namePastV)) {
     k = F::cat(past.getTensor(_namePastK), k, 1);
     v = F::cat(past.getTensor(_namePastV), v, 1);
-    
+
     CHECK(k.getShape(1) == v.getShape(1) && k.getShape(1) == kvLen);
   }
 
@@ -280,7 +287,7 @@ void DecodeLayer::initParameters(lut::Random *generator, DType weightType) {
 
 Tensor DecodeLayer::forward(StateMap &past, Tensor input) const {
   Tensor residual = input;
-  
+
   // norm + attn
   Tensor x = _inputNorm->forward(input);
 
@@ -306,7 +313,7 @@ std::shared_ptr<LlamaModel> LlamaModel::create(const Context &fromCtx, LlamaConf
   Context ctx = fromCtx;
   ctx.set(RoPECtxKey, ctx.name("rope"));
   model->setCtx(ctx);
-  
+
   int dh = config.hiddenSize;
   model->_config = config;
   model->_embedding = Embedding::create(ctx.withName("embd"), dh, config.vocabSize);
@@ -348,7 +355,7 @@ Tensor LlamaModel::forward(StateMap &past, Tensor input) const {
   for (int i = 0; i < _config.numLayers; ++i) {
     x = _layers[i]->forward(past, x);
   }
-  
+
   x = _norm->forward(x);
   return x;
 }
@@ -361,7 +368,9 @@ Tensor LlamaModel::forwardHidden(Tensor hidden) const {
 // class LlamaModelForGeneration                                                                  |
 // -----------------------------------------------------------------------------------------------+
 
-LlamaModelForGeneration::LlamaModelForGeneration() : _eotId(0) {}
+LlamaModelForGeneration::LlamaModelForGeneration()
+    : _eotId(0) {
+}
 
 std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromConfig(
     const Context &ctx,

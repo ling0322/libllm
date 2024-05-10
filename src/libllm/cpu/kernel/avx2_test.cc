@@ -88,6 +88,8 @@ CATCH_TEST_CASE("test sdotAvx2Kernel", "[cpu_kernel][kernel][avx2]") {
   tester.test(160);
   tester.test(1500);
   tester.test(2001);
+  tester.test(2001, 50);
+  tester.test(2001, 60);
   tester.test(20000);
 }
 

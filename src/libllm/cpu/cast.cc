@@ -90,17 +90,17 @@ Tensor castFp32ToQ4(Tensor A) {
   int64_t groupSize = DType(DType::kQInt4x32).getGroupSize();
   CHECK(numel % groupSize == 0);
 
-  auto tensorData = CpuTensorData::create({{numel / groupSize, DType::kQInt4x32}});
+  auto tensorData = CpuTensorData::create({{numel, DType::kQInt4x32}});
   kernel::quantFloatToQInt4(
       numel,
       A.getData<float>(),
       0,
       (kernel::QInt4x32 *)tensorData->getData<QInt4x32>(0),
-      kernel::Mode::OMP);
+      kernel::Mode::SingleThread);
   auto tensorShape = std::make_shared<TensorShape>(A.getShape());
   return Tensor::create(tensorShape, tensorData);
 }
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm`
+}  // namespace libllm
