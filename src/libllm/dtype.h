@@ -31,10 +31,9 @@ namespace libllm {
 #if defined(LUT_ARCH_AARCH64)
 typedef _Float16 Float16;
 #elif defined(LUT_ARCH_AMD64)
-struct WORD {
+struct Float16 {
   uint16_t v;
 };
-typedef WORD Float16;
 #else
 #error unknown CPU architecture
 #endif
@@ -51,6 +50,8 @@ struct UInt8 {
 static_assert(sizeof(Int8) == 1, "invalid size of UInt8");
 
 struct QInt4x32 {
+  static constexpr int GroupSize = 32;
+
   Float16 zero;
   Float16 scale;
   uint8_t data[16];
@@ -77,10 +78,16 @@ class DType {
 
   DType(int16_t dtype);
 
-  bool operator==(DType rhs) const { return _dtype == rhs._dtype; }
-  bool operator==(int16_t rhs) const { return _dtype == rhs; }
+  bool operator==(DType rhs) const {
+    return _dtype == rhs._dtype;
+  }
+  bool operator==(int16_t rhs) const {
+    return _dtype == rhs;
+  }
 
-  operator int16_t() const { return _dtype; }
+  operator int16_t() const {
+    return _dtype;
+  }
 
   // get the total size of specific number of elements with dtype.
   int64_t getTotalSize(int64_t numel) const;

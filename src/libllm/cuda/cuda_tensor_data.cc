@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,13 +20,14 @@
 #include "libllm/cuda/cuda_tensor_data.h"
 
 #include <cuda_runtime.h>
+
+#include "libllm/cuda/common.h"
 #include "libllm/device.h"
 #include "libllm/dtype.h"
 #include "libllm/lut/error.h"
 #include "libllm/lut/platform.h"
 #include "libllm/lut/span.h"
 #include "libllm/lut/strings.h"
-#include "libllm/cuda/common.h"
 
 namespace libllm {
 namespace op {
@@ -35,7 +36,8 @@ namespace cuda {
 CudaTensorData::Slot::Slot()
     : data(nullptr),
       numel(0),
-      dtype(DType::kUnknown) {}
+      dtype(DType::kUnknown) {
+}
 
 int64_t CudaTensorData::Slot::getNumEl() const {
   return numel;
@@ -47,7 +49,9 @@ Byte *CudaTensorData::Slot::getRawData() const {
   return data;
 }
 
-CudaTensorData::CudaTensorData() : _numSlot(0) {}
+CudaTensorData::CudaTensorData()
+    : _numSlot(0) {
+}
 
 std::shared_ptr<TensorData> CudaTensorData::create(int64_t numel, DType dtype) {
   return create({{numel, dtype}});
@@ -65,7 +69,10 @@ std::shared_ptr<TensorData> CudaTensorData::create(
     CHECK(numel > 0);
     int64_t size = dtype.getTotalSize(numel);
     void *data = nullptr;
-    LL_CHECK_CUDA_STATUS(cudaMalloc(&data, size));
+    cudaError_t err = cudaMalloc(&data, size);
+    if (err != cudaSuccess) {
+      throw lut::AbortedError(cudaGetErrorString(err));
+    }
 
     tensorData->_slots[tensorData->_numSlot].data = reinterpret_cast<Byte *>(data);
     tensorData->_slots[tensorData->_numSlot].numel = numel;
@@ -99,6 +106,6 @@ int CudaTensorData::getNumSlot() const {
   return _numSlot;
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,14 +20,15 @@
 #include "libllm/cuda/common.h"
 
 #include <cuda_fp16.h>
+
 #include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-PackedSubtensor2DQ4::PackedSubtensor2DQ4(const Tensor &tensor) {
-  CHECK(tensor.getDType() == DType::kQ4);
+PackedSubtensor2DQInt4x32::PackedSubtensor2DQInt4x32(const Tensor &tensor) {
+  CHECK(tensor.getDType() == DType::kQInt4x32);
   CHECK(tensor.getDevice().getType() == Device::kCuda);
   CHECK(tensor.getStride(1) == 1);
   CHECK(tensor.getOffset_() == 0);
@@ -35,10 +36,7 @@ PackedSubtensor2DQ4::PackedSubtensor2DQ4(const Tensor &tensor) {
 
   _numRow = tensor.getShape(0);
   _numCol = tensor.getShape(1);
-
-  _data = (const uint8_t *)tensor.getDataObject()->getSlot(0)->getRawData();
-  _scale = (const __half *)tensor.getDataObject()->getSlot(1)->getRawData();
-  _zero = (const uint8_t *)tensor.getDataObject()->getSlot(2)->getRawData();
+  _data = tensor.getDataObject()->getData<QInt4x32>();
 }
 
 Tensor createCudaTensorHalf(lut::Span<const int> shape) {
@@ -74,6 +72,6 @@ int getCudaDeviceCount() {
   return value;
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,8 +20,9 @@
 // Inspired by https://github.com/ankan-ban/llama_cu_awq and https://github.com/mit-han-lab/llm-awq
 
 #include <cuda_fp16.h>
-#include "libllm/tensor.h"
+
 #include "libllm/cuda/common.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
@@ -35,7 +36,7 @@ union OWORD {
 };
 
 int divUp(int a, int b) {
-    return (a - 1) / b + 1;
+  return (a - 1) / b + 1;
 }
 
 // load with cache streaming.
@@ -56,10 +57,15 @@ __device__ __forceinline__ float wrapReduceSum(float sum) {
   return sum;
 }
 
-__global__ void mat_vec_kernel(half* y, const half *__restrict__ x, const half *__restrict__ A, int n, int d, int lda) {
+__global__ void mat_vec_kernel(
+    half *y,
+    const half *__restrict__ x,
+    const half *__restrict__ A,
+    int n,
+    int d,
+    int lda) {
   int row = blockIdx.x * blockDim.y + threadIdx.y;
-  if (row >= d)
-    return;
+  if (row >= d) return;
 
   constexpr int Vec = 8;
   constexpr int WrapSize = 32;
@@ -71,17 +77,16 @@ __global__ void mat_vec_kernel(half* y, const half *__restrict__ x, const half *
     OWORD packX;
     packA.vec = ldcsv4u32(&A[row * lda + i]);
     packX.vec = ldgv4u32(&x[i]);
-    #pragma unroll
-    for (int j = 0; j < Vec; j++)
-      sum += float(packA.h[j]) * float(packX.h[j]);
+#pragma unroll
+    for (int j = 0; j < Vec; j++) sum += float(packA.h[j]) * float(packX.h[j]);
   }
 
   sum = wrapReduceSum(sum);
-  if (threadIdx.x == 0)
-    y[row] = (half)sum;
+  if (threadIdx.x == 0) y[row] = (half)sum;
 }
 
-__global__ void mat_vec_kernel_q4g32(half* y, const half *__restrict__ x, PackedSubtensor2DQ4 A) {
+__global__ void
+mat_vec_kernel_q4g32(half *y, const half *__restrict__ x, PackedSubtensor2DQInt4x32 A) {
   int numCol = A.getNumCol();
   int row = blockIdx.x * blockDim.y + threadIdx.y;
   if (row >= A.getNumRow()) return;
@@ -90,43 +95,38 @@ __global__ void mat_vec_kernel_q4g32(half* y, const half *__restrict__ x, Packed
   constexpr int VecA = 4;
   constexpr int WrapSize = 32;
 
-  int groupPerRow = numCol / Q4::GroupSize;
-  constexpr int bytesPerGroup = Q4::GroupSize / 2;
+  int groupPerRow = numCol / QInt4x32::GroupSize;
   int rowGroupIdx = row * groupPerRow;
-  const uint8_t *pdata = A.getData(row * groupPerRow);
 
   float sum = 0;
   int groupIdx = threadIdx.x;
-  OWORD packA;  // VecA * uint32
   OWORD packX;  // VecX * half
   for (int i = groupIdx; i < groupPerRow; i += WrapSize) {
     float scale = float(A.getScaleValue(rowGroupIdx + i));
-    float qzero = float(A.getZeroValue(rowGroupIdx + i));
+    float zero = float(A.getZeroValue(rowGroupIdx + i));
+    const uint32_t *data = reinterpret_cast<const uint32_t *>(A.getData(rowGroupIdx + i));
 
-    // 128 elements
-    #pragma unroll
-    for (int k = 0; k < Q4::GroupSize / (VecA * VecX); ++k) {
-      packA.vec = ldcsv4u32(&pdata[i * bytesPerGroup + k * sizeof(packA)]);
-
-      // 32 elements
-      #pragma unroll
+// 32 elements: QInt4x32::GroupSize / (VecA * VecX) == 1
+#pragma unroll
+    for (int k = 0; k < QInt4x32::GroupSize / (VecA * VecX); ++k) {
+// 32 elements
+#pragma unroll
       for (int j = 0; j < VecA; ++j) {
-        uint32_t packAv8 = packA.u[j];
-        packX.vec = ldgv4u32(&x[i * Q4::GroupSize + k * (VecA * VecX) + j * VecX]);
+        uint32_t packAv8 = data[j];
+        packX.vec = ldgv4u32(&x[i * QInt4x32::GroupSize + k * (VecA * VecX) + j * VecX]);
 
-        // 8 elements
-        #pragma unroll
+// 8 elements
+#pragma unroll
         for (int el = 0; el < VecX; ++el) {
-          sum += scale * (float(packAv8 & 0xf) - qzero) * float(packX.h[el]);
+          sum += (scale * float(packAv8 & 0xf) - zero) * float(packX.h[el]);
           packAv8 = packAv8 >> 4;
         }
-      }      
+      }
     }
   }
 
   sum = wrapReduceSum(sum);
-  if (threadIdx.x == 0)
-    y[row] = (half)sum;
+  if (threadIdx.x == 0) y[row] = (half)sum;
 }
 
 Tensor gemvHalf(const Tensor &A, const Tensor &B) {
@@ -138,14 +138,20 @@ Tensor gemvHalf(const Tensor &A, const Tensor &B) {
   dim3 block_dim(32, 4);
   dim3 grid_dim(divUp(d, 4), 1);
 
-  mat_vec_kernel <<<grid_dim, block_dim, 0 >>> (C.getData<half>(), B.getData<half>(), A.getData<half>(), n, d, n);
+  mat_vec_kernel<<<grid_dim, block_dim, 0>>>(
+      C.getData<half>(),
+      B.getData<half>(),
+      A.getData<half>(),
+      n,
+      d,
+      n);
   cudaDeviceSynchronize();
   return C;
 }
 
 Tensor gemvQ4(const Tensor &A, const Tensor &x) {
   CHECK(A.getShape(1) == x.getShape(0) && x.getShape(1) == 1);
-  CHECK(x.getShape(0) % Q4::GroupSize == 0);
+  CHECK(x.getShape(0) % QInt4x32::GroupSize == 0);
   int n = A.getShape(1);
   int d = A.getShape(0);
 
@@ -154,11 +160,11 @@ Tensor gemvQ4(const Tensor &A, const Tensor &x) {
   dim3 block_dim(32, 4);
   dim3 grid_dim(divUp(d, 4), 1);
 
-  mat_vec_kernel_q4g32 <<<grid_dim, block_dim, 0 >>> (C.getData<half>(), x.getData<half>(), A);
+  mat_vec_kernel_q4g32<<<grid_dim, block_dim, 0>>>(C.getData<half>(), x.getData<half>(), A);
   cudaDeviceSynchronize();
   return C;
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm
