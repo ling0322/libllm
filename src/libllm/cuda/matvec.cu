@@ -106,16 +106,17 @@ mat_vec_kernel_q4g32(half *y, const half *__restrict__ x, PackedSubtensor2DQInt4
     float zero = float(A.getZeroValue(rowGroupIdx + i));
     const uint32_t *data = reinterpret_cast<const uint32_t *>(A.getData(rowGroupIdx + i));
 
-// 32 elements: QInt4x32::GroupSize / (VecA * VecX) == 1
+    // 32 elements: QInt4x32::GroupSize / (VecA * VecX) == 1
 #pragma unroll
     for (int k = 0; k < QInt4x32::GroupSize / (VecA * VecX); ++k) {
-// 32 elements
+      // 32 elements
 #pragma unroll
       for (int j = 0; j < VecA; ++j) {
+        // TODO: Memory Coalescing
         uint32_t packAv8 = data[j];
         packX.vec = ldgv4u32(&x[i * QInt4x32::GroupSize + k * (VecA * VecX) + j * VecX]);
 
-// 8 elements
+        // 8 elements
 #pragma unroll
         for (int el = 0; el < VecX; ++el) {
           sum += (scale * float(packAv8 & 0xf) - zero) * float(packX.h[el]);
