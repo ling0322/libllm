@@ -1,34 +1,34 @@
-#include "libllm/llm.h"
-
-#include <string.h>
 #include <omp.h>
+#include <string.h>
+
 #include <atomic>
 #include <functional>
 #include <memory>
 #include <mutex>
-#include "libllm/context.h"
+
 #include "libllm/chatglm.h"
+#include "libllm/context.h"
 #include "libllm/dtype.h"
 #include "libllm/functional.h"
 #include "libllm/generator.h"
-#include "libllm/model_for_generation.h"
-#include "libllm/operators.h"
-#include "libllm/tokenizer.h"
+#include "libllm/llm.h"
 #include "libllm/lut/error.h"
 #include "libllm/lut/ini_config.h"
 #include "libllm/lut/log.h"
 #include "libllm/lut/zip_file.h"
+#include "libllm/model_for_generation.h"
+#include "libllm/operators.h"
+#include "libllm/tokenizer.h"
 
 using libllm::Context;
-using libllm::LongType;
-using libllm::Generator;
 using libllm::GenerationConfig;
+using libllm::Generator;
+using libllm::LongType;
 using libllm::ModelForGeneration;
+using libllm::Tokenizer;
 using libllm::chatglm::ChatGlmConfig;
 using libllm::chatglm::ChatGlmModel;
-using libllm::Tokenizer;
 using lut::IniConfig;
-
 
 struct llmModel_t {
   Context ctx;
@@ -112,11 +112,18 @@ Device getDeviceFromApi(int apiDevice) {
   }
 }
 
+}  // namespace api
+}  // namespace libllm
+
 // -- api implementation ----------
 
-llmStatus_t init() {
+using namespace libllm;
+using namespace libllm::api;
+
+llmStatus_t llmInit(int64_t apiVersion) {
   if (!gInitialized.exchange(true)) {
     try {
+      if (apiVersion != LLM_API_VERSION) throw lut::InvalidArgError("api version mismatch.");
       lut::setLogLevel(lut::LogSeverity::kINFO);
       libllm::initOperators();
 
@@ -126,14 +133,15 @@ llmStatus_t init() {
     } catch (const lut::Error &e) {
       gInitialized = false;
       setErrorCodeAndMessage(e);
-      return static_cast<llmStatus_t>(e.getCode());;
+      return static_cast<llmStatus_t>(e.getCode());
+      ;
     }
   }
 
   return LLM_OK;
 }
 
-llmStatus_t destroy() {
+llmStatus_t llmDestroy() {
   if (gInitialized.exchange(false)) {
     libllm::destroyOperators();
   }
@@ -141,23 +149,23 @@ llmStatus_t destroy() {
   return LLM_OK;
 }
 
-const char *getLastErrorMessage() {
+const char *llmGetLastErrorMessage() {
   return gErrorMessage;
 }
 
-llmModel_t *createModel() {
+llmModel_t *llmModel_New() {
   llmModel_t *model = new llmModel_t();
   model->device = LLM_DEVICE_AUTO;
   return model;
 }
 
-llmStatus_t destroyModel(llmModel_t *model) {
+llmStatus_t llmModel_Delete(llmModel_t *model) {
   delete model;
   return LLM_OK;
 }
 
-llmStatus_t setModelFile(llmModel_t *model, const char *filename) {
-  return runAndCatch([model, filename](){
+llmStatus_t llmModel_SetFile(llmModel_t *model, const char *filename) {
+  return runAndCatch([model, filename]() {
     if (!model) throw lut::InvalidArgError("model");
     if (!filename) throw lut::InvalidArgError("filename");
 
@@ -166,8 +174,8 @@ llmStatus_t setModelFile(llmModel_t *model, const char *filename) {
   });
 }
 
-llmStatus_t setModelDevice(llmModel_t *model, int32_t device) {
-  return runAndCatch([model, device](){
+llmStatus_t llmModel_SetDevice(llmModel_t *model, int32_t device) {
+  return runAndCatch([model, device]() {
     if (!model) throw lut::InvalidArgError("model");
 
     model->device = device;
@@ -175,8 +183,8 @@ llmStatus_t setModelDevice(llmModel_t *model, int32_t device) {
   });
 }
 
-llmStatus_t loadModel(llmModel_t *model) {
-  return runAndCatch([model](){
+llmStatus_t llmModel_Load(llmModel_t *model) {
+  return runAndCatch([model]() {
     if (!model) throw lut::InvalidArgError("model");
     if (model->configFile.empty()) throw lut::InvalidArgError("model file not set.");
 
@@ -187,38 +195,42 @@ llmStatus_t loadModel(llmModel_t *model) {
     model->ctx.setFloatDType(F::getDefaultFloatType(model->ctx.getDevice()));
     model->tokenizer = Tokenizer::fromPackage(package.get());
     model->model_for_generation = ModelForGeneration::fromPackage(model->ctx, package.get());
-  
+
     return LLM_OK;
   });
 }
 
-const char *getModelName(llmModel_t *model) {
-  return runAndCatch<const char *>([model](){
-    if (!model) throw lut::InvalidArgError("m");
-    if (!model->model_for_generation) throw lut::InvalidArgError("model");
+const char *llmModel_GetName(llmModel_t *model) {
+  return runAndCatch<const char *>(
+      [model]() {
+        if (!model) throw lut::InvalidArgError("m");
+        if (!model->model_for_generation) throw lut::InvalidArgError("model");
 
-    return model->model_for_generation->getName();
-  }, nullptr);
+        return model->model_for_generation->getName();
+      },
+      nullptr);
 }
 
-llmPrompt_t *createPrompt(llmModel_t *model) {
-  return runAndCatch<llmPrompt_t *>([model](){
-    if (!model) throw lut::InvalidArgError("model");
-    if (!model->tokenizer) throw lut::InvalidArgError("model not initialized");
+llmPrompt_t *llmPrompt_New(llmModel_t *model) {
+  return runAndCatch<llmPrompt_t *>(
+      [model]() {
+        if (!model) throw lut::InvalidArgError("model");
+        if (!model->tokenizer) throw lut::InvalidArgError("model not initialized");
 
-    llmPrompt_t *prompt = new llmPrompt_t();
-    prompt->tokenizer = model->tokenizer;
-    return prompt;
-  }, nullptr);
+        llmPrompt_t *prompt = new llmPrompt_t();
+        prompt->tokenizer = model->tokenizer;
+        return prompt;
+      },
+      nullptr);
 }
 
-llmStatus_t destroyPrompt(llmPrompt_t *prompt) {
+llmStatus_t llmPrompt_Delete(llmPrompt_t *prompt) {
   delete prompt;
   return LLM_OK;
 }
 
-llmStatus_t appendText(llmPrompt_t *prompt, const char *text) {
-  return runAndCatch([prompt, text](){
+llmStatus_t llmPrompt_AppendText(llmPrompt_t *prompt, const char *text) {
+  return runAndCatch([prompt, text]() {
     if (!prompt) throw lut::InvalidArgError("prompt");
     if (!text) throw lut::InvalidArgError("text");
 
@@ -234,8 +246,8 @@ llmStatus_t appendText(llmPrompt_t *prompt, const char *text) {
   });
 }
 
-llmStatus_t appendControlToken(llmPrompt_t *prompt, const char *name) {
-  return runAndCatch([prompt, name](){
+llmStatus_t llmPrompt_AppendControlToken(llmPrompt_t *prompt, const char *name) {
+  return runAndCatch([prompt, name]() {
     if (!prompt) throw lut::InvalidArgError("prompt");
     if (!name) throw lut::InvalidArgError("name");
 
@@ -250,29 +262,31 @@ llmStatus_t appendControlToken(llmPrompt_t *prompt, const char *name) {
   });
 }
 
-llmCompletion_t *createCompletion(llmModel_t *model) {
-  return runAndCatch<llmCompletion_t *>([model](){
-    if (!model) throw lut::InvalidArgError("model");
-    if (!model->model_for_generation) throw lut::InvalidArgError("model not initialized");
+llmCompletion_t *llmCompletion_New(llmModel_t *model) {
+  return runAndCatch<llmCompletion_t *>(
+      [model]() {
+        if (!model) throw lut::InvalidArgError("model");
+        if (!model->model_for_generation) throw lut::InvalidArgError("model not initialized");
 
-    std::unique_ptr<llmCompletion_t> comp = std::make_unique<llmCompletion_t>();
-    comp->model_for_generation = model->model_for_generation;
-    comp->tokenizer = model->tokenizer;
-    comp->temperature = 1.0f;
-    comp->top_k = 50;
-    comp->top_p = 0.8f;
-    
-    return comp.release();
-  }, nullptr);
+        std::unique_ptr<llmCompletion_t> comp = std::make_unique<llmCompletion_t>();
+        comp->model_for_generation = model->model_for_generation;
+        comp->tokenizer = model->tokenizer;
+        comp->temperature = 1.0f;
+        comp->top_k = 50;
+        comp->top_p = 0.8f;
+
+        return comp.release();
+      },
+      nullptr);
 }
 
-llmStatus_t destroyCompletion(llmCompletion_t *comp) {
+llmStatus_t llmCompletion_Delete(llmCompletion_t *comp) {
   delete comp;
   return LLM_OK;
 }
 
-llmStatus_t setPrompt(llmCompletion_t *comp, llmPrompt_t *prompt) {
-  return runAndCatch([comp, prompt](){
+llmStatus_t llmCompletion_SetPrompt(llmCompletion_t *comp, llmPrompt_t *prompt) {
+  return runAndCatch([comp, prompt]() {
     if (!comp) throw lut::InvalidArgError("comp");
     if (!prompt) throw lut::InvalidArgError("prompt");
     if (comp->generator) throw lut::InvalidArgError("completion already started");
@@ -283,8 +297,8 @@ llmStatus_t setPrompt(llmCompletion_t *comp, llmPrompt_t *prompt) {
   });
 }
 
-llmStatus_t setTopP(llmCompletion_t *comp, float topP) {
-  return runAndCatch([comp, topP](){
+llmStatus_t llmCompletion_SetTopP(llmCompletion_t *comp, float topP) {
+  return runAndCatch([comp, topP]() {
     if (!comp) throw lut::InvalidArgError("comp");
     if (comp->generator) throw lut::InvalidArgError("completion already started");
 
@@ -293,8 +307,8 @@ llmStatus_t setTopP(llmCompletion_t *comp, float topP) {
   });
 }
 
-llmStatus_t setTopK(llmCompletion_t *comp, int32_t topK) {
-  return runAndCatch([comp, topK](){
+llmStatus_t llmCompletion_SetTopK(llmCompletion_t *comp, int32_t topK) {
+  return runAndCatch([comp, topK]() {
     if (!comp) throw lut::InvalidArgError("comp");
     if (comp->generator) throw lut::InvalidArgError("completion already started");
 
@@ -303,8 +317,8 @@ llmStatus_t setTopK(llmCompletion_t *comp, int32_t topK) {
   });
 }
 
-llmStatus_t setTemperature(llmCompletion_t *comp, float temperature) {
-  return runAndCatch([comp, temperature](){
+llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperature) {
+  return runAndCatch([comp, temperature]() {
     if (!comp) throw lut::InvalidArgError("comp");
     if (comp->generator) throw lut::InvalidArgError("completion already started");
 
@@ -313,8 +327,8 @@ llmStatus_t setTemperature(llmCompletion_t *comp, float temperature) {
   });
 }
 
-llmStatus_t startCompletion(llmCompletion_t *comp) {
-  return runAndCatch([comp](){
+llmStatus_t llmCompletion_Start(llmCompletion_t *comp) {
+  return runAndCatch([comp]() {
     if (!comp) throw lut::InvalidArgError("comp");
     if (comp->generator) throw lut::InvalidArgError("completion already started");
     if (comp->prompt.empty()) throw lut::InvalidArgError("prompt is empty");
@@ -336,17 +350,19 @@ llmStatus_t startCompletion(llmCompletion_t *comp) {
   });
 }
 
-llmBool_t isActive(llmCompletion_t *comp) {
-  return runAndCatch<llmBool_t>([comp](){
-    if (!comp) throw lut::InvalidArgError("comp");
-    if (!comp->generator) throw lut::InvalidArgError("completion not started");
+llmBool_t llmCompletion_IsActive(llmCompletion_t *comp) {
+  return runAndCatch<llmBool_t>(
+      [comp]() {
+        if (!comp) throw lut::InvalidArgError("comp");
+        if (!comp->generator) throw lut::InvalidArgError("completion not started");
 
-    return !comp->generator->stopped();
-  }, false);
+        return !comp->generator->stopped();
+      },
+      false);
 }
 
-llmStatus_t getNextChunk(llmCompletion_t *comp, llmChunk_t *chunk) {
-  return runAndCatch([comp, chunk](){
+llmStatus_t llmCompletion_GenerateNextChunk(llmCompletion_t *comp, llmChunk_t *chunk) {
+  return runAndCatch([comp, chunk]() {
     if (!comp) throw lut::InvalidArgError("comp");
     if (!comp->generator) throw lut::InvalidArgError("completion not started");
     if (comp->generator->stopped()) throw lut::AbortedError("completion stopped");
@@ -359,59 +375,20 @@ llmStatus_t getNextChunk(llmCompletion_t *comp, llmChunk_t *chunk) {
   });
 }
 
-llmChunk_t *createChunk() {
+llmChunk_t *llmChunk_New() {
   return new llmChunk_t();
 }
 
-llmStatus_t destroyChunk(llmChunk_t *chunk) {
+llmStatus_t llmChunk_Delete(llmChunk_t *chunk) {
   delete chunk;
   return LLM_OK;
 }
 
-const char *getChunkText(llmChunk_t *chunk) {
-  return runAndCatch<const char *>([chunk](){
-    if (!chunk) throw lut::InvalidArgError("chunk");
-    return chunk->text.c_str();
-  }, nullptr);
-}
-
-
-llmApi_t gApi{
-  init,
-  destroy,
-  getLastErrorMessage,
-  createModel,
-  destroyModel,
-  setModelFile,
-  setModelDevice,
-  loadModel,
-  getModelName,
-  createPrompt,
-  destroyPrompt,
-  appendText,
-  appendControlToken,
-  createCompletion,
-  destroyCompletion,
-  setPrompt,
-  setTopP,
-  setTopK,
-  setTemperature,
-  startCompletion,
-  isActive,
-  getNextChunk,
-  createChunk,
-  destroyChunk,
-  getChunkText
-};
-
-}  // namespace api
-}  // namespace libllm
-
-LLMAPI const llmApi_t *llmGetApi(int32_t version) {
-  if (version == LLM_API_VERSION) return &libllm::api::gApi;
-  return nullptr;
-}
-
-LLMAPI int32_t llmGetApiVersion() {
-  return LLM_API_VERSION;
+const char *llmChunk_GetText(llmChunk_t *chunk) {
+  return runAndCatch<const char *>(
+      [chunk]() {
+        if (!chunk) throw lut::InvalidArgError("chunk");
+        return chunk->text.c_str();
+      },
+      nullptr);
 }

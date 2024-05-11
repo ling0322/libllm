@@ -24,16 +24,15 @@
 #include "libllm/lut/log.h"
 
 int main(int argc, char **argv) {
-  CHECK(llmGetApi(LLM_API_VERSION));
-  if (llmGetApi(LLM_API_VERSION)->init() != LLM_OK) {
-    LOG(FATAL) << llmGetApi(LLM_API_VERSION)->getLastErrorMessage();
+  if (llmInit(LLM_API_VERSION) != LLM_OK) {
+    LOG(FATAL) << llmGetLastErrorMessage();
   }
 
   // enable some slow kernels for reference.
   libllm::op::cpu::kernel::setAllowSlowKernel(true);
 
   int result = Catch::Session().run(argc, argv);
-  CHECK(llmGetApi(LLM_API_VERSION)->destroy() == LLM_OK);
+  CHECK(llmDestroy() == LLM_OK);
 
   return result;
 }

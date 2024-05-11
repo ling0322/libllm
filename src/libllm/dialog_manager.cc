@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -25,10 +25,11 @@
 
 namespace libllm {
 
-ChatOutput::ChatOutput() : 
-    numAnswerTokens(0),
-    promptDuration(0.0),
-    answerDuration(0.0) {}
+ChatOutput::ChatOutput()
+    : numAnswerTokens(0),
+      promptDuration(0.0),
+      answerDuration(0.0) {
+}
 
 // -----------------------------------------------------------------------------------------------+
 // class ChatGLM2PromptBuilder                                                                    |
@@ -47,7 +48,7 @@ std::shared_ptr<llm::Prompt> ChatGLM2PromptBuilder::buildPrompt(
   }
   prompt += lut::sprintf("[Round %d]\n\n问：%s\n\n答：", round, question);
 
-  std::shared_ptr<llm::Prompt> pPrompt = model->createPrompt();
+  std::shared_ptr<llm::Prompt> pPrompt = llm::Prompt::fromModel(model);
   pPrompt->appendText(prompt);
   return pPrompt;
 }
@@ -64,7 +65,7 @@ std::shared_ptr<llm::Prompt> ChatGLM3PromptBuilder::buildPrompt(
     std::shared_ptr<llm::Model> model,
     lut::Span<const QA> history,
     const std::string &question) {
-  std::shared_ptr<llm::Prompt> prompt = model->createPrompt();
+  std::shared_ptr<llm::Prompt> prompt = llm::Prompt::fromModel(model);
   for (const QA &qa : history) {
     prompt->appendControlToken("<|user|>");
     prompt->appendText("\n");
@@ -94,7 +95,7 @@ std::shared_ptr<llm::Prompt> LlamaPromptBuilder::buildPrompt(
     std::shared_ptr<llm::Model> model,
     lut::Span<const QA> history,
     const std::string &question) {
-  std::shared_ptr<llm::Prompt> prompt = model->createPrompt();
+  std::shared_ptr<llm::Prompt> prompt = llm::Prompt::fromModel(model);
   bool systemPromptAdded = false;
   for (const QA &qa : history) {
     prompt->appendControlToken("<s>");
@@ -129,7 +130,7 @@ std::shared_ptr<llm::Prompt> QwenPromptBuilder::buildPrompt(
     std::shared_ptr<llm::Model> model,
     lut::Span<const QA> history,
     const std::string &question) {
-  std::shared_ptr<llm::Prompt> prompt = model->createPrompt();
+  std::shared_ptr<llm::Prompt> prompt = llm::Prompt::fromModel(model);
   prompt->appendControlToken("<|im_start|>");
   prompt->appendText("system\nYou are a helpful assistant.");
   prompt->appendControlToken("<|im_end|>");
@@ -176,10 +177,12 @@ std::shared_ptr<PromptBulder> PromptBulder::create(const std::string &modelName)
 // class DialogManager                                                                            |
 // -----------------------------------------------------------------------------------------------+
 
-DialogManager::DialogManager(std::shared_ptr<llm::Model> model,
-                             std::shared_ptr<PromptBulder> promptBuilder) :
-    _model(model),
-    _promptBuilder(promptBuilder) {}
+DialogManager::DialogManager(
+    std::shared_ptr<llm::Model> model,
+    std::shared_ptr<PromptBulder> promptBuilder)
+    : _model(model),
+      _promptBuilder(promptBuilder) {
+}
 
 ChatOutput DialogManager::chat(
     const std::string &question,
@@ -206,8 +209,7 @@ ChatOutput DialogManager::chat(
     answer += nextToken;
     ++numToken;
 
-    if ((!stopSeq.empty()) && (answer.find(stopSeq) != std::string::npos))
-      break;
+    if ((!stopSeq.empty()) && (answer.find(stopSeq) != std::string::npos)) break;
   }
   output.numAnswerTokens = numToken;
   output.answerDuration = lut::now() - t0;
