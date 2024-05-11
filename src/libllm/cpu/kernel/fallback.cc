@@ -178,9 +178,10 @@ void hgemm12x16FallbackKernel(
 }
 
 template<typename T>
-void fqcvtFallbackKernel(int64_t n, const T *x, QInt4x32 *y) {
+void fqcvtFallbackKernel(int64_t n, const T *x, QInt4x32 *y, int64_t offsetY) {
   int64_t nb = n / GroupSizeQInt4;
-  CHECK(n % GroupSizeQInt4 == 0);
+  int64_t groupOffset = offsetY / GroupSizeQInt4;
+  CHECK(n % GroupSizeQInt4 == 0 && offsetY % GroupSizeQInt4 == 0);
 
   for (int i = 0; i < nb; ++i) {
     int begin = i * GroupSizeQInt4;
@@ -199,16 +200,16 @@ void fqcvtFallbackKernel(int64_t n, const T *x, QInt4x32 *y) {
 
       uint8_t dl = static_cast<uint8_t>(dlFp32);
       uint8_t dh = static_cast<uint8_t>(dhFp32);
-      y[i].data[j / 2] = (dh << 4) | dl;
+      y[groupOffset + i].data[j / 2] = (dh << 4) | dl;
     }
 
-    y[i].scale = cvtf<Float16>(scale);
-    y[i].zero = cvtf<Float16>(zero);
+    y[groupOffset + i].scale = cvtf<Float16>(scale);
+    y[groupOffset + i].zero = cvtf<Float16>(zero);
   }
 }
 
-void sqcvtFallbackKernel(int64_t n, const float *x, QInt4x32 *y) {
-  fqcvtFallbackKernel<float>(n, x, y);
+void sqcvtFallbackKernel(int64_t n, const float *x, QInt4x32 *y, int64_t offsetY) {
+  fqcvtFallbackKernel<float>(n, x, y, offsetY);
 }
 
 #if LUT_APU_ARCH == LUT_AARCH64

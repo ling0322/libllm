@@ -32,7 +32,7 @@
 #define LLMAPI __attribute__((visibility("default")))
 #else  // LIBLLM_EXPORTS
 #define LLMAPI
-#endif  // LIBLLM_EXPORTS`
+#endif  // LIBLLM_EXPORTS
 #endif  // _WIN32
 
 #ifdef __cplusplus

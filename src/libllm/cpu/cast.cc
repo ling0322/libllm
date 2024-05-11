@@ -96,7 +96,7 @@ Tensor castFp32ToQ4(Tensor A) {
       A.getData<float>(),
       0,
       (kernel::QInt4x32 *)tensorData->getData<QInt4x32>(0),
-      kernel::Mode::SingleThread);
+      kernel::Mode::OMP);
   auto tensorShape = std::make_shared<TensorShape>(A.getShape());
   return Tensor::create(tensorShape, tensorData);
 }

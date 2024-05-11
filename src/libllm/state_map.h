@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -22,6 +22,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+
 #include "libllm/lut/reader.h"
 #include "libllm/tensor.h"
 
@@ -33,6 +34,25 @@ class StateMap {
   StateMap() = default;
   ~StateMap();
 
+  StateMap(StateMap &) = delete;
+  StateMap &operator=(StateMap &) = delete;
+
+  StateMap(StateMap &&rhs)
+      : _dict(std::move(rhs._dict)),
+        _intDict(std::move(rhs._intDict)) {
+  }
+  StateMap &operator=(StateMap &&rhs) {
+    _dict = std::move(rhs._dict);
+    _intDict = std::move(rhs._intDict);
+  }
+
+  /// @brief Create a copy of current state map. It's only a shallow copy and the content of Tensor
+  /// will not be copied (original and copied Tensor still point to the same address of memory).
+  /// @return Copied StateMap.
+  StateMap clone() const;
+
+  /// @brief Read the state map from stream.
+  /// @param reader the stream.
   void read(lut::Reader *reader);
 
   // for tensors.
@@ -53,6 +73,6 @@ class StateMap {
   std::unordered_map<std::string, int> _intDict;
 
   std::pair<std::string, Tensor> readTensor(lut::Reader *fp) const;
-}; 
+};
 
 }  // namespace libllm

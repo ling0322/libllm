@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include "libllm/lut/zip_file.h"
 #include "libllm/context.h"
+#include "libllm/lut/zip_file.h"
 #include "libllm/state_map.h"
 #include "libllm/tensor.h"
 #include "libllm/tokenizer.h"
@@ -33,9 +33,7 @@ class ModelForGeneration {
   static constexpr char ModelConfig[] = "model.ini";
 
   // Cretae instance of ModelForGeneration from local package file (.llmpkg).
-  static std::shared_ptr<ModelForGeneration> fromPackage(
-      const Context &ctx,
-      lut::ZipFile *package);
+  static std::shared_ptr<ModelForGeneration> fromPackage(const Context &ctx, lut::ZipFile *package);
 
   virtual ~ModelForGeneration() = default;
 

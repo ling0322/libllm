@@ -231,7 +231,7 @@ void qgemm(const GemmArgs<T, TQ, T> &args) {
   } else {
     int numelB = args.K * args.N;
     lut::c_ptr<T> B = alignedAlloc<T>(numelB);
-    cvt<TQ, T, TYPE, MODE>(numelB, args.B, 0, B.get());
+    cvt<TQ, T, TYPE, MODE>(numelB, args.B, 0, B.get(), 0);
 
     int ldb = args.transB ? args.K : args.N;
 

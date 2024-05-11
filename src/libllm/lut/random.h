@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,6 +20,7 @@
 #pragma once
 
 #include <stdint.h>
+
 #include "libllm/lut/span.h"
 
 namespace lut {
@@ -36,6 +37,7 @@ class Random {
 
   // fill `l` with a list of float numbers in range [0, 1) or [min, max).
   void fill(Span<float> l);
+  void fill(Span<int64_t> l, int64_t min = 0, int64_t max = RandMax);
   void fill(Span<float> l, float min, float max);
 
   // fill `l` with floats sampled from Gaussian distribution. l.size() % 2 MUST equal to 0.
@@ -61,4 +63,4 @@ class Random {
   uint64_t _x;
 };
 
-} // namespace lut
+}  // namespace lut

@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,8 +19,8 @@
 
 #include "libllm/chatglm.h"
 
-#include "libllm/lut/strings.h"
 #include "libllm/constants.h"
+#include "libllm/lut/strings.h"
 
 namespace libllm {
 namespace chatglm {
@@ -42,7 +42,8 @@ ChatGlmConfig::ChatGlmConfig()
       numLayers(0),
       symbolGMask(0),
       symbolSOP(0),
-      symbolEOS(0) {}
+      symbolEOS(0) {
+}
 
 ChatGlmConfig ChatGlmConfig::loadConfig(const lut::IniConfig &ini) {
   const lut::IniSection &section = ini.getSection(kSection);
@@ -107,9 +108,7 @@ Tensor MLP::forward(const Tensor &input) const {
 // class SelfAttention                                                                            |
 // -----------------------------------------------------------------------------------------------+
 
-std::unique_ptr<SelfAttention> SelfAttention::create(
-    const Context &ctx,
-    ChatGlmConfig config) {
+std::unique_ptr<SelfAttention> SelfAttention::create(const Context &ctx, ChatGlmConfig config) {
   std::unique_ptr<SelfAttention> layer{new SelfAttention()};
   layer->setCtx(ctx);
 
@@ -151,23 +150,23 @@ int SelfAttention::getCtxLength(StateMap *past) const {
 
 Tensor SelfAttention::forward(StateMap &past, Tensor input, Tensor roPE) const {
   Tensor qkvProj = _qkvProj->forward(input);
-  
+
   CHECK(qkvProj.getDim() == 3 && qkvProj.getShape(-1) == _kvProjDim * 2 + _qProjDim);
   Tensor qProj = qkvProj.slice(-1, {0, _qProjDim});
   Tensor kProj = qkvProj.slice(-1, {_qProjDim, _qProjDim + _kvProjDim});
   Tensor vProj = qkvProj.slice(-1, {_qProjDim + _kvProjDim, _qProjDim + 2 * _kvProjDim});
 
-  int N = input.getShape(0);  // batch size
-  int qL = input.getShape(1);  // sequence length
-  int qNH = _qProjDim / _hiddenSizePerHead;  // query num-heads
+  int N = input.getShape(0);                   // batch size
+  int qL = input.getShape(1);                  // sequence length
+  int qNH = _qProjDim / _hiddenSizePerHead;    // query num-heads
   int kvNH = _kvProjDim / _hiddenSizePerHead;  // key and value num-heads
-  int D = _hiddenSizePerHead; 
+  int D = _hiddenSizePerHead;
 
   Tensor q = qProj.view({N, qL, qNH, D});
   Tensor k = kProj.view({N, qL, kvNH, D});
   Tensor v = vProj.view({N, qL, kvNH, D});
 
-  // apply roPE to [..., :_hiddenSizePerHead / 2] of QKV 
+  // apply roPE to [..., :_hiddenSizePerHead / 2] of QKV
   Tensor qe = q.slice(-1, {0, D / 2});
   Tensor ke = k.slice(-1, {0, D / 2});
   Tensor ve = v.slice(-1, {0, D / 2});
@@ -192,7 +191,7 @@ Tensor SelfAttention::forward(StateMap &past, Tensor input, Tensor roPE) const {
 
     k = F::cat(pastK, k, 1);
     v = F::cat(pastV, v, 1);
-    
+
     CHECK(k.getShape(1) == v.getShape(1) && k.getShape(1) == kvL);
   }
 
@@ -247,7 +246,6 @@ void GLMBlock::initParameters(const StateMap &stateMap) {
   _mlp->initParameters(stateMap);
 }
 
-
 void GLMBlock::initParameters(lut::Random *generator, DType weightType) {
   _attn->initParameters(generator, weightType);
   _inputNorm->initParameters(generator, weightType);
@@ -280,7 +278,8 @@ Tensor GLMBlock::forward(StateMap &past, Tensor input, Tensor roPE) const {
 // class ChatGlmModel                                                                             |
 // -----------------------------------------------------------------------------------------------+
 
-ChatGlmModel::ChatGlmModel() {}
+ChatGlmModel::ChatGlmModel() {
+}
 
 std::unique_ptr<ChatGlmModel> ChatGlmModel::create(const Context &ctx, ChatGlmConfig c) {
   std::unique_ptr<ChatGlmModel> model{new ChatGlmModel()};
@@ -327,12 +326,13 @@ void ChatGlmModel::initParameters(lut::Random *generator, DType weightType) {
   _finalNorm->initParameters(generator, weightType);
   _outProj->initParameters(generator, weightType);
 
-  _rope = F::rand({_config.seqLength, 1, _config.kvChannels / 2},
-                  DType::kFloat,  // roPE must be float
-                  Device::getCpu(),
-                  generator,
-                  -0.2f,
-                  0.2f);
+  _rope = F::rand(
+      {_config.seqLength, 1, _config.kvChannels / 2},
+      DType::kFloat,  // roPE must be float
+      Device::getCpu(),
+      generator,
+      -0.2f,
+      0.2f);
   _rope = moveAndCastFloat(_rope, ctx);
 
   for (int i = 0; i < _config.numLayers; ++i) {
@@ -381,6 +381,7 @@ Tensor ChatGlmModelForGeneration::buildInput(const std::vector<LongType> &prompt
 
   int len = inputData.size();
   Tensor inputs = Tensor::create<LongType>({1, len}, inputData);
+  inputs = F::to(_model->getCtx().getDevice(), inputs);
   return inputs;
 }
 

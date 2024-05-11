@@ -412,6 +412,7 @@ Tensor LlamaModelForGeneration::buildInput(const std::vector<LongType> &prompt) 
 
   int len = inputData.size();
   Tensor inputs = Tensor::create<LongType>({1, len}, inputData);
+  inputs = F::to(_model->getCtx().getDevice(), inputs);
   return inputs;
 }
 

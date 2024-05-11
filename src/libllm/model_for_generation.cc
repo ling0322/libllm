@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,13 +19,13 @@
 
 #include "libllm/model_for_generation.h"
 
+#include "libllm/chatglm.h"
+#include "libllm/constants.h"
+#include "libllm/llama.h"
 #include "libllm/lut/error.h"
 #include "libllm/lut/path.h"
 #include "libllm/lut/strings.h"
 #include "libllm/lut/zip_file.h"
-#include "libllm/constants.h"
-#include "libllm/chatglm.h"
-#include "libllm/llama.h"
 #include "libllm/qwen.h"
 
 namespace libllm {
@@ -48,9 +48,9 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
   if (modelType == "chatglm2" || modelType == "chatglm3") {
     model = chatglm::ChatGlmModelForGeneration::fromConfig(ctx, *ini);
   } else if (modelType == "llama") {
-    model =  llama::LlamaModelForGeneration::fromConfig(ctx, *ini);
+    model = llama::LlamaModelForGeneration::fromConfig(ctx, *ini);
   } else if (modelType == "qwen") {
-    model =  qwen::QwenModelForGeneration::fromConfig(ctx, *ini);
+    model = qwen::QwenModelForGeneration::fromConfig(ctx, *ini);
   } else {
     throw lut::AbortedError(lut::sprintf("unexpected model type: %s", modelType));
   }
