@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -25,6 +25,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+
 #include "llm.h"
 
 namespace llm {
@@ -33,29 +34,38 @@ class Model;
 class ModelFactory;
 class Completion;
 
-enum class DeviceType {
-  CPU = LLM_DEVICE_CPU,
-  CUDA = LLM_DEVICE_CUDA,
-  AUTO = LLM_DEVICE_AUTO
-};
+enum class DeviceType { CPU = LLM_DEVICE_CPU, CUDA = LLM_DEVICE_CUDA, AUTO = LLM_DEVICE_AUTO };
 
 // configuration for LLM completion task.
 class CompletionConfig {
  public:
-  CompletionConfig() :
-      _topP(0.8f),
-      _topK(50),
-      _temperature(1.0f) {}
+  CompletionConfig()
+      : _topP(0.8f),
+        _topK(50),
+        _temperature(1.0f) {
+  }
 
   // setters for the config.
-  void setTopP(float topP) { _topP = topP; }
-  void setTopK(int topK) { _topK = topK; }
-  void setTemperature(float temperature) { _temperature = temperature; }
+  void setTopP(float topP) {
+    _topP = topP;
+  }
+  void setTopK(int topK) {
+    _topK = topK;
+  }
+  void setTemperature(float temperature) {
+    _temperature = temperature;
+  }
 
   // getters for the config.
-  float getTopP() const { return _topP; }
-  int getTopK() const { return _topK; }
-  float getTemperature() const { return _temperature; }
+  float getTopP() const {
+    return _topP;
+  }
+  int getTopK() const {
+    return _topK;
+  }
+  float getTemperature() const {
+    return _temperature;
+  }
 
  private:
   float _topP;
@@ -67,7 +77,9 @@ class Chunk {
  public:
   friend class Completion;
 
-  std::string getText() const { return _text; }
+  std::string getText() const {
+    return _text;
+  }
 
  private:
   std::string _text;
@@ -87,17 +99,22 @@ class Completion {
   Chunk nextChunk();
 
  private:
-  std::shared_ptr<llmCompletion_t> _completion;
-  std::shared_ptr<llmChunk_t> _chunk;
-  const llmApi_t *_api;
+  std::shared_ptr<llmCompletion_t> _handle;
+  std::shared_ptr<llmChunk_t> _chunkHandle;
+  std::shared_ptr<Model> _model;
 
-  Completion() : _api(nullptr) {}
+  Completion() {
+  }
 };
 
 /// @brief Input prompt for Model::comeplete().
 class Prompt {
  public:
-  friend class Model;
+  Prompt(Prompt &) = delete;
+  Prompt &operator=(Prompt &) = delete;
+
+  /// @brief Create a prompt from model.
+  static std::shared_ptr<Prompt> fromModel(std::shared_ptr<Model> model);
 
   /// @brief Append text to the prompt.
   /// @param text text to append.
@@ -107,66 +124,64 @@ class Prompt {
   /// @param text name of the control token.
   void appendControlToken(const std::string &text);
 
+  /// @brief Get internal handle for the prompt.
+  /// @return A pointer of llmPrompt_t.
+  llmPrompt_t *getHandle() {
+    return _handle.get();
+  }
+
  private:
-  const llmApi_t *_api;
-  std::shared_ptr<llmPrompt_t> _prompt;
-  
-  Prompt() : _api(nullptr) {}
+  std::shared_ptr<llmPrompt_t> _handle;
+  std::shared_ptr<Model> _model;
+
+  Prompt() = default;
 };
 
 /// @brief Stores an instance of LLM Model.
-class Model {
+class Model : public std::enable_shared_from_this<Model> {
  public:
-  friend class ModelFactory;
+  Model(Model &) = delete;
+  Model &operator=(Model &) = delete;
+
+  /// @brief Create an instance of Model from the package file;
+  /// @param configFile config file of the model.
+  /// @param device device of the model storage and computation device. Use DeviceType::AUTO to
+  /// let libllm determine the best one.
+  /// @return A shared pointer of the Model instance.
+  static std::shared_ptr<Model> fromFile(
+      const std::string &filename,
+      DeviceType device = DeviceType::AUTO);
 
   /// @brief Get the name of model, for example, "llama".
   /// @return name of the model.
   std::string getName();
 
-  /// @brief Create a prompt.
-  /// @return pointer of prompt.
-  std::shared_ptr<Prompt> createPrompt() const;
-
   /// @brief Complete the string version of given `prompt` with LLM.
   /// @param prompt The prompt to complete.
   /// @param config The config for completion.
   /// @return A `Completion` object.
-  std::shared_ptr<Completion> complete(std::shared_ptr<Prompt> prompt,
-                                       CompletionConfig config = CompletionConfig());
+  std::shared_ptr<Completion> complete(
+      std::shared_ptr<Prompt> prompt,
+      CompletionConfig config = CompletionConfig());
 
- private:
-  std::shared_ptr<llmModel_t> _model;
-  const llmApi_t *_api;
-
-  Model() : _api(nullptr) {}
-};
-
-class ModelFactory {
- public:
-  // Use this constructor when libLLM is dynamic loaded (dlopen).
-  ModelFactory(const llmApi_t *api) : _api(api) {
-    if (!api) throw std::runtime_error("api is empty");
+  /// @brief Get internal handle for the model.
+  /// @return A pointer of llmModel_t.
+  llmModel_t *getHandle() {
+    return _handle.get();
   }
 
-  /// @brief Create an instance of Model from the config file path;
-  /// @param configFile config file of the model.
-  /// @param device device of the model storage and computation device. Use DeviceType::AUTO to
-  /// let libllm determine the best one.
-  /// @return A shared pointer of the Model instance.
-  std::shared_ptr<Model> createModel(const std::string &config,
-                                     DeviceType device = DeviceType::AUTO);
-
-
  private:
-  const llmApi_t *_api;
+  std::shared_ptr<llmModel_t> _handle;
+
+  Model() = default;
 };
 
 // -- Implementation of libLLM C++ API (wrapper for C api) ----------------------------------------
 
 namespace internal {
 
-inline void throwLastError(const llmApi_t *api) {
-  std::string lastError = api->getLastErrorMessage();
+inline void throwLastError() {
+  std::string lastError = llmGetLastErrorMessage();
   throw std::runtime_error(lastError);
 }
 
@@ -175,16 +190,16 @@ inline void throwLastError(const llmApi_t *api) {
 // -- Completion ----------
 
 inline bool Completion::isActive() {
-  return _api->isActive(_completion.get()) != 0;
+  return llmCompletion_IsActive(_handle.get()) != 0;
 }
 
 inline Chunk Completion::nextChunk() {
-  if (LLM_OK != _api->getNextChunk(_completion.get(), _chunk.get())) {
-    internal::throwLastError(_api);
+  if (LLM_OK != llmCompletion_GenerateNextChunk(_handle.get(), _chunkHandle.get())) {
+    internal::throwLastError();
   }
 
-  const char *text = _api->getChunkText(_chunk.get());
-  if (!text) internal::throwLastError(_api);
+  const char *text = llmChunk_GetText(_chunkHandle.get());
+  if (!text) internal::throwLastError();
 
   Chunk c;
   c._text = text;
@@ -193,75 +208,73 @@ inline Chunk Completion::nextChunk() {
 
 // -- Prompt ----------
 
+inline std::shared_ptr<Prompt> Prompt::fromModel(std::shared_ptr<Model> model) {
+  std::shared_ptr<llmPrompt_t> pPrompt(llmPrompt_New(model->getHandle()), llmPrompt_Delete);
+  if (!pPrompt) internal::throwLastError();
+
+  std::shared_ptr<Prompt> prompt{new Prompt()};
+  prompt->_model = model;
+  prompt->_handle = pPrompt;
+
+  return prompt;
+}
+
 inline void Prompt::appendText(const std::string &text) {
-  if (LLM_OK != _api->appendText(_prompt.get(), text.c_str())) {
-    internal::throwLastError(_api);
+  if (LLM_OK != llmPrompt_AppendText(_handle.get(), text.c_str())) {
+    internal::throwLastError();
   }
 }
 
 inline void Prompt::appendControlToken(const std::string &name) {
-  if (LLM_OK != _api->appendControlToken(_prompt.get(), name.c_str())) {
-    internal::throwLastError(_api);
+  if (LLM_OK != llmPrompt_AppendControlToken(_handle.get(), name.c_str())) {
+    internal::throwLastError();
   }
 }
 
 // -- Model ----------
 
+inline std::shared_ptr<Model> Model::fromFile(const std::string &config, DeviceType device) {
+  std::shared_ptr<llmModel_t> pModel(llmModel_New(), llmModel_Delete);
+  int32_t dwDevice = static_cast<int32_t>(device);
+  if (LLM_OK != llmModel_SetFile(pModel.get(), config.c_str())) internal::throwLastError();
+  if (LLM_OK != llmModel_SetDevice(pModel.get(), dwDevice)) internal::throwLastError();
+  if (LLM_OK != llmModel_Load(pModel.get())) internal::throwLastError();
+
+  std::shared_ptr<Model> model{new Model()};
+  model->_handle = pModel;
+
+  return model;
+}
+
 inline std::string Model::getName() {
-  const char *name = _api->getModelName(_model.get());
-  if (!name) internal::throwLastError(_api);
+  const char *name = llmModel_GetName(_handle.get());
+  if (!name) internal::throwLastError();
 
   return name;
 }
 
-inline std::shared_ptr<Prompt> Model::createPrompt() const {
-  std::shared_ptr<llmPrompt_t> pPrompt(_api->createPrompt(_model.get()),
-                                       _api->destroyPrompt);
-  if (!pPrompt) internal::throwLastError(_api);
+inline std::shared_ptr<Completion> Model::complete(
+    std::shared_ptr<Prompt> prompt,
+    CompletionConfig config) {
+  std::shared_ptr<llmCompletion_t> pComp(llmCompletion_New(_handle.get()), llmCompletion_Delete);
+  if (!pComp) internal::throwLastError();
 
-  std::shared_ptr<Prompt> prompt{new Prompt()};
-  prompt->_api = _api;
-  prompt->_prompt = pPrompt;
-
-  return prompt;
-}
-
-inline std::shared_ptr<Completion> Model::complete(std::shared_ptr<Prompt> prompt,
-                                                   CompletionConfig config) {
-  std::shared_ptr<llmCompletion_t> pComp(_api->createCompletion(_model.get()),
-                                         _api->destroyCompletion);
-  if (!pComp) internal::throwLastError(_api);
-
-  if (LLM_OK != _api->setPrompt(pComp.get(), prompt->_prompt.get())) internal::throwLastError(_api);
-  if (LLM_OK != _api->setTopK(pComp.get(), config.getTopK())) internal::throwLastError(_api);
-  if (LLM_OK != _api->setTopP(pComp.get(), config.getTopP())) internal::throwLastError(_api);
-  if (LLM_OK != _api->setTemperature(pComp.get(), config.getTemperature())) {
-    internal::throwLastError(_api);
+  if (LLM_OK != llmCompletion_SetPrompt(pComp.get(), prompt->getHandle()))
+    internal::throwLastError();
+  if (LLM_OK != llmCompletion_SetTopK(pComp.get(), config.getTopK())) internal::throwLastError();
+  if (LLM_OK != llmCompletion_SetTopP(pComp.get(), config.getTopP())) internal::throwLastError();
+  if (LLM_OK != llmCompletion_SetTemperature(pComp.get(), config.getTemperature())) {
+    internal::throwLastError();
   }
-  if (LLM_OK != _api->startCompletion(pComp.get())) internal::throwLastError(_api);
+  if (LLM_OK != llmCompletion_Start(pComp.get())) internal::throwLastError();
 
-  std::shared_ptr<llmChunk_t> pChunk(_api->createChunk(), _api->destroyChunk);
+  std::shared_ptr<llmChunk_t> pChunk(llmChunk_New(), llmChunk_Delete);
   std::shared_ptr<Completion> comp{new Completion()};
-  comp->_api = _api;
-  comp->_chunk = pChunk;
-  comp->_completion = pComp;
+  comp->_model = shared_from_this();
+  comp->_chunkHandle = pChunk;
+  comp->_handle = pComp;
 
   return comp;
-}
-
-inline std::shared_ptr<Model> ModelFactory::createModel(const std::string &config,
-                                                        DeviceType device) {
-  std::shared_ptr<llmModel_t> pModel(_api->createModel(), _api->destroyModel);
-  int32_t dwDevice = static_cast<int32_t>(device);
-  if (LLM_OK != _api->setModelFile(pModel.get(), config.c_str())) internal::throwLastError(_api);
-  if (LLM_OK != _api->setModelDevice(pModel.get(), dwDevice)) internal::throwLastError(_api);
-  if (LLM_OK != _api->loadModel(pModel.get())) internal::throwLastError(_api);
-
-  std::shared_ptr<Model> model{new Model()};
-  model->_api = _api;
-  model->_model = pModel;
-
-  return model;
 }
 
 }  // namespace llm
