@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -18,15 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "../../third_party/catch2/catch_amalgamated.hpp"
+#include "libllm/cpu/kernel/interface.h"
+#include "libllm/llm.h"
 #include "libllm/lut/error.h"
 #include "libllm/lut/log.h"
-#include "libllm/llm.h"
 
 int main(int argc, char **argv) {
   CHECK(llmGetApi(LLM_API_VERSION));
   if (llmGetApi(LLM_API_VERSION)->init() != LLM_OK) {
     LOG(FATAL) << llmGetApi(LLM_API_VERSION)->getLastErrorMessage();
   }
+
+  // enable some slow kernels for reference.
+  libllm::op::cpu::kernel::setAllowSlowKernel(true);
 
   int result = Catch::Session().run(argc, argv);
   CHECK(llmGetApi(LLM_API_VERSION)->destroy() == LLM_OK);

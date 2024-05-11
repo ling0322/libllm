@@ -22,6 +22,7 @@
 #include <stdint.h>
 
 #include "libllm/cpu/kernel/abstract.h"
+#include "libllm/lut/log.h"
 
 namespace libllm {
 namespace op {
@@ -166,6 +167,15 @@ inline void axpyKernel<Float16, Float16, float, CpuMathBackend::FALLBACK>(
     int64_t offsetX,
     float *y) {
   return haxpyFallbackKernel(n, a, x + offsetX, y);
+}
+template<>
+inline void axpyKernel<float, QInt4x32, float, CpuMathBackend::FALLBACK>(
+    int64_t n,
+    float a,
+    const QInt4x32 *x,
+    int64_t offsetX,
+    float *y) {
+  NOT_IMPL();
 }
 
 }  // namespace kernel

@@ -22,6 +22,7 @@
 #include <omp.h>
 #include <stdlib.h>
 
+#include <atomic>
 #include <memory>
 
 #include "libllm/cpu/kernel/abstract.h"
@@ -87,6 +88,7 @@ CpuMathBackend findBestCpuMathBackend() {
   NOT_IMPL();
 }
 
+bool gAllowSlowKernel = false;
 CpuMathBackend gDefaultBackend = CpuMathBackend::UNKNOWN;
 
 CpuMathBackend getCpuMathBackend(CpuMathBackend fromBackend) {
@@ -98,9 +100,16 @@ CpuMathBackend getCpuMathBackend(CpuMathBackend fromBackend) {
   }
 }
 
-void init() { gDefaultBackend = findBestCpuMathBackend(); }
+void init() {
+  gDefaultBackend = findBestCpuMathBackend();
+}
 
-void destroy() {}
+void destroy() {
+}
+
+void setAllowSlowKernel(bool allow) {
+  gAllowSlowKernel = allow;
+}
 
 void gemmFloat(
     bool transA,
@@ -140,6 +149,12 @@ void gemmFloat(
     gemm<576, 512, 4096, 12, 32, float, CpuMathBackend::AVX512, Mode::OMP>(args);
   } else if (backendType == CpuMathBackend::AVX512 && mode == Mode::SingleThread) {
     gemm<576, 512, 4096, 12, 32, float, CpuMathBackend::AVX512, Mode::SingleThread>(args);
+#elif LUT_CPU_ARCH == LUT_AARCH64
+  } else if (gAllowSlowKernel && backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP) {
+    gemm<288, 512, 4096, 6, 16, float, CpuMathBackend::FALLBACK, Mode::OMP>(args);
+  } else if (
+      gAllowSlowKernel && backendType == CpuMathBackend::ASIMDHP && mode == Mode::SingleThread) {
+    gemm<288, 512, 4096, 6, 16, float, CpuMathBackend::FALLBACK, Mode::OMP>(args);
 #endif
   } else {
     NOT_IMPL();
@@ -281,6 +296,13 @@ void gemmFloatQInt4(
   } else if (backendType == CpuMathBackend::AVX512 && mode == Mode::SingleThread) {
     qgemm<576, 512, 4096, 12, 32, float, QInt4x32, CpuMathBackend::AVX512, Mode::SingleThread>(
         args);
+#elif LUT_CPU_ARCH == LUT_AARCH64
+  } else if (gAllowSlowKernel && backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP) {
+    qgemm<288, 512, 4096, 6, 16, float, QInt4x32, CpuMathBackend::FALLBACK, Mode::OMP>(args);
+  } else if (
+      gAllowSlowKernel && backendType == CpuMathBackend::ASIMDHP && mode == Mode::SingleThread) {
+    qgemm<288, 512, 4096, 6, 16, float, QInt4x32, CpuMathBackend::FALLBACK, Mode::SingleThread>(
+        args);
 #endif
   } else {
     NOT_IMPL();
@@ -309,6 +331,7 @@ void gemmHalfQInt4(
   args.A = A;
   args.lda = lda;
   args.B = B;
+  args.ldb = transB ? K : N;
   args.C = C;
   args.ldc = ldc;
 

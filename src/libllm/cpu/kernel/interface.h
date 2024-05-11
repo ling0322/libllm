@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,6 +20,7 @@
 #pragma once
 
 #include <stdint.h>
+
 #include "libllm/lut/attributes.h"
 
 namespace libllm {
@@ -42,22 +43,12 @@ struct QInt4x32 {
 };
 static_assert(sizeof(QInt4x32) == 20, "invalid size of QInt4x32");
 
-enum class Mode {
-  OMP,
-  SingleThread
-};
-
-enum class CpuMathBackend {
-  DEFAULT,
-  AVX2,
-  AVX512,
-  ASIMDHP,
-  FALLBACK,
-  UNKNOWN
-};
+enum class Mode { OMP, SingleThread };
+enum class CpuMathBackend { DEFAULT, AVX2, AVX512, ASIMDHP, FALLBACK, UNKNOWN };
 
 void init();
 void destroy();
+void setAllowSlowKernel(bool allow);
 
 void gemmFloat(
     bool transA,

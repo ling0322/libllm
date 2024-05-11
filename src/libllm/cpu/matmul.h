@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -49,7 +49,12 @@ Tensor matmulFp32Q4Fp32(const Tensor &A, const Tensor &B);
 Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B);
 Tensor bmmNx2Fp32Q4Fp32(const Tensor &A, const Tensor &B);
 
+/// @brief An implememntation of float32 matmul for aarch64
+/// @param A
+/// @param B
+/// @return
+Tensor matmulFp32Aarch64(const Tensor &A, const Tensor &B);
 
-}  // cpu
-}  // op
-}  // ly
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm
