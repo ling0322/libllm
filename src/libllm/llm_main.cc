@@ -52,11 +52,11 @@ int main(int argc, char **argv) {
 
   const char *usage =
       "Command line interface for libllm.\n"
-      "Usage: llm -config <libllm-config-file> [-device (cpu|gpu|cuda)]";
+      "Usage: llm -m <llmpkg-file> [-d (cpu|gpu|cuda)]";
 
   lut::Flags flags(usage);
-  flags.define("-config", &configPath, "filename of libllm config file.");
-  flags.define("-device", &deviceType, "device of the model. (cpu|cuda|auto)");
+  flags.define("-m", &configPath, "filename of libllm config file.");
+  flags.define("-d", &deviceType, "device of the model. (cpu|cuda|auto)");
   flags.parse(argc, argv);
 
   if (configPath.empty()) {
