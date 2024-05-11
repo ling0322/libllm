@@ -21,7 +21,7 @@
 
 #include "libllm/tensor.h"
 #include "libllm/cpu/accessor.h"
-#include "libllm/cpu/kernel/kernel.h"
+#include "libllm/cpu/kernel/interface.h"
 #include "libllm/lut/span.h"
 
 namespace libllm {
@@ -48,21 +48,21 @@ void copyVector(TensorAccessor<T, 1> dest, TensorAccessor<const T, 1> src) {
 inline void applyDequant(int64_t offset, int n, const TensorData *data, float *tgt) {
   kernel::dequantQInt4ToFloat(
       n,
-      (const kernel::UInt4x2 *)data->getData<Q4>(),
-      (const kernel::Float16 *)data->getSlot(1)->getData<Float16>(),
-      (const kernel::UInt4x2 *)data->getSlot(2)->getData<UInt8>(),
+      (const kernel::QInt4x32 *)data->getData<QInt4x32>(),
       offset,
-      tgt);
+      tgt,
+      kernel::Mode::OMP,
+      kernel::CpuMathBackend::DEFAULT);
 }
 
 inline void applyDequant(int64_t offset, int n, const TensorData *data, Float16 *tgt) {
   kernel::dequantQInt4ToHalf(
       n,
-      (const kernel::UInt4x2 *)data->getData<Q4>(),
-      (const kernel::Float16 *)data->getSlot(1)->getData<Float16>(),
-      (const kernel::UInt4x2 *)data->getSlot(2)->getData<UInt8>(),
+      (const kernel::QInt4x32 *)data->getData<QInt4x32>(),
       offset,
-      (kernel::Float16 *)tgt);
+      (kernel::Float16 *)tgt,
+      kernel::Mode::OMP,
+      kernel::CpuMathBackend::DEFAULT);
 }
 
 }  // cpu

@@ -173,7 +173,7 @@ bool OperatorTester::testLookup() {
 
 bool OperatorTester::testLookupQInt4() {
   lut::Random random(MagicNumber);
-  Tensor embd = F::rand({10, 256}, DType::kQ4, Device::getCpu(), &random);
+  Tensor embd = F::rand({10, 256}, DType::kQInt4x32, Device::getCpu(), &random);
   Tensor ids = Tensor::create<LongType>({2, 3}, {1, 2, 3, 4, 5, 6});
 
   Tensor x = _op->to(_testDevice, embd);
@@ -230,7 +230,7 @@ bool OperatorTester::testMatmulSlice(ShapeType shapeA, ShapeType shapeB) {
 bool OperatorTester::testMatmulQInt4(ShapeType shapeA, ShapeType shapeB, bool transposeB) {
   lut::Random random(MagicNumber);
   Tensor a = F::rand(shapeA, DType::kFloat, Device::getCpu(), &random);
-  Tensor b = F::rand(shapeB, DType::kQ4, Device::getCpu(), &random);
+  Tensor b = F::rand(shapeB, DType::kQInt4x32, Device::getCpu(), &random);
   Tensor xr = F::matmul(a, transposeB ? b.transpose(-1, -2) : b);
 
   Tensor x = _op->to(_testDevice, a);

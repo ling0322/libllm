@@ -1,0 +1,13 @@
+BasedOnStyle: Google
+IndentWidth: 2
+ColumnLimit: 100
+AlignAfterOpenBracket: AlwaysBreak
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+BinPackParameters: false
+BinPackArguments: false
+SpaceAfterTemplateKeyword: false
+AllowShortFunctionsOnASingleLine: false
+PenaltyBreakAssignment: 2000
+BreakConstructorInitializers: BeforeColon
+PackConstructorInitializers: Never

@@ -19,7 +19,7 @@
 
 #include "libllm/cpu/lookup.h"
 
-#include "libllm/cpu/kernel/kernel.h"
+#include "libllm/cpu/kernel/interface.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/copy.h"
 #include "libllm/cpu/print.h"
@@ -58,7 +58,7 @@ Tensor lookupKernel2D(const Tensor &table, const Tensor &indices) {
 
 template<typename SrcT, typename DestT>
 Tensor lookupQuantizedKernel2D(const Tensor &table, const Tensor &indices) {
-  CHECK(table.getDim() == 2 && table.getShape(1) % SrcT::GroupSize == 0);
+  CHECK(table.getDim() == 2 && table.getShape(1) % DType::getType<SrcT>().getGroupSize() == 0);
   const TensorData *embdData = table.getDataObject();
 
   int vocabSize = table.getShape(0);
@@ -84,8 +84,8 @@ Tensor lookupQuantizedKernel2D(const Tensor &table, const Tensor &indices) {
 
 Tensor lookup(const Tensor &table, const Tensor &indices) {
   if (table.getDType() == DType::kFloat) return lookupKernel2D<float>(table, indices);
-  if (table.getDType() == DType::kQ4)
-    return lookupQuantizedKernel2D<Q4, DefaultFloatType>(table, indices);
+  if (table.getDType() == DType::kQInt4x32)
+    return lookupQuantizedKernel2D<QInt4x32, DefaultFloatType>(table, indices);
 #if LUT_CPU_ARCH == LUT_AARCH64
   if (table.getDType() == DType::kFloat16) return lookupKernel2D<Float16>(table, indices);
 #endif

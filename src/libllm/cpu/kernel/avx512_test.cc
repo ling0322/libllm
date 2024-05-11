@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,45 +17,40 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include <math.h>
+#include <omp.h>
 
-
-#pragma once
-
-#include <stdint.h>
-#include <memory>
-#include "libllm/cpu/kernel/interfaces.h"
+#include "catch2/catch_amalgamated.hpp"
+#include "libllm/cpu/kernel/abstract.h"
+#include "libllm/cpu/kernel/test_common.h"
+#include "libllm/cpu/kernel/util.h"
+#include "libllm/lut/half.h"
 #include "libllm/lut/log.h"
-
+#include "libllm/lut/random.h"
+#include "ruapu/ruapu.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-
-struct SQInt4AxpyNotImplKernel {
-  static void applyColumn(const QInt4GemvArgs<float> &args, int col, float *y) {
-    NOT_IMPL();
+CATCH_TEST_CASE("test sgemm6x16Avx2Kernel", "[cpu_kernel][kernel][avx512]") {
+  bool isaAvx512f = ruapu_supports("avx512f") > 0;
+  if (!isaAvx512f) {
+    CATCH_SKIP("skip sgemm6x16Avx2Kernel tesing since CPU not supported.");
   }
-};
 
-struct SQInt4DotFallbackKernel {
-  static float apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY);
-  static float applyRow(const QInt4GemvArgs<float> &args, int row);
-};
-
-struct SQInt4DotAvx2Kernel {
-  static float apply(int64_t n, const float *x, DataQInt4 y, int64_t offsetY);
-  static float applyRow(const QInt4GemvArgs<float> &args, int row);
-};
-
-struct DequantQInt4Avx2Kernel {
-  static void apply(int n, DataQInt4 x, int64_t offsetX, float *y);
-};
-
-struct DequantQInt4FallbackKernel {
-  static void apply(int n, DataQInt4 x, int64_t offsetX, float *y);
-};
+  GemmMicroKernelTester<float, float, float, 12, 32, CpuMathBackend::AVX512> tester;
+  tester.test(1);
+  tester.test(8);
+  tester.test(17);
+  tester.test(64);
+  tester.test(100);
+  tester.test(256);
+  tester.test(500);
+  tester.test(2047);
+  tester.test(2048);
+}
 
 }  // namespace kernel
 }  // namespace cpu

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from torch import nn
 
+import binascii
 import struct
 import torch
 import math
@@ -36,7 +37,7 @@ DTYPE_FP32 = 1
 DTYPE_INT64 = 2
 DTYPE_UINT8 = 3
 DTYPE_FP16 = 4
-DTYPE_Q4 = 5
+DTYPE_QINT4_32 = 5
 DTYPE_INT8 = 6
 
 class Quant(Enum):
@@ -106,23 +107,22 @@ class Quantization:
         return tensor
 
     @classmethod
-    def quantize_to_q4(cls, tensor: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """1D tensor to qdata (q4x2), scale (fp16), zero_point (int8) """
-        weights = tensor.reshape(-1, 128)
+    def quantize_to_qint4x32(cls, tensor: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """1D tensor to qdata (q4x2), scale (fp16), zero (fp16) """
+        weights = tensor.reshape(-1, 32)
         num_group = weights.shape[0]
 
         min_value = torch.min(weights, 1).values
         max_value = torch.max(weights, 1).values
 
         scales = torch.clamp(max_value - min_value, min=1e-5) / 15
-        zeros = torch.round(-min_value / scales).clamp(0, 15)
+        zeros = -min_value
 
-        qweights = torch.round(weights / scales.reshape(num_group, 1)) + zeros.reshape(num_group, 1)
+        qweights = torch.round((weights - min_value.reshape(num_group, 1)) / scales.reshape(num_group, 1))
         qweights = qweights.clamp(0, 15).reshape(-1).type(torch.uint8)
         qweights = cls._pack_uint8_to_uint4x2(qweights)
 
-        zeros = cls._pack_uint8_to_uint4x2(zeros.type(torch.uint8))
-        return qweights, scales.type(torch.float16), zeros
+        return qweights, scales.type(torch.float16), zeros.type(torch.float16)
 
 class TensorWriter:
     """write tensor to file with llyn tensor format."""
@@ -145,10 +145,6 @@ class TensorWriter:
             dtype = self._dtype_to_libllm_dtype(tensor.dtype)
 
         numel = tensor.numel()
-        if dtype in {DTYPE_Q4}:
-            # in q4, two int4 merged into a uint8 byte.
-            numel *= 2
-
         self._fp.write(struct.pack('<h', dtype))
         self._fp.write(struct.pack('<q', numel))
 
@@ -192,7 +188,7 @@ class TensorWriter:
         else:
             raise Exception("dtype not supported")
 
-    def _write_tensor_q4(self, tensor: torch.Tensor):
+    def _write_tensor_qint4x32(self, tensor: torch.Tensor):
         """ quantize the pytorch tensor to q4 format (int4 asymmetric quantization, group size 32,
         scale format float16). Then write to self._fp.
         """
@@ -200,12 +196,32 @@ class TensorWriter:
             tensor = tensor.float()
         assert tensor.dtype in {torch.float32, torch.int64}
 
-        self._write_tensor_header(tensor.shape, num_slot=3)
+        self._write_tensor_header(tensor.shape)
         
-        qdata, scale, zero_point = Quantization.quantize_to_q4(tensor)
-        self._write_tensor_elem(qdata, DTYPE_Q4)
-        self._write_tensor_elem(scale)
-        self._write_tensor_elem(zero_point)
+        qdata, scale, zero = Quantization.quantize_to_qint4x32(tensor)
+        assert qdata.dim() == 1 and scale.dim() == 1 and zero.dim() == 1
+        assert qdata.dtype == torch.uint8 and scale.dtype == torch.float16 and zero.dtype == torch.float16
+
+        num_group = int(qdata.shape[0] / 16)
+        qdata = qdata.cpu().detach().contiguous().numpy()
+        scale = scale.cpu().detach().contiguous().numpy()
+        zero = zero.cpu().detach().contiguous().numpy()
+
+        qdata = np.frombuffer(qdata.tobytes(), np.uint8).reshape(-1, 16)
+        scale = np.frombuffer(scale.tobytes(), np.uint8).reshape(-1, 2)
+        zero = np.frombuffer(zero.tobytes(), np.uint8).reshape(-1, 2)
+
+        blocks = np.hstack((zero, scale, qdata))
+        self._fp.write(struct.pack('<h', DTYPE_QINT4_32))
+
+        numel = num_group * 32
+        self._fp.write(struct.pack('<q', numel))
+
+        bdata = blocks.tobytes()
+        assert len(bdata) == num_group * 20
+        self._fp.write(bdata)
+
+        self._fp.write(struct.pack('<h', 0x55aa))
 
     def write_tensor(self, ctx: Context, tensor: torch.Tensor):
         print(f"write tensor {ctx.name}, shape={tensor.shape}, quant={ctx.quant}")
@@ -220,7 +236,7 @@ class TensorWriter:
         if ctx.quant == Quant.NONE:
             self._write_tensor(tensor)
         elif ctx.quant == Quant.Q4:
-            self._write_tensor_q4(tensor)
+            self._write_tensor_qint4x32(tensor)
         else:
             raise NotImplementedError(ctx.quant)
 
@@ -233,10 +249,8 @@ class ModelExporter:
     def _write(self, ctx: Context, tensor: torch.Tensor):
         self._writer.write_tensor(ctx, tensor)
 
-    def export_embedding(self, ctx: Context, module: nn.Embedding, quant: bool = False):
+    def export_embedding(self, ctx: Context, module: nn.Embedding):
         ctx = ctx.with_subname("weight")
-        if not quant:
-            ctx = ctx.with_quant(Quant.NONE)
         self._write(ctx, module.weight)
 
     def export_layer_norm(self, ctx: Context, module: nn.LayerNorm):

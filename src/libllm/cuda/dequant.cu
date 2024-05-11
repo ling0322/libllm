@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,37 +17,40 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cuda/dequant.h"
-
 #include <cuda_fp16.h>
+
 #include "libllm/cuda/common.h"
+#include "libllm/cuda/dequant.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-__global__
-void dequantTensor2DQ4(PackedSubtensor2DQ4 qtensor,
-                       PackedSubtensor<half, 2> destTensor) {
+__global__ void dequantTensor2DQ4(
+    PackedSubtensor2DQInt4x32 qtensor,
+    PackedSubtensor<half, 2> destTensor) {
   int64_t numQ4x2 = qtensor.getNumCol() * qtensor.getNumRow() / 2;
   half *destData = destTensor.getData();
 
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
   for (int elemOffset = idx; elemOffset < numQ4x2; elemOffset += gridDim.x * blockDim.x) {
-    int elemGroup = elemOffset / (Q4::GroupSize / 2);
-    uint8_t q4elem = qtensor.getData(0)[elemOffset];
+    int elemGroup = elemOffset / (QInt4x32::GroupSize / 2);
+    uint8_t q4elem = qtensor.getData(elemGroup)[elemOffset % (QInt4x32::GroupSize / 2)];
     half scale = qtensor.getScaleValue(elemGroup);
-    int8_t zero = qtensor.getZeroValue(elemGroup);
+    half zero = qtensor.getZeroValue(elemGroup);
 
-    destData[elemOffset * 2] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem & 0xf) - zero));
-    destData[elemOffset * 2 + 1] = __hmul(
-        scale, __int2half_rd(static_cast<int>(q4elem >> 4) - zero));
+    destData[elemOffset * 2] = __hsub(
+        __hmul(scale, __int2half_rd(static_cast<int>(q4elem & 0xf))),
+        zero);
+    destData[elemOffset * 2 + 1] = __hsub(
+        __hmul(scale, __int2half_rd(static_cast<int>(q4elem >> 4))),
+        zero);
   }
 }
 
 Tensor dequantQ4ToHalf(const Tensor &qtensor) {
-  CHECK(qtensor.getDType() == DType::kQ4);
+  CHECK(qtensor.getDType() == DType::kQInt4x32);
   Tensor qT = qtensor;
   bool transQ = qtensor.getStride(0) == 1 && qtensor.getStride(1) != 1;
   if (transQ) qT = qT.transpose(0, 1);
@@ -64,7 +67,7 @@ Tensor dequantQ4ToHalf(const Tensor &qtensor) {
   dim3 grid;
   grid.x = std::min(numBlock, deviceNumBlock);
 
-  PackedSubtensor2DQ4 sA(qT);
+  PackedSubtensor2DQInt4x32 sA(qT);
   PackedSubtensor<half, 2> sC(dst);
 
   dequantTensor2DQ4<<<grid, blockSize>>>(sA, sC);
@@ -75,6 +78,6 @@ Tensor dequantQ4ToHalf(const Tensor &qtensor) {
   return dst;
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

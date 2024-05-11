@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,13 +20,14 @@
 #include "libllm/cuda/matmul.h"
 
 #include <cuda_fp16.hpp>
-#include "libllm/dtype.h"
+
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/matmul.h"
 #include "libllm/cuda/common.h"
 #include "libllm/cuda/dequant.h"
 #include "libllm/cuda/gemm_cutlass.h"
 #include "libllm/cuda/matvec.h"
+#include "libllm/dtype.h"
 #include "libllm/lut/strings.h"
 
 namespace libllm {
@@ -60,12 +61,11 @@ std::shared_ptr<MatMul> MatMul::create() {
 
 std::shared_ptr<MatMul> MatMul::createCublas() {
   std::shared_ptr<MatMul> mm{new MatMul()};
-  
+
   mm->_gemmExtLib = lut::SharedLibrary::open("llmextcublas");
-  
+
   std::function<std::shared_ptr<op::cuda::Gemm>()> factory;
-  factory = mm->_gemmExtLib->getFunc<std::shared_ptr<op::cuda::Gemm>()>(
-        "llmCreateCudaOpExtGemm");
+  factory = mm->_gemmExtLib->getFunc<std::shared_ptr<op::cuda::Gemm>()>("llmCreateCudaOpExtGemm");
 
   mm->_gemm = factory();
   if (!mm->_gemm) throw lut::AbortedError("unable to create MatMul operator.");
@@ -91,7 +91,7 @@ Tensor MatMul::apply(const Tensor &A, const Tensor &B) {
 
   if (A.getDType() == DType::kFloat16 && B.getDType() == DType::kFloat16) {
     return matmulHalf(A, B);
-  } else if (A.getDType() == DType::kFloat16 && B.getDType() == DType::kQ4) {
+  } else if (A.getDType() == DType::kFloat16 && B.getDType() == DType::kQInt4x32) {
     return matmulQ4(A, B);
   } else {
     NOT_IMPL();
@@ -99,7 +99,7 @@ Tensor MatMul::apply(const Tensor &A, const Tensor &B) {
 }
 
 Tensor MatMul::matmulQ4(const Tensor &A, const Tensor &B) {
-  CHECK(B.getDType() == DType::kQ4);
+  CHECK(B.getDType() == DType::kQInt4x32);
   CHECK(A.getDType() == DType::kFloat16);
 
   if (A.getDim() == 2 && B.getDim() == 2) {
@@ -193,7 +193,6 @@ Tensor MatMul::bmmToGemmHalf(const Tensor &A, const Tensor &B) {
   return xC.view(shape);
 }
 
-
 Tensor MatMul::bmmHalf(Tensor A, Tensor B) {
   Tensor xB = B;
   if (A.getDim() != B.getDim()) xB = op::cpu::expandBatchDims(B, A.getShape());
@@ -222,20 +221,20 @@ Tensor MatMul::bmmHalf(Tensor A, Tensor B) {
   float alpha = 1.0;
   float beta = 0.0;
   if (lut::ErrorCode::OK != _gemm->hgemmArray(
-      gemmArgs.transA,
-      gemmArgs.transB,
-      gemmArgs.M,
-      gemmArgs.N,
-      gemmArgs.K,
-      1.0f,
-      arrayA.get(),
-      gemmArgs.lda,
-      arrayB.get(),
-      gemmArgs.ldb,
-      0.0f,
-      arrayC.get(),
-      gemmArgs.ldc,
-      nb)) {
+                                gemmArgs.transA,
+                                gemmArgs.transB,
+                                gemmArgs.M,
+                                gemmArgs.N,
+                                gemmArgs.K,
+                                1.0f,
+                                arrayA.get(),
+                                gemmArgs.lda,
+                                arrayB.get(),
+                                gemmArgs.ldb,
+                                0.0f,
+                                arrayC.get(),
+                                gemmArgs.ldc,
+                                nb)) {
     THROW(Aborted, "hgemmArray failed.");
   }
 
@@ -252,19 +251,19 @@ Tensor MatMul::gemmHalf(Tensor A, Tensor B) {
 
   op::cpu::GEMMArgs gemmArgs = op::cpu::generateGemmArgs(A, B, C);
   if (lut::ErrorCode::OK != _gemm->hgemm(
-      gemmArgs.transA,
-      gemmArgs.transB,
-      gemmArgs.M,
-      gemmArgs.N,
-      gemmArgs.K,
-      1.0f,
-      A.getData<half>(),
-      gemmArgs.lda,
-      B.getData<half>(),
-      gemmArgs.ldb,
-      0.0f,
-      C.getData<half>(),
-      gemmArgs.ldc)) {
+                                gemmArgs.transA,
+                                gemmArgs.transB,
+                                gemmArgs.M,
+                                gemmArgs.N,
+                                gemmArgs.K,
+                                1.0f,
+                                A.getData<half>(),
+                                gemmArgs.lda,
+                                B.getData<half>(),
+                                gemmArgs.ldb,
+                                0.0f,
+                                C.getData<half>(),
+                                gemmArgs.ldc)) {
     THROW(Aborted, "hgemm failed.");
   }
   cudaDeviceSynchronize();
@@ -272,7 +271,6 @@ Tensor MatMul::gemmHalf(Tensor A, Tensor B) {
   return C;
 }
 
-
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

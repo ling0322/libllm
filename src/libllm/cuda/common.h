@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -22,57 +22,64 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 #include <stdint.h>
+
 #include <type_traits>
+
+#include "libllm/cuda/subtensor.h"
+#include "libllm/dtype.h"
 #include "libllm/lut/c_ptr.h"
 #include "libllm/lut/error.h"
 #include "libllm/lut/strings.h"
 #include "libllm/tensor.h"
-#include "libllm/cuda/subtensor.h"
 
-#define LL_CHECK_CONTIGUOUS(x) { if (!x.isContiguous()) { \
-    LOG(FATAL) << "contiguous is required for CUDA operators: " << #x; } }
+#define LL_CHECK_CONTIGUOUS(x)                                           \
+  {                                                                      \
+    if (!x.isContiguous()) {                                             \
+      LOG(FATAL) << "contiguous is required for CUDA operators: " << #x; \
+    }                                                                    \
+  }
 
-#define LL_CHECK_CUDA_STATUS(x) {\
-      cudaError_t status = x; \
-      if (status != cudaSuccess) { \
-        LOG(ERROR) << "Error while calling: " << #x; \
-        throw lut::AbortedError(cudaGetErrorString(status)); \
-      } \
-    }
+#define LL_CHECK_CUDA_STATUS(x)                                                          \
+  {                                                                                      \
+    cudaError_t status = x;                                                              \
+    if (status != cudaSuccess) {                                                         \
+      LOG(ERROR) << "Error while calling: " << #x << ": " << cudaGetErrorString(status); \
+      throw lut::AbortedError(cudaGetErrorString(status));                               \
+    }                                                                                    \
+  }
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
 /// @brief A q4 quantized constant matrix (2D tensor).
-struct PackedSubtensor2DQ4 {
+struct PackedSubtensor2DQInt4x32 {
   int _numRow;
   int _numCol;
 
-  const half *_scale;
-  const uint8_t *_data;
-  const uint8_t *_zero;
+  const QInt4x32 *_data;
 
-  __device__ int getNumRow() const { return _numRow; }
-  __device__ int getNumCol() const { return _numCol; }
-  __device__ const uint8_t *getData(int groupIdx) const {
-    return _data + groupIdx * (Q4::GroupSize / 2);
+  __forceinline__ __device__ int getNumRow() const {
+    return _numRow;
+  }
+  __forceinline__ __device__ int getNumCol() const {
+    return _numCol;
+  }
+  __forceinline__ __device__ const uint8_t *getData(int groupIdx) const {
+    return _data[groupIdx].data;
+  }
+  __forceinline__ __device__ half getScaleValue(int groupIdx) const {
+    return *reinterpret_cast<const half *>(&(_data[groupIdx].scale));
+  }
+  __forceinline__ __device__ half getZeroValue(int groupIdx) const {
+    return *reinterpret_cast<const half *>(&(_data[groupIdx].zero));
   }
 
-  __device__ half getScaleValue(int groupIdx) const { return _scale[groupIdx]; }
-  __device__ uint8_t getZeroValue(int groupIdx) const {
-    uint8_t zero = _zero[groupIdx / 2];
-    if (groupIdx % 2) {
-      zero = zero >> 4;
-    }
-    return zero & 0xf;
-  }
-
-  PackedSubtensor2DQ4(const Tensor &tensor);
+  PackedSubtensor2DQInt4x32(const Tensor &tensor);
 };
 
 /// @brief Automatically call destroy method on destruction for handles.
-/// @tparam T 
+/// @tparam T
 template<typename T>
 using auto_handle = lut::c_ptr<typename std::remove_pointer<T>::type>;
 
@@ -117,6 +124,6 @@ int getCudaDeviceAttribute(cudaDeviceAttr attr);
 /// @return cuda device count.
 int getCudaDeviceCount();
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

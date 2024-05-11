@@ -40,7 +40,7 @@ class Llama2Exporter(ModelExporter):
         self._export_rope(ctx.with_subname("rope"), base_model.layers[0].self_attn.rotary_emb)
         for idx, block in enumerate(base_model.layers):
             self._export_block(ctx.with_subname("block" + str(idx)), block)
-        self._write(ctx.with_subname("out_proj.weight").with_quant(Quant.NONE), model.lm_head.weight)
+        self._write(ctx.with_subname("out_proj.weight"), model.lm_head.weight)
 
     def _export_rms_norm(self, ctx: Context, module):
         self._write(ctx.with_subname("weight").with_quant(Quant.NONE), module.weight)

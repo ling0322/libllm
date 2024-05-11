@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,21 +20,21 @@
 #include <immintrin.h>
 #include <stdint.h>
 
-#include "libllm/cpu/kernel/kernel_s.h"
+#include "libllm/cpu/kernel/abstract.h"
 
 namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
 
-void SGemm12x32Avx512Kernel::apply(int64_t kc, float *a, float *b, float *c, int64_t rs_c) {
+void sgemm12x32Avx512Kernel(int64_t kc, const float *a, const float *b, float *c, int64_t rs_c) {
   // a: kc x MR
   // b: kc x NR
 
   // MR=12, NR=32
   // C: MR x NR (6 zmmX registers)
-  __m512 c00, c01, c10, c11, c20, c21, c30, c31, c40, c41, c50, c51, c60, c61,
-         c70, c71, c80, c81, c90, c91, ca0, ca1, cb0, cb1;
+  __m512 c00, c01, c10, c11, c20, c21, c30, c31, c40, c41, c50, c51, c60, c61, c70, c71, c80, c81,
+      c90, c91, ca0, ca1, cb0, cb1;
   __m512 a00, b00, b01;
 
   float *pc = c;
@@ -86,8 +86,8 @@ void SGemm12x32Avx512Kernel::apply(int64_t kc, float *a, float *b, float *c, int
   cb1 = _mm512_loadu_ps(pc + 16);
   pc += rs_c;
 
-  float *pa = a;
-  float *pb = b;
+  const float *pa = a;
+  const float *pb = b;
   for (int k = 0; k < kc; ++k) {
     b00 = _mm512_loadu_ps(pb);
     b01 = _mm512_loadu_ps(pb + 16);

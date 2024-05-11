@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,26 +20,20 @@
 #pragma once
 
 #include <stdint.h>
-#include <type_traits>
+
 #include <string>
+#include <type_traits>
+
 #include "libllm/lut/attributes.h"
 
 namespace libllm {
 
-struct Q4 {
-  static constexpr int GroupSize = 128;
-  uint8_t int4x2;
-};
-static_assert(sizeof(Q4) == 1, "invalid size of Q4");
-
-
 #if defined(LUT_ARCH_AARCH64)
 typedef _Float16 Float16;
 #elif defined(LUT_ARCH_AMD64)
-struct WORD {
+struct Float16 {
   uint16_t v;
 };
-typedef WORD Float16;
 #else
 #error unknown CPU architecture
 #endif
@@ -55,30 +49,45 @@ struct UInt8 {
 };
 static_assert(sizeof(Int8) == 1, "invalid size of UInt8");
 
+struct QInt4x32 {
+  static constexpr int GroupSize = 32;
+
+  Float16 zero;
+  Float16 scale;
+  uint8_t data[16];
+};
+static_assert(sizeof(QInt4x32) == 20, "invalid size of QInt4x32");
+
 typedef int8_t Byte;
 typedef int64_t LongType;
 typedef int64_t LongType;
 
-class DType { 
+class DType {
  public:
   static constexpr int16_t kUnknown = 0;
   static constexpr int16_t kFloat = 1;
   static constexpr int16_t kLong = 2;
   static constexpr int16_t kUInt8 = 3;
   static constexpr int16_t kFloat16 = 4;
-  static constexpr int16_t kQ4 = 5;
+  static constexpr int16_t kQInt4x32 = 5;
   static constexpr int16_t kInt8 = 6;
 
   // get DType from type T
-  template <typename T>
+  template<typename T>
   static DType getType();
 
   DType(int16_t dtype);
 
-  bool operator==(DType rhs) const { return _dtype == rhs._dtype; }
-  bool operator==(int16_t rhs) const { return _dtype == rhs; }
+  bool operator==(DType rhs) const {
+    return _dtype == rhs._dtype;
+  }
+  bool operator==(int16_t rhs) const {
+    return _dtype == rhs;
+  }
 
-  operator int16_t() const { return _dtype; }
+  operator int16_t() const {
+    return _dtype;
+  }
 
   // get the total size of specific number of elements with dtype.
   int64_t getTotalSize(int64_t numel) const;
@@ -102,11 +111,11 @@ class DType {
  private:
   int16_t _dtype;
 
-  template <typename T>
+  template<typename T>
   static DType getTypeImpl();
 };
 
-template <typename T>
+template<typename T>
 inline DType DType::getType() {
   return DType::getTypeImpl<typename std::remove_cv<T>::type>();
 }

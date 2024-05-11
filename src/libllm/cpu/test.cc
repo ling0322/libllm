@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -18,13 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "catch2/catch_amalgamated.hpp"
-
-#include "libllm/functional.h"
-#include "libllm/cpu/fingerprint.h"
 #include "libllm/context.h"
+#include "libllm/cpu/fingerprint.h"
+#include "libllm/functional.h"
 #include "libllm/operator_tester.h"
 #include "libllm/tensor.h"
- 
+
 namespace libllm {
 namespace op {
 namespace cpu {
@@ -38,8 +37,7 @@ Tensor RefMatMulFp32(const Tensor &A, const Tensor &B) {
 
   Tensor C = F::zeros({A.getShape(0), B.getShape(1)}, DType::kFloat);
   float *dataC = C.getData<float>();
-  const float *dataA = A.getData<float>(),
-              *dataB = B.getData<float>();
+  const float *dataA = A.getData<float>(), *dataB = B.getData<float>();
   int stride0A = A.getStride(0);
   int stride1A = A.getStride(1);
   int stride0B = B.getStride(0);
@@ -60,10 +58,8 @@ Tensor RefMatMulFp32(const Tensor &A, const Tensor &B) {
 }
 
 void testGEMM(int m, int k, int n, bool transa, bool transb) {
-  Tensor A = transa ? F::rand({k, m}, DType::kFloat)
-                    : F::rand({m, k}, DType::kFloat);
-  Tensor B = transb ? F::rand({n, k}, DType::kFloat)
-                    : F::rand({k, n}, DType::kFloat);
+  Tensor A = transa ? F::rand({k, m}, DType::kFloat) : F::rand({m, k}, DType::kFloat);
+  Tensor B = transb ? F::rand({n, k}, DType::kFloat) : F::rand({k, n}, DType::kFloat);
 
   if (transa) A = A.transpose(0, 1);
   if (transb) B = B.transpose(0, 1);
@@ -87,92 +83,67 @@ void testGEMV(int M, int N, bool TransA) {
 }
 
 int gemmTestShapes[][3] = {
-  {50, 50, 1},
-  {1, 1, 1},
-  {2, 2, 2},
-  {50, 50, 1},
-  {513, 2, 513},
-  {200, 1, 300},
-  {1, 200, 300},
-  {200, 300, 1},
-  {16, 16, 5000},
-  {16, 5000, 16},
-  {16, 512, 16},
-  {16, 1024, 16},
-  {5000, 16, 16},
-  {0, 0, 0}
-};
+    {50, 50, 1},
+    {1, 1, 1},
+    {2, 2, 2},
+    {50, 50, 1},
+    {513, 2, 513},
+    {200, 1, 300},
+    {1, 200, 300},
+    {200, 300, 1},
+    {16, 16, 5000},
+    {16, 5000, 16},
+    {16, 512, 16},
+    {16, 1024, 16},
+    {5000, 16, 16},
+    {0, 0, 0}};
 
-int gemvTestShapes[][2] = {
-  {2, 8},
-  {50, 10},
-  {1, 1},
-  {1024, 3},
-  {0, 0}
-};
-
-CATCH_TEST_CASE("float32 GEMM BVT", "[core][nn][gemm]") {
-  int (*pshape)[3];
-  
-  for (pshape = &gemmTestShapes[0]; **pshape != 0; ++pshape) {
-    int m = (*pshape)[0];
-    int k = (*pshape)[1];
-    int n = (*pshape)[2];
-
-    testGEMM(m, k, n, false, false);
-    testGEMM(m, k, n, true, false);
-    testGEMM(m, k, n, false, true);
-  }
-}
-
-CATCH_TEST_CASE("float32 GEMV BVT", "[core][nn][gemv]") {
-  int (*pshape)[2];
-  
-  for (pshape = &gemvTestShapes[0]; **pshape != 0; ++pshape) {
-    int m = (*pshape)[0];
-    int n = (*pshape)[1];
-
-    testGEMV(m, n, false);
-    testGEMV(m, n, true);
-  }
-}
-
-CATCH_TEST_CASE("test rand q4", "[ly][operators][cpu][rand]") {
-  constexpr uint64_t seed = 12345;
-
-  lut::Random r(seed);
-  Tensor x = F::rand({16, 256}, DType::kFloat, Device::getCpu(), &r);
-  x = F::cast(x, DType::kQ4);
-  x = F::cast(x, DType::kFloat);
-
-  CATCH_REQUIRE(F::allClose(op::cpu::fingerprint(x), Tensor::create<float>({8}, {
-    -0.5298, 0.6500, 0.0000e+00, 0.2649, 0.2529, -0.9152, -0.5269, 0.2615
-  })));
-}
+int gemvTestShapes[][2] = {{2, 8}, {50, 10}, {1, 1}, {1024, 3}, {0, 0}};
 
 CATCH_TEST_CASE("test embedding lookup", "[core][nn][operators]") {
   Context ctx = Context::getCpu();
 
-  Tensor wte = Tensor::create<float>({5, 2}, {
-      0.1f, 0.2f,
-      0.3f, 0.4f,
-      0.2f, 0.3f,
-      0.4f, 0.5f,
-      0.7f, 0.8f,
-  });
-  Tensor input = Tensor::create<LongType>({2, 3}, {
-      0, 1, 2,
-      1, 3, 4,
-  });
-  Tensor output = Tensor::create<float>({2, 3, 2}, {
-      0.1f, 0.2f,
-      0.3f, 0.4f,
-      0.2f, 0.3f,
+  Tensor wte = Tensor::create<float>(
+      {5, 2},
+      {
+          0.1f,
+          0.2f,
+          0.3f,
+          0.4f,
+          0.2f,
+          0.3f,
+          0.4f,
+          0.5f,
+          0.7f,
+          0.8f,
+      });
+  Tensor input = Tensor::create<LongType>(
+      {2, 3},
+      {
+          0,
+          1,
+          2,
+          1,
+          3,
+          4,
+      });
+  Tensor output = Tensor::create<float>(
+      {2, 3, 2},
+      {
+          0.1f,
+          0.2f,
+          0.3f,
+          0.4f,
+          0.2f,
+          0.3f,
 
-      0.3f, 0.4f,
-      0.4f, 0.5f,
-      0.7f, 0.8f,
-  });
+          0.3f,
+          0.4f,
+          0.4f,
+          0.5f,
+          0.7f,
+          0.8f,
+      });
   CATCH_REQUIRE(F::allClose(F::lookup(wte, input), output));
 }
 
@@ -189,6 +160,51 @@ CATCH_TEST_CASE("test softmax", "[core][nn][operators]") {
   CATCH_REQUIRE(F::allClose(F::softmax(input), output));
 }
 
-}  // cpu
-}  // op
-}  // ly
+#if defined(LUT_CPU_ARCH) && LUT_CPU_ARCH == LUT_AMD64
+
+CATCH_TEST_CASE("float32 GEMM BVT", "[core][nn][gemm]") {
+  int(*pshape)[3];
+
+  for (pshape = &gemmTestShapes[0]; **pshape != 0; ++pshape) {
+    int m = (*pshape)[0];
+    int k = (*pshape)[1];
+    int n = (*pshape)[2];
+
+    testGEMM(m, k, n, false, false);
+    testGEMM(m, k, n, true, false);
+    testGEMM(m, k, n, false, true);
+  }
+}
+
+CATCH_TEST_CASE("float32 GEMV BVT", "[core][nn][gemv]") {
+  int(*pshape)[2];
+
+  for (pshape = &gemvTestShapes[0]; **pshape != 0; ++pshape) {
+    int m = (*pshape)[0];
+    int n = (*pshape)[1];
+
+    testGEMV(m, n, false);
+    testGEMV(m, n, true);
+  }
+}
+
+CATCH_TEST_CASE("test rand q4", "[ly][operators][cpu][rand]") {
+  constexpr uint64_t seed = 12345;
+
+  lut::Random r(seed);
+  Tensor x = F::rand({16, 256}, DType::kFloat, Device::getCpu(), &r);
+  x = F::cast(x, DType::kQInt4x32);
+  x = F::cast(x, DType::kFloat);
+
+  CATCH_REQUIRE(F::allClose(
+      op::cpu::fingerprint(x),
+      Tensor::create<float>(
+          {8},
+          {-0.4487, 0.4954, -0.0873, 0.2208, 0.3032, -0.8513, -0.5508, 0.2488})));
+}
+
+#endif
+
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

@@ -23,7 +23,7 @@
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
-#include "libllm/cpu/kernel/kernel.h"
+#include "libllm/cpu/kernel/interface.h"
 
 #ifndef _OPENMP
 #error OpenMP required
@@ -257,9 +257,7 @@ void callGemmQInt4(
     int K,
     const T *A,
     int lda,
-    const kernel::UInt4x2 *dataB,
-    const kernel::Float16 *scaleB,
-    const kernel::UInt4x2 *zeroPointB,
+    const kernel::QInt4x32 *B,
     T *C,
     int ldc,
     kernel::Mode mode);
@@ -273,14 +271,12 @@ inline void callGemmQInt4<float>(
     int K,
     const float *A,
     int lda,
-    const kernel::UInt4x2 *dataB,
-    const kernel::Float16 *scaleB,
-    const kernel::UInt4x2 *zeroPointB,
+    const kernel::QInt4x32 *B,
     float *C,
     int ldc,
     kernel::Mode mode) {
   return kernel::gemmFloatQInt4(
-      transA, transB, M, N, K, A, lda, dataB, scaleB, zeroPointB, C, ldc, mode);
+      transA, transB, M, N, K, A, lda, B, C, ldc, mode);
 }
 
 template<>
@@ -292,21 +288,18 @@ inline void callGemmQInt4<Float16>(
     int K,
     const Float16 *A,
     int lda,
-    const kernel::UInt4x2 *dataB,
-    const kernel::Float16 *scaleB,
-    const kernel::UInt4x2 *zeroPointB,
+    const kernel::QInt4x32 *B,
     Float16 *C,
     int ldc,
     kernel::Mode mode) {
   const kernel::Float16 *xA = reinterpret_cast<const kernel::Float16 *>(A);
   kernel::Float16 *xC = reinterpret_cast<kernel::Float16 *>(C);
-  return kernel::gemmHalfQInt4(
-      transA, transB, M, N, K, xA, lda, dataB, scaleB, zeroPointB, xC, ldc, mode);
+  return kernel::gemmHalfQInt4(transA, transB, M, N, K, xA, lda, B, xC, ldc, mode);
 }
 
 template<typename T>
 Tensor gemmQInt4(const Tensor &A, const Tensor &B) {
-  CHECK(A.getDim() == B.getDim() && A.getDim() == 2 && B.getDType() == DType::kQ4);
+  CHECK(A.getDim() == B.getDim() && A.getDim() == 2 && B.getDType() == DType::kQInt4x32);
 
   Tensor C = op::cpu::zeros({A.getShape(0), B.getShape(1)}, DType::getType<T>());
 
@@ -320,12 +313,10 @@ Tensor gemmQInt4(const Tensor &A, const Tensor &B) {
       gemmArgs.K,
       A.getData<T>(),
       gemmArgs.lda,
-      reinterpret_cast<const kernel::UInt4x2 *>(dataObjectB->getData<Q4>()),
-      reinterpret_cast<const kernel::Float16 *>(dataObjectB->getSlot(1)->getData<Float16>()),
-      reinterpret_cast<const kernel::UInt4x2 *>(dataObjectB->getSlot(2)->getData<UInt8>()),
+      reinterpret_cast<const kernel::QInt4x32 *>(dataObjectB->getData<QInt4x32>()),
       C.getData<T>(),
       gemmArgs.ldc,
-      kernel::Mode::Auto);
+      kernel::Mode::OMP);
 
   return C;
 }
@@ -357,11 +348,11 @@ Tensor matmul(const Tensor &A, const Tensor &B) {
   DType typeB = B.getDType();
 
   if (typeA == DType::kFloat && typeB == DType::kFloat) return matmulFloat<float>(A, B);
-  if (typeA == DType::kFloat && typeB == DType::kQ4) return matmulQInt4<float>(A, B);
+  if (typeA == DType::kFloat && typeB == DType::kQInt4x32) return matmulQInt4<float>(A, B);
 
 #if LUT_CPU_ARCH == LUT_AARCH64
   if (typeA == DType::kFloat16 && typeB == DType::kFloat16) return matmulFloat<Float16>(A, B);
-  if (typeA == DType::kFloat16 && typeB == DType::kQ4) return matmulQInt4<Float16>(A, B);
+  if (typeA == DType::kFloat16 && typeB == DType::kQInt4x32) return matmulQInt4<Float16>(A, B);
 #endif
 
   NOT_IMPL();

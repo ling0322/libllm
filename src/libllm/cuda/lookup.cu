@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,19 +17,19 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cuda/lookup.h"
-
 #include <cuda_fp16.h>
+
 #include "libllm/cuda/common.h"
+#include "libllm/cuda/lookup.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-__global__
-void lookupHalfKernel2D(PackedSubtensor<const half, 2> embd,
-                        PackedSubtensor<const int64_t, 2> inputs,
-                        PackedSubtensor<half, 3> dst) {
+__global__ void lookupHalfKernel2D(
+    PackedSubtensor<const half, 2> embd,
+    PackedSubtensor<const int64_t, 2> inputs,
+    PackedSubtensor<half, 3> dst) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
@@ -41,10 +41,10 @@ void lookupHalfKernel2D(PackedSubtensor<const half, 2> embd,
   }
 }
 
-__global__
-void lookupQ4Kernel2D(PackedSubtensor2DQ4 embd,
-                      PackedSubtensor<const int64_t, 2> inputs,
-                      PackedSubtensor<half, 3> dst) {
+__global__ void lookupQ4Kernel2D(
+    PackedSubtensor2DQInt4x32 embd,
+    PackedSubtensor<const int64_t, 2> inputs,
+    PackedSubtensor<half, 3> dst) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
@@ -53,15 +53,17 @@ void lookupQ4Kernel2D(PackedSubtensor2DQ4 embd,
     int row = inputs[z][y];
     assert(row < embd.getNumRow());
 
-    int rowGroup = row * embd.getNumCol() / Q4::GroupSize;
-    int elemGroup = rowGroup + x / (Q4::GroupSize / 2);
+    int rowGroup = row * embd.getNumCol() / QInt4x32::GroupSize;
+    int elemGroup = rowGroup + x / (QInt4x32::GroupSize / 2);
 
-    uint8_t q4elem = embd.getData(rowGroup)[x];
+    uint8_t q4elem = embd.getData(elemGroup)[x % (QInt4x32::GroupSize / 2)];
     half scale = embd.getScaleValue(elemGroup);
-    int8_t zero = embd.getZeroValue(elemGroup);
+    half zero = embd.getZeroValue(elemGroup);
 
-    dst[z][y][x * 2] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem & 0xf) - zero));
-    dst[z][y][x * 2+ 1] = __hmul(scale, __int2half_rd(static_cast<int>(q4elem >> 4) - zero));
+    dst[z][y][x * 2] = __hsub(__hmul(scale, __int2half_rd(static_cast<int>(q4elem & 0xf))), zero);
+    dst[z][y][x * 2 + 1] = __hsub(
+        __hmul(scale, __int2half_rd(static_cast<int>(q4elem >> 4))),
+        zero);
   }
 }
 
@@ -89,7 +91,7 @@ Tensor lookup2DHalf(const Tensor &embdTable, const Tensor &input) {
 }
 
 Tensor lookup2DQ4(const Tensor &embdTable, const Tensor &input) {
-  CHECK(embdTable.getDType() == DType::kQ4);
+  CHECK(embdTable.getDType() == DType::kQInt4x32);
 
   std::vector<Tensor::ShapeType> shape = input.getShape();
   shape.push_back(embdTable.getShape(1));
@@ -103,7 +105,7 @@ Tensor lookup2DQ4(const Tensor &embdTable, const Tensor &input) {
   // div dst.getShape(2) by 2 here since in each kernel we process 2 elements.
   d.x = (dst.getShape(2) / 2 + blockSize - 1) / blockSize;
 
-  PackedSubtensor2DQ4 sA(embdTable);
+  PackedSubtensor2DQInt4x32 sA(embdTable);
   PackedSubtensor<const int64_t, 2> sB(input);
   PackedSubtensor<half, 3> sC(dst);
 
@@ -121,14 +123,14 @@ Tensor lookup(const Tensor &embdTable, const Tensor &input) {
 
   if (input.getDim() == 2 && embdTable.getDType() == DType::kFloat16) {
     return lookup2DHalf(embdTable, input);
-  } if (input.getDim() == 2 && embdTable.getDType() == DType::kQ4) {
+  }
+  if (input.getDim() == 2 && embdTable.getDType() == DType::kQInt4x32) {
     return lookup2DQ4(embdTable, input);
   } else {
     NOT_IMPL();
   }
 }
 
-}  // cuda
-}  // op
-}  // ly
-    
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

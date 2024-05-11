@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,39 +17,63 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "catch2/catch_amalgamated.hpp"
-
 #include <cuda_fp16.h>
+
 #include <algorithm>
 #include <vector>
-#include "libllm/device.h"
-#include "libllm/functional.h"
-#include "libllm/operator_tester.h"
+
+#include "catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/cpu_tensor_data.h"
 #include "libllm/cuda/dequant.h"
 #include "libllm/cuda/matmul.h"
 #include "libllm/cuda/matvec.h"
+#include "libllm/device.h"
+#include "libllm/functional.h"
 #include "libllm/lut/half.h"
 #include "libllm/lut/random.h"
 #include "libllm/lut/time.h"
+#include "libllm/operator_tester.h"
 
-#define CONCAT2(l, r) l ## r
+#define CONCAT2(l, r) l##r
 #define CONCAT(l, r) CONCAT2(l, r)
 
-#define LOG_TIME(stmt, message) \
+#define LOG_TIME(stmt, message)             \
   double CONCAT(t0, __LINE__) = lut::now(); \
-  stmt; \
-  LOG(INFO) << message <<  ": " << (lut::now() - CONCAT(t0, __LINE__)) * 1000 << "ms";
+  stmt;                                     \
+  LOG(INFO) << message << ": " << (lut::now() - CONCAT(t0, __LINE__)) * 1000 << "ms";
 
 using OperatorType = libllm::OperatorTester::OperatorType;
 
 namespace libllm {
 
+OperatorTester getOperatorTester() {
+  return OperatorTester()
+      .withOperators(getOperators(Device::kCuda))
+      .withDevice(Device::getCuda())
+      .withFloatType(DType::kFloat16);
+}
+
+CATCH_TEST_CASE("test CUDA lookup", "[op][cuda]") {
+  OperatorTester tester = getOperatorTester();
+  CATCH_REQUIRE(tester.testLookup());
+  CATCH_REQUIRE(tester.testLookupQInt4());
+}
+
+CATCH_TEST_CASE("test CUDA matMul", "[op][cuda]") {
+  OperatorTester tester = getOperatorTester();
+  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({1, 1, 128}, {50, 128}, true));
+  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({5, 10, 50}, {50, 128}, false));
+  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({10, 20}, {40, 30}));
+  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 20}, {40, 30}));
+  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 5, 20}, {10, 40, 30}));
+}
+
 CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
-  OperatorTester tester = OperatorTester().withOperators(getOperators(Device::kCuda))
-                                          .withDevice(Device::getCuda())
-                                          .withFloatType(DType::kFloat16);
-  
+  OperatorTester tester = OperatorTester()
+                              .withOperators(getOperators(Device::kCuda))
+                              .withDevice(Device::getCuda())
+                              .withFloatType(DType::kFloat16);
+
   CATCH_SECTION("test basic operators") {
     CATCH_REQUIRE(tester.testToDevice({100, 200}));
     CATCH_REQUIRE(tester.testCast({100, 200}));
@@ -60,19 +84,6 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
     CATCH_REQUIRE(tester.testCopy5D());
 
     CATCH_REQUIRE(tester.testCausalMask());
-  }
-
-  CATCH_SECTION("test lookup") {
-    CATCH_REQUIRE(tester.testLookup());
-    CATCH_REQUIRE(tester.testLookupQInt4());
-  }
-
-  CATCH_SECTION("test matmul") {
-    CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({10, 20}, {40, 30}));
-    CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 20}, {40, 30}));
-    CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 5, 20}, {10, 40, 30}));
-    CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({5, 10, 50}, {50, 128}, false));
-    CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({1, 1, 128}, {50, 128}, true));
   }
 
   CATCH_SECTION("test binary operators") {
@@ -96,10 +107,11 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
 }
 
 CATCH_TEST_CASE("benchmark CUDA operators", "[op][cuda][benchmark]") {
-  OperatorTester tester = OperatorTester().withOperators(getOperators(Device::kCuda))
-                                          .withDevice(Device::getCuda())
-                                          .withFloatType(DType::kFloat16)
-                                          .withPrintBenchmarkInfo(true);
+  OperatorTester tester = OperatorTester()
+                              .withOperators(getOperators(Device::kCuda))
+                              .withDevice(Device::getCuda())
+                              .withFloatType(DType::kFloat16)
+                              .withPrintBenchmarkInfo(true);
 
   CATCH_SECTION("benchmark copy") {
     CATCH_REQUIRE(tester.testCopy({2, 4096, 4096}, false));
@@ -117,7 +129,7 @@ CATCH_TEST_CASE("benchmark CUDA operators", "[op][cuda][benchmark]") {
 }
 
 CATCH_TEST_CASE("test dequant", "[ly][op][cuda]") {
-  Tensor a = F::rand({5, 256}, DType::kQ4);
+  Tensor a = F::rand({5, 256}, DType::kQInt4x32);
   Tensor xr = F::cast(a, DType::kFloat);
 
   Tensor x = F::to(Device::getCuda(), a);
@@ -168,7 +180,7 @@ CATCH_TEST_CASE("test attention", "[ly][op][cuda]") {
 
 CATCH_TEST_CASE("benchmark gemv", "[ly][op][cuda]") {
   lut::Random r(0x55aa);
-  Tensor Aq = F::rand({8000, 4096}, DType::kQ4, Device::kCpu, &r);
+  Tensor Aq = F::rand({8000, 4096}, DType::kQInt4x32, Device::kCpu, &r);
   Tensor x = F::rand({4096, 1}, DType::kFloat, Device::kCpu, &r);
   Tensor xrq = F::matmul(x.transpose(0, 1), Aq.transpose(0, 1));
 
@@ -257,8 +269,5 @@ CATCH_TEST_CASE("benchmark cutlass hgemm", "[ly][op][cuda]") {
 }
 
 #endif  // LIBLLM_CUTLASS_ENABLED
-
-
-
 
 }  // namespace libllm

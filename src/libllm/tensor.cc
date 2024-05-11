@@ -107,7 +107,6 @@ void Tensor::read(lut::Reader *fp) {
   // check
   if (_shape->getNumEl() != _data->getNumEl())
     throw lut::AbortedError("tensor data and shape mismatch.");
-  _data->throwIfInvalid();
 }
 
 Tensor Tensor::view(lut::Span<const int> shape) const {
@@ -297,27 +296,6 @@ int64_t Tensor::getOffset_() const {
 
 std::shared_ptr<TensorData> Tensor::getDataShared_() const {
   return _data;
-}
-
-// -----------------------------------------------------------------------------------------------+
-// class TensorData                                                                               |
-// -----------------------------------------------------------------------------------------------+
-
-void TensorData::throwIfInvalid() {
-  int16_t dtype = getDType();
-  switch (dtype) {
-    case DType::kUnknown:
-      throw lut::AbortedError("invalid tensor (dtype=unknown).");
-      break;
-    case DType::kQ4:
-      if (getSlot(1)->getDType() != DType::kFloat16 || getSlot(2)->getDType() != DType::kUInt8) 
-        THROW(Aborted, "invalid q4 tensor data type.");
-      if (getNumEl() / getDType().getGroupSize() != getSlot(1)->getNumEl())
-        THROW(Aborted, "tensor data and scale size mismatch.");
-      if ((getNumEl() / getDType().getGroupSize() + 1) / 2 != getSlot(2)->getNumEl())
-        THROW(Aborted, "tensor data and zero-point size mismatch.");
-      break;
-  }
 }
 
 

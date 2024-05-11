@@ -21,7 +21,7 @@
 
 #include <math.h>
 #include <algorithm>
-#include "libllm/cpu/kernel/interfaces.h"
+#include "libllm/cpu/kernel/abstract.h"
 #include "libllm/lut/half.h"
 #include "libllm/lut/platform.h"
 
@@ -53,50 +53,6 @@ Float16 cvt_s2h(float vf) {
 #else
   return Float16{lut::cvtss_sh(vf)};
 #endif
-}
-
-void quantFloatToQInt4(
-    lut::Span<const float> x,
-    lut::Span<UInt4x2> qdata,
-    lut::Span<Float16> qscale,
-    lut::Span<UInt4x2> qzero) {
-  int64_t nb = x.size() / GroupSizeQInt4;
-  CHECK(x.size() % GroupSizeQInt4 == 0);
-  CHECK(x.size() / 2 == qdata.size());
-  CHECK(nb == qscale.size());
-  CHECK((nb + 1) / 2 == qzero.size());
-
-  for (int i = 0; i < nb; ++i) {
-    int begin = i * GroupSizeQInt4;
-    int end = (i + 1) * GroupSizeQInt4;
-
-    float minVal = *std::min_element(x.data() + begin, x.data() + end);
-    float maxVal = *std::max_element(x.data() + begin, x.data() + end);
-
-    float scale = (maxVal - minVal) / 15.0;
-    float zeroFp32 = roundf(-minVal / scale);
-    CHECK(zeroFp32 >= 0.0f && zeroFp32 <= 15.0f);
-    uint8_t zero = static_cast<uint8_t>(zeroFp32);
-
-    for (int j = 0; j < GroupSizeQInt4; j += 2) {
-      float dlFp32 = roundf((x[begin + j] - minVal) / scale);
-      float dhFp32 = roundf((x[begin + j + 1] - minVal) / scale);
-      CHECK(dlFp32 >= 0.0f && dlFp32 <= 15.0f && dhFp32 >= 0.0f && dhFp32 <= 15.0f);
-
-      uint8_t dl = static_cast<uint8_t>(dlFp32);
-      uint8_t dh = static_cast<uint8_t>(dhFp32);
-      qdata[(begin + j) / 2].b = (dh << 4) | dl;
-    }
-
-    if (i % 2 == 0) {
-      qzero[i / 2].b = 0;
-      qzero[i / 2].b |= zero;
-    } else {
-      qzero[i / 2].b |= (zero << 4);
-    }
-
-    qscale[i] = cvtf<Float16>(scale);
-  }
 }
 
 }  // namespace kernel

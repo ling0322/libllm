@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,11 +20,13 @@
 #pragma once
 
 #include <stdint.h>
+
 #include <memory>
-#include "libllm/cpu/kernel/interfaces.h"
+
+#include "libllm/cpu/kernel/abstract.h"
 #include "libllm/lut/c_ptr.h"
-#include "libllm/lut/span.h"
 #include "libllm/lut/platform.h"
+#include "libllm/lut/span.h"
 
 namespace libllm {
 namespace op {
@@ -71,11 +73,21 @@ inline Float16 cvtf(Float16 v) {
   return v;
 }
 
-void quantFloatToQInt4(
-    lut::Span<const float> x,
-    lut::Span<UInt4x2> qdata,
-    lut::Span<Float16> qscale,
-    lut::Span<UInt4x2> qzero);
+template<typename T>
+inline int getGroupSize();
+
+template<>
+inline int getGroupSize<float>() {
+  return 1;
+}
+template<>
+inline int getGroupSize<Float16>() {
+  return 1;
+}
+template<>
+inline int getGroupSize<QInt4x32>() {
+  return GroupSizeQInt4;
+}
 
 }  // namespace kernel
 }  // namespace cpu
