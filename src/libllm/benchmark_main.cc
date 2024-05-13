@@ -54,7 +54,7 @@ Tensor randomLongTensor(lut::Random *r, int length, int vocabSize, Device device
 /// @param vocabSize Vocabulary size of the model.
 /// @param promptLen length of the prompt to evaluate.
 /// @return number of tokens per second.
-float bemchmarkPromptForward(
+float benchmarkPromptForward(
     lut::Random *r,
     std::shared_ptr<llama::LlamaModel> model,
     int vocabSize,
@@ -67,13 +67,46 @@ float bemchmarkPromptForward(
   double t0 = lut::now();
   int nLoop = 0;
   while (lut::now() - t0 < MaxWait) {
-    LOG(INFO) << lut::now() - t0;
     StateMap past;
     x = model->forward(past, inputs);
     ++nLoop;
   }
   double t1 = lut::now();
   int numToken = promptLen * nLoop;
+  float tokenPerSec = numToken / (t1 - t0);
+
+  return tokenPerSec;
+}
+
+float benchmarkTokenGeneration(
+    lut::Random *r,
+    std::shared_ptr<llama::LlamaModel> model,
+    int vocabSize,
+    int contextLen) {
+  // get kv_cache for the given context size.
+  StateMap past;
+  Tensor inputs = randomLongTensor(r, contextLen, vocabSize, model->getCtx().getDevice());
+  Tensor x = model->forward(past, inputs);
+
+  // first run.
+  StateMap pastClone = past.clone();
+  std::array<LongType, 1> inputData{1024};
+  Tensor inputToken = Tensor::create<LongType>({1, 1}, inputData);
+  inputToken = F::to(model->getCtx().getDevice(), inputToken);
+
+  x = model->forward(pastClone, inputToken);
+  x = model->forwardHidden(x);
+
+  double t0 = lut::now();
+  int nLoop = 0;
+  while (lut::now() - t0 < MaxWait) {
+    StateMap pastClone = past.clone();
+    x = model->forward(pastClone, inputToken);
+    x = model->forwardHidden(x);
+    ++nLoop;
+  }
+  double t1 = lut::now();
+  int numToken = nLoop;
   float tokenPerSec = numToken / (t1 - t0);
 
   return tokenPerSec;
@@ -110,33 +143,51 @@ getLlamaModel(lut::Random *r, LlamaType type, Device device, DType weightType) {
   return model;
 }
 
-void benchmarkLlama(LlamaType llamaType, int ctxLength, Device device, DType weightType) {
+void benchmarkLlama(std::shared_ptr<llama::LlamaModel> model, int ctxLength, DType weightType) {
   lut::Random r(MagicNumber);
 
-  LOG(INFO) << "intializing model ...";
-  std::shared_ptr<llama::LlamaModel> model = getLlamaModel(nullptr, llamaType, device, weightType);
-  LOG(INFO) << "model initialized.";
-  LOG(INFO) << "start benchmarking ...";
-  float tokenPerSec = bemchmarkPromptForward(&r, model, 32000, ctxLength);
-
+  float tokenPerSec = benchmarkPromptForward(&r, model, 32000, ctxLength);
   printf(
-      "llama2_7B       %10s%10sprompt@%d   %3.2f\n",
-      device.getName().c_str(),
+      "llama2_7B   %-8s %-8s prompt@len:%-5d   %-7.1f\n",
+      model->getCtx().getDevice().getName().c_str(),
+      weightType.toString().c_str(),
+      ctxLength,
+      tokenPerSec);
+
+  tokenPerSec = benchmarkTokenGeneration(&r, model, 32000, ctxLength);
+  printf(
+      "llama2_7B   %-8s %-8s tokengen@ctx:%-5d %-7.1f\n",
+      model->getCtx().getDevice().getName().c_str(),
       weightType.toString().c_str(),
       ctxLength,
       tokenPerSec);
 }
 
+int benchmarkMain() {
+  CHECK(llmInit(LLM_API_VERSION) == LLM_OK);
+
+  LlamaType llamaType = LlamaType::Llama2_7B;
+  Device device = libllm::Device::getCuda();
+  DType weightType = libllm::DType::kQInt4x32;
+
+  LOG(INFO) << "intializing model ...";
+  auto model = libllm::getLlamaModel(nullptr, llamaType, device, weightType);
+  LOG(INFO) << "model initialized.";
+
+  printf("==========================================================\n");
+  printf("ModelType   Device   Weight   Task               Token/s  \n");
+  printf("----------------------------------------------------------\n");
+
+  libllm::benchmarkLlama(model, 128, libllm::DType::kQInt4x32);
+  libllm::benchmarkLlama(model, 512, libllm::DType::kQInt4x32);
+
+  printf("----------------------------------------------------------\n");
+  return 0;
+}
+
 }  // namespace libllm
 
 int main(int argc, char **argv) {
-  CHECK(llmInit(LLM_API_VERSION) == LLM_OK);
-
-  libllm::benchmarkLlama(
-      LlamaType::Llama2_7B,
-      128,
-      libllm::Device::getCuda(),
-      libllm::DType::kQInt4x32);
-
+  libllm::benchmarkMain();
   return 0;
 }
