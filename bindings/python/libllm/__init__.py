@@ -27,13 +27,13 @@ class Completion:
     """A completion task that given a llm Model and complete the input prompt."""
     def __init__(self, comp_c_ptr: AutoPtr) -> None:
         self._pcomp = comp_c_ptr
-        self._pchunk = AutoPtr(interop.create_chunk(), interop.destroy_chunk)
+        self._pchunk = AutoPtr(interop.chunk_new(), interop.chunk_delete)
 
     def __iter__(self):
         utf8_decoder = codecs.getincrementaldecoder("utf-8")()
-        while interop.is_active(self._pcomp.get()) == LL_TRUE:
-            interop.get_next_chunk(self._pcomp.get(), self._pchunk.get())
-            piece = interop.get_chunk_text(self._pchunk.get())
+        while interop.completion_is_active(self._pcomp.get()) == LL_TRUE:
+            interop.completion_generate_next_chunk(self._pcomp.get(), self._pchunk.get())
+            piece = interop.chunk_get_text(self._pchunk.get())
             chunk_text = utf8_decoder.decode(piece)
             if chunk_text:
                 yield Chunk(text=chunk_text)
@@ -63,14 +63,14 @@ class Model:
             config_file (str): config of the libLLM model.
             device (Device): target computation device.
         """
-        self._pmodel = AutoPtr(interop.create_model(), interop.destroy_model)
-        interop.set_model_file(self._pmodel.get(), config_file.encode("utf-8"))
-        interop.set_model_device(self._pmodel.get(), int(device))
-        interop.load_model(self._pmodel.get())
+        self._pmodel = AutoPtr(interop.model_new(), interop.model_delete)
+        interop.model_set_file(self._pmodel.get(), config_file.encode("utf-8"))
+        interop.model_set_device(self._pmodel.get(), int(device))
+        interop.model_load(self._pmodel.get())
 
     @property
     def name(self):
-        model_name = interop.get_model_name(self._pmodel.get())
+        model_name = interop.model_get_name(self._pmodel.get())
         return model_name.decode("utf-8")
 
     def complete(self, prompt: Union[str, List[Union[str, ControlToken]]], top_k: int = 50,
@@ -79,25 +79,25 @@ class Model:
         or a list of [string|SpecialToken] (when special_token is need).
         """
         pprompt = self._prepare_prompt(prompt)
-        pcomp = AutoPtr(interop.create_completion(self._pmodel.get()), interop.destroy_completion)
-        interop.set_top_k(pcomp.get(), top_k)
-        interop.set_top_p(pcomp.get(), top_p)
-        interop.set_temperature(pcomp.get(), temperature)
-        interop.set_prompt(pcomp.get(), pprompt.get())
+        pcomp = AutoPtr(interop.completion_new(self._pmodel.get()), interop.completion_delete)
+        interop.completion_set_top_k(pcomp.get(), top_k)
+        interop.completion_set_top_p(pcomp.get(), top_p)
+        interop.completion_set_temperature(pcomp.get(), temperature)
+        interop.completion_set_prompt(pcomp.get(), pprompt.get())
 
-        interop.start_completion(pcomp.get())
+        interop.completion_start(pcomp.get())
         return Completion(pcomp)
 
     def _prepare_prompt(self, prompt: Union[str, List[Union[str, ControlToken]]]):
-        pprompt = AutoPtr(interop.create_prompt(self._pmodel.get()), interop.destroy_prompt)
+        pprompt = AutoPtr(interop.prompt_new(self._pmodel.get()), interop.prompt_delete)
         if isinstance(prompt, str):
-            interop.append_text(pprompt.get(), prompt.encode("utf-8"))
+            interop.prompt_append_text(pprompt.get(), prompt.encode("utf-8"))
         elif isinstance(prompt, list):
             for block in prompt:
                 if isinstance(block, str):
-                    interop.append_text(pprompt.get(), block.encode("utf-8"))
+                    interop.prompt_append_text(pprompt.get(), block.encode("utf-8"))
                 elif isinstance(block, ControlToken):
-                    interop.append_control_token(pprompt.get(), block._name.encode("utf-8"))
+                    interop.prompt_append_control_token(pprompt.get(), block._name.encode("utf-8"))
                 else:
                     raise NotImplementedError()
         else:

@@ -53,7 +53,7 @@ typedef struct llmCompletion_t llmCompletion_t;
 typedef int32_t llmBool_t;
 
 // global state
-LLMAPI llmStatus_t llmInit(int64_t apiVersion);
+LLMAPI llmStatus_t llmInit(int32_t apiVersion);
 LLMAPI llmStatus_t llmDestroy();
 LLMAPI const char *llmGetLastErrorMessage();
 

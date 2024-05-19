@@ -32,16 +32,6 @@ API_VERSION = 20240101
 LL_TRUE = 1
 LL_FALSE = 0
 
-CFUNC_I = CFUNCTYPE(c_int32)
-CFUNC_P = CFUNCTYPE(c_void_p)
-CFUNC_S = CFUNCTYPE(c_char_p)
-CFUNC_IP = CFUNCTYPE(c_int32, c_void_p)
-CFUNC_PP = CFUNCTYPE(c_void_p, c_void_p)
-CFUNC_SP = CFUNCTYPE(c_char_p, c_void_p)
-CFUNC_IPP = CFUNCTYPE(c_int32, c_void_p, c_void_p)
-CFUNC_IPS = CFUNCTYPE(c_int32, c_void_p, c_char_p)
-CFUNC_IPI = CFUNCTYPE(c_int32, c_void_p, c_int32)
-CFUNC_IPF = CFUNCTYPE(c_int32, c_void_p, c_float)
 
 class AutoPtr:
     def __init__(self, p: c_void_p, deleter) -> None:
@@ -54,49 +44,12 @@ class AutoPtr:
     def get(self):
         return self._ptr
 
-class Api(Structure):
-    _fields_ = [
-        ("init", CFUNC_I),
-        ("destroy", CFUNC_I),
-        ("getLastErrorMessage", CFUNC_S),
-
-        ("createModel", CFUNC_P),
-        ("destroyModel", CFUNC_IP),
-        ("setModelFile", CFUNC_IPS),
-        ("setModelDevice", CFUNC_IPI),
-        ("loadModel", CFUNC_IP),
-        ("getModelName", CFUNC_PP),
-
-        ("createPrompt", CFUNC_PP),
-        ("destroyPrompt", CFUNC_IP),
-        ("appendText", CFUNC_IPS),
-        ("appendControlToken", CFUNC_IPS),
-
-        ("createCompletion", CFUNC_PP),
-        ("destroyCompletion", CFUNC_IP),
-        ("setPrompt", CFUNC_IPP),
-        ("setTopP", CFUNC_IPF),
-        ("setTopK", CFUNC_IPI),
-        ("setTemperature", CFUNC_IPF),
-        ("startCompletion", CFUNC_IP),
-        ("isActive", CFUNC_IP),
-        ("getNextChunk", CFUNC_IPP),
-
-        ("createChunk", CFUNC_P),
-        ("destroyChunk", CFUNC_IP),
-        ("getChunkText", CFUNC_SP)]
-
-get_api = CFUNCTYPE(POINTER(Api), c_int32)(("llmGetApi", _lib))
-get_api_version = CFUNCTYPE(c_int32)(("llmGetApiVersion", _lib))
-_api = get_api(API_VERSION)
-if _api is None:
-    raise Exception(f"libllm library version mismatch: {API_VERSION} expected, but {get_api_version()} found")
 
 def _api_wrapper(f, return_checker):
     def _invoke(*args):
         return_val = f(*args)
         if return_checker(return_val) == False:
-            error_message = _api.getLastErrorMessage().decode("utf-8")
+            error_message = get_last_error_message().decode("utf-8")
             raise Exception(error_message)
         return return_val 
     return _invoke
@@ -107,34 +60,46 @@ def _rc(f):
 def _rp(f):
     return _api_wrapper(f, lambda r: r is not None)
 
-init = _rc(_api.contents.init)
-destroy = _rc(_api.contents.destroy)
-get_last_error_message = _api.contents.getLastErrorMessage
+CFUNC_Int = CFUNCTYPE(c_int32)
+CFUNC_Ptr = CFUNCTYPE(c_void_p)
+CFUNC_Str = CFUNCTYPE(c_char_p)
+CFUNC_Int_Int = CFUNCTYPE(c_int32, c_int32)
+CFUNC_Int_Ptr = CFUNCTYPE(c_int32, c_void_p)
+CFUNC_Ptr_Ptr = CFUNCTYPE(c_void_p, c_void_p)
+CFUNC_Str_Ptr = CFUNCTYPE(c_char_p, c_void_p)
+CFUNC_Int_PtrPtr = CFUNCTYPE(c_int32, c_void_p, c_void_p)
+CFUNC_Int_PtrStr = CFUNCTYPE(c_int32, c_void_p, c_char_p)
+CFUNC_Int_PtrInt = CFUNCTYPE(c_int32, c_void_p, c_int32)
+CFUNC_Int_PtrFloat = CFUNCTYPE(c_int32, c_void_p, c_float)
 
-create_model = _rp(_api.contents.createModel)
-destroy_model = _rc(_api.contents.destroyModel)
-set_model_file = _rc(_api.contents.setModelFile)
-set_model_device = _rc(_api.contents.setModelDevice)
-load_model = _rc(_api.contents.loadModel)
-get_model_name = _rp(_api.contents.getModelName)
+init = _rc(CFUNC_Int_Int(("llmInit" ,_lib)))
+destroy = _rc(CFUNC_Int(("llmDestroy" ,_lib)))
+get_last_error_message = CFUNC_Str(("llmGetLastErrorMessage" ,_lib))
 
-create_prompt = _rp(_api.contents.createPrompt)
-destroy_prompt = _rc(_api.contents.destroyPrompt)
-append_text = _rc(_api.contents.appendText)
-append_control_token = _rc(_api.contents.appendControlToken)
+model_new = _rp(CFUNC_Ptr(("llmModel_New" ,_lib)))
+model_delete = _rc(CFUNC_Int_Ptr(("llmModel_Delete" ,_lib)))
+model_set_file = _rc(CFUNC_Int_PtrStr(("llmModel_SetFile" ,_lib)))
+model_set_device = _rc(CFUNC_Int_PtrInt(("llmModel_SetDevice" ,_lib)))
+model_load = _rc(CFUNC_Int_Ptr(("llmModel_Load" ,_lib)))
+model_get_name = _rp(CFUNC_Ptr_Ptr(("llmModel_GetName" ,_lib)))
 
-create_completion = _rp(_api.contents.createCompletion)
-destroy_completion = _rc(_api.contents.destroyCompletion)
-set_prompt = _rc(_api.contents.setPrompt)
-set_top_p = _rc(_api.contents.setTopP)
-set_top_k = _rc(_api.contents.setTopK)
-set_temperature = _rc(_api.contents.setTemperature)
-start_completion = _rc(_api.contents.startCompletion)
-is_active = _api.contents.isActive
-get_next_chunk = _rc(_api.contents.getNextChunk)
+prompt_new = _rp(CFUNC_Ptr_Ptr(("llmPrompt_New" ,_lib)))
+prompt_delete = _rc(CFUNC_Int_Ptr(("llmPrompt_Delete" ,_lib)))
+prompt_append_text = _rc(CFUNC_Int_PtrStr(("llmPrompt_AppendText" ,_lib)))
+prompt_append_control_token = _rc(CFUNC_Int_PtrStr(("llmPrompt_AppendControlToken" ,_lib)))
 
-create_chunk = _rp(_api.contents.createChunk)
-destroy_chunk = _rc(_api.contents.destroyChunk)
-get_chunk_text = _rp(_api.contents.getChunkText)
+completion_new = _rp(CFUNC_Ptr_Ptr(("llmCompletion_New" ,_lib)))
+completion_delete = _rc(CFUNC_Int_Ptr(("llmCompletion_Delete" ,_lib)))
+completion_set_prompt = _rc(CFUNC_Int_PtrPtr(("llmCompletion_SetPrompt" ,_lib)))
+completion_set_top_p = _rc(CFUNC_Int_PtrFloat(("llmCompletion_SetTopP" ,_lib)))
+completion_set_top_k = _rc(CFUNC_Int_PtrInt(("llmCompletion_SetTopK" ,_lib)))
+completion_set_temperature = _rc(CFUNC_Int_PtrFloat(("llmCompletion_SetTemperature" ,_lib)))
+completion_start = _rc(CFUNC_Int_Ptr(("llmCompletion_Start" ,_lib)))
+completion_is_active = CFUNC_Int_Ptr(("llmCompletion_IsActive" ,_lib))
+completion_generate_next_chunk = _rc(CFUNC_Int_PtrPtr(("llmCompletion_GenerateNextChunk" ,_lib)))
 
-init()
+chunk_new = _rp(CFUNC_Ptr(("llmChunk_New" ,_lib)))
+chunk_delete = _rc(CFUNC_Int_Ptr(("llmChunk_Delete" ,_lib)))
+chunk_get_text = _rp(CFUNC_Str_Ptr(("llmChunk_GetText" ,_lib)))
+
+init(API_VERSION)

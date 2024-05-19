@@ -120,7 +120,7 @@ Device getDeviceFromApi(int apiDevice) {
 using namespace libllm;
 using namespace libllm::api;
 
-llmStatus_t llmInit(int64_t apiVersion) {
+llmStatus_t llmInit(int32_t apiVersion) {
   if (!gInitialized.exchange(true)) {
     try {
       if (apiVersion != LLM_API_VERSION) throw lut::InvalidArgError("api version mismatch.");
