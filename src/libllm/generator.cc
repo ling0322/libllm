@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -24,20 +24,22 @@
 
 namespace libllm {
 
-GenerationConfig::GenerationConfig() :
-    topK(50),
-    topP(1.0f),
-    temperature(1.0f) {}
+GenerationConfig::GenerationConfig()
+    : topK(50),
+      topP(1.0f),
+      temperature(1.0f) {
+}
 
 Generator::Generator(
     GenerationConfig config,
     std::shared_ptr<ModelForGeneration> model,
-    std::shared_ptr<Tokenizer> tokenizer) :
-        _config(config),
-        _sampler(config.topK, config.topP),
-        _tokenizer(tokenizer),
-        _model(model),
-        _currentToken(-1) {}
+    std::shared_ptr<Tokenizer> tokenizer)
+    : _config(config),
+      _sampler(config.topK, config.topP),
+      _tokenizer(tokenizer),
+      _model(model),
+      _currentToken(-1) {
+}
 
 void Generator::forwardPrompt(const std::vector<LongType> &prompt) {
   for (LongType tokenId : prompt) {
@@ -45,8 +47,6 @@ void Generator::forwardPrompt(const std::vector<LongType> &prompt) {
   }
 
   Tensor inputs = _model->buildInput(prompt);
-  inputs = F::to(_model->getDevice(), inputs);
-
   Tensor hiddenState = _model->forward(_past, inputs);
 
   CHECK(hiddenState.getDim() == 3);
@@ -57,7 +57,7 @@ void Generator::forwardPrompt(const std::vector<LongType> &prompt) {
 
 const char *Generator::nextToken() {
   if (stopped()) return nullptr;
-  
+
   const Vocab *vocab = _tokenizer->getVocab();
   const char *token = vocab->getTokenPiece(_currentToken).c_str();
   LOG(DEBUG) << lut::sprintf("%d -> \"%s\"", _currentToken, vocab->getTokenString(_currentToken));

@@ -71,8 +71,12 @@ bool isClose(lut::Span<const T> A, lut::Span<const T> B, float atol = 1e-5, floa
   return true;
 }
 
-inline float toFloat(float x) { return x; }
-inline float toFloat(Float16 x) { return cvt_h2s(x); }
+inline float toFloat(float x) {
+  return x;
+}
+inline float toFloat(Float16 x) {
+  return cvt_h2s(x);
+}
 
 template<typename T>
 float getMSE(lut::Span<const T> A, lut::Span<const T> B) {
@@ -140,13 +144,15 @@ inline void fillRandom(lut::Random *r, lut::Span<Float16> v) {
   std::transform(vf.begin(), vf.end(), v.begin(), [](float v) { return cvt_s2h(v); });
 }
 
-inline void fillRandom(lut::Random *r, lut::Span<float> v) { r->fill(v, -1, 1); }
+inline void fillRandom(lut::Random *r, lut::Span<float> v) {
+  r->fill(v, -1, 1);
+}
 
 inline void fillRandom(lut::Random *r, lut::Span<QInt4x32> v) {
   int n = v.size() * GroupSizeQInt4;
   std::vector<float> vf(n);
   r->fill(lut::makeSpan(vf), -1, 1);
-  cvtKernel<float, QInt4x32, CpuMathBackend::FALLBACK>(n, vf.data(), 0, v.data());
+  cvtKernel<float, QInt4x32, CpuMathBackend::FALLBACK>(n, vf.data(), 0, v.data(), 0);
 }
 
 template<typename T>
@@ -227,8 +233,8 @@ struct CvtKernelTester {
     n -= offsetX;
     CHECK(n > 0);
 
-    cvtKernel<ElementA, ElementC, TYPE>(n, x.data(), offsetX, y.data());
-    cvtKernel<ElementA, ElementC, CpuMathBackend::FALLBACK>(n, x.data(), offsetX, yr.data());
+    cvtKernel<ElementA, ElementC, TYPE>(n, x.data(), offsetX, y.data(), 0);
+    cvtKernel<ElementA, ElementC, CpuMathBackend::FALLBACK>(n, x.data(), offsetX, yr.data(), 0);
 
     CATCH_REQUIRE(isClose<ElementC>(y, yr));
   }
@@ -238,7 +244,9 @@ template<typename ElementA, typename ElementX, typename ElementY, CpuMathBackend
 struct DotKernelTester {
   float _rtol;
 
-  DotKernelTester(float rtol = 5e-2) : _rtol(rtol) {}
+  DotKernelTester(float rtol = 5e-2)
+      : _rtol(rtol) {
+  }
 
   void test(int n, int offsetY = 0) {
     CHECK(n % getGroupSize<ElementX>() == 0 && offsetY % getGroupSize<ElementX>() == 0);

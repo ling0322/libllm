@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,13 +20,17 @@
 #include "libllm/cpu/rand.h"
 
 #include <math.h>
+#include <omp.h>
 #include <string.h>
+
 #include <algorithm>
-#include "libllm/tensor.h"
+
 #include "libllm/cpu/cast.h"
 #include "libllm/cpu/tensor.h"
-#include "libllm/lut/random.h"
 #include "libllm/lut/half.h"
+#include "libllm/lut/random.h"
+#include "libllm/lut/time.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
@@ -35,7 +39,21 @@ namespace cpu {
 Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, float max) {
   Tensor x = op::cpu::tensor(shape, DType::kFloat);
   lut::Span<float> tensorData(x.getData<float>(), x.getNumEl());
-  generator->fill(tensorData, min, max);
+
+  if (generator) {
+    generator->fill(tensorData, min, max);
+  } else {
+    // if no generator specified, we could go parallel.
+#pragma omp parallel default(none) shared(tensorData, min, max)
+    {
+      lut::Random r(time(nullptr) + omp_get_thread_num());
+#pragma omp for
+      for (int i = 0; i < tensorData.size(); i++) {
+        float nextR = r.nextFloat();
+        tensorData[i] = min + (max - min) * nextR;
+      }
+    }
+  }
 
   return x;
 }
@@ -60,9 +78,9 @@ Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, flo
       return randQ4(shape, generator, min, max);
     default:
       NOT_IMPL();
-  } 
+  }
 }
 
-}  // cpu
-}  // op
-}  // ly
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

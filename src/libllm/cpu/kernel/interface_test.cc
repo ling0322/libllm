@@ -78,7 +78,7 @@ void refGemmQInt4(
     T *C,
     int ldc) {
   lut::c_ptr<T> bB = alignedAlloc<T>(sizeof(T) * N * K);
-  cvtKernel<QInt4x32, T, CpuMathBackend::FALLBACK>(N * K, B, 0, bB.get());
+  cvtKernel<QInt4x32, T, CpuMathBackend::FALLBACK>(N * K, B, 0, bB.get(), 0);
 
   refGemm(transA, transB, M, N, K, A, lda, bB.get(), transB ? K : N, C, ldc);
 }

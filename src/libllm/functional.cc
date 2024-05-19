@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,6 +20,7 @@
 #include "libllm/functional.h"
 
 #include <math.h>
+
 #include "libllm/lut/error.h"
 #include "libllm/lut/strings.h"
 #include "libllm/operators.h"
@@ -37,7 +38,6 @@ Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
 
 Tensor rmsNorm(Tensor input, Tensor weight, float eps) {
   return getOperators(input.getDevice().getType())->rmsNorm(input, weight, eps);
-
 }
 
 Tensor matmul(Tensor A, Tensor B) {
@@ -75,14 +75,14 @@ Tensor tensorLike(Tensor input) {
   return getOperators(input.getDevice().getType())->tensorLike(input);
 }
 
-Tensor rand(lut::Span<const int> shape, DType dtype, Device device, lut::Random *generator,
-            float min, float max) {
-  if (generator) {
-    return getOperators(device.getType())->rand(shape, dtype, generator, min, max);
-  } else {
-    lut::Random random;
-    return getOperators(device.getType())->rand(shape, dtype, &random, min, max);
-  }
+Tensor rand(
+    lut::Span<const int> shape,
+    DType dtype,
+    Device device,
+    lut::Random *generator,
+    float min,
+    float max) {
+  return getOperators(device.getType())->rand(shape, dtype, generator, min, max);
 }
 
 Tensor zeros(lut::Span<const int> shape, DType dtype, Device device) {
@@ -92,7 +92,7 @@ Tensor zeros(lut::Span<const int> shape, DType dtype, Device device) {
 Tensor contiguous(Tensor input) {
   Tensor x = tensorLike(input);
   F::copy(input, x);
-  
+
   return x;
 }
 
@@ -111,7 +111,7 @@ Tensor causalMask(int maxLen, Device device) {
 Tensor cat(Tensor A, Tensor B, int dim) {
   CHECK(A.getDType() == B.getDType());
   dim = A.getShape_()->getRealDim(dim);
-  CHECK(A.getDim() == B.getDim() &&  dim < A.getDim());
+  CHECK(A.getDim() == B.getDim() && dim < A.getDim());
 
   std::vector<int> shape = A.getShape();
   int dA = A.getShape(dim);
@@ -152,14 +152,14 @@ void copy(Tensor src, Tensor dest) {
 
 Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
   Tensor scores = F::matmul(q, k.transpose(-2, -1));
-  scores = F::mul(scores,  1.0f / sqrtf(1.0f * q.getShape(-1)));
+  scores = F::mul(scores, 1.0f / sqrtf(1.0f * q.getShape(-1)));
 
   if (!mask.empty()) {
     scores = F::add(scores, mask);
   }
 
   scores = F::softmax(scores);
-  Tensor outputs = F::matmul(scores, v);  
+  Tensor outputs = F::matmul(scores, v);
 
   return outputs;
 }
@@ -173,8 +173,7 @@ Tensor to(Device device, Tensor tensor) {
   Device::Type tgt = device.getType();
 
   Device srcDevice = tensor.getDevice();
-  if (srcDevice.getType() == device.getType())
-    return tensor;
+  if (srcDevice.getType() == device.getType()) return tensor;
 
   if (srcDevice.getType() == Device::kCuda || device.getType() == Device::kCuda)
     return getOperators(Device::kCuda)->to(device, tensor);
@@ -190,5 +189,5 @@ DType getDefaultFloatType(Device device) {
   return getOperators(device.getType())->getDefaultFloatType();
 }
 
-}  // F
-}  // libllm
+}  // namespace F
+}  // namespace libllm

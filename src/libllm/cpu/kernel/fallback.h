@@ -31,7 +31,7 @@ namespace kernel {
 
 // fallback kernels.
 void qscvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, float *y);
-void sqcvtFallbackKernel(int64_t n, const float *x, QInt4x32 *y);
+void sqcvtFallbackKernel(int64_t n, const float *x, QInt4x32 *y, int64_t offsetY);
 void qhcvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, Float16 *y);
 void hscvtFallbackKernel(int64_t n, const Float16 *x, float *y);
 void shcvtFallbackKernel(int64_t n, const float *x, Float16 *y);
@@ -55,40 +55,45 @@ inline void cvtKernel<QInt4x32, float, CpuMathBackend::FALLBACK>(
     int n,
     const QInt4x32 *x,
     int64_t offsetX,
-    float *y) {
-  return qscvtFallbackKernel(n, x, offsetX, y);
+    float *y,
+    int64_t offsetY) {
+  return qscvtFallbackKernel(n, x, offsetX, y + offsetY);
 }
 template<>
 inline void cvtKernel<float, QInt4x32, CpuMathBackend::FALLBACK>(
     int n,
     const float *x,
     int64_t offsetX,
-    QInt4x32 *y) {
-  return sqcvtFallbackKernel(n, x + offsetX, y);
+    QInt4x32 *y,
+    int64_t offsetY) {
+  return sqcvtFallbackKernel(n, x + offsetX, y, offsetY);
 }
 template<>
 inline void cvtKernel<QInt4x32, Float16, CpuMathBackend::FALLBACK>(
     int n,
     const QInt4x32 *x,
     int64_t offsetX,
-    Float16 *y) {
-  return qhcvtFallbackKernel(n, x, offsetX, y);
+    Float16 *y,
+    int64_t offsetY) {
+  return qhcvtFallbackKernel(n, x, offsetX, y + offsetY);
 }
 template<>
 inline void cvtKernel<Float16, float, CpuMathBackend::FALLBACK>(
     int n,
     const Float16 *x,
     int64_t offsetX,
-    float *y) {
-  return hscvtFallbackKernel(n, x + offsetX, y);
+    float *y,
+    int64_t offsetY) {
+  return hscvtFallbackKernel(n, x + offsetX, y + offsetY);
 }
 template<>
 inline void cvtKernel<float, Float16, CpuMathBackend::FALLBACK>(
     int n,
     const float *x,
     int64_t offsetX,
-    Float16 *y) {
-  return shcvtFallbackKernel(n, x + offsetX, y);
+    Float16 *y,
+    int64_t offsetY) {
+  return shcvtFallbackKernel(n, x + offsetX, y + offsetY);
 }
 template<>
 inline void gemmKernel<float, float, float, 6, 16, CpuMathBackend::FALLBACK>(

@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,15 +19,14 @@
 
 #pragma once
 
-#include "libllm/lut/ini_config.h"
-
 #include <memory>
-#include "libllm/lut/error.h"
-#include "libllm/lut/ini_config.h"
+
 #include "libllm/constants.h"
 #include "libllm/functional.h"
-#include "libllm/module.h"
+#include "libllm/lut/error.h"
+#include "libllm/lut/ini_config.h"
 #include "libllm/model_for_generation.h"
+#include "libllm/module.h"
 
 namespace libllm {
 namespace llama {
@@ -96,7 +95,6 @@ class Attention : public Module {
   Tensor rotateHalf(Tensor x) const;
 };
 
-
 class DecodeLayer : public Module {
  public:
   static std::shared_ptr<DecodeLayer> create(const Context &ctx, const LlamaConfig &config);
@@ -143,6 +141,7 @@ class LlamaModelForGeneration : public ModelForGeneration {
 
   // implements interface ModelForGeneration
   void initParameters(const StateMap &stateDict) override;
+
   Tensor forward(StateMap &past, Tensor input) const override;
   Tensor forwardHidden(Tensor hidden) const override;
   Tensor buildInput(const std::vector<LongType> &prompt) const override;

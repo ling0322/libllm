@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,6 +20,7 @@
 #pragma once
 
 #include <stdint.h>
+
 #include "libllm/cpu/kernel/interface.h"
 
 #define LIBLLM_KERNEL_MSVC (_MSC_VER && !__INTEL_COMPILER)
@@ -41,7 +42,7 @@ constexpr int DequantMinElemPerThread = 1024;
 constexpr int GroupSizeQInt4 = 32;
 
 template<typename ElementA, typename ElementC, CpuMathBackend TYPE>
-void cvtKernel(int n, const ElementA *x, int64_t offsetX, ElementC *y);
+void cvtKernel(int n, const ElementA *x, int64_t offsetX, ElementC *y, int64_t offsetY);
 
 template<typename ElementA, typename ElementX, typename ElementY, CpuMathBackend TYPE>
 ElementA dotKernel(int64_t n, const ElementX *x, const ElementY *y, int64_t offsetY);

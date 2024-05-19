@@ -37,16 +37,18 @@ inline void cvtKernel<QInt4x32, float, CpuMathBackend::AVX512>(
     int n,
     const QInt4x32 *x,
     int64_t offsetX,
-    float *y) {
-  return qscvtAvx2Kernel(n, x, offsetX, y);
+    float *y,
+    int64_t offsetY) {
+  return qscvtAvx2Kernel(n, x, offsetX, y + offsetY);
 }
 template<>
 inline void cvtKernel<Float16, float, CpuMathBackend::AVX512>(
     int n,
     const Float16 *x,
     int64_t offsetX,
-    float *y) {
-  return hscvtAvx2Kernel(n, x + offsetX, y);
+    float *y,
+    int64_t offsetY) {
+  return hscvtAvx2Kernel(n, x + offsetX, y + offsetY);
 }
 template<>
 inline void gemmKernel<float, float, float, 12, 32, CpuMathBackend::AVX512>(

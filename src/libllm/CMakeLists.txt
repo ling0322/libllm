@@ -83,6 +83,9 @@ set(llm_SOURCES
     "dialog_manager.cc"
     "llm_main.cc")
 
+
+set(benchmark_SOURCES "benchmark_main.cc")
+
 set(libllm_INCDIR ".." "../../third_party" ${OpenMP_CXX_INCLUDE_DIRS})
 
 if (WITH_CUDA)
@@ -216,10 +219,18 @@ if (WITH_MKL)
         iomp5)
 endif()
 
+set(benchmark_LIBADD
+    libllm_static
+    ${libllm_LIBADD})
+
 add_library(catch2 STATIC  "../../third_party/catch2/catch_amalgamated.cpp")
 add_executable(unittest ${unittest_SOURCES})
 target_include_directories(unittest PRIVATE ${libllm_INCDIR})
 target_link_libraries(unittest ${unittest_LIBADD})
+
+add_executable(benchmark ${benchmark_SOURCES})
+target_include_directories(benchmark PRIVATE ${libllm_INCDIR})
+target_link_libraries(benchmark ${benchmark_LIBADD})
 
 add_executable(llm ${llm_SOURCES})
 target_include_directories(llm PRIVATE ..)

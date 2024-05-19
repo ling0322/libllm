@@ -30,7 +30,7 @@ namespace cpu {
 namespace kernel {
 
 template<typename ElementA, typename ElementC, CpuMathBackend TYPE, Mode MODE>
-void cvt(int64_t n, const ElementA *x, int64_t offsetX, ElementC *y) {
+void cvt(int64_t n, const ElementA *x, int64_t offsetX, ElementC *y, int64_t offsetY) {
   int nb = (n + CvtMinElemPerThread - 1) / CvtMinElemPerThread;
 
   if (MODE == Mode::OMP && nb > 1) {
@@ -44,10 +44,11 @@ void cvt(int64_t n, const ElementA *x, int64_t offsetX, ElementC *y) {
           ne,
           x,
           offsetX + i * CvtMinElemPerThread,
-          y + i * CvtMinElemPerThread);
+          y,
+          offsetY + i * CvtMinElemPerThread);
     }
   } else {
-    cvtKernel<ElementA, ElementC, TYPE>(n, x, offsetX, y);
+    cvtKernel<ElementA, ElementC, TYPE>(n, x, offsetX, y, offsetY);
   }
 }
 

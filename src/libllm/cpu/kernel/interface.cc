@@ -213,9 +213,9 @@ void dequantQInt4ToFloat(
   if (false) {
 #if LUT_CPU_ARCH == LUT_AMD64
   } else if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP) {
-    cvt<QInt4x32, float, CpuMathBackend::AVX2, Mode::OMP>(n, data, offset, tgt);
+    cvt<QInt4x32, float, CpuMathBackend::AVX2, Mode::OMP>(n, data, offset, tgt, 0);
   } else if (backendType == CpuMathBackend::AVX512 && mode == Mode::OMP) {
-    cvt<QInt4x32, float, CpuMathBackend::AVX2, Mode::OMP>(n, data, offset, tgt);
+    cvt<QInt4x32, float, CpuMathBackend::AVX2, Mode::OMP>(n, data, offset, tgt, 0);
 #endif
   } else {
     NOT_IMPL();
@@ -230,9 +230,9 @@ void quantFloatToQInt4(
     Mode mode,
     CpuMathBackend backendType) {
   if (mode == Mode::OMP) {
-    cvt<float, QInt4x32, CpuMathBackend::FALLBACK, Mode::OMP>(n, data, offset, tgt);
+    cvt<float, QInt4x32, CpuMathBackend::FALLBACK, Mode::OMP>(n, data, offset, tgt, 0);
   } else if (mode == Mode::SingleThread) {
-    cvt<float, QInt4x32, CpuMathBackend::FALLBACK, Mode::SingleThread>(n, data, offset, tgt);
+    cvt<float, QInt4x32, CpuMathBackend::FALLBACK, Mode::SingleThread>(n, data, offset, tgt, 0);
   } else {
     NOT_IMPL();
   }
@@ -250,7 +250,7 @@ void dequantQInt4ToHalf(
   if (false) {
 #if LUT_CPU_ARCH == LUT_AARCH64
   } else if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP) {
-    cvt<QInt4x32, Float16, CpuMathBackend::ASIMDHP, Mode::OMP>(n, data, offset, tgt);
+    cvt<QInt4x32, Float16, CpuMathBackend::ASIMDHP, Mode::OMP>(n, data, offset, tgt, 0);
 #endif
   } else {
     NOT_IMPL();
@@ -356,12 +356,12 @@ void convertHalfToFloat(int n, const Float16 *x, float *y, Mode mode, CpuMathBac
   if (false) {
 #if LUT_CPU_ARCH == LUT_AARCH64
   } else if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP) {
-    cvt<Float16, float, CpuMathBackend::ASIMDHP, Mode::OMP>(n, x, 0, y);
+    cvt<Float16, float, CpuMathBackend::ASIMDHP, Mode::OMP>(n, x, 0, y, 0);
 #elif LUT_CPU_ARCH == LUT_AMD64
   } else if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP) {
-    cvt<Float16, float, CpuMathBackend::AVX2, Mode::OMP>(n, x, 0, y);
+    cvt<Float16, float, CpuMathBackend::AVX2, Mode::OMP>(n, x, 0, y, 0);
   } else if (backendType == CpuMathBackend::AVX512 && mode == Mode::OMP) {
-    cvt<Float16, float, CpuMathBackend::AVX512, Mode::OMP>(n, x, 0, y);
+    cvt<Float16, float, CpuMathBackend::AVX512, Mode::OMP>(n, x, 0, y, 0);
 #endif
   } else {
     NOT_IMPL();
@@ -374,7 +374,7 @@ void convertFloatToHalf(int n, const float *x, Float16 *y, Mode mode, CpuMathBac
   if (false) {
 #if LUT_CPU_ARCH == LUT_AARCH64
   } else if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP) {
-    cvt<float, Float16, CpuMathBackend::ASIMDHP, Mode::OMP>(n, x, 0, y);
+    cvt<float, Float16, CpuMathBackend::ASIMDHP, Mode::OMP>(n, x, 0, y, 0);
 #endif
   } else {
     NOT_IMPL();

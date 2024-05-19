@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -21,6 +21,8 @@
 
 #include <math.h>
 
+#include "libllm/lut/log.h"
+
 namespace lut {
 
 Random::Random() {
@@ -28,12 +30,22 @@ Random::Random() {
   _x = seed % RandMax;
 }
 
-Random::Random(uint64_t seed) : _x(seed % RandMax) {}
+Random::Random(uint64_t seed)
+    : _x(seed % RandMax) {
+}
 
 void Random::fill(Span<float> l, float min, float max) {
   for (float &v : l) {
     v = nextFloat();
     v = min + (max - min) * v;
+  }
+}
+
+void Random::fill(Span<int64_t> l, int64_t min, int64_t max) {
+  CHECK(max - min < RandMax && max - min > 0);
+
+  for (int64_t &v : l) {
+    v = nextInt() % (max - min) + min;
   }
 }
 
@@ -59,14 +71,13 @@ void Random::fillInt8(Span<int8_t> l) {
   }
 }
 
-
 int32_t Random::nextInt() {
   _x = (48271 * _x) % RandMax;
   return static_cast<int32_t>(_x);
 }
 
 float Random::nextFloat() {
-  return static_cast<float>(static_cast<double>(nextInt()) / RandMax);
+  return static_cast<double>(nextInt()) / RandMax;
 }
 
 void Random::reset(uint64_t seed) {
@@ -83,4 +94,4 @@ void Random::fillGaussian(Span<float> l, float mean, float sigma) {
   }
 }
 
-} // namespace lut
+}  // namespace lut

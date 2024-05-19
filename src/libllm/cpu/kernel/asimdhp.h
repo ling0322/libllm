@@ -47,24 +47,27 @@ inline void cvtKernel<QInt4x32, Float16, CpuMathBackend::ASIMDHP>(
     int n,
     const QInt4x32 *x,
     int64_t offsetX,
-    Float16 *y) {
-  return qhcvtAsimdhpKernel(n, x, offsetX, y);
+    Float16 *y,
+    int64_t offsetY) {
+  return qhcvtAsimdhpKernel(n, x, offsetX, y + offsetY);
 }
 template<>
 inline void cvtKernel<Float16, float, CpuMathBackend::ASIMDHP>(
     int n,
     const Float16 *x,
     int64_t offsetX,
-    float *y) {
-  return hscvtAsimdhpKernel(n, x + offsetX, y);
+    float *y,
+    int64_t offsetY) {
+  return hscvtAsimdhpKernel(n, x + offsetX, y + offsetY);
 }
 template<>
 inline void cvtKernel<float, Float16, CpuMathBackend::ASIMDHP>(
     int n,
     const float *x,
     int64_t offsetX,
-    Float16 *y) {
-  return shcvtAsimdhpKernel(n, x + offsetX, y);
+    Float16 *y,
+    int64_t offsetY) {
+  return shcvtAsimdhpKernel(n, x + offsetX, y + offsetY);
 }
 template<>
 inline void gemmKernel<Float16, Float16, Float16, 12, 16, CpuMathBackend::ASIMDHP>(

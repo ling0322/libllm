@@ -121,4 +121,12 @@ bool StateMap::hasValue<int>(const std::string &name) const {
   return _intDict.find(name) != _intDict.end();
 }
 
+StateMap StateMap::clone() const {
+  StateMap s;
+  s._dict = _dict;
+  s._intDict = _intDict;
+
+  return s;
+}
+
 }  // namespace libllm
