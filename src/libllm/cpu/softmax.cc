@@ -40,8 +40,8 @@ Tensor softmaxKernel(Tensor A) {
     TensorAccessor<const T, 1> a = vA.getTensor(j);
     TensorAccessor<T, 1> c = vC.getTensor(j);
 
-    std::vector<T> m(a.getShape(0) + 1);
-    std::vector<T> d(a.getShape(0) + 1);
+    std::vector<float> m(a.getShape(0) + 1);
+    std::vector<float> d(a.getShape(0) + 1);
     m[0] = -1e10;
     d[0] = 0;
     for (int i = 0; i < a.getShape(0); i++) {
