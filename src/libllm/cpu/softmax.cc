@@ -39,14 +39,20 @@ Tensor softmaxKernel(Tensor A) {
     TensorAccessor<const T, 1> a = vA.getTensor(j);
     TensorAccessor<T, 1> c = vC.getTensor(j);
 
-    double sum = 0;
-    for (int i = 0; i < a.getShape(0); ++i) {
-      sum += expf(a[i]);
+    std::vector<T> m(a.getShape(0)+1);
+    std::vector<T> d(a.getShape(0)+1);
+    m[0] = -1e10;
+    d[0] = 0;
+    for(int i=0; i<a.getShape(0); i++)
+    {
+        T x = a[i];
+        m[i+1] = fmax(m[i], x);
+        d[i+1] = d[i]*expf(m[i]-m[i+1])+expf(x-m[i+1]);
     }
-
-    double logsum = logf(sum);
-    for (int i = 0; i < a.getShape(0); ++i) {
-      c[i] = static_cast<T>(expf(a[i] - logsum));
+    for(int i=0; i<a.getShape(0); i++)
+    {
+        float x = a[i];
+        c[i] = static_cast<T>(expf(x-m[a.getShape(0)])/d[a.getShape(0)]);
     }
   }
 
