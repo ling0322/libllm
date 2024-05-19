@@ -46,10 +46,10 @@ Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, f
     // if no generator specified, we could go parallel.
 #pragma omp parallel default(none) shared(tensorData, min, max)
     {
-      unsigned int rseed = static_cast<unsigned int>(time(nullptr)) + omp_get_thread_num();
+      lut::Random r(time(nullptr) + omp_get_thread_num());
 #pragma omp for
       for (int i = 0; i < tensorData.size(); i++) {
-        double nextR = static_cast<double>(rand_r(&rseed)) / RAND_MAX;
+        float nextR = r.nextFloat();
         tensorData[i] = min + (max - min) * nextR;
       }
     }
