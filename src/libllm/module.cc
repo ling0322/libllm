@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,9 +20,10 @@
 #include "libllm/module.h"
 
 #include <math.h>
+
+#include "libllm/functional.h"
 #include "libllm/lut/error.h"
 #include "libllm/lut/strings.h"
-#include "libllm/functional.h"
 
 namespace libllm {
 
@@ -62,7 +63,7 @@ void Embedding::initParameters(const StateMap &stateDict) {
   std::string nameW = getCtx().name(kWeight);
 
   _wte = stateDict.getTensor(nameW);
-  _wte.throwIfInvalidShape({_vocabSize, _dModel});
+  _wte.throwIfInvalidShape({_vocabSize, _dModel}, nameW);
   _wte = moveAndCastFloat(_wte, getCtx());
 }
 
@@ -84,10 +85,13 @@ Tensor Embedding::forward(const Tensor &input) const {
 constexpr char Linear::kWeight[];
 constexpr char Linear::kBias[];
 
-Linear::Linear() : _inDim(0), _outDim(0), _hasBias(true) {}
+Linear::Linear()
+    : _inDim(0),
+      _outDim(0),
+      _hasBias(true) {
+}
 
-std::unique_ptr<Linear> Linear::create(
-    const Context &ctx, int inDim, int outDim, bool hasBias) {
+std::unique_ptr<Linear> Linear::create(const Context &ctx, int inDim, int outDim, bool hasBias) {
   if (inDim <= 0 || outDim <= 0) throw lut::AbortedError("invalid d_model");
 
   std::unique_ptr<Linear> linear{new Linear()};
@@ -105,17 +109,18 @@ void Linear::initParameters(const StateMap &stateDict) {
   std::string nameB = ctx.name(kBias);
 
   _w = stateDict.getTensor(nameW);
-  _w.throwIfInvalidShape({_outDim, _inDim});
+  _w.throwIfInvalidShape({_outDim, _inDim}, nameW);
   _w = moveAndCastFloat(_w, ctx);
 
   if (_hasBias) {
     _b = stateDict.getTensor(nameB);
-    _b.throwIfInvalidShape({_outDim});
+    _b.throwIfInvalidShape({_outDim}, nameB);
     _b = moveAndCastFloat(_b, ctx);
   } else {
     if (stateDict.hasTensor(nameB)) {
       throw lut::AbortedError(lut::sprintf(
-          "In module %s: hasBias=false but bias weight found in state_map.", ctx.name()));
+          "In module %s: hasBias=false but bias weight found in state_map.",
+          ctx.name()));
     }
   }
 }
@@ -166,7 +171,7 @@ void RMSNorm::initParameters(const StateMap &stateDict) {
   std::string nameW = getCtx().name(Weight);
 
   _weight = stateDict.getTensor(nameW);
-  _weight.throwIfInvalidShape({_dModel});
+  _weight.throwIfInvalidShape({_dModel}, nameW);
   _weight = moveAndCastFloat(_weight, getCtx());
 }
 
@@ -188,7 +193,10 @@ Tensor RMSNorm::forward(const Tensor &input) const {
 constexpr char LayerNorm::kWeight[];
 constexpr char LayerNorm::kBias[];
 
-LayerNorm::LayerNorm() : _dModel(0), _eps(0.0f) {}
+LayerNorm::LayerNorm()
+    : _dModel(0),
+      _eps(0.0f) {
+}
 
 std::unique_ptr<LayerNorm> LayerNorm::create(const Context &ctx, int dModel, float eps) {
   std::unique_ptr<LayerNorm> layer{new LayerNorm()};
@@ -212,8 +220,8 @@ void LayerNorm::initParameters(const StateMap &stateDict) {
   _w = stateDict.getTensor(nameW);
   _b = stateDict.getTensor(nameB);
 
-  _w.throwIfInvalidShape({_dModel});
-  _b.throwIfInvalidShape({_dModel});
+  _w.throwIfInvalidShape({_dModel}, nameW);
+  _b.throwIfInvalidShape({_dModel}, nameB);
 
   _w = moveAndCastFloat(_w, ctx);
   _b = moveAndCastFloat(_b, ctx);
@@ -222,6 +230,5 @@ void LayerNorm::initParameters(const StateMap &stateDict) {
 Tensor LayerNorm::forward(const Tensor &input) const {
   return F::layerNorm(input, _w, _b, _eps);
 }
-
 
 }  // namespace libllm

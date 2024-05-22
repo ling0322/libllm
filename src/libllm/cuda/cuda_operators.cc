@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,6 +20,7 @@
 #include "libllm/cuda/cuda_operators.h"
 
 #include <math.h>
+
 #include "libllm/cuda/apply_rotary_pos_emb.h"
 #include "libllm/cuda/binary_op.h"
 #include "libllm/cuda/cast.h"
@@ -28,12 +29,11 @@
 #include "libllm/cuda/lookup.h"
 #include "libllm/cuda/matmul.h"
 #include "libllm/cuda/print.h"
+#include "libllm/cuda/rms_norm.h"
 #include "libllm/cuda/softmax.h"
 #include "libllm/cuda/swiglu.h"
 #include "libllm/cuda/to_device.h"
-#include "libllm/cuda/rms_norm.h"
 #include "libllm/cuda/transform.h"
-
 #include "libllm/functional.h"
 
 namespace libllm {
@@ -49,9 +49,9 @@ Operators *CudaOperators::create() {
   op->_matmul = MatMul::create();
 
   LOG(INFO) << "cuda numDevices = " << getCudaDeviceCount();
-  LOG(INFO) << "cuda:0 maxThreadsPerMultiProcessor = " 
+  LOG(INFO) << "cuda:0 maxThreadsPerMultiProcessor = "
             << getCudaDeviceAttribute(cudaDevAttrMaxThreadsPerMultiProcessor);
-  LOG(INFO) << "cuda:0 multiProcessorCount = " 
+  LOG(INFO) << "cuda:0 multiProcessorCount = "
             << getCudaDeviceAttribute(cudaDevAttrMultiProcessorCount);
 
   return op.release();
@@ -112,7 +112,7 @@ void CudaOperators::copy(Tensor src, Tensor dest) {
   CHECK(src.getDevice().getType() == Device::kCuda);
   CHECK(dest.getDevice().getType() == Device::kCuda);
   CHECK(src.getDType() == dest.getDType());
-  src.throwIfInvalidShape(dest.getShape());
+  src.throwIfInvalidShape(dest.getShape(), "CudaOperators::copy");
 
   if (src.isContiguous() && dest.isContiguous()) {
     copyContig(src, dest);
@@ -142,9 +142,9 @@ DType CudaOperators::getDefaultFloatType() {
   return DType::kFloat16;
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm
 
 libllm::Operators *llynCreateCudaOperators() {
   if (libllm::op::cuda::CudaOperators::isAvailable()) {
@@ -152,5 +152,5 @@ libllm::Operators *llynCreateCudaOperators() {
   } else {
     LOG(INFO) << "No CUDA device available.";
     return nullptr;
-  } 
+  }
 }

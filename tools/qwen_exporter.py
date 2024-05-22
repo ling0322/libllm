@@ -27,10 +27,10 @@ import zipfile
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
 from bpe_exporter import read_transformers_bpe_model
-from llama2_exporter import Llama2Exporter
+from tools.llama_exporter import LlamaExporter
 from torch import nn
 
-class Qwen2Exporter(Llama2Exporter):
+class Qwen2Exporter(LlamaExporter):
     def __init__(self, writer: TensorWriter) -> None:
         super().__init__(writer)
 

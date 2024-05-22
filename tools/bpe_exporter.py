@@ -21,7 +21,11 @@
 import argparse
 import sys
 import struct
+import tempfile
 import configparser
+from tokenizers.models import BPE
+from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
+from transformers.models.gpt2.tokenization_gpt2 import bytes_to_unicode
 from copy import copy
 from functools import partial
 from typing import Dict, List, Tuple, Callable
@@ -75,6 +79,9 @@ class Token:
 
     def is_unused(self) -> bool:
         return self.FLAG_UNUSED & self.flag != 0
+    
+    def __repr__(self) -> str:
+        return f"Token({self.token_id}, {self.flag}, {self.piece}, {self.piece_display}, {self.weight})"
 
 class TokenizerConfig:
     def __init__(self,
@@ -145,7 +152,9 @@ class SentencePieceModelReader:
         from transformers import AutoTokenizer
         from sentencepiece import SentencePieceProcessor
         tokenizer = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
-        self._sp = SentencePieceProcessor(model_file=tokenizer.vocab_file)
+        model_file = tokenizer.vocab_file
+
+        self._sp = SentencePieceProcessor(model_file=model_file)
 
     def to_libllm_model(self) -> LibllmTokenizer:
         """convert the sentencepiece model to libllm tokenizer format."""
@@ -212,7 +221,7 @@ class TransformersBpeModelReader:
     def _to_byte(self, s: str) -> bytes:
         """convert unicode string to bytes according to the char to byte mapping table"""
         b = b''
-        byte_decoder = self._bpe.byte_decoder
+        byte_decoder = self._bpe._byte_decoder
         for ch in s:
             assert ch in byte_decoder, "invalid character"
             byte_ord = byte_decoder[ch]
@@ -259,6 +268,84 @@ class TransformersBpeModelReader:
                 weight=0)
         if self._bpe.unk_token_id is not None:
             vocab[self._bpe.unk_token_id].flag |= Token.FLAG_UNK
+
+        # update weight None to 0
+        libllm_model = LibllmTokenizer()
+        for token in vocab:
+            if token.weight is None:
+                token.weight = 0
+            libllm_model.add_token(token)
+
+        return libllm_model
+
+class TransformersFastBpeModelReader:
+    """model reader for the BPE tokenizer from transformers"""
+
+    def __init__(self, tokenizer: PreTrainedTokenizerFast) -> None:
+        with tempfile.TemporaryDirectory() as dirname:
+            tokenizer._tokenizer.model.save(dirname)
+            vocab, merges = BPE.read_file(
+                path.join(dirname, "vocab.json"),
+                path.join(dirname, "merges.txt"))
+        
+        self._tokenizer = tokenizer
+        self._vocab = vocab
+        self._merges = merges
+        self._byte_encoder = bytes_to_unicode()
+        self._byte_decoder = {v: k for k, v in self._byte_encoder.items()}
+
+    def _to_byte(self, s: str) -> bytes:
+        """convert unicode string to bytes according to the char to byte mapping table"""
+        b = b''
+        byte_decoder = self._byte_decoder
+        for ch in s:
+            assert ch in byte_decoder, "invalid character"
+            byte_ord = byte_decoder[ch]
+            b += byte_ord.to_bytes(1, 'little')
+        
+        return b
+
+    def to_libllm_model(self) -> List[Token]:
+        """convert the BPE model to lytok tokenizer format."""
+        pieces: Dict[bytes, Token] = {}
+
+        # text and flag
+        for piece, piece_id in self._vocab.items():
+            b_piece = self._to_byte(piece)
+            pieces[piece] = Token(piece_id, 0, b_piece, Util.piece_to_display(b_piece))
+        
+        # weight
+        prev_piece = None
+        for rank, piece_pair in enumerate(self._merges):
+            piece = piece_pair[0] + piece_pair[1]
+            if pieces[piece].weight is not None and prev_piece != piece:
+                print(f'pair for {piece} ({piece_pair}) already exists: {pieces[piece]}')
+            pieces[piece].weight = -rank
+            prev_piece = piece
+
+        # vocab
+        vocab: List[Token] = []
+        for token_id in range(self._tokenizer.vocab_size):
+            vocab.append(Token.unused(token_id))
+        
+        for token in pieces.values():
+            if not vocab[token.token_id].is_unused():
+                raise Exception(f"duplicated token id {token.token_id}")
+            vocab[token.token_id] = token
+
+        # special symbols
+        for piece, token_id in self._tokenizer.added_tokens_encoder.items():
+            while token_id >= len(vocab):
+                vocab.append(Token.unused(token_id))
+
+            vocab[token_id] = Token(
+                token_id,
+                Token.FLAG_CONTROL,
+                piece=b"",
+                piece_display=piece,
+                weight=0)
+        if self._tokenizer.unk_token_id is not None:
+            vocab[self._tokenizer.unk_token_id].flag |= Token.FLAG_UNK
 
         # update weight None to 0
         libllm_model = LibllmTokenizer()
@@ -322,6 +409,14 @@ def read_spm_model(model_path_or_name: str) -> LibllmTokenizer:
 def read_transformers_bpe_model(transformers_bpe) -> LibllmTokenizer:
     bpe_model = TransformersBpeModelReader(transformers_bpe)
     libllm_model = bpe_model.to_libllm_model()
+    print(f"vocab_size={len(libllm_model.get_vocab())}")
+    return libllm_model
+
+def read_transformers_fast_bpe_model(model_path_or_name: str) -> LibllmTokenizer:
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained(model_path_or_name)
+    fast_bpe_model = TransformersFastBpeModelReader(tokenizer)
+    libllm_model = fast_bpe_model.to_libllm_model()
     print(f"vocab_size={len(libllm_model.get_vocab())}")
     return libllm_model
 

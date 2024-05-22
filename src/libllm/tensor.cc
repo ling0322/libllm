@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,9 +20,11 @@
 #include "libllm/tensor.h"
 
 #include <stdlib.h>
+
 #include <limits>
-#include "libllm/cpu/view.h"
+
 #include "libllm/cpu/cpu_tensor_data.h"
+#include "libllm/cpu/view.h"
 #include "libllm/functional.h"
 #include "libllm/lut/error.h"
 #include "libllm/lut/strings.h"
@@ -50,11 +52,10 @@ Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const T> data)
 template Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const float> data);
 template Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const LongType> data);
 
-
-Tensor Tensor::create(std::shared_ptr<TensorShape> shape,
-                      std::shared_ptr<TensorData> data,
-                      int64_t offset) {
-
+Tensor Tensor::create(
+    std::shared_ptr<TensorShape> shape,
+    std::shared_ptr<TensorData> data,
+    int64_t offset) {
   Tensor tensor;
   tensor._shape = shape;
   tensor._data = data;
@@ -62,9 +63,12 @@ Tensor Tensor::create(std::shared_ptr<TensorShape> shape,
 
   return tensor;
 }
- 
-Tensor::Tensor() : _offset(0) {}
-Tensor::~Tensor() {}
+
+Tensor::Tensor()
+    : _offset(0) {
+}
+Tensor::~Tensor() {
+}
 
 Tensor::Tensor(const Tensor &tensor) {
   _data = tensor._data;
@@ -219,10 +223,13 @@ Tensor Tensor::squeeze(int dim) const {
   return tensor;
 }
 
-void Tensor::throwIfInvalidShape(lut::Span<const int> shape) const {
+void Tensor::throwIfInvalidShape(lut::Span<const int> shape, const std::string &name) const {
   if (shape.size() != getDim()) {
     throw lut::AbortedError(lut::sprintf(
-        "invalid shape. dim=%d expected, but %d got.", shape.size(), getDim()));
+        "%s: invalid shape. dim=%d expected, but %d got.",
+        name,
+        shape.size(),
+        getDim()));
   }
 
   int i = 0;
@@ -254,7 +261,10 @@ void Tensor::throwIfInvalidShape(lut::Span<const int> shape) const {
     expected << ")";
 
     throw lut::AbortedError(lut::sprintf(
-        "invalid shape: %s expected, but %s found.", expected.str(), actual.str()));
+        "%s: invalid shape: %s expected, but %s found.",
+        name,
+        expected.str(),
+        actual.str()));
   }
 }
 
@@ -298,13 +308,16 @@ std::shared_ptr<TensorData> Tensor::getDataShared_() const {
   return _data;
 }
 
-
 // -----------------------------------------------------------------------------------------------+
 // TensorShaoe                                                                                    |
 // -----------------------------------------------------------------------------------------------+
 
-TensorShape::TensorShape(const TensorShape &size) : _data(size._data.copy()) {}
-TensorShape::TensorShape(TensorShape &&size) noexcept : _data(std::move(size._data)) {}
+TensorShape::TensorShape(const TensorShape &size)
+    : _data(size._data.copy()) {
+}
+TensorShape::TensorShape(TensorShape &&size) noexcept
+    : _data(std::move(size._data)) {
+}
 TensorShape &TensorShape::operator=(const TensorShape &size) {
   _data = size._data.copy();
   return *this;
@@ -451,7 +464,7 @@ int64_t TensorShape::getNumEl() const {
   if (empty()) {
     return 0;
   }
-  
+
   int64_t n = 1;
   for (const Elem &elem : _data) {
     n *= elem.shape;

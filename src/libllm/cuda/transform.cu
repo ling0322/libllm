@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,17 +17,16 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cuda/transform.h"
-
 #include "libllm/cuda/common.h"
+#include "libllm/cuda/transform.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
 template<typename T>
-__global__ void transform5DKernel(
-      PackedSubtensor<const T, 5> src, T alpha, T beta, PackedSubtensor<T, 5> dest) {
+__global__ void
+transform5DKernel(PackedSubtensor<const T, 5> src, T alpha, T beta, PackedSubtensor<T, 5> dest) {
   int d4 = blockIdx.x * blockDim.x + threadIdx.x;
   int d3 = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -38,15 +37,14 @@ __global__ void transform5DKernel(
 
   const Size *s = src.getSize();
 
-  if (d0 < s[0].shape && d1 < s[1].shape && d2 < s[2].shape && d3 < s[3].shape && 
-      d4 < s[4].shape) {
+  if (d0 < s[0].shape && d1 < s[1].shape && d2 < s[2].shape && d3 < s[3].shape && d4 < s[4].shape) {
     dest[d0][d1][d2][d3][d4] = alpha * src[d0][d1][d2][d3][d4] + beta;
   }
 }
 
 template<typename T>
-__global__ void transform4DKernel(
-      PackedSubtensor<const T, 4> src, T alpha, T beta, PackedSubtensor<T, 4> dest) {
+__global__ void
+transform4DKernel(PackedSubtensor<const T, 4> src, T alpha, T beta, PackedSubtensor<T, 4> dest) {
   int d3 = blockIdx.x * blockDim.x + threadIdx.x;
 
   dim3 dz = splitIndexToDim3(blockIdx.y * blockDim.y + threadIdx.y, src.getSize());
@@ -62,8 +60,8 @@ __global__ void transform4DKernel(
 }
 
 template<typename T>
-__global__ void transform3DKernel(
-      PackedSubtensor<const T, 3> src, T alpha, T beta, PackedSubtensor<T, 3> dest) {
+__global__ void
+transform3DKernel(PackedSubtensor<const T, 3> src, T alpha, T beta, PackedSubtensor<T, 3> dest) {
   int d2 = blockIdx.x * blockDim.x + threadIdx.x;
   int d1 = blockIdx.y * blockDim.y + threadIdx.y;
   int d0 = blockIdx.z * blockDim.z + threadIdx.z;
@@ -77,7 +75,7 @@ __global__ void transform3DKernel(
 
 template<typename T>
 void transform5D(Tensor src, Tensor dest, T alpha, T beta) {
-  src.throwIfInvalidShape(dest.getShape());
+  src.throwIfInvalidShape(dest.getShape(), "transform5D");
 
   PackedSubtensor<const T, 5> sA(src);
   PackedSubtensor<T, 5> sC(dest);
@@ -95,7 +93,7 @@ void transform5D(Tensor src, Tensor dest, T alpha, T beta) {
 
 template<typename T>
 void transform4D(Tensor src, Tensor dest, T alpha, T beta) {
-  src.throwIfInvalidShape(dest.getShape());
+  src.throwIfInvalidShape(dest.getShape(), "transform4D");
 
   PackedSubtensor<const T, 4> sA(src);
   PackedSubtensor<T, 4> sC(dest);
@@ -112,7 +110,7 @@ void transform4D(Tensor src, Tensor dest, T alpha, T beta) {
 
 template<typename T>
 void transform3D(Tensor src, Tensor dest, T alpha, T beta) {
-  src.throwIfInvalidShape(dest.getShape());
+  src.throwIfInvalidShape(dest.getShape(), "transform3D");
 
   PackedSubtensor<const T, 3> sA(src);
   PackedSubtensor<T, 3> sC(dest);
@@ -128,7 +126,6 @@ void transform3D(Tensor src, Tensor dest, T alpha, T beta) {
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
 
-
 void transformHalf(Tensor src, Tensor dest, half alpha, half beta) {
   CHECK(src.getDType() == DType::kFloat16);
   CHECK(dest.getDType() == DType::kFloat16);
@@ -142,7 +139,7 @@ void transformHalf(Tensor src, Tensor dest, half alpha, half beta) {
 
 Tensor transform(const Tensor &src, float alpha, float beta) {
   CHECK(src.getDevice().getType() == Device::kCuda);
-  
+
   if (src.getDType() == DType::kFloat16) {
     Tensor dest = createCudaTensorHalf(src.getShape());
     transformHalf(src, dest, half(alpha), half(beta));
@@ -152,6 +149,6 @@ Tensor transform(const Tensor &src, float alpha, float beta) {
   }
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

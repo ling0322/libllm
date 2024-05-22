@@ -134,7 +134,7 @@ Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) {
 
 void copy(Tensor src, Tensor dest) {
   CHECK(src.getDType() == dest.getDType());
-  src.throwIfInvalidShape(dest.getShape());
+  src.throwIfInvalidShape(dest.getShape(), "F::copy");
 
   switch (src.getDevice().getType()) {
     case Device::kCpu:
