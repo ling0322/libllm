@@ -120,6 +120,7 @@ llama::LlamaConfig getLlamaConfig(LlamaType type) {
     config.maxContextLength = 4096;
     config.normEps = 1e-5;
     config.numHeads = 32;
+    config.numKeyValueHeads = 32;
     config.numLayers = 32;
     config.qkvProjBias = false;
     config.vocabSize = 32000;

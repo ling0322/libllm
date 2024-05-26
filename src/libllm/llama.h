@@ -34,6 +34,7 @@ namespace llama {
 struct LlamaConfig {
   int hiddenSize;
   int numHeads;
+  int numKeyValueHeads;
   int intermediateSize;
   float normEps;
   int numLayers;
@@ -83,6 +84,7 @@ class Attention : public Module {
 
   int _hiddenSize;
   int _numHead;
+  int _numKeyValueHead;
   int _headDim;
   int _maxCtxLen;
   bool _hasProjBias;

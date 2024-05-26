@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,31 +20,31 @@
 #include "libllm/operator_tester.h"
 
 #include <initializer_list>
+
 #include "libllm/device.h"
 #include "libllm/functional.h"
-#include "libllm/operators.h"
 #include "libllm/lut/attributes.h"
 #include "libllm/lut/strings.h"
 #include "libllm/lut/time.h"
+#include "libllm/operators.h"
 
-#define CONCAT2(l, r) l ## r
+#define CONCAT2(l, r) l##r
 #define CONCAT(l, r) CONCAT2(l, r)
 
-#define LOG_TIME(stmt, message) \
+#define LOG_TIME(stmt, message)             \
   double CONCAT(t0, __LINE__) = lut::now(); \
-  stmt; \
-  LOG(INFO) << message <<  ": " << (lut::now() - CONCAT(t0, __LINE__)) * 1000 << "ms";
-
+  stmt;                                     \
+  LOG(INFO) << message << ": " << (lut::now() - CONCAT(t0, __LINE__)) * 1000 << "ms";
 
 namespace libllm {
 
-OperatorTester::OperatorTester() :
-    _printBenchmarkInfo(false),
-    _atol(1e-6),
-    _rtol(1e-5),
-    _op(nullptr),
-    _testDevice(Device::getCpu()),
-    _testFloatType(DType::kFloat) {
+OperatorTester::OperatorTester()
+    : _printBenchmarkInfo(false),
+      _atol(1e-6),
+      _rtol(1e-5),
+      _op(nullptr),
+      _testDevice(Device::getCpu()),
+      _testFloatType(DType::kFloat) {
 }
 
 OperatorTester OperatorTester::withOperators(Operators *operators) {
@@ -84,7 +84,7 @@ bool OperatorTester::testToDevice(std::initializer_list<int> shape) {
   Tensor xr = F::rand(shape, DType::kFloat, Device::getCpu(), &random);
   Tensor x = _op->to(_testDevice, xr);
   x = _op->to(Device::getCpu(), x);
-  
+
   return F::allClose(x, xr, _rtol);
 }
 
@@ -113,7 +113,7 @@ bool OperatorTester::testCopy(std::initializer_list<int> shape, bool transpose) 
   } else {
     _op->copy(x, x2);
   }
-  
+
   x2 = _op->cast(x2, DType::kFloat);
   x2 = _op->to(Device::getCpu(), x2);
   if (transpose) x2 = x2.transpose(1, 0);
@@ -121,9 +121,7 @@ bool OperatorTester::testCopy(std::initializer_list<int> shape, bool transpose) 
 }
 
 bool OperatorTester::testCopyLongType() {
-  Tensor tensor = Tensor::create<LongType>({2, 5}, {
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 0
-  });
+  Tensor tensor = Tensor::create<LongType>({2, 5}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
   Tensor x = _op->to(_testDevice, tensor);
 
   // cudaMemcpy path (op::cuda::transform path is not supported for int16_t)
@@ -131,9 +129,8 @@ bool OperatorTester::testCopyLongType() {
   _op->copy(x, x2);
   x2 = _op->to(Device::getCpu(), x2);
 
-  const LongType *px = tensor.getData<LongType>(), 
-                 *pr = x2.getData<LongType>();
-  x2.throwIfInvalidShape(tensor.getShape());
+  const LongType *px = tensor.getData<LongType>(), *pr = x2.getData<LongType>();
+  x2.throwIfInvalidShape(tensor.getShape(), "OperatorTester::testCopyLongType");
   return std::equal(px, px + x2.getNumEl(), pr);
 }
 
@@ -312,7 +309,7 @@ bool OperatorTester::testUnaryOp(OperatorTester::OperatorType op, ShapeType shap
     default:
       NOT_IMPL();
   }
-  
+
   Tensor x = _op->to(_testDevice, a);
 
   x = _op->cast(x, _testFloatType);
@@ -339,12 +336,12 @@ bool OperatorTester::testRmsNorm(ShapeType shape) {
   x = _op->cast(x, _testFloatType);
   y = _op->cast(y, _testFloatType);
   if (_printBenchmarkInfo) {
-    LOG_TIME(x = _op->rmsNorm(x, y, 1e-5),
-             lut::sprintf("shape=%s OP::rmsNorm", a.getShapeString()));
+    LOG_TIME(
+        x = _op->rmsNorm(x, y, 1e-5),
+        lut::sprintf("shape=%s OP::rmsNorm", a.getShapeString()));
   } else {
     x = _op->rmsNorm(x, y, 1e-5);
-  }
-  ;
+  };
   x = _op->cast(x, DType::kFloat);
   x = _op->to(Device::getCpu(), x);
 

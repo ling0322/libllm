@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,9 +17,8 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cuda/copy.h"
-
 #include "libllm/cuda/common.h"
+#include "libllm/cuda/copy.h"
 
 namespace libllm {
 namespace op {
@@ -37,8 +36,7 @@ __global__ void copy5DKernel(PackedSubtensor<const T, 5> src, PackedSubtensor<T,
 
   const Size *s = src.getSize();
 
-  if (d0 < s[0].shape && d1 < s[1].shape && d2 < s[2].shape && d3 < s[3].shape && 
-      d4 < s[4].shape) {
+  if (d0 < s[0].shape && d1 < s[1].shape && d2 < s[2].shape && d3 < s[3].shape && d4 < s[4].shape) {
     dest[d0][d1][d2][d3][d4] = src[d0][d1][d2][d3][d4];
   }
 }
@@ -74,7 +72,7 @@ __global__ void copy3DKernel(PackedSubtensor<const T, 3> src, PackedSubtensor<T,
 
 template<typename T>
 void copy5D(const Tensor &src, Tensor &dest) {
-  src.throwIfInvalidShape(dest.getShape());
+  src.throwIfInvalidShape(dest.getShape(), "copy5D");
 
   PackedSubtensor<const T, 5> sA(src);
   PackedSubtensor<T, 5> sC(dest);
@@ -92,7 +90,7 @@ void copy5D(const Tensor &src, Tensor &dest) {
 
 template<typename T>
 void copy4D(const Tensor &src, Tensor &dest) {
-  src.throwIfInvalidShape(dest.getShape());
+  src.throwIfInvalidShape(dest.getShape(), "copy4D");
 
   PackedSubtensor<const T, 4> sA(src);
   PackedSubtensor<T, 4> sC(dest);
@@ -109,7 +107,7 @@ void copy4D(const Tensor &src, Tensor &dest) {
 
 template<typename T>
 void copy3D(const Tensor &src, Tensor &dest) {
-  src.throwIfInvalidShape(dest.getShape());
+  src.throwIfInvalidShape(dest.getShape(), "copy3D");
 
   PackedSubtensor<const T, 3> sA(src);
   PackedSubtensor<T, 3> sC(dest);
@@ -124,7 +122,6 @@ void copy3D(const Tensor &src, Tensor &dest) {
   cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
-
 
 void copy(const Tensor &src, Tensor &dest) {
   CHECK(src.getDevice().getType() == Device::kCuda);
@@ -142,9 +139,9 @@ void copyContig(const Tensor &src, Tensor &dest) {
       dest.getData<void>(),
       src.getData<void>(),
       src.getDType().getTotalSize(src.getNumEl()),
-      cudaMemcpyDeviceToDevice)); 
+      cudaMemcpyDeviceToDevice));
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

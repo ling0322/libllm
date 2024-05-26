@@ -43,6 +43,7 @@ constexpr char LlamaModel::RoPECtxKey[];
 LlamaConfig::LlamaConfig()
     : hiddenSize(0),
       numHeads(0),
+      numKeyValueHeads(0),
       intermediateSize(0),
       normEps(0.0f),
       numLayers(0),
@@ -61,6 +62,12 @@ LlamaConfig LlamaConfig::loadConfig(const lut::IniSection &section) {
   config.numLayers = section.getInt("num_layers");
   config.vocabSize = section.getInt("vocab_size");
   config.maxContextLength = section.getInt("max_ctx_length");
+
+  if (section.hasKey("num_key_value_heads")) {
+    config.numKeyValueHeads = section.getInt("num_key_value_heads");
+  } else {
+    config.numKeyValueHeads = config.numHeads;
+  }
 
   if (section.hasKey("qkv_proj_bias")) {
     config.qkvProjBias = section.getBool("qkv_proj_bias");
@@ -118,6 +125,7 @@ Tensor MLP::forward(Tensor input) const {
 Attention::Attention()
     : _hiddenSize(0),
       _numHead(0),
+      _numKeyValueHead(0),
       _headDim(0),
       _maxCtxLen(0),
       _hasProjBias(false) {
@@ -130,9 +138,11 @@ std::shared_ptr<Attention> Attention::create(const Context &ctx, const LlamaConf
   if (config.hiddenSize % config.numHeads != 0)
     throw lut::AbortedError("invalid hidden_size and num_heads");
 
+  int headDim = config.hiddenSize / config.numHeads;
   layer->_hiddenSize = config.hiddenSize;
   layer->_numHead = config.numHeads;
-  layer->_headDim = config.hiddenSize / config.numHeads;
+  layer->_numKeyValueHead = config.numKeyValueHeads;
+  layer->_headDim = headDim;
   layer->_maxCtxLen = config.maxContextLength;
   layer->_hasProjBias = config.qkvProjBias;
 
@@ -140,8 +150,9 @@ std::shared_ptr<Attention> Attention::create(const Context &ctx, const LlamaConf
   layer->_namePastV = ctx.name("v");
   layer->_namePastLen = ctx.name("len");
 
+  int qkvProjDim = headDim * config.numKeyValueHeads * 2 + config.hiddenSize;
   int d = config.hiddenSize;
-  layer->_qkvProj = Linear::create(ctx.withName("qkv_proj"), d, d * 3, config.qkvProjBias);
+  layer->_qkvProj = Linear::create(ctx.withName("qkv_proj"), d, qkvProjDim, config.qkvProjBias);
   layer->_outProj = Linear::create(ctx.withName("out_proj"), d, d, false);
 
   return layer;
@@ -205,9 +216,12 @@ Tensor Attention::forward(StateMap &past, Tensor input) const {
   CHECK(input.getDim() == 3);
 
   Tensor qkv = _qkvProj->forward(input);
+
+  int kvHiddenSize = _headDim * _numKeyValueHead;
+
   Tensor q = qkv.slice(-1, {0, _hiddenSize});
-  Tensor k = qkv.slice(-1, {_hiddenSize, 2 * _hiddenSize});
-  Tensor v = qkv.slice(-1, {2 * _hiddenSize, 3 * _hiddenSize});
+  Tensor k = qkv.slice(-1, {_hiddenSize, _hiddenSize + kvHiddenSize});
+  Tensor v = qkv.slice(-1, {_hiddenSize + kvHiddenSize, _hiddenSize + 2 * kvHiddenSize});
 
   int N = qkv.getShape(0);
   int qLen = qkv.getShape(1);
@@ -216,8 +230,8 @@ Tensor Attention::forward(StateMap &past, Tensor input) const {
   past.putValue<int>(_namePastLen, kvLen);
 
   q = q.view({N, qLen, _numHead, _headDim});
-  k = k.view({N, qLen, _numHead, _headDim});
-  v = v.view({N, qLen, _numHead, _headDim});
+  k = k.view({N, qLen, _numKeyValueHead, _headDim});
+  v = v.view({N, qLen, _numKeyValueHead, _headDim});
   Tensor roPE = _roPE.slice(1, {kvLen - qLen, kvLen});
 
   q = applyRoPE(q, roPE);
@@ -234,6 +248,18 @@ Tensor Attention::forward(StateMap &past, Tensor input) const {
   // update past.
   past.putTensor(_namePastK, k);
   past.putTensor(_namePastV, v);
+
+  // apply GQA
+  if (_numKeyValueHead != _numHead) {
+    CHECK(_numHead % _numKeyValueHead == 0);
+
+    int groupSize = _numHead / _numKeyValueHead;
+    std::initializer_list<int> expandShape = {N, kvLen, _numKeyValueHead, groupSize, _headDim};
+    std::initializer_list<int> qShape = {N, kvLen, _numHead, _headDim};
+
+    k = F::contiguous(k.unsqueeze(3).expand(expandShape)).view(qShape);
+    v = F::contiguous(v.unsqueeze(3).expand(expandShape)).view(qShape);
+  }
 
   // apply attention.
   // TODO: streaming mode support.

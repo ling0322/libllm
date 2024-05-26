@@ -25,10 +25,10 @@ import io
 import sys
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
-from bpe_exporter import read_spm_model
+from bpe_exporter import read_spm_model, read_transformers_fast_bpe_model
 from torch import nn
 
-class Llama2Exporter(ModelExporter):
+class LlamaExporter(ModelExporter):
     def __init__(self, writer: TensorWriter) -> None:
         super().__init__(writer)
 
@@ -79,7 +79,6 @@ class Llama2Exporter(ModelExporter):
         config = configparser.ConfigParser()
         config["llama"] = {}
 
-        assert llama_config.num_key_value_heads == llama_config.num_attention_heads
         assert llama_config.rope_scaling is None
         assert llama_config.pretraining_tp == 1
         assert llama_config.hidden_act == "silu"
@@ -87,12 +86,13 @@ class Llama2Exporter(ModelExporter):
         section = config["llama"]
         section["hidden_size"] = str(llama_config.hidden_size)
         section["num_heads"] = str(llama_config.num_attention_heads)
+        section["num_key_value_heads"] = str(llama_config.num_key_value_heads)
         section["intermediate_size"] = str(llama_config.intermediate_size)
         section["norm_eps"] = str(llama_config.rms_norm_eps)
         section["num_layers"] = str(llama_config.num_hidden_layers)
         section["vocab_size"] = str(llama_config.vocab_size)
         section["max_ctx_length"] = str(llama_config.max_position_embeddings)
-        section["bos_token_id"] = "1"
+        section["bot_token_id"] = "1"
         section["eot_token_id"] = "2"
 
         return config
@@ -104,7 +104,7 @@ class Llama2Exporter(ModelExporter):
 
         ctx = Context("llama", quant=quant)
         with TensorWriter(fp) as writer:
-            exporter = Llama2Exporter(writer)
+            exporter = LlamaExporter(writer)
             exporter._export(ctx, model)
 
         ini_config = cls.generate_config(config)
@@ -114,17 +114,20 @@ class Llama2Exporter(ModelExporter):
 
         return ini_config
 
-def run_llama2_chat(huggingface_name):
+def run_llama_chat(huggingface_name):
     from transformers import AutoModelForCausalLM, AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained(huggingface_name)
+    tokenizer = AutoTokenizer.from_pretrained(huggingface_name, use_fast=False)
 
-    prompt = "hi"
+    prompt = "hi<s>"
     messages = [
         {"role": "user", "content": prompt}
     ]
-    text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    model_inputs = tokenizer([text], return_tensors="pt")
+    model_inputs = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
     model = AutoModelForCausalLM.from_pretrained(huggingface_name, device_map="cpu")
+    terminators = [
+        tokenizer.eos_token_id,
+        tokenizer.convert_tokens_to_ids("<|eot_id|>")
+    ]
     generated_ids = model.generate(model_inputs.input_ids, max_new_tokens=512)
     generated_ids = [
         output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
@@ -134,7 +137,7 @@ def run_llama2_chat(huggingface_name):
     response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
     print(response)
 
-MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"
+MODEL_NAME = "meta-llama/Meta-Llama-3-8B-Instruct"
 MODEL_BIN = "model.bin"
 MODEL_INI = "model.ini"
 TOKENIZER_BIN = "tokenizer.bin"
@@ -149,11 +152,12 @@ if __name__ == '__main__':
     parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default=MODEL_NAME)
     parser.add_argument('-quantization', type=Quant.parse, help='quantization type, "q4" or "none"', default=Quant.Q4)
     parser.add_argument('-output', type=str, help='output file name.', default="llama.llmpkg")
+    parser.add_argument('-llama_version', type=int, help='llama model version.', default=3)
     parser.add_argument('-run', action="store_true")
     args = parser.parse_args()
 
     if args.run:
-        run_llama2_chat(args.huggingface_name)
+        run_llama_chat(args.huggingface_name)
         sys.exit(0)
 
     tokenizer = AutoTokenizer.from_pretrained(args.huggingface_name, trust_remote_code=True)
@@ -161,13 +165,22 @@ if __name__ == '__main__':
     model = model.eval()
 
     with zipfile.ZipFile(args.output, "w", compression=zipfile.ZIP_STORED) as package:
+        if args.llama_version == 3:
+            libllm_tokenizer = read_transformers_fast_bpe_model(args.huggingface_name)
+        else:
+            libllm_tokenizer = read_spm_model(args.huggingface_name)
+
         with package.open(MODEL_BIN, "w", force_zip64=True) as fp:
-            config = Llama2Exporter.export(model, fp, args.quantization)
+            config = LlamaExporter.export(model, fp, args.quantization)
+
+        if args.llama_version == 3:
+            config["llama"]["bot_token_id"] = str(tokenizer.bos_token_id)
+            config["llama"]["eot_token_id"] = str(tokenizer.eos_token_id)
+            config["llama"]["eot_id"] = str(tokenizer.convert_tokens_to_ids("<|eot_id|>"))
 
         with package.open(MODEL_INI, "w", force_zip64=True) as fp:
             config.write(io.TextIOWrapper(fp))
 
-        libllm_tokenizer = read_spm_model(args.huggingface_name)
         with package.open(TOKENIZER_BIN, "w", force_zip64=True) as fp:
             libllm_tokenizer.save(fp)
         

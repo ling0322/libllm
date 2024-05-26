@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,8 +20,10 @@
 #pragma once
 
 #include <stdint.h>
+
 #include <limits>
 #include <memory>
+
 #include "libllm/device.h"
 #include "libllm/dtype.h"
 #include "libllm/lut/fixed_array.h"
@@ -49,9 +51,8 @@ class Tensor {
   /// @param shape pointer to TensorShape.
   /// @param data pointer to TensorData.
   /// @return The Tensor created.
-  static Tensor create(std::shared_ptr<TensorShape> shape,
-                       std::shared_ptr<TensorData> data,
-                       int64_t offset = 0);
+  static Tensor
+  create(std::shared_ptr<TensorShape> shape, std::shared_ptr<TensorData> data, int64_t offset = 0);
 
   // constructor and destructor.
   Tensor();
@@ -75,7 +76,7 @@ class Tensor {
   std::vector<int> getShape() const;
   std::string getShapeString() const;
 
-  // get stride for dimension `d`. 
+  // get stride for dimension `d`.
   ShapeType getStride(int d) const;
 
   // get number of elements in this tensor.
@@ -125,7 +126,7 @@ class Tensor {
 
   // Check the shape of a tensor. If shape of `tensor` does not match `shape`, return AbortedError
   // with message "invalid shape".
-  void throwIfInvalidShape(lut::Span<const int> shape) const;
+  void throwIfInvalidShape(lut::Span<const int> shape, const std::string &name) const;
 
   // low-level functions. DO NOT use them outside llyn.
   const TensorData *getDataObject() const;
@@ -188,7 +189,9 @@ class TensorShape {
   int getRealDim(int dim) const;
   int getRealIndex(int dim, int index) const;
 
-  lut::Span<const Elem> getData_() const { return lut::makeConstSpan(_data); }
+  lut::Span<const Elem> getData_() const {
+    return lut::makeConstSpan(_data);
+  }
 
   std::string toString() const;
 
@@ -224,7 +227,7 @@ class SlotBase {
   T *getData(int64_t offset = 0) const;
 
   /// @brief Get total number of bytes in this slot.
-  /// @return 
+  /// @return
   int64_t getSizeInBytes() const {
     return getDType().getTotalSize(getNumEl());
   }
@@ -268,24 +271,32 @@ class TensorData {
   /// @param offset the offset `n`.
   /// @return the pointer of type `T`.
   template<typename T>
-  T *getData(int64_t offset = 0) const { return getSlot(0)->getData<T>(offset); }
+  T *getData(int64_t offset = 0) const {
+    return getSlot(0)->getData<T>(offset);
+  }
 
   /// @brief Get data type from slot[0]
   /// @return slot[0] data type.
-  DType getDType() const { return getSlot(0)->getDType(); }
+  DType getDType() const {
+    return getSlot(0)->getDType();
+  }
 
   /// @brief Get number of elements in slot[0]
   /// @return number of elements in slot[0].
-  int64_t getNumEl() const { return getSlot(0)->getNumEl(); }
+  int64_t getNumEl() const {
+    return getSlot(0)->getNumEl();
+  }
 
   /// @brief Get total size in bytes of slot[0]
   /// @return slot[0] size in bytes.
-  int64_t getSizeInBytes() const { return getSlot(0)->getSizeInBytes(); }
+  int64_t getSizeInBytes() const {
+    return getSlot(0)->getSizeInBytes();
+  }
 };
 
 constexpr int None = std::numeric_limits<int>::min();
 
-inline DType Tensor::getDType() const { 
+inline DType Tensor::getDType() const {
   return _data ? _data->getDType() : DType(DType::kUnknown);
 }
 

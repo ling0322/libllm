@@ -314,7 +314,7 @@ void ChatGlmModel::initParameters(const StateMap &stateDict) {
   }
 
   _rope = stateDict.getTensor(ctx.name("rope"));
-  _rope.throwIfInvalidShape({_config.seqLength, _config.kvChannels / 4, 2});
+  _rope.throwIfInvalidShape({_config.seqLength, _config.kvChannels / 4, 2}, ctx.name("rope"));
   _rope = _rope.view({_config.seqLength, 1, _config.kvChannels / 2});
   _rope = moveAndCastFloat(_rope, ctx);
 }

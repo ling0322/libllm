@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,9 +17,8 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/tensor.h"
-
 #include <cmath>
+
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
@@ -31,7 +30,7 @@ namespace cpu {
 
 template<typename T>
 float maxDiffKernel(Tensor A, Tensor B) {
-  A.throwIfInvalidShape(B.getShape());
+  A.throwIfInvalidShape(B.getShape(), "maxDiffKernel");
 
   TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(A);
   TensorList<const T, 1> vB = TensorList<const T, 1>::fromTensor(B);
@@ -47,7 +46,7 @@ float maxDiffKernel(Tensor A, Tensor B) {
       if (diff > maxDiff) maxDiff = diff;
     }
   }
-  
+
   return maxDiff;
 }
 
@@ -64,7 +63,7 @@ float meanAbsKernel(Tensor A) {
       sum += fabs(static_cast<float>(a[i]));
     }
   }
-  
+
   return static_cast<float>(sum / A.getNumEl());
 }
 
@@ -89,6 +88,6 @@ bool allClose(Tensor A, Tensor B, float rtol, float atol) {
   NOT_IMPL();
 }
 
-}  // cpu
-}  // op
-}  // libllm
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

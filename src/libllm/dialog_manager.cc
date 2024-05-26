@@ -97,24 +97,40 @@ std::shared_ptr<llm::Prompt> LlamaPromptBuilder::buildPrompt(
     const std::string &question) {
   std::shared_ptr<llm::Prompt> prompt = llm::Prompt::fromModel(model);
   bool systemPromptAdded = false;
-  for (const QA &qa : history) {
-    prompt->appendControlToken("<s>");
-    if (!systemPromptAdded) {
-      prompt->appendText("[INST] <<SYS>>\nYou are a helpful assistant.\n<</SYS>>\n\n");
-      systemPromptAdded = true;
-    } else {
-      prompt->appendText("[INST]");
-    }
-    prompt->appendText(qa.question + " [/INST]" + qa.answer);
-    prompt->appendControlToken("</s>");
-  }
-  prompt->appendControlToken("<s>");
+  prompt->appendControlToken("<|begin_of_text|>");
   if (!systemPromptAdded) {
-    prompt->appendText("[INST] <<SYS>>\nYou are a helpful assistant.\n<</SYS>>\n\n");
-  } else {
-    prompt->appendText("[INST]");
+    prompt->appendControlToken("<|start_header_id|>");
+    prompt->appendText("system");
+    prompt->appendControlToken("<|end_header_id|>");
+    prompt->appendText("\n\nYou are a helpful assistant.");
+    prompt->appendControlToken("<|eot_id|>");
+    prompt->appendText("\n");
+    systemPromptAdded = true;
   }
-  prompt->appendText(question + " [/INST]");
+
+  for (const QA &qa : history) {
+    prompt->appendControlToken("<|start_header_id|>");
+    prompt->appendText("user");
+    prompt->appendControlToken("<|end_header_id|>");
+    prompt->appendText("\n\n" + qa.question);
+    prompt->appendControlToken("<|eot_id|>");
+    prompt->appendControlToken("<|start_header_id|>");
+    prompt->appendText("assistant");
+    prompt->appendControlToken("<|end_header_id|>");
+    prompt->appendText("\n\n" + qa.answer);
+    prompt->appendControlToken("<|eot_id|>");
+    prompt->appendText("\n");
+  }
+
+  prompt->appendControlToken("<|start_header_id|>");
+  prompt->appendText("user");
+  prompt->appendControlToken("<|end_header_id|>");
+  prompt->appendText("\n\n" + question);
+  prompt->appendControlToken("<|eot_id|>");
+  prompt->appendControlToken("<|start_header_id|>");
+  prompt->appendText("assistant");
+  prompt->appendControlToken("<|end_header_id|>");
+  prompt->appendText("\n\n");
   return prompt;
 }
 

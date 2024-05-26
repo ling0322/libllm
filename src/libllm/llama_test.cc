@@ -37,6 +37,7 @@ class TestCommon {
     LlamaConfig config;
     config.hiddenSize = 128;
     config.numHeads = 2;
+    config.numKeyValueHeads = 2;
     config.intermediateSize = 256;
     config.normEps = 1e-5;
     config.numLayers = 2;
