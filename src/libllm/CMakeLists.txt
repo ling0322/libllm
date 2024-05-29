@@ -18,6 +18,7 @@ set(lut_SOURCES
     "lut/reader.cc"
     "lut/strings.cc"
     "lut/time.cc"
+    "lut/thread_pool.cc"
     "lut/zip_file.cc")
 
 set(libllm_SOURCES
