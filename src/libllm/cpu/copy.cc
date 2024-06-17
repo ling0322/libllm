@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -22,6 +22,7 @@
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
+#include "libllm/operators.h"
 
 namespace libllm {
 namespace op {
@@ -33,13 +34,14 @@ void copyKernel(const Tensor &src, Tensor &dest) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(dest);
   CHECK(vA.getLength() == vC.getLength());
 
-  #pragma omp parallel for
-  for (int j = 0; j < vA.getLength(); ++j) {
-    TensorAccessor<const T, 1> a = vA.getTensor(j);
-    TensorAccessor<T, 1> c = vC.getTensor(j);
+  getThreadPool()->parallelFor({vA.getLength()}, [&vA, &vC](lut::Range r, int _) {
+    for (int j = r.getBegin(); j < r.getEnd(); j += r.getStep()) {
+      TensorAccessor<const T, 1> a = vA.getTensor(j);
+      TensorAccessor<T, 1> c = vC.getTensor(j);
 
-    copyVector(c, a);
-  }
+      copyVector(c, a);
+    }
+  });
 }
 
 void copy(const Tensor &src, Tensor &dest) {
@@ -56,6 +58,6 @@ void copy(const Tensor &src, Tensor &dest) {
   }
 }
 
-}  // cpu
-}  // op
-}  // libllm
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

@@ -28,6 +28,7 @@
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/util.h"
 #include "libllm/lut/c_ptr.h"
+#include "libllm/operators.h"
 
 namespace libllm {
 namespace op {
@@ -38,15 +39,22 @@ template<typename ElementA, typename ElementB, typename ElementC, CpuMathBackend
 void gemvContigousN(const GemvArgs<ElementA, ElementB, ElementC> &args) {
   if (MODE == Mode::SingleThread) {
     for (int m = 0; m < args.M; ++m) {
-      args.y[m] +=
-          dotKernel<ElementC, ElementB, ElementA, TYPE>(args.N, args.x, args.A, m * args.lda);
+      args.y[m] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
+          args.N,
+          args.x,
+          args.A,
+          m * args.lda);
     }
   } else if (MODE == Mode::OMP) {
-#pragma omp parallel for
-    for (int m = 0; m < args.M; ++m) {
-      args.y[m] +=
-          dotKernel<ElementC, ElementB, ElementA, TYPE>(args.N, args.x, args.A, m * args.lda);
-    }
+    getThreadPool()->parallelFor({args.M}, [args](lut::Range r, int _) {
+      for (int m = r.getBegin(); m < r.getEnd(); m += r.getStep()) {
+        args.y[m] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
+            args.N,
+            args.x,
+            args.A,
+            m * args.lda);
+      }
+    });
   } else {
     NOT_IMPL();
   }
@@ -73,12 +81,22 @@ void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
     lut::c_ptr<float> ys = alignedAlloc<float>(args.N * numThreads);
     memset(ys.get(), 0, args.N * numThreads * sizeof(float));
 
-// compute axpy.
-#pragma omp parallel for num_threads(numThreads)
-    for (int m = 0; m < args.M; ++m) {
-      float *py = ys.get() + omp_get_thread_num() * args.N;
-      axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.lda, py);
-    }
+    // compute axpy.
+    getThreadPool()->parallelFor(
+        {args.M},
+        [args, &ys](lut::Range r, int threadId) {
+          LOG(INFO) << threadId;
+          for (int m = r.getBegin(); m < r.getEnd(); m += r.getStep()) {
+            float *py = ys.get() + threadId * args.N;
+            axpyKernel<ElementB, ElementA, float, TYPE>(
+                args.N,
+                args.x[m],
+                args.A,
+                m * args.lda,
+                py);
+          }
+        },
+        numThreads);
 
     // accumulate ys.
     // TODO: vAdd.

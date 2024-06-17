@@ -15,6 +15,7 @@ set(lut_SOURCES
     "lut/is_debug.cc"
     "lut/path.cc"
     "lut/random.cc"
+    "lut/range.cc"
     "lut/reader.cc"
     "lut/strings.cc"
     "lut/time.cc"

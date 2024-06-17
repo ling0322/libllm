@@ -25,6 +25,7 @@
 #include "libllm/cpu/kernel/gemv.h"
 #include "libllm/lut/log.h"
 #include "libllm/lut/time.h"
+#include "libllm/operators.h"
 
 namespace libllm {
 namespace op {
@@ -130,18 +131,25 @@ class Gemm {
     int lastNr = C.numCols % NR;
     int lastMr = C.numRows % MR;
 
-#pragma omp parallel for if (MODE == Mode::OMP)
-    for (int i = 0; i < np; ++i) {
-      for (int j = 0; j < mp; ++j) {
-        int nr = (i != np - 1 || lastNr == 0) ? NR : lastNr;
-        int mr = (j != mp - 1 || lastMr == 0) ? MR : lastMr;
+    auto closure = [this, &A, &B, &C, mp, np, lastNr, lastMr](lut::Range r, int _) {
+      for (int i = r.getBegin(); i < r.getEnd(); i += r.getStep()) {
+        for (int j = 0; j < mp; ++j) {
+          int nr = (i != np - 1 || lastNr == 0) ? NR : lastNr;
+          int mr = (j != mp - 1 || lastMr == 0) ? MR : lastMr;
 
-        Block<T> Aj = A.block(j);
-        Block<T> Bi = B.block(i);
-        Block<T> Cji = C.slice(j * MR, i * NR, mr, nr);
+          Block<T> Aj = A.block(j);
+          Block<T> Bi = B.block(i);
+          Block<T> Cji = C.slice(j * MR, i * NR, mr, nr);
 
-        microKernel(Aj, Bi, Cji);
+          microKernel(Aj, Bi, Cji);
+        }
       }
+    };
+
+    if (MODE == Mode::OMP) {
+      getThreadPool()->parallelFor({np}, closure);
+    } else {
+      closure({np}, 0);
     }
   }
 

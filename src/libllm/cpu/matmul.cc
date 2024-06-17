@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,11 +19,12 @@
 
 #include "libllm/cpu/matmul.h"
 
-#include "libllm/lut/strings.h"
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/common.h"
-#include "libllm/cpu/tensor.h"
 #include "libllm/cpu/kernel/interface.h"
+#include "libllm/cpu/tensor.h"
+#include "libllm/lut/strings.h"
+#include "libllm/operators.h"
 
 #ifndef _OPENMP
 #error OpenMP required
@@ -149,7 +150,7 @@ inline void callGemm<Float16>(
     int ldb,
     Float16 *C,
     int ldc,
-    kernel::Mode mode)  {
+    kernel::Mode mode) {
   const kernel::Float16 *xA = reinterpret_cast<const kernel::Float16 *>(A);
   const kernel::Float16 *xB = reinterpret_cast<const kernel::Float16 *>(B);
   kernel::Float16 *xC = reinterpret_cast<kernel::Float16 *>(C);
@@ -213,22 +214,23 @@ Tensor bmm(const Tensor &A, const Tensor &B) {
   const T *const *mBp = mB.getDataPtrList().data();
   T *const *mCp = mC.getDataPtrList().data();
 
-  #pragma omp parallel for
-  for (int i = 0; i < mA.getLength(); ++i) {
-    callGemm<T>(
-        gemmArgs.transA,
-        gemmArgs.transB,
-        gemmArgs.M,
-        gemmArgs.N,
-        gemmArgs.K,
-        mAp[i],
-        gemmArgs.lda,
-        mBp[i],
-        gemmArgs.ldb,
-        mCp[i],
-        gemmArgs.ldc,
-        kernel::Mode::SingleThread);
-  }
+  getThreadPool()->parallelFor({mA.getLength()}, [mAp, mBp, mCp, gemmArgs](lut::Range r, int _) {
+    for (int i = r.getBegin(); i < r.getEnd(); i += r.getStep()) {
+      callGemm<T>(
+          gemmArgs.transA,
+          gemmArgs.transB,
+          gemmArgs.M,
+          gemmArgs.N,
+          gemmArgs.K,
+          mAp[i],
+          gemmArgs.lda,
+          mBp[i],
+          gemmArgs.ldb,
+          mCp[i],
+          gemmArgs.ldc,
+          kernel::Mode::SingleThread);
+    }
+  });
 
   return C;
 }
@@ -275,8 +277,7 @@ inline void callGemmQInt4<float>(
     float *C,
     int ldc,
     kernel::Mode mode) {
-  return kernel::gemmFloatQInt4(
-      transA, transB, M, N, K, A, lda, B, C, ldc, mode);
+  return kernel::gemmFloatQInt4(transA, transB, M, N, K, A, lda, B, C, ldc, mode);
 }
 
 template<>
@@ -358,6 +359,6 @@ Tensor matmul(const Tensor &A, const Tensor &B) {
   NOT_IMPL();
 }
 
-}  // cpu
-}  // op
-}  // ly
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

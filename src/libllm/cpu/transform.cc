@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,12 +17,12 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 #include "libllm/cpu/transform.h"
 
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
+#include "libllm/operators.h"
 #include "libllm/tensor.h"
 
 namespace libllm {
@@ -37,15 +37,16 @@ Tensor transformKernel(const Tensor &A, float alpha, float beta) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
-  #pragma omp parallel for
-  for (int j = 0; j < vA.getLength(); ++j) {
-    TensorAccessor<const T, 1> a = vA.getTensor(j);
-    TensorAccessor<T, 1> c = vC.getTensor(j);
+  getThreadPool()->parallelFor({vA.getLength()}, [&vA, &vC, alpha, beta](lut::Range r, int _) {
+    for (int j = r.getBegin(); j < r.getEnd(); j += r.getStep()) {
+      TensorAccessor<const T, 1> a = vA.getTensor(j);
+      TensorAccessor<T, 1> c = vC.getTensor(j);
 
-    for (int i = 0; i < a.getShape(0); ++i) {
-      c[i] = a[i] * static_cast<T>(alpha) + static_cast<T>(beta);
+      for (int i = 0; i < a.getShape(0); ++i) {
+        c[i] = a[i] * static_cast<T>(alpha) + static_cast<T>(beta);
+      }
     }
-  }
+  });
 
   return C;
 }
@@ -59,6 +60,6 @@ Tensor transform(const Tensor &src, float alpha, float beta) {
   NOT_IMPL();
 }
 
-}  // cpu
-}  // op
-}  // libllm
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

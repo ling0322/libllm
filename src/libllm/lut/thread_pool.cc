@@ -19,20 +19,60 @@
 
 #include "libllm/lut/thread_pool.h"
 
+#include <pthread.h>
+
 #include <atomic>
+#include <condition_variable>
 #include <functional>
+#include <mutex>
+#include <thread>
 #include <vector>
 
-#include "concurrentqueue/concurrentqueue.h"
+#include "libllm/lut/error.h"
 #include "libllm/lut/log.h"
 
 namespace lut {
+
+thread_local int gThreadId = -1;
+
+class Barrier {
+ public:
+  explicit Barrier(int num_threads)
+      : num_threads_(num_threads),
+        count_(0),
+        generation_(0) {
+  }
+
+  void wait() {
+    int gen = generation_.load();
+
+    // 原子性增加计数器
+    if (count_.fetch_add(1) == num_threads_ - 1) {
+      // 所有线程都到达了栅栏，重置计数器并增加generation
+      count_.store(0);
+      generation_.fetch_add(1);
+    } else {
+      // 等待generation改变
+      while (generation_.load() == gen) {
+        asm("nop");
+      }
+    }
+  }
+
+ private:
+  const int num_threads_;
+  std::atomic<int> count_;
+  std::atomic<int> generation_;
+};
 
 /// @brief Implementation of ThreadPool using a lock-free queue.
 class ThreadPool::Impl {
  public:
   Impl(int numThreads)
-      : _numThreads(numThreads) {
+      : _done(false),
+        _range(0),
+        _numThreads(numThreads),
+        _barrier(numThreads + 1) {
   }
 
   ~Impl() {
@@ -46,23 +86,41 @@ class ThreadPool::Impl {
   /// @param done flag indicates that the ThreadPool is going to finalize and workerMain should
   /// exit (no more tasks coming).
   static void workerMain(
-      moodycamel::ConcurrentQueue<std::function<void()>> &closureQueue,
+      int threadId,
+      Barrier *barrier,
+      std::function<void(Range, int)> &closure,
+      lut::Range &range,
+      int &numPartitions,
+      std::atomic<int> &numDone,
       const std::atomic<bool> &done) {
+    gThreadId = threadId;
     while (!done.load()) {
-      std::function<void()> closure;
-      if (closureQueue.try_dequeue(closure)) {
-        closure();
-      } else {
-        std::this_thread::yield();
+      barrier->wait();
+
+      if (threadId < numPartitions) {
+        lut::Range subrange = range.getPartition(threadId, numPartitions);
+        closure(subrange, threadId);
       }
+
+      barrier->wait();
     }
+    LOG(INFO) << "workerMain() DONE!";
   }
 
   void start() {
     CHECK(_pool.empty()) << "ThreadPool already started.";
+    /*
     for (int i = 0; i < _numThreads; ++i) {
-      _pool.emplace_back(workerMain, std::ref(_closureQueue), std::ref(_done));
-    }
+      _pool.emplace_back(
+          workerMain,
+          i,
+          &_barrier,
+          std::ref(_closure),
+          std::ref(_range),
+          std::ref(_numPartitions),
+          std::ref(_numDone),
+          std::ref(_done));
+    }*/
   }
 
   void join() {
@@ -77,15 +135,30 @@ class ThreadPool::Impl {
     return _numThreads;
   }
 
-  void apply(std::function<void()> &&closure) {
-    CHECK(!_pool.empty()) << "ThreadPool not started.";
-    _closureQueue.enqueue(std::move(closure));
+  void parallelFor(Range range, std::function<void(Range, int)> closure, int numThreads) {
+    int n = numThreads > 0 ? numThreads : _numThreads;
+
+#pragma omp parallel for
+    for (int i = 0; i < n; ++i) {
+      closure(range.getPartition(i, n), i);
+    }
+
+    /*
+    _closure = closure;
+    _range = range;
+    _numPartitions = n;
+    _barrier.wait();
+    _barrier.wait();*/
   }
 
  private:
-  moodycamel::ConcurrentQueue<std::function<void()>> _closureQueue;
+  std::function<void(Range, int)> _closure;
+  lut::Range _range;
+  int _numPartitions;
   std::atomic<bool> _done;
+  std::atomic<int> _numDone;
   std::vector<std::thread> _pool;
+  Barrier _barrier;
 
   int _numThreads;
 };
@@ -106,8 +179,13 @@ int ThreadPool::getNumThreads() const {
   return _impl->getNumThreads();
 }
 
-void ThreadPool::apply(std::function<void()> &&closure) {
-  return _impl->apply(std::move(closure));
+void ThreadPool::parallelFor(Range range, std::function<void(Range, int)> closure, int numThreads) {
+  return _impl->parallelFor(range, closure, numThreads);
+}
+
+int ThreadPool::getThreadId() {
+  CHECK(gThreadId >= 0) << "calling getThreadId() outside ThreadPool worker threads.";
+  return gThreadId;
 }
 
 }  // namespace lut

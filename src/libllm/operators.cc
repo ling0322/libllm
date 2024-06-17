@@ -142,9 +142,6 @@ void initOperators() {
 #endif
 
     int numthreads = std::thread::hardware_concurrency();
-    if (numthreads > 16) {
-      numthreads = 16;
-    }
 
     CHECK(gThreadPool == nullptr);
     gThreadPool = new lut::ThreadPool(numthreads);
@@ -173,6 +170,11 @@ void destroyOperators() {
       gOperatorsForDevice[i] = nullptr;
     }
   }
+}
+
+lut::ThreadPool *getThreadPool() {
+  CHECK(gThreadPool != nullptr);
+  return gThreadPool;
 }
 
 }  // namespace libllm

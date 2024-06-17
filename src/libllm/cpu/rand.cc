@@ -30,6 +30,7 @@
 #include "libllm/lut/half.h"
 #include "libllm/lut/random.h"
 #include "libllm/lut/time.h"
+#include "libllm/operators.h"
 #include "libllm/tensor.h"
 
 namespace libllm {
@@ -44,15 +45,15 @@ Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, f
     generator->fill(tensorData, min, max);
   } else {
     // if no generator specified, we could go parallel.
-#pragma omp parallel default(none) shared(tensorData, min, max)
-    {
-      lut::Random r(time(nullptr) + omp_get_thread_num());
-#pragma omp for
-      for (int i = 0; i < tensorData.size(); i++) {
-        float nextR = r.nextFloat();
-        tensorData[i] = min + (max - min) * nextR;
-      }
-    }
+    getThreadPool()->parallelFor(
+        {static_cast<int>(tensorData.size())},
+        [&tensorData, min, max](lut::Range r, int threadId) {
+          lut::Random random(time(nullptr) + threadId);
+          for (int i = r.getBegin(); i < r.getEnd(); i += r.getStep()) {
+            float nextR = random.nextFloat();
+            tensorData[i] = min + (max - min) * nextR;
+          }
+        });
   }
 
   return x;
