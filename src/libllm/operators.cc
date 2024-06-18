@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -21,11 +21,15 @@
 
 #include <atomic>
 #include <mutex>
-#include "libllm/lut/error.h"
-#include "libllm/lut/strings.h"
+#include <thread>
+
 #include "libllm/cpu/cpu_operators.h"
 #include "libllm/cpu/kernel/interface.h"
 #include "libllm/cuda/cuda_operators.h"
+#include "libllm/lut/error.h"
+#include "libllm/lut/strings.h"
+#include "libllm/lut/thread_pool.h"
+#include "libllm/mp.h"
 
 namespace libllm {
 
@@ -113,15 +117,16 @@ DType Operators::getDefaultFloatType() {
   NOT_IMPL();
 }
 
-Tensor Operators::rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min,
-                       float max) {
+Tensor Operators::rand(
+    lut::Span<const int> shape,
+    DType dtype,
+    lut::Random *generator,
+    float min,
+    float max) {
   NOT_IMPL();
 }
 
-Operators *gOperatorsForDevice[Device::NumDeviceType] = {
-  nullptr,
-  nullptr
-};
+Operators *gOperatorsForDevice[Device::NumDeviceType] = {nullptr, nullptr};
 
 static std::atomic<bool> gInitialized{false};
 
@@ -135,6 +140,8 @@ void initOperators() {
     CHECK(!gOperatorsForDevice[Device::kCuda]);
     gOperatorsForDevice[Device::kCuda] = llynCreateCudaOperators();
 #endif
+
+    MP::init();
   }
 }
 
@@ -150,6 +157,7 @@ Operators *getOperators(Device::Type deviceType) {
 
 void destroyOperators() {
   op::cpu::kernel::destroy();
+  MP::destroy();
 
   if (gInitialized.exchange(false)) {
     for (int i = 0; i < Device::NumDeviceType; ++i) {

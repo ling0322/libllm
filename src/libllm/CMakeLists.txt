@@ -1,5 +1,4 @@
-find_package(OpenMP REQUIRED)
-
+find_package(OpenMP)
 if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
@@ -18,6 +17,7 @@ set(lut_SOURCES
     "lut/reader.cc"
     "lut/strings.cc"
     "lut/time.cc"
+    "lut/thread_pool.cc"
     "lut/zip_file.cc")
 
 set(libllm_SOURCES
@@ -56,6 +56,7 @@ set(libllm_SOURCES
     "llama.cc"
     "model_for_generation.cc"
     "module.cc"
+    "mp.cc"
     "operators.cc"
     "qwen.cc"
     "sampler.cc"
@@ -86,7 +87,19 @@ set(llm_SOURCES
 
 set(benchmark_SOURCES "benchmark_main.cc")
 
-set(libllm_INCDIR ".." "../../third_party" ${OpenMP_CXX_INCLUDE_DIRS})
+set(libllm_INCDIR ".." "../../third_party")
+set(libllm_LIBADD lut ${CMAKE_DL_LIBS})
+
+if(WITH_OPENMP)
+    if(NOT OPENMP_FOUND)
+        message(FATAL_ERROR "WITH_OPENMP=ON build OpenMP package not found.")
+    endif()
+    set(libllm_SOURCES ${libllm_SOURCES} "mp_openmp.cc")
+    set(libllm_INCDIR ${libllm_INCDIR} ${OpenMP_CXX_INCLUDE_DIRS})
+    set(libllm_LIBADD ${libllm_LIBADD} OpenMP::OpenMP_CXX)
+else()
+    set(libllm_SOURCES ${libllm_SOURCES} "mp_thread_pool.cc")
+endif()
 
 if (WITH_CUDA)
     set(libllm_INCDIR ${libllm_INCDIR} ${CUDAToolkit_INCLUDE_DIRS})
@@ -187,11 +200,6 @@ endif()
 add_library(lut STATIC ${lut_SOURCES})
 set_target_properties(lut PROPERTIES CXX_VISIBILITY_PRESET hidden)
 target_include_directories(lut PRIVATE ${libllm_INCDIR})
-
-set(libllm_LIBADD
-    lut
-    ${CMAKE_DL_LIBS}
-    OpenMP::OpenMP_CXX)
 
 add_library(libllm_static OBJECT ${libllm_SOURCES})
 target_compile_options(libllm_static PRIVATE "-DLIBLLM_EXPORTS")

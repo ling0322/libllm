@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -22,6 +22,7 @@
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/lut/log.h"
 #include "libllm/lut/time.h"
+#include "libllm/mp.h"
 
 namespace libllm {
 namespace op {
@@ -37,9 +38,9 @@ struct Block {
   int32_t numCols;
   bool transposed;
 
-  constexpr Block<T> sliceRow(int row, int nr);
-  constexpr Block<T> sliceCol(int col, int nc);
-  constexpr Block<T> slice(int row, int col, int nr, int nc);
+  constexpr Block<T> sliceRow(int row, int nr) const;
+  constexpr Block<T> sliceCol(int col, int nc) const;
+  constexpr Block<T> slice(int row, int col, int nr, int nc) const;
   inline void copyTo(Block<T> tgt);
   constexpr Block<T> t();
   constexpr void fillZero();
@@ -52,21 +53,28 @@ struct PackedBlock {
   int32_t numRows;
   int32_t numBlocks;
 
-  constexpr Block<T> block(int i);
+  constexpr Block<T> block(int i) const;
 };
 
 template<typename T, Mode MODE>
 PackedBlock<T> Pack(Block<T> src, Block<T> buf, int pack_size) {
   int numBlock = src.numCols / pack_size;
   int kc = src.numRows;
-  PackedBlock<T> tgt { buf.data, pack_size, kc, numBlock };
+  PackedBlock<T> tgt{buf.data, pack_size, kc, numBlock};
   CHECK(pack_size * numBlock * kc <= buf.numCols * buf.numRows);
 
-  #pragma omp parallel for if(MODE == Mode::OMP)
-  for (int b = 0; b < numBlock; ++b) {
-    Block<T> srcBlock = src.sliceCol(b * pack_size, pack_size);
-    Block<T> tgtBlock = tgt.block(b);
-    srcBlock.copyTo(tgtBlock);
+  auto closure = [src, tgt, pack_size](MP::Partition partition) {
+    for (int b : partition.getRange()) {
+      Block<T> srcBlock = src.sliceCol(b * pack_size, pack_size);
+      Block<T> tgtBlock = tgt.block(b);
+      srcBlock.copyTo(tgtBlock);
+    }
+  };
+
+  if (MODE == Mode::OMP) {
+    MP::parallelFor({numBlock}, closure);
+  } else {
+    closure(MP::Partition(lut::Range(numBlock)));
   }
 
   int nc = src.numCols % pack_size;
@@ -84,23 +92,22 @@ PackedBlock<T> Pack(Block<T> src, Block<T> buf, int pack_size) {
 }
 
 template<typename T>
-constexpr Block<T> Block<T>::sliceRow(int row, int nr) {
+constexpr Block<T> Block<T>::sliceRow(int row, int nr) const {
   return slice(row, 0, nr, numCols);
 }
 template<typename T>
-constexpr Block<T> Block<T>::sliceCol(int col, int nc) {
+constexpr Block<T> Block<T>::sliceCol(int col, int nc) const {
   return slice(0, col, numRows, nc);
 }
 
 template<typename T>
-constexpr Block<T> Block<T>::slice(int row, int col, int nr, int nc) {
-  return Block {
-    data + (transposed ? row + col * stride : row * stride + col),
-    stride,
-    nr,
-    nc,
-    transposed
-  };
+constexpr Block<T> Block<T>::slice(int row, int col, int nr, int nc) const {
+  return Block{
+      data + (transposed ? row + col * stride : row * stride + col),
+      stride,
+      nr,
+      nc,
+      transposed};
 }
 
 template<typename T>
@@ -135,7 +142,7 @@ inline void Block<T>::copyTo(Block<T> tgt) {
       int srcOffset = c * stride;
       int tgtOffset = c * tgt.stride;
       for (int r = 0; r < numRows; ++r) {
-          tgt.data[r + tgtOffset] = data[r + srcOffset];
+        tgt.data[r + tgtOffset] = data[r + srcOffset];
       }
     }
   }
@@ -143,13 +150,7 @@ inline void Block<T>::copyTo(Block<T> tgt) {
 
 template<typename T>
 constexpr Block<T> Block<T>::t() {
-  return Block<T> {
-    data,
-    stride,
-    numCols,
-    numRows,
-    !transposed
-  };
+  return Block<T>{data, stride, numCols, numRows, !transposed};
 }
 
 template<typename T>
@@ -166,17 +167,9 @@ constexpr void Block<T>::fillZero() {
 }
 
 template<typename T>
-constexpr Block<T> PackedBlock<T>::block(int i) {
-  return Block<T> {
-    data + packSize * numRows * i,
-    packSize,
-    numRows,
-    packSize,
-    false
-  };
+constexpr Block<T> PackedBlock<T>::block(int i) const {
+  return Block<T>{data + packSize * numRows * i, packSize, numRows, packSize, false};
 }
-
-
 
 }  // namespace kernel
 }  // namespace cpu

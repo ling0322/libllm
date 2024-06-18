@@ -44,6 +44,8 @@ class StateMap {
   StateMap &operator=(StateMap &&rhs) {
     _dict = std::move(rhs._dict);
     _intDict = std::move(rhs._intDict);
+
+    return *this;
   }
 
   /// @brief Create a copy of current state map. It's only a shallow copy and the content of Tensor

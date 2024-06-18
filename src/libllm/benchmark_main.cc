@@ -164,11 +164,10 @@ void benchmarkLlama(std::shared_ptr<llama::LlamaModel> model, int ctxLength, DTy
       tokenPerSec);
 }
 
-int benchmarkMain() {
+int benchmarkMain(Device device) {
   CHECK(llmInit(LLM_API_VERSION) == LLM_OK);
 
   LlamaType llamaType = LlamaType::Llama2_7B;
-  Device device = libllm::Device::getCuda();
   DType weightType = libllm::DType::kQInt4x32;
 
   LOG(INFO) << "intializing model ...";
@@ -189,6 +188,23 @@ int benchmarkMain() {
 }  // namespace libllm
 
 int main(int argc, char **argv) {
-  libllm::benchmarkMain();
-  return 0;
+  const char *usage =
+      "Command line interface for benchmarking libllm.\n"
+      "Usage: benchmark [-d (cpu|cuda)]";
+
+  std::string deviceType = "cuda";
+  lut::Flags flags(usage);
+  flags.define("-d", &deviceType, "device of the model. (cpu|cuda)");
+  flags.parse(argc, argv);
+
+  if (deviceType == "cpu") {
+    libllm::benchmarkMain(libllm::Device::getCpu());
+    return 0;
+  } else if (deviceType == "cuda") {
+    libllm::benchmarkMain(libllm::Device::getCuda());
+    return 0;
+  } else {
+    fprintf(stderr, "unexpected device %s\n", deviceType.c_str());
+    return 1;
+  }
 }

@@ -19,7 +19,6 @@
 
 #include "libllm/cpu/kernel/interface.h"
 
-#include <omp.h>
 #include <stdlib.h>
 
 #include <atomic>

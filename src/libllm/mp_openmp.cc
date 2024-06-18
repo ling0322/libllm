@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,41 +17,44 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <math.h>
+// MP implementation with OpenMP.
 
-#include "catch2/catch_amalgamated.hpp"
-#include "libllm/cpu/kernel/abstract.h"
-#include "libllm/cpu/kernel/test_common.h"
-#include "libllm/cpu/kernel/util.h"
-#include "libllm/lut/half.h"
+#include "libllm/mp.h"
+
+#include <omp.h>
+
+#include <atomic>
+#include <functional>
+#include <thread>
+
 #include "libllm/lut/log.h"
-#include "libllm/lut/random.h"
-#include "ruapu/ruapu.h"
+#include "libllm/lut/range.h"
+#include "libllm/lut/thread_pool.h"
 
 namespace libllm {
-namespace op {
-namespace cpu {
-namespace kernel {
 
-CATCH_TEST_CASE("test sgemm6x16Avx2Kernel", "[cpu_kernel][kernel][avx512]") {
-  bool isaAvx512f = ruapu_supports("avx512f") > 0;
-  if (!isaAvx512f) {
-    CATCH_SKIP("skip sgemm6x16Avx2Kernel tesing since CPU not supported.");
-  }
-
-  GemmMicroKernelTester<float, float, float, 12, 32, CpuMathBackend::AVX512> tester;
-  tester.test(1);
-  tester.test(8);
-  tester.test(17);
-  tester.test(64);
-  tester.test(100);
-  tester.test(256);
-  tester.test(500);
-  tester.test(2047);
-  tester.test(2048);
+void MP::init() {
+  LOG(INFO) << "OMP max_threads = " << omp_get_max_threads();
 }
 
-}  // namespace kernel
-}  // namespace cpu
-}  // namespace op
+void MP::destroy() {
+}
+
+int MP::getMaxThreads() {
+  return omp_get_max_threads();
+}
+
+void MP::parallelFor(lut::Range range, int numThreads, std::function<void(Partition)> closure) {
+  int n = numThreads > 0 ? numThreads : getMaxThreads();
+
+#pragma omp parallel for num_threads(n)
+  for (int i = 0; i < n; ++i) {
+    closure(Partition(splitRange(range, i, n), i, n, omp_get_thread_num()));
+  }
+}
+
+void MP::parallelFor(lut::Range range, std::function<void(Partition)> closure) {
+  return parallelFor(range, -1, closure);
+}
+
 }  // namespace libllm

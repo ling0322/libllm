@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -38,9 +38,10 @@ class StrFlagParser : public Flags::Parser {
   std::string _usage;
 };
 
-StrFlagParser::StrFlagParser(std::string *s, const std::string &usage) :
-    _s(s),
-    _usage(usage) {}
+StrFlagParser::StrFlagParser(std::string *s, const std::string &usage)
+    : _s(s),
+      _usage(usage) {
+}
 
 void StrFlagParser::parse(const std::string &arg) {
   *_s = arg;
@@ -54,7 +55,9 @@ std::string StrFlagParser::getType() const {
   return "string";
 }
 
-Flags::Flags(const std::string &usage) : _usage(usage) {}
+Flags::Flags(const std::string &usage)
+    : _usage(usage) {
+}
 
 void Flags::define(const std::string &flag, std::string *s, const std::string &usage) {
   CHECK(_parsers.find(flag) == _parsers.end());
@@ -76,8 +79,19 @@ void Flags::parse(int argc, char *argv[]) {
       if (arg.empty()) {
         continue;
       } else if (arg.front() == '-') {
-        flag = arg;
-        state = FlagParserStateFlag;
+        size_t equalPos = arg.find_first_of('=');
+        if (equalPos != std::string::npos) {
+          std::string name = arg.substr(0, equalPos);
+          std::string value = arg.substr(equalPos + 1);
+
+          auto parserIt = _parsers.find(name);
+          if (parserIt == _parsers.end())
+            throw InvalidArgError(lut::sprintf("unexpected flag: %s", name));
+          parserIt->second->parse(value);
+        } else {
+          flag = arg;
+          state = FlagParserStateFlag;
+        }
       } else {
         _positionalArgs.emplace_back(std::move(arg));
       }
@@ -101,9 +115,8 @@ void Flags::printUsage() const {
   for (const auto &it : _parsers) {
     printf("%s %s\n", it.first.c_str(), it.second->getType().c_str());
     std::string usage = it.second->getUsage();
-    if (!usage.empty())
-      printf("    %s\n", usage.c_str());
+    if (!usage.empty()) printf("    %s\n", usage.c_str());
   }
 }
 
-} // namespace lut
+}  // namespace lut

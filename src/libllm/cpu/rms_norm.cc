@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,9 +20,11 @@
 #include "libllm/cpu/rms_norm.h"
 
 #include <cmath>
+
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
+#include "libllm/mp.h"
 #include "libllm/tensor.h"
 
 namespace libllm {
@@ -42,26 +44,27 @@ Tensor rmsNormKernel(const Tensor &tensor, const Tensor &weight, float eps) {
 
   TensorAccessor<const T, 1> w = weight;
 
-  #pragma omp parallel for
-  for (int j = 0; j < vA.getLength(); ++j) {
-    TensorAccessor<const T, 1> a = vA.getTensor(j);
-    TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor({vA.getLength()}, [&vA, &vC, w, eps](MP::Partition partition) {
+    for (int j : partition.getRange()) {
+      TensorAccessor<const T, 1> a = vA.getTensor(j);
+      TensorAccessor<T, 1> c = vC.getTensor(j);
 
-    double sum = 0.0;
-    for (int i = 0; i < a.getShape(0); ++i) {
-      double va = a[i];
-      sum += va * va;
-    }
-    double mean = sum / a.getShape(0);
-    double rms = std::sqrt(mean + eps);
+      double sum = 0.0;
+      for (int i = 0; i < a.getShape(0); ++i) {
+        double va = a[i];
+        sum += va * va;
+      }
+      double mean = sum / a.getShape(0);
+      double rms = std::sqrt(mean + eps);
 
-    // compute rms-norm
-    for (int i = 0; i < a.getShape(0); ++i) {
-      double va = a[i];
-      double vw = w[i];
-      c[i] = static_cast<T>(a[i] * w[i] / rms);
+      // compute rms-norm
+      for (int i = 0; i < a.getShape(0); ++i) {
+        double va = a[i];
+        double vw = w[i];
+        c[i] = static_cast<T>(a[i] * w[i] / rms);
+      }
     }
-  }
+  });
 
   return C;
 }
@@ -75,6 +78,6 @@ Tensor rmsNorm(const Tensor &tensor, const Tensor &weight, float eps) {
   NOT_IMPL();
 }
 
-}  // cpu
-}  // op
-}  // libllm
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

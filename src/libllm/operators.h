@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,9 +20,11 @@
 #pragma once
 
 #include <stdint.h>
+
 #include "libllm/device.h"
-#include "libllm/tensor.h"
 #include "libllm/lut/random.h"
+#include "libllm/lut/thread_pool.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 
@@ -51,14 +53,13 @@ class Operators {
   virtual Tensor swiglu(Tensor A);
   virtual Tensor to(Device device, Tensor tensor);
   virtual Tensor cast(Tensor tensor, DType dtype);
-  virtual Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min,
-                      float max);
+  virtual Tensor
+  rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min, float max);
 
   virtual DType getDefaultFloatType();
 };
 
 extern Operators *gOperatorsForDevice[Device::NumDeviceType];
-
 
 Operators *getOperators(Device::Type deviceType);
 void initOperators();

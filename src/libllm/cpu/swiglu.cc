@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,8 +20,11 @@
 #include "libllm/cpu/swiglu.h"
 
 #include <cmath>
+
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/tensor.h"
+#include "libllm/lut/thread_pool.h"
+#include "libllm/mp.h"
 
 namespace libllm {
 namespace op {
@@ -37,19 +40,21 @@ Tensor swigluKernel(const Tensor &A) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
-  #pragma omp parallel for
-  for (int j = 0; j < vA.getLength(); ++j) {
-    TensorAccessor<const T, 1> a = vA.getTensor(j);
-    TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor({vA.getLength()}, [&vA, &vC](MP::Partition partition) {
+    for (int j : partition.getRange()) {
+      TensorAccessor<const T, 1> a = vA.getTensor(j);
+      TensorAccessor<T, 1> c = vC.getTensor(j);
 
-    int n = c.getShape(0);
-    for (int i = 0; i < n; ++i) {
-      T x = a[i];
-      x *= 1.0f / (1 + expf(-x));
-      x *= a[i + n];
-      c[i] = x;
+      int n = c.getShape(0);
+      for (int i = 0; i < n; ++i) {
+        T x = a[i];
+        x *= 1.0f / (1 + expf(-x));
+        x *= a[i + n];
+        c[i] = x;
+      }
     }
-  }
+  });
+
   return C;
 }
 
@@ -64,10 +69,6 @@ Tensor swiglu(const Tensor &A) {
   NOT_IMPL();
 }
 
-
-
-
-}  // cpu
-}  // op
-}  // ly
-
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

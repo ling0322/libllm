@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -22,8 +22,9 @@
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
-#include "libllm/tensor.h"
 #include "libllm/lut/attributes.h"
+#include "libllm/mp.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
@@ -44,22 +45,23 @@ Tensor binaryOpKernel(const Tensor &A, const Tensor &B, BinaryOp op) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vB.getLength() && vC.getLength() == vB.getLength());
 
-  #pragma omp parallel for
-  for (int j = 0; j < vA.getLength(); ++j) {
-    TensorAccessor<const T, 1> a = vA.getTensor(j);
-    TensorAccessor<const T, 1> b = vB.getTensor(j);
-    TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor({vA.getLength()}, [&vA, &vB, &vC, op](MP::Partition partition) {
+    for (int j : partition.getRange()) {
+      TensorAccessor<const T, 1> a = vA.getTensor(j);
+      TensorAccessor<const T, 1> b = vB.getTensor(j);
+      TensorAccessor<T, 1> c = vC.getTensor(j);
 
-    for (int i = 0; i < a.getShape(0); ++i) {
-      if (op == BinaryOp::ADD) {
-        c[i] = a[i] + b[i];
-      } else if (op == BinaryOp::MUL) {
-        c[i] = a[i] * b[i];
-      } else {
-        NOT_IMPL();
+      for (int i = 0; i < a.getShape(0); ++i) {
+        if (op == BinaryOp::ADD) {
+          c[i] = a[i] + b[i];
+        } else if (op == BinaryOp::MUL) {
+          c[i] = a[i] * b[i];
+        } else {
+          NOT_IMPL();
+        }
       }
     }
-  }
+  });
 
   return C;
 }
@@ -74,6 +76,6 @@ Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op) {
   NOT_IMPL();
 }
 
-}  // cpu
-}  // op
-}  // libllm
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include <omp.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,6 +27,7 @@
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/util.h"
 #include "libllm/lut/c_ptr.h"
+#include "libllm/mp.h"
 
 namespace libllm {
 namespace op {
@@ -38,15 +38,22 @@ template<typename ElementA, typename ElementB, typename ElementC, CpuMathBackend
 void gemvContigousN(const GemvArgs<ElementA, ElementB, ElementC> &args) {
   if (MODE == Mode::SingleThread) {
     for (int m = 0; m < args.M; ++m) {
-      args.y[m] +=
-          dotKernel<ElementC, ElementB, ElementA, TYPE>(args.N, args.x, args.A, m * args.lda);
+      args.y[m] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
+          args.N,
+          args.x,
+          args.A,
+          m * args.lda);
     }
   } else if (MODE == Mode::OMP) {
-#pragma omp parallel for
-    for (int m = 0; m < args.M; ++m) {
-      args.y[m] +=
-          dotKernel<ElementC, ElementB, ElementA, TYPE>(args.N, args.x, args.A, m * args.lda);
-    }
+    MP::parallelFor({args.M}, [args](MP::Partition partition) {
+      for (int m : partition.getRange()) {
+        args.y[m] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
+            args.N,
+            args.x,
+            args.A,
+            m * args.lda);
+      }
+    });
   } else {
     NOT_IMPL();
   }
@@ -55,7 +62,7 @@ void gemvContigousN(const GemvArgs<ElementA, ElementB, ElementC> &args) {
 template<typename ElementA, typename ElementB, typename ElementC, CpuMathBackend TYPE, Mode MODE>
 void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
   int mp = (args.M + GEMVMinRowsPerThread - 1) / GEMVMinRowsPerThread;
-  int numThreads = std::min(mp, omp_get_max_threads());
+  int numThreads = std::min(mp, MP::getMaxThreads());
 
   if (MODE == Mode::SingleThread || numThreads <= 1) {
     lut::c_ptr<float> y = alignedAlloc<float>(args.N);
@@ -73,12 +80,13 @@ void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
     lut::c_ptr<float> ys = alignedAlloc<float>(args.N * numThreads);
     memset(ys.get(), 0, args.N * numThreads * sizeof(float));
 
-// compute axpy.
-#pragma omp parallel for num_threads(numThreads)
-    for (int m = 0; m < args.M; ++m) {
-      float *py = ys.get() + omp_get_thread_num() * args.N;
-      axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.lda, py);
-    }
+    // compute axpy.
+    MP::parallelFor({args.M}, numThreads, [args, &ys](MP::Partition partition) {
+      for (int m : partition.getRange()) {
+        float *py = ys.get() + partition.getPartitionIdx() * args.N;
+        axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.lda, py);
+      }
+    });
 
     // accumulate ys.
     // TODO: vAdd.

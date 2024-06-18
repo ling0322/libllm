@@ -4,6 +4,7 @@ include(CheckTypeSize)
 
 option(WITH_CUDA "CUDA compute support." OFF)
 option(WITH_MKL "MKL support (only for reference)." OFF)
+option(WITH_OPENMP "Build with OpenMP." ON)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
 option(MKL_PREFIX "Prefix for MKL headers and libraries." "/opt/intel/mkl")
 
