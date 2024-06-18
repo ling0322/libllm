@@ -19,8 +19,6 @@
 
 #include "libllm/lut/thread_pool.h"
 
-#include <pthread.h>
-
 #include <atomic>
 #include <condition_variable>
 #include <functional>
