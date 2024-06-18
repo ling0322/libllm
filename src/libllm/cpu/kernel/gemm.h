@@ -25,7 +25,7 @@
 #include "libllm/cpu/kernel/gemv.h"
 #include "libllm/lut/log.h"
 #include "libllm/lut/time.h"
-#include "libllm/operators.h"
+#include "libllm/mp.h"
 
 namespace libllm {
 namespace op {
@@ -131,8 +131,8 @@ class Gemm {
     int lastNr = C.numCols % NR;
     int lastMr = C.numRows % MR;
 
-    auto closure = [this, &A, &B, &C, mp, np, lastNr, lastMr](lut::Range r, int _) {
-      for (int i = r.getBegin(); i < r.getEnd(); i += r.getStep()) {
+    auto closure = [this, &A, &B, &C, mp, np, lastNr, lastMr](MP::Partition partition) {
+      for (int i : partition.getRange()) {
         for (int j = 0; j < mp; ++j) {
           int nr = (i != np - 1 || lastNr == 0) ? NR : lastNr;
           int mr = (j != mp - 1 || lastMr == 0) ? MR : lastMr;
@@ -147,9 +147,9 @@ class Gemm {
     };
 
     if (MODE == Mode::OMP) {
-      getThreadPool()->parallelFor({np}, closure);
+      MP::parallelFor({np}, closure);
     } else {
-      closure({np}, 0);
+      closure(MP::Partition(lut::Range(np)));
     }
   }
 

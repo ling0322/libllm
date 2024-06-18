@@ -20,7 +20,6 @@
 #include "libllm/cpu/kernel/interface.h"
 
 #include <math.h>
-#include <omp.h>
 
 #include "catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/kernel/test_common.h"

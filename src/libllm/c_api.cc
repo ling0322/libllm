@@ -1,4 +1,3 @@
-#include <omp.h>
 #include <string.h>
 
 #include <atomic>
@@ -126,8 +125,6 @@ llmStatus_t llmInit(int32_t apiVersion) {
       if (apiVersion != LLM_API_VERSION) throw lut::InvalidArgError("api version mismatch.");
       lut::setLogLevel(lut::LogSeverity::kINFO);
       libllm::initOperators();
-
-      LOG(INFO) << "OMP max_threads = " << omp_get_max_threads();
 
       return LLM_OK;
     } catch (const lut::Error &e) {

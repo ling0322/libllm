@@ -17,44 +17,44 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// MP implementation with OpenMP.
+
+#include "libllm/mp.h"
+
+#include <omp.h>
+
+#include <atomic>
+#include <functional>
+#include <thread>
+
+#include "libllm/lut/log.h"
 #include "libllm/lut/range.h"
+#include "libllm/lut/thread_pool.h"
 
-#include <algorithm>
+namespace libllm {
 
-namespace lut {
-
-Range::Range(int end)
-    : _begin(0),
-      _end(end),
-      _step(1) {
+void MP::init() {
+  LOG(INFO) << "OMP max_threads = " << omp_get_max_threads();
 }
 
-Range::Range(int begin, int end)
-    : _begin(begin),
-      _end(end),
-      _step(1) {
+void MP::destroy() {
 }
 
-Range::Range(int begin, int end, int step)
-    : _begin(begin),
-      _end(end),
-      _step(step) {
+int MP::getMaxThreads() {
+  return omp_get_max_threads();
 }
 
-Range Range::getPartition(int i, int numPartitions) {
-  int numel = (_end - _begin) / _step;
-  int partitionSize = numel / numPartitions;
-  int remain = numel % numPartitions;
+void MP::parallelFor(lut::Range range, int numThreads, std::function<void(Partition)> closure) {
+  int n = numThreads > 0 ? numThreads : getMaxThreads();
 
-  int begin = i * partitionSize;
-  begin += std::min(i, remain);
-  int end = begin + partitionSize;
-  if (i < remain) ++end;
-
-  begin = begin * _step + _begin;
-  end = std::min(end * _step + _begin, _end);
-
-  return Range(begin, end, _step);
+#pragma omp parallel for num_threads(n)
+  for (int i = 0; i < n; ++i) {
+    closure(Partition(splitRange(range, i, n), i, n, omp_get_thread_num()));
+  }
 }
 
-}  // namespace lut
+void MP::parallelFor(lut::Range range, std::function<void(Partition)> closure) {
+  return parallelFor(range, -1, closure);
+}
+
+}  // namespace libllm

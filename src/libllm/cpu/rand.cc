@@ -20,7 +20,6 @@
 #include "libllm/cpu/rand.h"
 
 #include <math.h>
-#include <omp.h>
 #include <string.h>
 
 #include <algorithm>
@@ -30,7 +29,7 @@
 #include "libllm/lut/half.h"
 #include "libllm/lut/random.h"
 #include "libllm/lut/time.h"
-#include "libllm/operators.h"
+#include "libllm/mp.h"
 #include "libllm/tensor.h"
 
 namespace libllm {
@@ -45,11 +44,11 @@ Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, f
     generator->fill(tensorData, min, max);
   } else {
     // if no generator specified, we could go parallel.
-    getThreadPool()->parallelFor(
+    MP::parallelFor(
         {static_cast<int>(tensorData.size())},
-        [&tensorData, min, max](lut::Range r, int threadId) {
-          lut::Random random(time(nullptr) + threadId);
-          for (int i = r.getBegin(); i < r.getEnd(); i += r.getStep()) {
+        [&tensorData, min, max](MP::Partition partition) {
+          lut::Random random(time(nullptr) + partition.getPartitionIdx());
+          for (int i : partition.getRange()) {
             float nextR = random.nextFloat();
             tensorData[i] = min + (max - min) * nextR;
           }

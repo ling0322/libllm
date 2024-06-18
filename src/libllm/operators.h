@@ -64,6 +64,5 @@ extern Operators *gOperatorsForDevice[Device::NumDeviceType];
 Operators *getOperators(Device::Type deviceType);
 void initOperators();
 void destroyOperators();
-lut::ThreadPool *getThreadPool();
 
 }  // namespace libllm

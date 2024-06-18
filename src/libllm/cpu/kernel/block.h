@@ -22,7 +22,7 @@
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/lut/log.h"
 #include "libllm/lut/time.h"
-#include "libllm/operators.h"
+#include "libllm/mp.h"
 
 namespace libllm {
 namespace op {
@@ -63,8 +63,8 @@ PackedBlock<T> Pack(Block<T> src, Block<T> buf, int pack_size) {
   PackedBlock<T> tgt{buf.data, pack_size, kc, numBlock};
   CHECK(pack_size * numBlock * kc <= buf.numCols * buf.numRows);
 
-  auto closure = [src, tgt, pack_size](lut::Range r, int _) {
-    for (int b = r.getBegin(); b < r.getEnd(); b += r.getStep()) {
+  auto closure = [src, tgt, pack_size](MP::Partition partition) {
+    for (int b : partition.getRange()) {
       Block<T> srcBlock = src.sliceCol(b * pack_size, pack_size);
       Block<T> tgtBlock = tgt.block(b);
       srcBlock.copyTo(tgtBlock);
@@ -72,9 +72,9 @@ PackedBlock<T> Pack(Block<T> src, Block<T> buf, int pack_size) {
   };
 
   if (MODE == Mode::OMP) {
-    getThreadPool()->parallelFor({numBlock}, closure);
+    MP::parallelFor({numBlock}, closure);
   } else {
-    closure({numBlock}, 0);
+    closure(MP::Partition(lut::Range(numBlock)));
   }
 
   int nc = src.numCols % pack_size;

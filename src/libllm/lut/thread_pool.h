@@ -29,18 +29,14 @@ namespace lut {
 class ThreadPool {
  public:
   ThreadPool(int numThreads);
+  ~ThreadPool();
 
   void start();
-  void join();
   int getNumThreads() const;
 
-  /// @brief split range into N parts and apply each part in the closure. N is the number of workers
-  /// in the thread pool.
-  /// @param range the range.
-  /// @param closure the closure. Since we need to invoke the closure multiple times, we use it by
-  /// value here.
-  /// @param numThreads number of threads to use. -1 means using all threads in the pool.
-  void parallelFor(Range range, std::function<void(Range, int)> closure, int numThreads = -1);
+  /// @brief Apply a closure in the thread pool.
+  /// @param closure the closure to apply.
+  void apply(std::function<void(void)> &&closure);
 
   /// @brief get the thread index in the pool.
   /// @return thread index.

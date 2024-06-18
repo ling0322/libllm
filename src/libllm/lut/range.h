@@ -27,16 +27,57 @@ namespace lut {
 
 class Range {
  public:
-  Range(int end);
-  Range(int begin, int end);
-  Range(int begin, int end, int step);
+  class iterator {
+   public:
+    iterator(int begin, int end, int step)
+        : _current(begin),
+          _end(end),
+          _step(step) {
+    }
 
-  /// @brief Split the range into `numPartitions` partitions. Then return the range of i-th
-  /// partition.
-  /// @param i index of partition to return.
-  /// @param numPartitions number of total partitions.
-  /// @return the i-th partition.
-  Range getPartition(int i, int numPartitions);
+    int operator*() const {
+      return _current;
+    }
+
+    iterator& operator++() {
+      _current += _step;
+      return *this;
+    }
+
+    bool operator!=(const iterator& other) const {
+      // two iterator equals only when both are finished.
+      return !((_current >= _end) && (other._current >= other._end));
+    }
+
+   private:
+    int _current;
+    int _step;
+    int _end;
+  };
+
+  Range(int end)
+      : _begin(0),
+        _end(end),
+        _step(1) {
+  }
+  Range(int begin, int end)
+      : _begin(begin),
+        _end(end),
+        _step(1) {
+  }
+  Range(int begin, int end, int step)
+      : _begin(begin),
+        _end(end),
+        _step(step) {
+  }
+
+  iterator begin() const {
+    return iterator(_begin, _end, _step);
+  }
+
+  iterator end() const {
+    return iterator(_end, _end, _step);
+  }
 
   int getBegin() const {
     return _begin;

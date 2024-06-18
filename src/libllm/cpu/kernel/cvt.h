@@ -19,11 +19,9 @@
 
 #pragma once
 
-#include <omp.h>
-
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/lut/log.h"
-#include "libllm/operators.h"
+#include "libllm/mp.h"
 
 namespace libllm {
 namespace op {
@@ -36,22 +34,19 @@ void cvt(int64_t n, const ElementA *x, int64_t offsetX, ElementC *y, int64_t off
 
   if (MODE == Mode::OMP && nb > 1) {
     int nr = (n - 1) % CvtMinElemPerThread + 1;
-    int numThreads = std::min(nb, omp_get_max_threads());
+    int numThreads = std::min(nb, MP::getMaxThreads());
 
-    getThreadPool()->parallelFor(
-        {nb},
-        [nb, nr, x, offsetX, y, offsetY](lut::Range r, int _) {
-          for (int i = r.getBegin(); i < r.getEnd(); i += r.getStep()) {
-            int ne = (i == nb - 1) ? nr : CvtMinElemPerThread;
-            cvtKernel<ElementA, ElementC, TYPE>(
-                ne,
-                x,
-                offsetX + i * CvtMinElemPerThread,
-                y,
-                offsetY + i * CvtMinElemPerThread);
-          }
-        },
-        numThreads);
+    MP::parallelFor({nb}, numThreads, [nb, nr, x, offsetX, y, offsetY](MP::Partition partition) {
+      for (int i : partition.getRange()) {
+        int ne = (i == nb - 1) ? nr : CvtMinElemPerThread;
+        cvtKernel<ElementA, ElementC, TYPE>(
+            ne,
+            x,
+            offsetX + i * CvtMinElemPerThread,
+            y,
+            offsetY + i * CvtMinElemPerThread);
+      }
+    });
   } else {
     cvtKernel<ElementA, ElementC, TYPE>(n, x, offsetX, y, offsetY);
   }

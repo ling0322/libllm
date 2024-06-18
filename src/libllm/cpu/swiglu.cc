@@ -24,7 +24,7 @@
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/tensor.h"
 #include "libllm/lut/thread_pool.h"
-#include "libllm/operators.h"
+#include "libllm/mp.h"
 
 namespace libllm {
 namespace op {
@@ -40,8 +40,8 @@ Tensor swigluKernel(const Tensor &A) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
-  getThreadPool()->parallelFor({vA.getLength()}, [&vA, &vC](lut::Range r, int _) {
-    for (int j = r.getBegin(); j < r.getEnd(); j += r.getStep()) {
+  MP::parallelFor({vA.getLength()}, [&vA, &vC](MP::Partition partition) {
+    for (int j : partition.getRange()) {
       TensorAccessor<const T, 1> a = vA.getTensor(j);
       TensorAccessor<T, 1> c = vC.getTensor(j);
 

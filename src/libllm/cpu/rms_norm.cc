@@ -24,7 +24,7 @@
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
-#include "libllm/operators.h"
+#include "libllm/mp.h"
 #include "libllm/tensor.h"
 
 namespace libllm {
@@ -44,8 +44,8 @@ Tensor rmsNormKernel(const Tensor &tensor, const Tensor &weight, float eps) {
 
   TensorAccessor<const T, 1> w = weight;
 
-  getThreadPool()->parallelFor({vA.getLength()}, [&vA, &vC, w, eps](lut::Range r, int _) {
-    for (int j = r.getBegin(); j < r.getEnd(); j += r.getStep()) {
+  MP::parallelFor({vA.getLength()}, [&vA, &vC, w, eps](MP::Partition partition) {
+    for (int j : partition.getRange()) {
       TensorAccessor<const T, 1> a = vA.getTensor(j);
       TensorAccessor<T, 1> c = vC.getTensor(j);
 

@@ -29,6 +29,7 @@
 #include "libllm/lut/error.h"
 #include "libllm/lut/strings.h"
 #include "libllm/lut/thread_pool.h"
+#include "libllm/mp.h"
 
 namespace libllm {
 
@@ -126,7 +127,6 @@ Tensor Operators::rand(
 }
 
 Operators *gOperatorsForDevice[Device::NumDeviceType] = {nullptr, nullptr};
-lut::ThreadPool *gThreadPool = nullptr;
 
 static std::atomic<bool> gInitialized{false};
 
@@ -141,13 +141,7 @@ void initOperators() {
     gOperatorsForDevice[Device::kCuda] = llynCreateCudaOperators();
 #endif
 
-    int numthreads = std::thread::hardware_concurrency();
-
-    CHECK(gThreadPool == nullptr);
-    gThreadPool = new lut::ThreadPool(numthreads);
-    gThreadPool->start();
-
-    LOG(INFO) << "ThreadPool num_threads = " << numthreads;
+    MP::init();
   }
 }
 
@@ -163,6 +157,7 @@ Operators *getOperators(Device::Type deviceType) {
 
 void destroyOperators() {
   op::cpu::kernel::destroy();
+  MP::destroy();
 
   if (gInitialized.exchange(false)) {
     for (int i = 0; i < Device::NumDeviceType; ++i) {
@@ -170,11 +165,6 @@ void destroyOperators() {
       gOperatorsForDevice[i] = nullptr;
     }
   }
-}
-
-lut::ThreadPool *getThreadPool() {
-  CHECK(gThreadPool != nullptr);
-  return gThreadPool;
 }
 
 }  // namespace libllm

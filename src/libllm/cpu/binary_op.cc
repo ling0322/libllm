@@ -23,7 +23,7 @@
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
 #include "libllm/lut/attributes.h"
-#include "libllm/operators.h"
+#include "libllm/mp.h"
 #include "libllm/tensor.h"
 
 namespace libllm {
@@ -45,8 +45,8 @@ Tensor binaryOpKernel(const Tensor &A, const Tensor &B, BinaryOp op) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vB.getLength() && vC.getLength() == vB.getLength());
 
-  getThreadPool()->parallelFor({vA.getLength()}, [&vA, &vB, &vC, op](lut::Range r, int _) {
-    for (int j = r.getBegin(); j < r.getEnd(); j += r.getStep()) {
+  MP::parallelFor({vA.getLength()}, [&vA, &vB, &vC, op](MP::Partition partition) {
+    for (int j : partition.getRange()) {
       TensorAccessor<const T, 1> a = vA.getTensor(j);
       TensorAccessor<const T, 1> b = vB.getTensor(j);
       TensorAccessor<T, 1> c = vC.getTensor(j);

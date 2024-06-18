@@ -24,7 +24,7 @@
 #include "libllm/cpu/kernel/interface.h"
 #include "libllm/cpu/tensor.h"
 #include "libllm/lut/strings.h"
-#include "libllm/operators.h"
+#include "libllm/mp.h"
 
 #ifndef _OPENMP
 #error OpenMP required
@@ -214,8 +214,8 @@ Tensor bmm(const Tensor &A, const Tensor &B) {
   const T *const *mBp = mB.getDataPtrList().data();
   T *const *mCp = mC.getDataPtrList().data();
 
-  getThreadPool()->parallelFor({mA.getLength()}, [mAp, mBp, mCp, gemmArgs](lut::Range r, int _) {
-    for (int i = r.getBegin(); i < r.getEnd(); i += r.getStep()) {
+  MP::parallelFor({mA.getLength()}, [mAp, mBp, mCp, gemmArgs](MP::Partition partition) {
+    for (int i : partition.getRange()) {
       callGemm<T>(
           gemmArgs.transA,
           gemmArgs.transB,
