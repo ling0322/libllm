@@ -43,7 +43,7 @@ Generator::Generator(
 
 void Generator::forwardPrompt(const std::vector<LongType> &prompt) {
   for (LongType tokenId : prompt) {
-    LOG(DEBUG) << tokenId << " -> " << _tokenizer->getVocab()->getTokenString(tokenId);
+    LOG(INFO) << tokenId << " -> " << _tokenizer->getVocab()->getTokenString(tokenId);
   }
 
   Tensor inputs = _model->buildInput(prompt);
