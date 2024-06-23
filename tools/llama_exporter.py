@@ -150,7 +150,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='export llama model from huggingface to libllm format.')
     parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default=MODEL_NAME)
-    parser.add_argument('-quantization', type=Quant.parse, help='quantization type, "q4" or "none"', default=Quant.Q4)
+    parser.add_argument('-quant', type=Quant.parse, help='quantization type, "q4" or "none"', default=Quant.Q4)
     parser.add_argument('-output', type=str, help='output file name.', default="llama.llmpkg")
     parser.add_argument('-llama_version', type=int, help='llama model version.', default=3)
     parser.add_argument('-run', action="store_true")
