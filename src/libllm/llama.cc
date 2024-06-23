@@ -214,7 +214,6 @@ Tensor Attention::applyRoPE(Tensor input, Tensor roPE) const {
 
 Tensor Attention::forward(StateMap &past, Tensor input) const {
   CHECK(input.getDim() == 3);
-
   Tensor qkv = _qkvProj->forward(input);
 
   int kvHiddenSize = _headDim * _numKeyValueHead;

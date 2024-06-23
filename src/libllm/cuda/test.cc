@@ -140,6 +140,26 @@ CATCH_TEST_CASE("test dequant", "[ly][op][cuda]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
+CATCH_TEST_CASE("test softmax (large)", "[ly][op][cuda]") {
+  Tensor a = Tensor::create<float>(
+      {1, 1, 4},
+      {
+          -999.0f,
+          -998.0f,
+          -997.0f,
+          -std::numeric_limits<float>::infinity(),
+      });
+  Tensor xr = F::softmax(a);
+
+  Tensor x = F::to(Device::getCuda(), a);
+  x = F::cast(x, DType::kFloat16);
+  x = F::softmax(x);
+  x = F::cast(x, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+
+  CATCH_REQUIRE(F::allClose(x, xr));
+}
+
 CATCH_TEST_CASE("test cat", "[ly][op][cuda]") {
   Tensor a = F::rand({2, 10, 16}, DType::kFloat);
   Tensor b = F::rand({2, 2, 16}, DType::kFloat);

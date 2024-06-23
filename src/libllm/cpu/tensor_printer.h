@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -35,12 +35,18 @@ class TensorPrinter {
 
   template<typename T>
   void print(const Tensor &x) {
-    if (x.getDim() == 1) printTensorAndInfo<T, 1>(x);
-    else if (x.getDim() == 2) printTensorAndInfo<T, 2>(x);
-    else if (x.getDim() == 3) printTensorAndInfo<T, 3>(x);
-    else if (x.getDim() == 4) printTensorAndInfo<T, 4>(x);
-    else if (x.getDim() == 5) printTensorAndInfo<T, 5>(x);
-    else NOT_IMPL();
+    if (x.getDim() == 1)
+      printTensorAndInfo<T, 1>(x);
+    else if (x.getDim() == 2)
+      printTensorAndInfo<T, 2>(x);
+    else if (x.getDim() == 3)
+      printTensorAndInfo<T, 3>(x);
+    else if (x.getDim() == 4)
+      printTensorAndInfo<T, 4>(x);
+    else if (x.getDim() == 5)
+      printTensorAndInfo<T, 5>(x);
+    else
+      NOT_IMPL();
   }
 
  private:
@@ -51,16 +57,16 @@ class TensorPrinter {
     printf("[");
     for (int i = 0; i < A.getShape(0); ++i) {
       if (i > 0) {
-      for (int j = 0; j < padSpace + 1; ++j) printf(" ");
+        for (int j = 0; j < padSpace + 1; ++j) printf(" ");
       }
 
       printTensor<T, DIM - 1>(A[i], padSpace + 1);
 
-      if (i < A.getShape(0) - 1) printf(",\n"); 
+      if (i < A.getShape(0) - 1) printf(",\n");
       if (A.getShape(0) > kPrintEdgeItems * 2 && i == kPrintEdgeItems - 1) {
-      for (int j = 0; j < padSpace + 1; ++j) printf(" ");
-      printf("...\n");
-      i += A.getShape(0) - kPrintEdgeItems * 2;
+        for (int j = 0; j < padSpace + 1; ++j) printf(" ");
+        printf("...\n");
+        i += A.getShape(0) - kPrintEdgeItems * 2;
       }
     }
     printf("]");
@@ -98,6 +104,6 @@ class TensorPrinter {
   }
 };
 
-}  // cpu
-}  // op
-}  // libllm
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm
