@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,21 +17,23 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 #include <cuda_fp16.h>
 #include <math.h>
-#include "libllm/functional.h"
+
+#include "libllm/cuda/binary_op.h"
 #include "libllm/cuda/common.h"
 #include "libllm/cuda/reduce.h"
+#include "libllm/functional.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
 template<typename T>
-__global__ void softmaxKernel3D(PackedSubtensor<const T, 3> input,
-                                PackedSubtensor<const float, 2> sumExp,
-                                PackedSubtensor<T, 3> output) {
+__global__ void softmaxKernel3D(
+    PackedSubtensor<const T, 3> input,
+    PackedSubtensor<const float, 2> sumExp,
+    PackedSubtensor<T, 3> output) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
@@ -46,7 +48,13 @@ Tensor softmaxHalf3D(Tensor A) {
   CHECK(A.getDType() == DType::kFloat16);
   CHECK(A.getDim() == 3);
 
-  Tensor sumExp = reduceHalfToSingle3D(A, ReduceType::SUM_EXP_FP16_FP32);
+  Tensor max = reduceHalf3D(A, MapReduceType::MAX);
+  max = max.view({max.getShape(0), max.getShape(1), 1});
+
+  A = cuda::binaryOp(A, max, BinaryOp::SUB);
+
+  Tensor sumExp = reduceHalfToSingle3D(A, MapReduceType::SUM_EXP_FP16_FP32);
+
   Tensor C = createCudaTensorHalf(A.getShape());
 
   constexpr int blockSize = 256;
@@ -100,6 +108,6 @@ Tensor softmax(Tensor A) {
   NOT_IMPL();
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

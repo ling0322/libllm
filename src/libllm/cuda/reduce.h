@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -25,18 +25,21 @@ namespace libllm {
 namespace op {
 namespace cuda {
 
-enum class ReduceType {
+enum class MapReduceType {
   // Sum of exp(x). FP16_FP32 means the input type if fp16, intermediate and output type is fp32.
   SUM_EXP_FP16_FP32,
 
   // Sum of x^2.
-  SUM_SQUARE_FP16_FP32
+  SUM_SQUARE_FP16_FP32,
+
+  // Get maximun number in list.
+  MAX
 };
 
-Tensor reduce(const Tensor &A, ReduceType reduceType);
-Tensor reduceHalfToSingle3D(Tensor A, ReduceType reduceType);
+Tensor reduce(const Tensor &A, MapReduceType reduceType);
+Tensor reduceHalfToSingle3D(Tensor A, MapReduceType reduceType);
+Tensor reduceHalf3D(Tensor A, MapReduceType reduceType);
 
-}  // cuda
-}  // op
-}  // ly
-
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

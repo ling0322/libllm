@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,13 +17,13 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cuda/binary_op.h"
-
 #include <cuda_fp16.h>
-#include "libllm/tensor.h"
+
 #include "libllm/cpu/common.h"
+#include "libllm/cuda/binary_op.h"
 #include "libllm/cuda/common.h"
 #include "libllm/lut/span.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
@@ -36,16 +36,20 @@ template<>
 __forceinline__ __device__ half applyOp<half, BinaryOp::ADD>(half a, half b) {
   return a + b;
 }
-
+template<>
+__forceinline__ __device__ half applyOp<half, BinaryOp::SUB>(half a, half b) {
+  return a - b;
+}
 template<>
 __forceinline__ __device__ half applyOp<half, BinaryOp::MUL>(half a, half b) {
   return a * b;
 }
 
 template<typename T, BinaryOp OP>
-__global__ void binaryOpKernel2D(PackedSubtensor<const half, 2> A,
-                                 PackedSubtensor<const half, 2> B,
-                                 PackedSubtensor<half, 2> C) {
+__global__ void binaryOpKernel2D(
+    PackedSubtensor<const half, 2> A,
+    PackedSubtensor<const half, 2> B,
+    PackedSubtensor<half, 2> C) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -55,9 +59,10 @@ __global__ void binaryOpKernel2D(PackedSubtensor<const half, 2> A,
 }
 
 template<typename T, BinaryOp OP>
-__global__ void binaryOpKernel3D(PackedSubtensor<const half, 3> A,
-                                 PackedSubtensor<const half, 3> B,
-                                 PackedSubtensor<half, 3> C) {
+__global__ void binaryOpKernel3D(
+    PackedSubtensor<const half, 3> A,
+    PackedSubtensor<const half, 3> B,
+    PackedSubtensor<half, 3> C) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
@@ -68,9 +73,10 @@ __global__ void binaryOpKernel3D(PackedSubtensor<const half, 3> A,
 }
 
 template<typename T, BinaryOp OP>
-__global__ void binaryOpKernel4D(PackedSubtensor<const half, 4> A,
-                                 PackedSubtensor<const half, 4> B,
-                                 PackedSubtensor<half, 4> C) {
+__global__ void binaryOpKernel4D(
+    PackedSubtensor<const half, 4> A,
+    PackedSubtensor<const half, 4> B,
+    PackedSubtensor<half, 4> C) {
   int d3 = blockIdx.x * blockDim.x + threadIdx.x;
 
   dim3 dz = splitIndexToDim3(blockIdx.y * blockDim.y + threadIdx.y, A.getSize());
@@ -98,6 +104,7 @@ Tensor binaryOpHalf4D(const Tensor &A, const Tensor &B, BinaryOp op) {
   d.x = (A.getShape(3) + blockSize - 1) / blockSize;
 
   if (op == BinaryOp::ADD) binaryOpKernel4D<half, BinaryOp::ADD><<<d, blockSize>>>(A, xB, C);
+  if (op == BinaryOp::SUB) binaryOpKernel4D<half, BinaryOp::SUB><<<d, blockSize>>>(A, xB, C);
   if (op == BinaryOp::MUL) binaryOpKernel4D<half, BinaryOp::MUL><<<d, blockSize>>>(A, xB, C);
   cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
@@ -116,6 +123,7 @@ Tensor binaryOpHalf3D(const Tensor &A, const Tensor &B, BinaryOp op) {
   d.x = (A.getShape(2) + blockSize - 1) / blockSize;
 
   if (op == BinaryOp::ADD) binaryOpKernel3D<half, BinaryOp::ADD><<<d, blockSize>>>(A, xB, C);
+  if (op == BinaryOp::SUB) binaryOpKernel3D<half, BinaryOp::SUB><<<d, blockSize>>>(A, xB, C);
   if (op == BinaryOp::MUL) binaryOpKernel3D<half, BinaryOp::MUL><<<d, blockSize>>>(A, xB, C);
   cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
@@ -133,6 +141,7 @@ Tensor binaryOpHalf2D(const Tensor &A, const Tensor &B, BinaryOp op) {
   d.x = (A.getShape(1) + blockSize - 1) / blockSize;
 
   if (op == BinaryOp::ADD) binaryOpKernel2D<half, BinaryOp::ADD><<<d, blockSize>>>(A, xB, C);
+  if (op == BinaryOp::SUB) binaryOpKernel2D<half, BinaryOp::SUB><<<d, blockSize>>>(A, xB, C);
   if (op == BinaryOp::MUL) binaryOpKernel2D<half, BinaryOp::MUL><<<d, blockSize>>>(A, xB, C);
   cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
@@ -157,6 +166,6 @@ Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op) {
   NOT_IMPL();
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

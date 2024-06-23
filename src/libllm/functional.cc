@@ -151,8 +151,10 @@ void copy(Tensor src, Tensor dest) {
 }
 
 Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
+  float dK = 1.0f / sqrtf(1.0f * q.getShape(-1));
+  q = F::mul(q, sqrtf(dK));
+  k = F::mul(k, sqrtf(dK));
   Tensor scores = F::matmul(q, k.transpose(-2, -1));
-  scores = F::mul(scores, 1.0f / sqrtf(1.0f * q.getShape(-1)));
 
   if (!mask.empty()) {
     scores = F::add(scores, mask);

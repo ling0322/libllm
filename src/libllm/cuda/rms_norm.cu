@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,22 +17,22 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cuda/rms_norm.h"
-
 #include <cuda_fp16.h>
+
 #include "libllm/cuda/common.h"
 #include "libllm/cuda/reduce.h"
-
+#include "libllm/cuda/rms_norm.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-__global__ void rmsNormKernel3D(PackedSubtensor<const half, 3> inputTensor,
-                                PackedSubtensor<const float, 2> sumSquare,
-                                PackedSubtensor<const half, 1> weight,
-                                PackedSubtensor<half, 3> outputTensor,
-                                float eps) {
+__global__ void rmsNormKernel3D(
+    PackedSubtensor<const half, 3> inputTensor,
+    PackedSubtensor<const float, 2> sumSquare,
+    PackedSubtensor<const half, 1> weight,
+    PackedSubtensor<half, 3> outputTensor,
+    float eps) {
   assert(inputTensor.getShape(0) == outputTensor.getShape(0));
   assert(inputTensor.getShape(1) == outputTensor.getShape(1));
   assert(inputTensor.getShape(2) == outputTensor.getShape(2));
@@ -51,7 +51,7 @@ __global__ void rmsNormKernel3D(PackedSubtensor<const half, 3> inputTensor,
 }
 
 Tensor rmsNorm3D(const Tensor &tensor, const Tensor &weight, float eps) {
-  Tensor reduceNorm2 = op::cuda::reduceHalfToSingle3D(tensor, ReduceType::SUM_SQUARE_FP16_FP32);
+  Tensor reduceNorm2 = op::cuda::reduceHalfToSingle3D(tensor, MapReduceType::SUM_SQUARE_FP16_FP32);
   CHECK(reduceNorm2.getDim() == 2);
 
   Tensor C = createCudaTensorHalf(tensor.getShape());
@@ -78,7 +78,6 @@ Tensor rmsNorm(const Tensor &tensor, const Tensor &weight, float eps) {
   NOT_IMPL();
 }
 
-}  // cuda
-}  // op
-}  // ly
-
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm
