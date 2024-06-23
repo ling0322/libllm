@@ -19,20 +19,19 @@
 
 #include "../../third_party/catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/kernel/interface.h"
-#include "libllm/llm.h"
+#include "libllm/operators.h"
 #include "libllm/lut/error.h"
 #include "libllm/lut/log.h"
 
 int main(int argc, char **argv) {
-  if (llmInit(LLM_API_VERSION) != LLM_OK) {
-    LOG(FATAL) << llmGetLastErrorMessage();
-  }
+  libllm::initOperators();
 
   // enable some slow kernels for reference.
   libllm::op::cpu::kernel::setAllowSlowKernel(true);
 
   int result = Catch::Session().run(argc, argv);
-  CHECK(llmDestroy() == LLM_OK);
+
+  libllm::destroyOperators();
 
   return result;
 }

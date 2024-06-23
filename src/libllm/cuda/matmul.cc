@@ -64,10 +64,12 @@ std::shared_ptr<MatMul> MatMul::createCublas() {
 
   mm->_gemmExtLib = lut::SharedLibrary::open("llmextcublas");
 
-  std::function<std::shared_ptr<op::cuda::Gemm>()> factory;
-  factory = mm->_gemmExtLib->getFunc<std::shared_ptr<op::cuda::Gemm>()>("llmCreateCudaOpExtGemm");
+  std::function<op::cuda::Gemm *()> factory;
+  std::function<void(op::cuda::Gemm *)> deleter;
+  factory = mm->_gemmExtLib->getFunc<op::cuda::Gemm *()>("llmGemmExt_New");
+  deleter = mm->_gemmExtLib->getFunc<void(op::cuda::Gemm *)>("llmGemmExt_Delete");
 
-  mm->_gemm = factory();
+  mm->_gemm = std::shared_ptr<op::cuda::Gemm>(factory(), deleter);
   if (!mm->_gemm) throw lut::AbortedError("unable to create MatMul operator.");
 
   return mm;

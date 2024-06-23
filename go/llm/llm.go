@@ -19,7 +19,8 @@
 
 package llm
 
-// #cgo LDFLAGS: -ldl
+// #cgo linux LDFLAGS: -ldl
+// #cgo darwin LDFLAGS: -ldl
 // #include <stdlib.h>
 // #include "llm_api.h"
 import "C"

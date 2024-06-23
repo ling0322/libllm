@@ -30,6 +30,7 @@
 #include "libllm/lut/flags.h"
 #include "libllm/lut/random.h"
 #include "libllm/lut/time.h"
+#include "libllm/operators.h"
 #include "libllm/model_for_generation.h"
 
 constexpr int MagicNumber = 0x55aa;
@@ -165,7 +166,7 @@ void benchmarkLlama(std::shared_ptr<llama::LlamaModel> model, int ctxLength, DTy
 }
 
 int benchmarkMain(Device device) {
-  CHECK(llmInit(LLM_API_VERSION) == LLM_OK);
+  libllm::initOperators();
 
   LlamaType llamaType = LlamaType::Llama2_7B;
   DType weightType = libllm::DType::kQInt4x32;
@@ -182,6 +183,8 @@ int benchmarkMain(Device device) {
   libllm::benchmarkLlama(model, 512, libllm::DType::kQInt4x32);
 
   printf("----------------------------------------------------------\n");
+  
+  libllm::destroyOperators();
   return 0;
 }
 
