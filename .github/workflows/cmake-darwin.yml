@@ -1,5 +1,6 @@
 name: macOS
 
+            
 on:
   push:
     branches: [ "main" ]
@@ -13,8 +14,13 @@ jobs:
   build:
     runs-on: macos-14
     steps:
+    - name: Install Go
+      uses: actions/setup-go@v5.0.1
+        with:
+          go-version: '>=1.17.0'
+    - run: go version
     - uses: actions/checkout@v3
-    - name: Install openmp
+    - name: Install OpenMP
       run: brew install libomp
     - name: Configure CMake
       run: OpenMP_ROOT=$(brew --prefix)/opt/libomp cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}

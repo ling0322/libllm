@@ -13,6 +13,11 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
+    - name: Install Go
+      uses: actions/setup-go@v5.0.1
+        with:
+          go-version: '>=1.17.0'
+    - run: go version
     - uses: actions/checkout@v3
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
