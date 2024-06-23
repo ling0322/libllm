@@ -20,7 +20,25 @@
 #ifndef LIBLLM_LLM_API_
 #define LIBLLM_LLM_API_
 
+#ifdef __APPLE__
+#define LUT_PLATFORM_APPLE
+#elif defined(linux) || defined(__linux) || defined(__linux__)
+#define LUT_PLATFORM_LINUX
+#elif defined(WIN32) || defined(__WIN32__) || defined(_MSC_VER) || \
+      defined(_WIN32) || defined(__MINGW32__)
+#define LUT_PLATFORM_WINDOWS
+#else
+#error unknown platform
+#endif
+
+#if defined(LUT_PLATFORM_APPLE) || defined(LUT_PLATFORM_LINUX)
 #include <dlfcn.h>
+typedef void* LLM_HMODULE;
+#elif defined(LUT_PLATFORM_WINDOWS)
+#include <windows.h>
+typedef HMODULE LLM_HMODULE;
+#endif
+
 #include <stdint.h>
 #include <stdio.h>
 
@@ -74,19 +92,30 @@ llmStatus_t (*p_llmChunk_Delete)(llmChunk_t *chunk);
 const char *(*p_llmChunk_GetText)(llmChunk_t *chunk);
 
 // load the libllm shared library.
-void *llmLoadLibrary(const char *libraryPath) {
+LLM_HMODULE llmLoadLibrary(const char *libraryPath) {
   // first try to load the dll from same folder as current module.
+#if defined(LUT_PLATFORM_APPLE) || defined(LUT_PLATFORM_LINUX)
   return dlopen(libraryPath, RTLD_NOW);
+#elif defined(LUT_PLATFORM_WINDOWS)
+  return LoadLibraryA(libraryPath);
+#endif
+  
 }
 
+#if defined(LUT_PLATFORM_APPLE) || defined(LUT_PLATFORM_LINUX)
+#define GET_PROC_ADDR dlsym
+#elif defined(LUT_PLATFORM_WINDOWS)
+#define GET_PROC_ADDR (void *)GetProcAddress
+#endif
+
 #define LOAD_SYMBOL(hDll, symbol)                                    \
-  p_##symbol = dlsym(hDll, #symbol);                                 \
+  p_##symbol = GET_PROC_ADDR(hDll, #symbol);                                 \
   if (!p_##symbol) {                                                 \
     fprintf(stderr, "llm.go: unable to load symbol: %s\n", #symbol); \
     return LLM_ABORTED;                                              \
   }
 
-llmStatus_t llmLoadSymbols(void *hDll) {
+llmStatus_t llmLoadSymbols(LLM_HMODULE hDll) {
   LOAD_SYMBOL(hDll, llmInit);
   LOAD_SYMBOL(hDll, llmDestroy);
   LOAD_SYMBOL(hDll, llmGetLastErrorMessage);
@@ -117,7 +146,7 @@ llmStatus_t llmLoadSymbols(void *hDll) {
 }
 
 // load the libllm shared library.
-llmStatus_t llmDestroyLibrary(void *handle) {
+llmStatus_t llmDestroyLibrary(LLM_HMODULE handle) {
   p_llmInit = NULL;
   p_llmDestroy = NULL;
   p_llmGetLastErrorMessage = NULL;
@@ -145,10 +174,17 @@ llmStatus_t llmDestroyLibrary(void *handle) {
   p_llmChunk_GetText = NULL;
 
   // first try to load the dll from same folder as current module.
+#if defined(LUT_PLATFORM_APPLE) || defined(LUT_PLATFORM_LINUX)
   int ret = dlclose(handle);
   if (ret != 0) {
     return LLM_ABORTED;
   }
+#elif defined(LUT_PLATFORM_WINDOWS)
+  BOOL success = FreeLibrary(handle);
+  if (FALSE == success) {
+    return LLM_ABORTED;
+  }
+#endif
 
   return LLM_OK;
 }
