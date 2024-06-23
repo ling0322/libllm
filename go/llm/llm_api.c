@@ -21,7 +21,6 @@
 #define LIBLLM_LLM_API_
 
 #include <dlfcn.h>
-#include <linux/limits.h>
 #include <stdint.h>
 #include <stdio.h>
 
