@@ -26,8 +26,8 @@ import sys
 import zipfile
 from os import path
 from model_exporter import Context, ModelExporter, TensorWriter, Quant
-from bpe_exporter import read_transformers_bpe_model
-from tools.llama_exporter import LlamaExporter
+from bpe_exporter import read_transformers_fast_bpe_model
+from llama_exporter import LlamaExporter
 from torch import nn
 
 class Qwen2Exporter(LlamaExporter):
@@ -55,12 +55,12 @@ class Qwen2Exporter(LlamaExporter):
         config = configparser.ConfigParser()
         config["qwen"] = {}
 
-        assert qwen_config.num_key_value_heads == qwen_config.num_attention_heads
         assert qwen_config.hidden_act == "silu"
         
         qwen_section = config["qwen"]
         qwen_section["hidden_size"] = str(qwen_config.hidden_size)
         qwen_section["num_heads"] = str(qwen_config.num_attention_heads)
+        qwen_section["num_key_value_heads"] = str(qwen_config.num_key_value_heads)
         qwen_section["intermediate_size"] = str(qwen_config.intermediate_size)
         qwen_section["norm_eps"] = str(qwen_config.rms_norm_eps)
         qwen_section["num_layers"] = str(qwen_config.num_hidden_layers)
@@ -92,12 +92,13 @@ def run_qwen(huggingface_name):
     model = AutoModelForCausalLM.from_pretrained(huggingface_name, device_map="cpu")
     tokenizer = AutoTokenizer.from_pretrained(huggingface_name)
 
-    prompt = "你好"
+    prompt = "hi"
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": prompt}
     ]
     text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    text = '<|im_start|> system\nYou are a helpful assistant.<|im_end|> \n<|im_start|> user\nhi<|im_end|> \n<|im_start|> assistant\n'
     model_inputs = tokenizer([text], return_tensors="pt")
 
     generated_ids = model.generate(model_inputs.input_ids, max_new_tokens=512)
@@ -108,7 +109,7 @@ def run_qwen(huggingface_name):
     response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
     print(response)
 
-MODEL_NAME = "Qwen/Qwen1.5-1.8B-Chat"
+MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"
 MODEL_BIN = "model.bin"
 MODEL_INI = "model.ini"
 TOKENIZER_BIN = "tokenizer.bin"
@@ -145,7 +146,7 @@ if __name__ == '__main__':
         with package.open(MODEL_INI, "w", force_zip64=True) as fp:
             config.write(io.TextIOWrapper(fp))
 
-        libllm_tokenizer = read_transformers_bpe_model(tokenizer)
+        libllm_tokenizer = read_transformers_fast_bpe_model(args.huggingface_name)
         with package.open(TOKENIZER_BIN, "w", force_zip64=True) as fp:
             libllm_tokenizer.save(fp)
         
