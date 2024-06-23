@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,26 +17,42 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package libllm
+package llm
 
+// #include <stdlib.h>
+// #include "llm_api.h"
+import "C"
 import (
-	"unsafe"
+	"errors"
+	"fmt"
+	"os"
+	"runtime"
 )
 
-type Device int
-
-const (
-	Cpu Device = iota
-	Cuda
-	Auto
-)
-
-type Model struct {
-	handle unsafe.Pointer
+// Generate by Compeltion.
+type Chunk struct {
+	Text string
 }
 
-func LoadModel(filename string) (model *Model, err error) {
-
+type chunkHandle struct {
+	handle *C.llmChunk_t
 }
 
-func (m *Model) Complete()
+func newChunkHandle() (*chunkHandle, error) {
+	cHandle := C.llmChunk_New()
+	if cHandle == nil {
+		return nil, errors.New(C.GoString(C.llmGetLastErrorMessage()))
+	}
+
+	handle := &chunkHandle{
+		cHandle,
+	}
+	runtime.SetFinalizer(handle, func(h *chunkHandle) {
+		status := C.llmChunk_Delete(h.handle)
+		if status != C.LLM_OK {
+			fmt.Fprintln(os.Stderr, "failed to call llmPrompt_Delete()")
+		}
+	})
+
+	return handle, nil
+}
