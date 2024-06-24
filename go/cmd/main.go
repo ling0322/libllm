@@ -46,9 +46,10 @@ func main() {
 
 	fmt.Println("Please input your question.")
 	fmt.Println("    Type ':new' to start a new session (clean history).")
-	fmt.Println("    Type ':sys' to input the system prompt and start a new session .")
+	fmt.Println("    Type ':sys <system_prompt>' to set the system prompt and start a new session .")
 
 	history := []chat.Message{}
+	systemPrompt := ""
 	for {
 		reader := bufio.NewReader(os.Stdin)
 
@@ -61,21 +62,17 @@ func main() {
 			log.Fatal(err)
 		}
 		question = strings.TrimSpace(question)
-		if strings.ToLower(question) == ":sys" {
-			fmt.Print("SYSTEM> ")
-			system, err := reader.ReadString('\n')
-			if errors.Is(err, io.EOF) {
-				fmt.Println()
-				break
-			} else if err != nil {
-				log.Fatal(err)
-			}
-			history = []chat.Message{{Role: "system", Content: system}}
+		if strings.ToLower(question)[0:5] == ":sys " {
+			systemPrompt = strings.TrimSpace(question[5:])
 			continue
 		} else if strings.ToLower(question) == ":new" {
 			fmt.Println("===== new session =====")
 			history = []chat.Message{}
 			continue
+		}
+
+		if len(history) == 0 && systemPrompt != "" {
+			history = append(history, chat.Message{Role: "system", Content: systemPrompt})
 		}
 
 		history = append(history, chat.Message{Role: "user", Content: question})

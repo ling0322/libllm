@@ -166,9 +166,11 @@ class SentencePieceModelReader:
             if self._sp.IsUnknown(token_id):
                 flag = flag | Token.FLAG_UNK
                 piece_display = self._sp.IdToPiece(token_id)
+                print(f"unk token: {token_id}: {piece_display}")
             if self._sp.IsControl(token_id):
                 flag = flag | Token.FLAG_CONTROL
                 piece_display = self._sp.IdToPiece(token_id)
+                # print(f"control token: {token_id}: {piece_display}")
             if self._sp.IsUnused(token_id):
                 flag = flag | Token.FLAG_UNUSED
                 piece_display = self._sp.IdToPiece(token_id)

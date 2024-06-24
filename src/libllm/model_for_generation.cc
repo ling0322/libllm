@@ -49,6 +49,8 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
     model = chatglm::ChatGlmModelForGeneration::fromConfig(ctx, *ini);
   } else if (modelType == "llama") {
     model = llama::LlamaModelForGeneration::fromConfig(ctx, *ini);
+  } else if (modelType == "index") {
+    model = llama::LlamaModelForGeneration::fromConfig(ctx, *ini);
   } else if (modelType == "qwen") {
     model = qwen::QwenModelForGeneration::fromConfig(ctx, *ini);
   } else {

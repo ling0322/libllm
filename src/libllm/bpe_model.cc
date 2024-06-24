@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,13 +20,16 @@
 #include "libllm/bpe_model.h"
 
 #include <limits>
+
 #include "libllm/lut/error.h"
 #include "libllm/lut/reader.h"
 #include "libllm/lut/strings.h"
 
 namespace libllm {
 
-BPEModel::BPEModel() : _unkId(kInvalidToken), _isByteTokenAvailable(false) {
+BPEModel::BPEModel()
+    : _unkId(kInvalidToken),
+      _isByteTokenAvailable(false) {
   std::fill(_byteId.begin(), _byteId.end(), kInvalidToken);
 }
 
@@ -71,7 +74,6 @@ void BPEModel::readMagicNumber(lut::Reader *fp) {
 void BPEModel::initModel() {
   // build token_dict_ and byte_id_
   _tokenDict.clear();
-  
 
   for (const TokenInfo &info : _tokens) {
     if (!info.flag) {
@@ -88,6 +90,8 @@ void BPEModel::initModel() {
         throw lut::AbortedError("bad format (too many unknown tokens)");
       }
       _unkId = info.id;
+
+      _controlTokenDict[info.tokenString] = &info;
     } else if (info.flag & kControl) {
       _controlTokenDict[info.tokenString] = &info;
     }
