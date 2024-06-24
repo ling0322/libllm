@@ -231,7 +231,7 @@ CATCH_TEST_CASE("benchmark gemv", "[ly][op][cuda]") {
 #ifdef LIBLLM_CUTLASS_ENABLED
 
 CATCH_TEST_CASE("test matmul gemm (cutlass)", "[ly][op][cuda][cutlass]") {
-  std::shared_ptr<MatMul> mm = MatMul::createCutlass();
+  std::shared_ptr<op::cuda::MatMul> mm = op::cuda::MatMul::createCutlass();
 
   Tensor a = F::rand({10, 20}, DType::kFloat);
   Tensor b = F::rand({40, 30}, DType::kFloat);
@@ -251,7 +251,7 @@ CATCH_TEST_CASE("test matmul gemm (cutlass)", "[ly][op][cuda][cutlass]") {
 }
 
 CATCH_TEST_CASE("test matmul bmm (cutlass)", "[ly][op][cuda][cutlass]") {
-  std::shared_ptr<MatMul> mm = MatMul::createCutlass();
+  std::shared_ptr<op::cuda::MatMul> mm = op::cuda::MatMul::createCutlass();
 
   Tensor a = F::rand({5, 10, 5, 20}, DType::kFloat);
   Tensor b = F::rand({10, 30, 20}, DType::kFloat);
@@ -271,8 +271,8 @@ CATCH_TEST_CASE("test matmul bmm (cutlass)", "[ly][op][cuda][cutlass]") {
 }
 
 CATCH_TEST_CASE("benchmark cutlass hgemm", "[ly][op][cuda]") {
-  std::shared_ptr<MatMul> mmCutlass = MatMul::createCutlass();
-  std::shared_ptr<MatMul> mmCublas = MatMul::createCublas();
+  std::shared_ptr<op::cuda::MatMul> mmCutlass = op::cuda::MatMul::createCutlass();
+  std::shared_ptr<op::cuda::MatMul> mmCublas = op::cuda::MatMul::createCublas();
 
   Tensor A = F::rand({4096, 4096}, DType::kFloat);
   Tensor B = F::rand({4096, 4096}, DType::kFloat);

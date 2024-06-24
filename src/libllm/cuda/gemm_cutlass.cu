@@ -23,8 +23,8 @@
 #include <cutlass/gemm/device/gemm.h>
 #include <cutlass/gemm/device/gemm_array.h>
 #include "libllm/dtype.h"
-#include "libllm/cpu/common/common.h"
-#include "libllm/cpu/common/matmul.h"
+#include "libllm/cpu/common.h"
+#include "libllm/cpu/matmul.h"
 #include "libllm/cuda/common.h"
 #include "libllm/lut/error.h"
 
@@ -72,6 +72,8 @@ lut::ErrorCode hgemmT(
   if (status != cutlass::Status::kSuccess) {
     return lut::ErrorCode::Aborted;
   }
+
+  return lut::ErrorCode::OK;
 }
 
 lut::ErrorCode cutlassHgemm(
@@ -97,6 +99,8 @@ lut::ErrorCode cutlassHgemm(
   } else if (transA == true && transB == true) {
     return hgemmT<ColumnMajor, ColumnMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
   }
+
+  return lut::ErrorCode::Aborted;
 }
 
 template<class LayoutA, class layoutB>
@@ -134,6 +138,8 @@ lut::ErrorCode hgemmArrayT(
   if (status != cutlass::Status::kSuccess) {
     return lut::ErrorCode::Aborted;
   }
+
+  return lut::ErrorCode::OK;
 }
 
 lut::ErrorCode cutlassHgemmArray(
@@ -161,6 +167,9 @@ lut::ErrorCode cutlassHgemmArray(
   } else if (transA == true && transB == true) {
     return hgemmArrayT<ColumnMajor, ColumnMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc, bs);
   }
+
+  
+  return lut::ErrorCode::Aborted;
 }
 
 

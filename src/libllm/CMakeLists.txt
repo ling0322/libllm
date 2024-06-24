@@ -129,7 +129,6 @@ if (WITH_CUDA)
 
     if (WITH_CUTLASS)
         set(libllm_SOURCES ${libllm_SOURCES} "cuda/gemm_cutlass.cu")
-        set(unittest_SOURCES ${unittest_SOURCES} "cuda/gemm_cutlass.cu")
     endif(WITH_CUTLASS)
 
     set(llmextcublas_SOURCES

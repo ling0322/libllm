@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,10 +19,14 @@ import (
 var gModelPath string
 var gDevice string
 
+var gLocale string
+
 func main() {
 	flag.StringVar(&gModelPath, "model", "", "path of model file (.llmpkg)")
 	flag.StringVar(&gDevice, "device", "audo", "inference device (cpu|cuda|audo)")
 	flag.Parse()
+
+	localizer := NewLocalizer()
 
 	var device llm.Device
 	if strings.ToLower(gDevice) == "cpu" {
@@ -34,6 +39,21 @@ func main() {
 		log.Fatalf("unexpected device %s", gDevice)
 	}
 
+	// if model is empty, automatically choose a *.llmpkg file in working directory.
+	if gModelPath == "" {
+		llmpkgFiles, err := filepath.Glob("*.llmpkg")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if len(llmpkgFiles) != 1 {
+			fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+			flag.PrintDefaults()
+		} else {
+			gModelPath = llmpkgFiles[0]
+		}
+	}
+
 	model, err := llm.NewModel(gModelPath, device)
 	if err != nil {
 		log.Fatal(err)
@@ -44,9 +64,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Please input your question.")
-	fmt.Println("    Type ':new' to start a new session (clean history).")
-	fmt.Println("    Type ':sys <system_prompt>' to set the system prompt and start a new session .")
+	fmt.Println(localizer.Get(MsgInputQuestion))
+	fmt.Println(localizer.Get(MsgInputQuestionNew))
+	fmt.Println(localizer.Get(MsgInputQuestionSys))
 
 	history := []chat.Message{}
 	systemPrompt := ""
@@ -64,10 +84,13 @@ func main() {
 		question = strings.TrimSpace(question)
 		if len(question) > 5 && strings.ToLower(question)[0:5] == ":sys " {
 			systemPrompt = strings.TrimSpace(question[5:])
+			history = []chat.Message{}
 			continue
 		} else if strings.ToLower(question) == ":new" {
-			fmt.Println("===== new session =====")
+			fmt.Println(localizer.Get(MsgNewSession))
 			history = []chat.Message{}
+			continue
+		} else if question == "" {
 			continue
 		}
 
@@ -98,7 +121,7 @@ func main() {
 
 		dur := time.Since(t0)
 		fmt.Printf(
-			"(%d tokens, time=%.2fs, %.2fms per token)\n",
+			localizer.Get(MsgStat),
 			numToken,
 			dur.Seconds(),
 			dur.Seconds()*1000/float64(numToken),
