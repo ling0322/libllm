@@ -84,7 +84,8 @@ CpuMathBackend findBestCpuMathBackend() {
   LOG(FATAL) << "CPU not supported.";
   NOT_IMPL();
 #endif
-  NOT_IMPL();
+  LOG(INFO) << "Fallback to the slow CPU kernels since no Avx2 or Asimdhp support.";
+  return CpuMathBackend::FALLBACK;
 }
 
 bool gAllowSlowKernel = false;
