@@ -17,6 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include <assert.h>
 #include <cuda_fp16.h>
 #include <math.h>
 
@@ -31,8 +32,8 @@ namespace libllm {
 namespace op {
 namespace cuda {
 
-enum class MapType { EXP_FP16_FP32, SQUARE_FP16_FP32, IDENTITY };
-enum class ReduceType { SUM, MAX };
+enum class MapType { EXP_FP16_FP32, SQUARE_FP16_FP32, IDENTITY, UNKNOWN };
+enum class ReduceType { SUM, MAX, UNKNOWN };
 
 __device__ __forceinline__ constexpr MapType getMapType(MapReduceType mapReduceType) {
   switch (mapReduceType) {
@@ -43,7 +44,7 @@ __device__ __forceinline__ constexpr MapType getMapType(MapReduceType mapReduceT
     case MapReduceType::MAX:
       return MapType::IDENTITY;
     default:
-      assert(false);
+      return MapType::UNKNOWN;
   }
 }
 
@@ -55,7 +56,7 @@ __device__ __forceinline__ constexpr ReduceType getReduceType(MapReduceType mapR
     case MapReduceType::MAX:
       return ReduceType::MAX;
     default:
-      assert(false);
+      return ReduceType::UNKNOWN;
   }
 }
 
@@ -67,7 +68,7 @@ __device__ __forceinline__ T getReduceInitial() {
     case ReduceType::MAX:
       return -::cuda::std::numeric_limits<float>::infinity();
     default:
-      assert(false);
+      __trap();
   }
 }
 
@@ -100,7 +101,7 @@ __global__ void reduce0Kernel3D(
           elemMap = elemIn;
           break;
         default:
-          assert(false);
+          __trap();
       }
 
       // element-wise reduce.
@@ -112,7 +113,7 @@ __global__ void reduce0Kernel3D(
           elemReduce = cub::Max()(elemReduce, elemMap);
           break;
         default:
-          assert(false);
+          __trap();
       }
     }
   }

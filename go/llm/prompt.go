@@ -68,7 +68,7 @@ func (p *promptImpl) AppendText(text string) {
 }
 
 func (p *promptImpl) AppendControlToken(text string) {
-	p.elements = append(p.elements, &textPromptElem{text})
+	p.elements = append(p.elements, &controlTokenPromptElem{text})
 }
 
 func (p *promptImpl) updatePromptHandle(handle *promptHandle) error {

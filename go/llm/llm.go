@@ -19,7 +19,8 @@
 
 package llm
 
-// #cgo LDFLAGS: -ldl
+// #cgo linux LDFLAGS: -ldl
+// #cgo darwin LDFLAGS: -ldl
 // #include <stdlib.h>
 // #include "llm_api.h"
 import "C"
@@ -28,6 +29,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync/atomic"
 	"unsafe"
 )
@@ -53,8 +55,17 @@ func initLlm() error {
 			return err
 		}
 
+		var libname string
+		if runtime.GOOS == "windows" {
+			libname = "llm.dll"
+		} else if runtime.GOOS == "linux" {
+			libname = "libllm.so"
+		} else if runtime.GOOS == "darwin" {
+			libname = "libllm.dylib"
+		}
+
 		binDir := filepath.Dir(binPath)
-		dllPath := C.CString(filepath.Join(binDir, "libllm.so"))
+		dllPath := C.CString(filepath.Join(binDir, libname))
 		defer C.free(unsafe.Pointer(dllPath))
 
 		gDll = C.llmLoadLibrary(dllPath)

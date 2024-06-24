@@ -8,6 +8,9 @@ option(WITH_OPENMP "Build with OpenMP." ON)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
 option(MKL_PREFIX "Prefix for MKL headers and libraries." "/opt/intel/mkl")
 
+set(CMAKE_CUDA_RUNTIME_LIBRARY Static)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 if(WITH_CUDA)
     add_definitions("-DLIBLLM_CUDA_ENABLED")
     find_package(CUDAToolkit REQUIRED)

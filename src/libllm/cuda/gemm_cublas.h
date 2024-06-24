@@ -35,7 +35,7 @@ namespace cuda {
 /// @brief Operators implemented by cuBLAS.
 class CublasGemm : public Gemm {
  public:
-  static std::shared_ptr<Gemm> create();
+  static Gemm *create();
 
   lut::ErrorCode hgemm(
       bool transA,
@@ -78,5 +78,6 @@ class CublasGemm : public Gemm {
 }  // ly
 
 extern "C" {
-EXTAPI std::shared_ptr<libllm::op::cuda::Gemm> llmCreateCudaOpExtGemm();
+EXTAPI libllm::op::cuda::Gemm *llmGemmExt_New();
+EXTAPI void llmGemmExt_Delete(libllm::op::cuda::Gemm *gemm);
 }  // extern "C"

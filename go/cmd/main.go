@@ -1,42 +1,107 @@
 package main
 
 import (
+	"bufio"
+	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"log"
+	"os"
+	"strings"
+	"time"
 
+	"github.com/ling0322/libllm/go/chat"
 	"github.com/ling0322/libllm/go/llm"
 )
 
+var gModelPath string
+var gDevice string
+
 func main() {
-	model, err := llm.NewModel("../../tools/llama.llmpkg", llm.Cuda)
+	flag.StringVar(&gModelPath, "model", "", "path of model file (.llmpkg)")
+	flag.StringVar(&gDevice, "device", "audo", "inference device (cpu|cuda|audo)")
+	flag.Parse()
+
+	var device llm.Device
+	if strings.ToLower(gDevice) == "cpu" {
+		device = llm.Cpu
+	} else if strings.ToLower(gDevice) == "cuda" {
+		device = llm.Cuda
+	} else if strings.ToLower(gDevice) == "audo" {
+		device = llm.Auto
+	} else {
+		log.Fatalf("unexpected device %s", gDevice)
+	}
+
+	model, err := llm.NewModel(gModelPath, device)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	prompt := llm.NewPrompt()
-	prompt.AppendControlToken("<|begin_of_text|>")
-	prompt.AppendControlToken("<|start_header_id|>")
-	prompt.AppendText("user")
-	prompt.AppendControlToken("<|end_header_id|>")
-	prompt.AppendText("\n\nHi")
-	prompt.AppendControlToken("<|eot_id|>")
-	prompt.AppendControlToken("<|start_header_id|>")
-	prompt.AppendText("assistant")
-	prompt.AppendControlToken("<|end_header_id|>")
-	prompt.AppendText("\n\n")
-
-	log.Println(model)
-
-	comp, err := model.Complete(llm.NewCompletionConfig(), prompt)
+	llmChat, err := chat.NewChat(model)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for comp.IsActive() {
-		chunk, err := comp.GenerateNextChunk()
+	fmt.Println("Please input your question.")
+	fmt.Println("    Type ':new' to start a new session (clean history).")
+	fmt.Println("    Type ':sys <system_prompt>' to set the system prompt and start a new session .")
+
+	history := []chat.Message{}
+	systemPrompt := ""
+	for {
+		reader := bufio.NewReader(os.Stdin)
+
+		fmt.Print("> ")
+		question, err := reader.ReadString('\n')
+		if errors.Is(err, io.EOF) {
+			fmt.Println()
+			break
+		} else if err != nil {
+			log.Fatal(err)
+		}
+		question = strings.TrimSpace(question)
+		if len(question) > 5 && strings.ToLower(question)[0:5] == ":sys " {
+			systemPrompt = strings.TrimSpace(question[5:])
+			continue
+		} else if strings.ToLower(question) == ":new" {
+			fmt.Println("===== new session =====")
+			history = []chat.Message{}
+			continue
+		}
+
+		if len(history) == 0 && systemPrompt != "" {
+			history = append(history, chat.Message{Role: "system", Content: systemPrompt})
+		}
+
+		history = append(history, chat.Message{Role: "user", Content: question})
+		comp, err := llmChat.Chat(history)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf(chunk.Text)
+
+		t0 := time.Now()
+		answer := ""
+		numToken := 0
+		for comp.IsActive() {
+			chunk, err := comp.GenerateNextChunk()
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Printf(chunk.Text)
+			answer += chunk.Text
+			numToken++
+		}
+		history = append(history, chat.Message{Role: "assistant", Content: answer})
+		fmt.Println()
+
+		dur := time.Since(t0)
+		fmt.Printf(
+			"(%d tokens, time=%.2fs, %.2fms per token)\n",
+			numToken,
+			dur.Seconds(),
+			dur.Seconds()*1000/float64(numToken),
+		)
 	}
 }

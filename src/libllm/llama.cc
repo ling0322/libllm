@@ -386,7 +386,8 @@ Tensor LlamaModel::forward(StateMap &past, Tensor input) const {
 }
 
 Tensor LlamaModel::forwardHidden(Tensor hidden) const {
-  return _outProj->forward(hidden);
+  Tensor logits = _outProj->forward(hidden);
+  return logits;
 }
 
 // -----------------------------------------------------------------------------------------------+

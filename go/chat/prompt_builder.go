@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023-2024 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,21 +17,24 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "../../third_party/catch2/catch_amalgamated.hpp"
-#include "libllm/cpu/kernel/interface.h"
-#include "libllm/operators.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/log.h"
+package chat
 
-int main(int argc, char **argv) {
-  libllm::initOperators();
+import (
+	"fmt"
 
-  // enable some slow kernels for reference.
-  libllm::op::cpu::kernel::setAllowSlowKernel(true);
+	"github.com/ling0322/libllm/go/llm"
+)
 
-  int result = Catch::Session().run(argc, argv);
+type promptBuilder interface {
+	Build(history []Message) (llm.Prompt, error)
+}
 
-  libllm::destroyOperators();
-
-  return result;
+func newPromptBuilder(modelName string) (promptBuilder, error) {
+	if modelName == "llama" {
+		return &Llama{}, nil
+	} else if modelName == "index" {
+		return &BilibiliIndex{}, nil
+	} else {
+		return nil, fmt.Errorf("unexpected model name %s", modelName)
+	}
 }

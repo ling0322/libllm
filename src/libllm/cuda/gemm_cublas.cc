@@ -26,10 +26,11 @@ namespace libllm {
 namespace op {
 namespace cuda {
 
-std::shared_ptr<Gemm> CublasGemm::create() {
-  std::shared_ptr<CublasGemm> mm = std::make_shared<CublasGemm>();
+Gemm *CublasGemm::create() {
+  CublasGemm *mm = new CublasGemm();
   mm->_handle = {nullptr, safeDestroyCublas};
   if (CUBLAS_STATUS_SUCCESS != cublasCreate(mm->_handle.get_pp())) {
+    delete mm;
     return nullptr;
   } else {
     return mm;
@@ -138,6 +139,10 @@ lut::ErrorCode CublasGemm::hgemmArray(
 }  // op
 }  // ly
 
-std::shared_ptr<libllm::op::cuda::Gemm> llmCreateCudaOpExtGemm() {
+libllm::op::cuda::Gemm *llmGemmExt_New() {
   return libllm::op::cuda::CublasGemm::create();
+}
+
+void llmGemmExt_Delete(libllm::op::cuda::Gemm *gemm) {
+  delete gemm;
 }

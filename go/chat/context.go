@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023-2024 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,21 +17,15 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "../../third_party/catch2/catch_amalgamated.hpp"
-#include "libllm/cpu/kernel/interface.h"
-#include "libllm/operators.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/log.h"
+package chat
 
-int main(int argc, char **argv) {
-  libllm::initOperators();
+type QA struct {
+	Question string
+	Answer   string
+}
 
-  // enable some slow kernels for reference.
-  libllm::op::cpu::kernel::setAllowSlowKernel(true);
-
-  int result = Catch::Session().run(argc, argv);
-
-  libllm::destroyOperators();
-
-  return result;
+type Context struct {
+	System   string
+	History  []QA
+	Question string
 }
