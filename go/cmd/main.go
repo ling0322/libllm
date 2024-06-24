@@ -62,7 +62,7 @@ func main() {
 			log.Fatal(err)
 		}
 		question = strings.TrimSpace(question)
-		if strings.ToLower(question)[0:5] == ":sys " {
+		if len(question) > 5 && strings.ToLower(question)[0:5] == ":sys " {
 			systemPrompt = strings.TrimSpace(question[5:])
 			continue
 		} else if strings.ToLower(question) == ":new" {

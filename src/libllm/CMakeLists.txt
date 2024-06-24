@@ -259,5 +259,5 @@ add_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)
 add_custom_target(llmbin
     ALL
     DEPENDS libllm
-    COMMAND go build -o ${CMAKE_CURRENT_BINARY_DIR}/llm_chat
+    COMMAND go build -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm_chat${CMAKE_EXECUTABLE_SUFFIX}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/go/cmd)
