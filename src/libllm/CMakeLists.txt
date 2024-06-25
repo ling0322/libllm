@@ -129,7 +129,6 @@ if (WITH_CUDA)
 
     if (WITH_CUTLASS)
         set(libllm_SOURCES ${libllm_SOURCES} "cuda/gemm_cutlass.cu")
-        set(unittest_SOURCES ${unittest_SOURCES} "cuda/gemm_cutlass.cu")
     endif(WITH_CUTLASS)
 
     set(llmextcublas_SOURCES
@@ -240,10 +239,6 @@ add_executable(benchmark ${benchmark_SOURCES})
 target_include_directories(benchmark PRIVATE ${libllm_INCDIR})
 target_link_libraries(benchmark ${benchmark_LIBADD})
 
-add_executable(llm ${llm_SOURCES})
-target_include_directories(llm PRIVATE ..)
-target_link_libraries(llm libllm lut)
-
 if (WITH_CUDA)
     add_library(llmextcublas SHARED ${llmextcublas_SOURCES})
     target_include_directories(llmextcublas PRIVATE ${libllm_INCDIR})
@@ -259,5 +254,5 @@ add_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)
 add_custom_target(llmbin
     ALL
     DEPENDS libllm
-    COMMAND go build -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm_chat${CMAKE_EXECUTABLE_SUFFIX}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/go/cmd)
+    COMMAND go build -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_SOURCE_DIR}/go/bin/llm
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/go/bin)
