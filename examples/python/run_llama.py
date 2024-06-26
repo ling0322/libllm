@@ -17,11 +17,16 @@
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import libllm
+from libllm import Model, ControlToken
 
 
-model = libllm.Model("model/llama2-7b-libllm-q4/llama2.config", libllm.Device.CPU)
-prompt = 'I liked "Breaking Bad" and "Band of Brothers". Do you have any recommendations of other shows I might like?\n'
+model = Model("tools/llama.llmpkg")
+prompt = [
+    ControlToken("<|begin_of_text|>"), 
+    ControlToken("<|start_header_id|>"), "user", ControlToken("<|end_header_id|>"), 
+    "\n\nhi", ControlToken("<|eot_id|>"),
+    ControlToken("<|start_header_id|>"), "assistant", ControlToken("<|end_header_id|>"),
+    "\n\n"]
 
 for n_output, chunk in enumerate(model.complete(prompt)):
     print(chunk.text, end="", flush=True)

@@ -6,6 +6,13 @@ Welcome to libLLM, an open-source project designed for efficient inference of la
 
 欢迎使用libLLM，这是一个专为在普通个人电脑和移动设备上高效推理大型语言模型（LLM）而设计的开源项目。核心使用C++14编写，没有第三方依赖（BLAS、SentencePiece等），能在各种设备中无缝运行。
 
+## Model download:
+
+| Model       | Download       |
+|-------------|----------------|
+| Index-1.9B-Character (Role-playing) | [🤗Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-character-q4.llmpkg) |
+| Index-1.9B-Chat | [🤗Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-chat-q4.llmpkg) |
+
 ## Key features:
 
 - Optimized for everyday devices: libLLM has been optimized to run smoothly on common personal computers, ensuring the powerful capabilities of large language models are accessible to a wider range of users.
@@ -84,8 +91,8 @@ INFO 2023-12-19T08:56:51Z state_map.cc:69] 200 tensors read.
 ```python
 from libllm import Model, ControlToken
 
-model = Model("model/chatglm3-6b-libllm-q4/chatglm3.config")
-prompt = [ControlToken("<|user|>"), "\n", "你好", ControlToken("<|assistant|>")]
+model = Model("tools/bilibili_index.llmpkg")
+prompt = [ControlToken("<|reserved_0|>"), "hi", ControlToken("<|reserved_1|>")]
 
 for chunk in model.complete(prompt):
     print(chunk.text, end="", flush=True)
@@ -93,13 +100,57 @@ for chunk in model.complete(prompt):
 print("\nDone!")
 ```
 
+### Go
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/ling0322/libllm/go/llm"
+)
+
+func main() {
+	model, err := llm.NewModel("../../tools/bilibili_index.llmpkg", llm.Auto)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	prompt := llm.NewPrompt()
+	prompt.AppendControlToken("<|reserved_0|>")
+	prompt.AppendText("hi")
+	prompt.AppendControlToken("<|reserved_1|>")
+	comp, err := model.Complete(llm.NewCompletionConfig(), prompt)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for comp.IsActive() {
+		chunk, err := comp.GenerateNextChunk()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Print(chunk.Text)
+	}
+	fmt.Println()
+}
+
+```
+
 ## Export Huggingface models
 
-Here is an example of exporting ChatGLM3 model from huggingface.
+Here is an example of exporting Index-1.9B model from huggingface.
 
 ```bash
 $ cd tools
-$ python chatglm_exporter.py
+$ python bilibili_index_exporter.py \
+    -huggingface_name IndexTeam/Index-1.9B-Character \
+    -quant q4  \
+    -output index.llmpkg 
+
 ```
 
-Then 3 files will be exported: `chatglm3.config`, `chatglm3.q4.bin` and `chatglm3.tokenizer.bin`
+Then all required modules realted to `IndexTeam/Index-1.9B-Character`, including model, tokenizer and configs will be written to `index.llmpkg`.

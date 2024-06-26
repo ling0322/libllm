@@ -19,7 +19,7 @@
 
 from libllm import Model, ControlToken
 
-model = Model("model/qwen1.5-1.8b-libllm-q4.llmpkg")
+model = Model("tools/qwen.llmpkg")
 prompt = [
     ControlToken("<|im_start|>"), "system\nYou are a helpful assistant.",
     ControlToken("<|im_end|>"), "\n", 

@@ -15,5 +15,5 @@ __pycache__
 *.dll
 *.llmpkg
 /tools/*.config
-bindings/python/build
-bindings/python/dist
+python/build
+python/dist
