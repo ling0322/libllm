@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2023 Xiaoyang Chen
+# Copyright (c) 2024 Xiaoyang Chen
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 # and associated documentation files (the "Software"), to deal in the Software without
@@ -17,30 +17,12 @@
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-from setuptools import setup, find_packages
+from libllm import Model, ControlToken
 
-setup(
-    name="pylibllm",
-    version="1.6.0",
-    author="ling0322",
-    author_email="ling032x@gmail.com",
-    description="libLLM is an open-source project tailored for efficient inference of large language models (LLMs).",
-    url="https://github.com/ling0322/libllm",
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-    ],
-    license="MIT",
-    python_requires=">=3.6",
-    packages=find_packages(),
-    package_dir={"libllm": "libllm"},
-    package_data={"libllm": ["*.so", "*.dll"]},
-)
+model = Model("tools/bilibili_index.llmpkg")
+prompt = [ControlToken("<|reserved_0|>"), "hi", ControlToken("<|reserved_1|>")]
+
+for chunk in model.complete(prompt):
+    print(chunk.text, end="", flush=True)
+
+print("\nDone!")

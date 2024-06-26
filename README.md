@@ -6,6 +6,13 @@ Welcome to libLLM, an open-source project designed for efficient inference of la
 
 欢迎使用libLLM，这是一个专为在普通个人电脑和移动设备上高效推理大型语言模型（LLM）而设计的开源项目。核心使用C++14编写，没有第三方依赖（BLAS、SentencePiece等），能在各种设备中无缝运行。
 
+## Model download:
+
+| Model       | Download       |
+|-------------|----------------|
+| Index-1.9B-Character (Role-playing) | [🤗Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-character-q4.llmpkg) |
+| Index-1.9B-Chat | [🤗Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-chat-q4.llmpkg) |
+
 ## Key features:
 
 - Optimized for everyday devices: libLLM has been optimized to run smoothly on common personal computers, ensuring the powerful capabilities of large language models are accessible to a wider range of users.
