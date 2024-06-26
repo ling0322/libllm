@@ -10,8 +10,8 @@ Welcome to libLLM, an open-source project designed for efficient inference of la
 
 | Model       | Download       |
 |-------------|----------------|
-| Index-1.9B-Character (Role-playing) | [🤗Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-character-q4.llmpkg) |
-| Index-1.9B-Chat | [🤗Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-chat-q4.llmpkg) |
+| Index-1.9B-Character (Role-playing) | 🤗[Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-character-q4.llmpkg) |
+| Index-1.9B-Chat | 🤗[Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-chat-q4.llmpkg) |
 
 ## Key features:
 
@@ -106,36 +106,36 @@ print("\nDone!")
 package main
 
 import (
-	"fmt"
-	"log"
+    "fmt"
+    "log"
 
-	"github.com/ling0322/libllm/go/llm"
+    "github.com/ling0322/libllm/go/llm"
 )
 
 func main() {
-	model, err := llm.NewModel("../../tools/bilibili_index.llmpkg", llm.Auto)
-	if err != nil {
-		log.Fatal(err)
-	}
+    model, err := llm.NewModel("../../tools/bilibili_index.llmpkg", llm.Auto)
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	prompt := llm.NewPrompt()
-	prompt.AppendControlToken("<|reserved_0|>")
-	prompt.AppendText("hi")
-	prompt.AppendControlToken("<|reserved_1|>")
-	comp, err := model.Complete(llm.NewCompletionConfig(), prompt)
-	if err != nil {
-		log.Fatal(err)
-	}
+    prompt := llm.NewPrompt()
+    prompt.AppendControlToken("<|reserved_0|>")
+    prompt.AppendText("hi")
+    prompt.AppendControlToken("<|reserved_1|>")
+    comp, err := model.Complete(llm.NewCompletionConfig(), prompt)
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	for comp.IsActive() {
-		chunk, err := comp.GenerateNextChunk()
-		if err != nil {
-			log.Fatal(err)
-		}
+    for comp.IsActive() {
+        chunk, err := comp.GenerateNextChunk()
+        if err != nil {
+            log.Fatal(err)
+        }
 
-		fmt.Print(chunk.Text)
-	}
-	fmt.Println()
+        fmt.Print(chunk.Text)
+    }
+    fmt.Println()
 }
 
 ```
