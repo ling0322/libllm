@@ -105,6 +105,10 @@ Tensor Operators::swiglu(Tensor A) {
   NOT_IMPL();
 }
 
+Tensor Operators::melFbank(Tensor A) {
+  NOT_IMPL();
+}
+
 Tensor Operators::to(Device device, Tensor tensor) {
   NOT_IMPL();
 }

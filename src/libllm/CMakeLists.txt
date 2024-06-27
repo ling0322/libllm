@@ -7,6 +7,7 @@ endif()
 set(lut_SOURCES
     "lut/internal/log.cc"
     "lut/internal/sprintf.cc"
+    "lut/base64.cc"
     "lut/error.cc"
     "lut/flags.cc"
     "lut/half.cc"
@@ -33,6 +34,7 @@ set(libllm_SOURCES
     "cpu/cpu_operators.cc"
     "cpu/cpu_tensor_data.cc"
     "cpu/fingerprint.cc"
+    "cpu/log_mel_spectrogram.cc"
     "cpu/lookup.cc"
     "cpu/matmul.cc"
     "cpu/print.cc"
@@ -63,12 +65,13 @@ set(libllm_SOURCES
     "state_map.cc"
     "tensor.cc"
     "tokenizer.cc"
+    "wave.cc"
     "../../third_party/ruapu/ruapu.cc")
 
 set(unittest_SOURCES
     "cpu/kernel/benchmark.cc"
     "cpu/kernel/interface_test.cc"
-    # "cpu/kernel/unittest_kernel.cc"
+    "cpu/log_mel_spectrogram_test.cc"
     "cpu/test.cc"
     "lut/path_test.cc"
     "lut/strings_test.cc"

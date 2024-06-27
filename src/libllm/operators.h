@@ -41,6 +41,7 @@ class Operators {
   virtual Tensor mul(Tensor input, Tensor other);
   virtual Tensor softmax(Tensor input);
   virtual Tensor add(Tensor input, Tensor other);
+  virtual Tensor melFbank(Tensor input);
   virtual Tensor gelu(Tensor input);
   virtual Tensor tensor(lut::Span<const int> shape, DType dtype);
   virtual Tensor tensorLike(Tensor input);
