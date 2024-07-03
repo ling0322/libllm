@@ -398,43 +398,65 @@ LlamaModelForGeneration::LlamaModelForGeneration()
     : _eotId(0) {
 }
 
-std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromConfig(
+std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
     const Context &ctx,
-    const lut::IniConfig &config) {
-  std::shared_ptr<LlamaModelForGeneration> model{new LlamaModelForGeneration()};
-  model->init(ctx, config);
+    lut::ZipFile *package) {
+  std::shared_ptr<lut::Reader> reader = package->open(ModelConfig);
+  std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(reader.get());
 
+  std::string modelFile = ini->getSection(ModelSection).getString(ModelFileField);
+  std::string modelType = ini->getSection(ModelSection).getString(ModelTypeField);
+
+  const lut::IniSection &llamaIni = ini->getSection(modelType);
+
+  std::shared_ptr<LlamaModelForGeneration> model{new LlamaModelForGeneration()};
+  LlamaConfig llamaConfig = LlamaConfig::loadConfig(llamaIni);
+
+  StateMap stateMap;
+
+  stateMap.read(package->open(modelFile).get());
+  model->_model = LlamaModel::create(ctx, llamaConfig);
+  model->_model->initParameters(stateMap);
+  model->_eotId = llamaIni.getInt("eot_token_id");
+  model->_modelName = modelType;
+
+  model->initTokenizer(package);
   return model;
 }
 
-void LlamaModelForGeneration::init(const Context &ctx, const lut::IniConfig &config) {
-  std::string modelType = config.getSection(ModelSection).getString(ModelTypeField);
-  const lut::IniSection &llamaSection = config.getSection(modelType);
+Tensor LlamaModelForGeneration::prefill(StateMap &past, const Prompt &prompt) const {
+  Tensor x = _model->forward(past, buildInput(prompt));
+  CHECK(x.getDim() == 3);
 
-  // create model
-  LlamaConfig llamaConfig = LlamaConfig::loadConfig(llamaSection);
-  _model = LlamaModel::create(ctx, llamaConfig);
+  x = x.slice(1, {-1, None});
+  x = _model->forwardHidden(x);
 
-  _eotId = llamaSection.getInt("eot_token_id");
-  _modelName = modelType;
-}
-
-void LlamaModelForGeneration::initParameters(const StateMap &stateDict) {
-  _model->initParameters(stateDict);
-}
-
-Tensor LlamaModelForGeneration::forward(StateMap &past, Tensor input) const {
-  Tensor x = _model->forward(past, input);
   return x;
 }
 
-Tensor LlamaModelForGeneration::forwardHidden(Tensor hidden) const {
-  return _model->forwardHidden(hidden);
+Tensor LlamaModelForGeneration::decode(StateMap &past, LongType inputToken) const {
+  std::array<LongType, 1> inputData{inputToken};
+  Tensor inputs = Tensor::create<LongType>({1, 1}, inputData);
+  inputs = F::to(getDevice(), inputs);
+
+  Tensor x = _model->forward(past, inputs);
+  x = _model->forwardHidden(x);
+
+  return x;
 }
 
-Tensor LlamaModelForGeneration::buildInput(const std::vector<LongType> &prompt) const {
+Tensor LlamaModelForGeneration::buildInput(const Prompt &prompt) const {
   std::vector<LongType> inputData{};
-  inputData.insert(inputData.end(), prompt.begin(), prompt.end());
+  for (const PromptBlock &block : prompt.getBlocks()) {
+    if (block.blockType == PromptBlock::ControlToken || block.blockType == PromptBlock::Text) {
+      encodePromptBlock(block, inputData);
+    } else {
+      throw lut::AbortedError(lut::sprintf(
+          "unexpected prompt type %s for model %s",
+          PromptBlock::typeToString(block.blockType),
+          _modelName));
+    }
+  }
 
   int len = inputData.size();
   Tensor inputs = Tensor::create<LongType>({1, len}, inputData);

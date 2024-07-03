@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -22,26 +22,41 @@
 namespace libllm {
 namespace qwen {
 
-QwenModelForGeneration::QwenModelForGeneration() : _imStartId(-1), _imEndId(-1) {}
+QwenModelForGeneration::QwenModelForGeneration()
+    : _imStartId(-1),
+      _imEndId(-1) {
+}
 
-std::shared_ptr<QwenModelForGeneration> QwenModelForGeneration::fromConfig(
+std::shared_ptr<QwenModelForGeneration> QwenModelForGeneration::fromPackage(
     const Context &ctx,
-    const lut::IniConfig &config) {
+    lut::ZipFile *package) {
+  std::shared_ptr<lut::Reader> reader = package->open(ModelConfig);
+  std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(reader.get());
+
+  std::string modelFile = ini->getSection(ModelSection).getString(ModelFileField);
+  std::string modelType = ini->getSection(ModelSection).getString(ModelTypeField);
+  CHECK(modelType == "qwen");
+
+  const lut::IniSection &qwenIni = ini->getSection(modelType);
+
   std::shared_ptr<QwenModelForGeneration> model{new QwenModelForGeneration()};
-  model->init(ctx, config);
+  llama::LlamaConfig llamaConfig = llama::LlamaConfig::loadConfig(qwenIni);
 
-  std::string modelType = config.getSection(ModelSection).getString(ModelTypeField);
-  const lut::IniSection &qwenSection = config.getSection(modelType);
+  StateMap stateMap;
+  stateMap.read(package->open(modelFile).get());
 
-  model->_imStartId = qwenSection.getInt("im_start_token_id");
-  model->_imEndId = qwenSection.getInt("im_end_token_id");
+  model->_model = llama::LlamaModel::create(ctx, llamaConfig);
+  model->_model->initParameters(stateMap);
+  model->_imStartId = qwenIni.getInt("im_start_token_id");
+  model->_imEndId = qwenIni.getInt("im_end_token_id");
+  model->_modelName = modelType;
 
+  model->initTokenizer(package);
   return model;
 }
 
 bool QwenModelForGeneration::isStopToken(int tokenId) const {
-  if (llama::LlamaModelForGeneration::isStopToken(tokenId) ||
-      tokenId == _imEndId ||
+  if (llama::LlamaModelForGeneration::isStopToken(tokenId) || tokenId == _imEndId ||
       tokenId == _imStartId) {
     return true;
   } else {

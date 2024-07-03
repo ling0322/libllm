@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include "libllm/tensor.h"
-#include "libllm/lut/span.h"
 #include "libllm/lut/random.h"
+#include "libllm/lut/span.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace F {
@@ -72,7 +72,7 @@ Tensor mul(Tensor input, Tensor other);
 Tensor softmax(Tensor input);
 
 // return input + other.
-Tensor add(Tensor input, Tensor other) ;
+Tensor add(Tensor input, Tensor other);
 
 // Applies the Gaussian Error Linear Units function for `input`. Here it use the approximate
 // version of GELU:
@@ -99,8 +99,13 @@ Tensor tensor(lut::Span<const int> shape, DType dtype, Device device = Device::g
 /// @param min minimal value for random number generator.
 /// @param max maximum value for random number generator.
 /// @return Generated random tensor.
-Tensor rand(lut::Span<const int> shape, DType dtype, Device device = Device::getCpu(), 
-            lut::Random *generator = nullptr, float min = -1.0f, float max = 1.0f);
+Tensor rand(
+    lut::Span<const int> shape,
+    DType dtype,
+    Device device = Device::getCpu(),
+    lut::Random *generator = nullptr,
+    float min = -1.0f,
+    float max = 1.0f);
 
 // returns a uninitialized tensor with the same shape and dtype as input
 Tensor tensorLike(Tensor input);
@@ -167,6 +172,21 @@ Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask = Tensor());
 //   <float>(..., D / 2): the output tensor.
 Tensor swiglu(Tensor input);
 
+// Extracts sliding local blocks from the input tensor, also as known as im2col. To make sure the
+// input and output shape are the same after Conv, tt will also pad the input tensor with zero.
+// padding the input with zeros
+// Args:
+//   input <float>(..., D): the input tensor.
+//   kernelSize: the kernel size, len(kernelSize) = 1 for 1D unfold.
+// Returns:
+//   <float>(..., D * product(kernelSize)): the output tensor.
+Tensor unfold(Tensor input, lut::Span<const int> kernelSize);
+
+/// @brief Extract the log mel spectrogram feature from input wave.
+/// @param wave <float>(wave_len, ): the input wave.
+/// @return <float>(feature_len, FeatDim=80): the logMelSpectrogram feature.
+Tensor logMelSpectrogram(Tensor wave);
+
 /// @brief Copy the tensor to target device. If `castFloat` is true and the tensor type is float,
 //         it will cast the data type to default float type of that device.
 /// @param tensor the source tensor.
@@ -186,5 +206,5 @@ Tensor cast(Tensor tensor, DType dtype);
 /// @return float type as DType.
 DType getDefaultFloatType(Device device);
 
-}  // F
-}  // libllm
+}  // namespace F
+}  // namespace libllm

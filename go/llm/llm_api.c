@@ -17,15 +17,12 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef LIBLLM_LLM_API_
-#define LIBLLM_LLM_API_
-
 #ifdef __APPLE__
 #define LUT_PLATFORM_APPLE
 #elif defined(linux) || defined(__linux) || defined(__linux__)
 #define LUT_PLATFORM_LINUX
-#elif defined(WIN32) || defined(__WIN32__) || defined(_MSC_VER) || \
-      defined(_WIN32) || defined(__MINGW32__)
+#elif defined(WIN32) || defined(__WIN32__) || defined(_MSC_VER) || defined(_WIN32) || \
+    defined(__MINGW32__)
 #define LUT_PLATFORM_WINDOWS
 #else
 #error unknown platform
@@ -33,7 +30,7 @@
 
 #if defined(LUT_PLATFORM_APPLE) || defined(LUT_PLATFORM_LINUX)
 #include <dlfcn.h>
-typedef void* LLM_HMODULE;
+typedef void *LLM_HMODULE;
 #elif defined(LUT_PLATFORM_WINDOWS)
 #include <windows.h>
 typedef HMODULE LLM_HMODULE;
@@ -42,19 +39,7 @@ typedef HMODULE LLM_HMODULE;
 #include <stdint.h>
 #include <stdio.h>
 
-#define LLM_DEVICE_CPU 0x0000
-#define LLM_DEVICE_CUDA 0x0100
-#define LLM_DEVICE_AUTO 0x1f00
-#define LLM_API_VERSION 20240101
-#define LLM_OK 0
-#define LLM_ABORTED 1
-
-typedef int32_t llmStatus_t;
-typedef struct llmModel_t llmModel_t;
-typedef struct llmChunk_t llmChunk_t;
-typedef struct llmPrompt_t llmPrompt_t;
-typedef struct llmCompletion_t llmCompletion_t;
-typedef int32_t llmBool_t;
+#include "llm_api.h"
 
 // global state
 llmStatus_t (*p_llmInit)(int32_t apiVersion);
@@ -70,10 +55,15 @@ llmStatus_t (*p_llmModel_Load)(llmModel_t *model);
 const char *(*p_llmModel_GetName)(llmModel_t *model);
 
 // llmPrompt_t
-llmPrompt_t *(*p_llmPrompt_New)(llmModel_t *model);
+llmPrompt_t *(*p_llmPrompt_New)();
 llmStatus_t (*p_llmPrompt_Delete)(llmPrompt_t *prompt);
 llmStatus_t (*p_llmPrompt_AppendText)(llmPrompt_t *prompt, const char *text);
 llmStatus_t (*p_llmPrompt_AppendControlToken)(llmPrompt_t *prompt, const char *token);
+llmStatus_t (*p_llmPrompt_AppendAudio)(
+    llmPrompt_t *prompt,
+    const llmByte_t *audio,
+    int64_t size,
+    int32_t format);
 
 // llmCompletion_t
 llmCompletion_t *(*p_llmCompletion_New)(llmModel_t *model);
@@ -82,14 +72,9 @@ llmStatus_t (*p_llmCompletion_SetPrompt)(llmCompletion_t *comp, llmPrompt_t *pro
 llmStatus_t (*p_llmCompletion_SetTopP)(llmCompletion_t *comp, float topP);
 llmStatus_t (*p_llmCompletion_SetTopK)(llmCompletion_t *comp, int32_t topK);
 llmStatus_t (*p_llmCompletion_SetTemperature)(llmCompletion_t *comp, float temperature);
-llmStatus_t (*p_llmCompletion_Start)(llmCompletion_t *comp);
-llmBool_t (*p_llmCompletion_IsActive)(llmCompletion_t *comp);
-llmStatus_t (*p_llmCompletion_GenerateNextChunk)(llmCompletion_t *comp, llmChunk_t *chunk);
-
-// llmChunk_t
-llmChunk_t *(*p_llmChunk_New)();
-llmStatus_t (*p_llmChunk_Delete)(llmChunk_t *chunk);
-const char *(*p_llmChunk_GetText)(llmChunk_t *chunk);
+llmBool_t (*p_llmCompletion_Next)(llmCompletion_t *comp);
+llmStatus_t (*p_llmCompletion_GetError)(llmCompletion_t *comp);
+const char *(*p_llmCompletion_GetText)(llmCompletion_t *comp);
 
 // load the libllm shared library.
 LLM_HMODULE llmLoadLibrary(const char *libraryPath) {
@@ -99,7 +84,6 @@ LLM_HMODULE llmLoadLibrary(const char *libraryPath) {
 #elif defined(LUT_PLATFORM_WINDOWS)
   return LoadLibraryA(libraryPath);
 #endif
-  
 }
 
 #if defined(LUT_PLATFORM_APPLE) || defined(LUT_PLATFORM_LINUX)
@@ -109,7 +93,7 @@ LLM_HMODULE llmLoadLibrary(const char *libraryPath) {
 #endif
 
 #define LOAD_SYMBOL(hDll, symbol)                                    \
-  p_##symbol = GET_PROC_ADDR(hDll, #symbol);                                 \
+  p_##symbol = GET_PROC_ADDR(hDll, #symbol);                         \
   if (!p_##symbol) {                                                 \
     fprintf(stderr, "llm.go: unable to load symbol: %s\n", #symbol); \
     return LLM_ABORTED;                                              \
@@ -129,18 +113,16 @@ llmStatus_t llmLoadSymbols(LLM_HMODULE hDll) {
   LOAD_SYMBOL(hDll, llmPrompt_Delete);
   LOAD_SYMBOL(hDll, llmPrompt_AppendText);
   LOAD_SYMBOL(hDll, llmPrompt_AppendControlToken);
+  LOAD_SYMBOL(hDll, llmPrompt_AppendAudio);
   LOAD_SYMBOL(hDll, llmCompletion_New);
   LOAD_SYMBOL(hDll, llmCompletion_Delete);
   LOAD_SYMBOL(hDll, llmCompletion_SetPrompt);
   LOAD_SYMBOL(hDll, llmCompletion_SetTopP);
   LOAD_SYMBOL(hDll, llmCompletion_SetTopK);
   LOAD_SYMBOL(hDll, llmCompletion_SetTemperature);
-  LOAD_SYMBOL(hDll, llmCompletion_Start);
-  LOAD_SYMBOL(hDll, llmCompletion_IsActive);
-  LOAD_SYMBOL(hDll, llmCompletion_GenerateNextChunk);
-  LOAD_SYMBOL(hDll, llmChunk_New);
-  LOAD_SYMBOL(hDll, llmChunk_Delete);
-  LOAD_SYMBOL(hDll, llmChunk_GetText);
+  LOAD_SYMBOL(hDll, llmCompletion_Next);
+  LOAD_SYMBOL(hDll, llmCompletion_GetError);
+  LOAD_SYMBOL(hDll, llmCompletion_GetText);
 
   return LLM_OK;
 }
@@ -160,18 +142,16 @@ llmStatus_t llmDestroyLibrary(LLM_HMODULE handle) {
   p_llmPrompt_Delete = NULL;
   p_llmPrompt_AppendText = NULL;
   p_llmPrompt_AppendControlToken = NULL;
+  p_llmPrompt_AppendAudio = NULL;
   p_llmCompletion_New = NULL;
   p_llmCompletion_Delete = NULL;
   p_llmCompletion_SetPrompt = NULL;
   p_llmCompletion_SetTopP = NULL;
   p_llmCompletion_SetTopK = NULL;
   p_llmCompletion_SetTemperature = NULL;
-  p_llmCompletion_Start = NULL;
-  p_llmCompletion_IsActive = NULL;
-  p_llmCompletion_GenerateNextChunk = NULL;
-  p_llmChunk_New = NULL;
-  p_llmChunk_Delete = NULL;
-  p_llmChunk_GetText = NULL;
+  p_llmCompletion_Next = NULL;
+  p_llmCompletion_GetError = NULL;
+  p_llmCompletion_GetText = NULL;
 
   // first try to load the dll from same folder as current module.
 #if defined(LUT_PLATFORM_APPLE) || defined(LUT_PLATFORM_LINUX)
@@ -227,8 +207,8 @@ const char *llmModel_GetName(llmModel_t *model) {
 }
 
 // llmPrompt_t
-llmPrompt_t *llmPrompt_New(llmModel_t *model) {
-  return p_llmPrompt_New(model);
+llmPrompt_t *llmPrompt_New() {
+  return p_llmPrompt_New();
 }
 
 llmStatus_t llmPrompt_Delete(llmPrompt_t *prompt) {
@@ -241,6 +221,14 @@ llmStatus_t llmPrompt_AppendText(llmPrompt_t *prompt, const char *text) {
 
 llmStatus_t llmPrompt_AppendControlToken(llmPrompt_t *prompt, const char *token) {
   return p_llmPrompt_AppendControlToken(prompt, token);
+}
+
+llmStatus_t llmPrompt_AppendAudio(
+    llmPrompt_t *prompt,
+    const llmByte_t *audio,
+    int64_t size,
+    int32_t format) {
+  return p_llmPrompt_AppendAudio(prompt, audio, size, format);
 }
 
 // llmCompletion_t
@@ -268,29 +256,14 @@ llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperatur
   return p_llmCompletion_SetTemperature(comp, temperature);
 }
 
-llmStatus_t llmCompletion_Start(llmCompletion_t *comp) {
-  return p_llmCompletion_Start(comp);
+llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
+  return p_llmCompletion_Next(comp);
 }
 
-llmBool_t llmCompletion_IsActive(llmCompletion_t *comp) {
-  return p_llmCompletion_IsActive(comp);
+llmStatus_t llmCompletion_GetError(llmCompletion_t *comp) {
+  return p_llmCompletion_GetError(comp);
 }
 
-llmStatus_t llmCompletion_GenerateNextChunk(llmCompletion_t *comp, llmChunk_t *chunk) {
-  return p_llmCompletion_GenerateNextChunk(comp, chunk);
+const char *llmCompletion_GetText(llmCompletion_t *comp) {
+  return p_llmCompletion_GetText(comp);
 }
-
-// llmChunk_t
-llmChunk_t *llmChunk_New() {
-  return p_llmChunk_New();
-}
-
-llmStatus_t llmChunk_Delete(llmChunk_t *chunk) {
-  return p_llmChunk_Delete(chunk);
-}
-
-const char *llmChunk_GetText(llmChunk_t *chunk) {
-  return p_llmChunk_GetText(chunk);
-}
-
-#endif  // LIBLLM_LLM_API_

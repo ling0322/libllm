@@ -12,7 +12,7 @@ import (
 var gModelPath string
 var gDevice string
 var gTask string
-var gAudioFile string
+var gInputFile string
 var gLocalizer *bin.Localizer
 
 const (
@@ -42,8 +42,7 @@ var gMsgEnUs = map[int]string{
 func main() {
 	flag.StringVar(&gModelPath, "model", "", "path of model file (.llmpkg)")
 	flag.StringVar(&gDevice, "device", "audo", "inference device (cpu|cuda|audo)")
-	flag.StringVar(&gAudioFile, "audio", "", "the input audio file, only used in transcribe task")
-	flag.StringVar(&gTask, "task", "chat", "the task to run (chat|transcribe)")
+	flag.StringVar(&gInputFile, "input", "", "the input audio file, only used in transcribe task")
 	flag.Parse()
 
 	var err error
@@ -75,8 +74,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if gTask == "chat" {
-		chatMain(model)
+	if gTask == "transcribe" {
+		transcribeMain(model)
 	} else {
 		log.Fatalf("unexpected task: %s", gTask)
 	}

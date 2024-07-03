@@ -42,7 +42,10 @@ extern "C" {
 #define LLM_DEVICE_CPU 0x0000
 #define LLM_DEVICE_CUDA 0x0100
 #define LLM_DEVICE_AUTO 0x1f00
+#define LLM_WAVE_FORMAT_PCM16KHZ16BITMONO 0x0001
 #define LLM_API_VERSION 20240101
+#define LLM_TRUE 1
+#define LLM_FALSE 0
 #define LLM_OK 0
 
 typedef int32_t llmStatus_t;
@@ -51,6 +54,7 @@ typedef struct llmChunk_t llmChunk_t;
 typedef struct llmPrompt_t llmPrompt_t;
 typedef struct llmCompletion_t llmCompletion_t;
 typedef int32_t llmBool_t;
+typedef int8_t llmByte_t;
 
 // global state
 LLMAPI llmStatus_t llmInit(int32_t apiVersion);
@@ -66,8 +70,15 @@ LLMAPI llmStatus_t llmModel_Load(llmModel_t *model);
 LLMAPI const char *llmModel_GetName(llmModel_t *model);
 
 // llmPrompt_t
-LLMAPI llmPrompt_t *llmPrompt_New(llmModel_t *model);
+LLMAPI llmPrompt_t *llmPrompt_New();
 LLMAPI llmStatus_t llmPrompt_Delete(llmPrompt_t *prompt);
+LLMAPI
+llmStatus_t llmPrompt_AppendAudio(
+    llmPrompt_t *prompt,
+    const llmByte_t *audio,
+    int64_t size,
+    int32_t format);
+
 LLMAPI llmStatus_t llmPrompt_AppendText(llmPrompt_t *prompt, const char *text);
 LLMAPI llmStatus_t llmPrompt_AppendControlToken(llmPrompt_t *prompt, const char *token);
 
@@ -78,14 +89,9 @@ LLMAPI llmStatus_t llmCompletion_SetPrompt(llmCompletion_t *comp, llmPrompt_t *p
 LLMAPI llmStatus_t llmCompletion_SetTopP(llmCompletion_t *comp, float topP);
 LLMAPI llmStatus_t llmCompletion_SetTopK(llmCompletion_t *comp, int32_t topK);
 LLMAPI llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperature);
-LLMAPI llmStatus_t llmCompletion_Start(llmCompletion_t *comp);
-LLMAPI llmBool_t llmCompletion_IsActive(llmCompletion_t *comp);
-LLMAPI llmStatus_t llmCompletion_GenerateNextChunk(llmCompletion_t *comp, llmChunk_t *chunk);
-
-// llmChunk_t
-LLMAPI llmChunk_t *llmChunk_New();
-LLMAPI llmStatus_t llmChunk_Delete(llmChunk_t *chunk);
-LLMAPI const char *llmChunk_GetText(llmChunk_t *chunk);
+LLMAPI llmBool_t llmCompletion_Next(llmCompletion_t *comp);
+LLMAPI llmStatus_t llmCompletion_GetError(llmCompletion_t *comp);
+LLMAPI const char *llmCompletion_GetText(llmCompletion_t *comp);
 
 #ifdef __cplusplus
 }  // extern "C"

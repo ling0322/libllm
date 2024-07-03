@@ -5,7 +5,6 @@
 #include <memory>
 #include <mutex>
 
-#include "libllm/chatglm.h"
 #include "libllm/context.h"
 #include "libllm/dtype.h"
 #include "libllm/functional.h"
@@ -17,6 +16,7 @@
 #include "libllm/lut/zip_file.h"
 #include "libllm/model_for_generation.h"
 #include "libllm/operators.h"
+#include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
 
 using libllm::Context;
@@ -24,9 +24,8 @@ using libllm::GenerationConfig;
 using libllm::Generator;
 using libllm::LongType;
 using libllm::ModelForGeneration;
+using libllm::Prompt;
 using libllm::Tokenizer;
-using libllm::chatglm::ChatGlmConfig;
-using libllm::chatglm::ChatGlmModel;
 using lut::IniConfig;
 
 struct llmModel_t {
@@ -41,10 +40,11 @@ struct llmCompletion_t {
   int top_k;
   float top_p;
   float temperature;
-  std::vector<LongType> prompt;
+  std::shared_ptr<Prompt> prompt;
   std::weak_ptr<ModelForGeneration> model_for_generation;
-  std::weak_ptr<Tokenizer> tokenizer;
   std::shared_ptr<Generator> generator;
+  lut::Error error;
+  std::string chunkText;
 };
 
 struct llmChunk_t {
@@ -52,8 +52,7 @@ struct llmChunk_t {
 };
 
 struct llmPrompt_t {
-  std::weak_ptr<Tokenizer> tokenizer;
-  std::vector<LongType> inputs;
+  std::shared_ptr<Prompt> prompt;
 };
 
 namespace libllm {
@@ -208,14 +207,11 @@ const char *llmModel_GetName(llmModel_t *model) {
       nullptr);
 }
 
-llmPrompt_t *llmPrompt_New(llmModel_t *model) {
+llmPrompt_t *llmPrompt_New() {
   return runAndCatch<llmPrompt_t *>(
-      [model]() {
-        if (!model) throw lut::InvalidArgError("model");
-        if (!model->tokenizer) throw lut::InvalidArgError("model not initialized");
-
+      []() {
         llmPrompt_t *prompt = new llmPrompt_t();
-        prompt->tokenizer = model->tokenizer;
+        prompt->prompt = std::make_shared<Prompt>();
         return prompt;
       },
       nullptr);
@@ -231,14 +227,7 @@ llmStatus_t llmPrompt_AppendText(llmPrompt_t *prompt, const char *text) {
     if (!prompt) throw lut::InvalidArgError("prompt");
     if (!text) throw lut::InvalidArgError("text");
 
-    std::shared_ptr<Tokenizer> tokenizer = prompt->tokenizer.lock();
-    if (!tokenizer) throw lut::AbortedError("tokenizer expired.");
-
-    std::vector<int> inputIds = tokenizer->encode(text);
-    for (int tokenId : inputIds) {
-      prompt->inputs.push_back(tokenId);
-    }
-
+    prompt->prompt->appendText(text);
     return LLM_OK;
   });
 }
@@ -248,15 +237,17 @@ llmStatus_t llmPrompt_AppendControlToken(llmPrompt_t *prompt, const char *name) 
     if (!prompt) throw lut::InvalidArgError("prompt");
     if (!name) throw lut::InvalidArgError("name");
 
-    std::shared_ptr<Tokenizer> tokenizer = prompt->tokenizer.lock();
-    if (!tokenizer) throw lut::AbortedError("tokenizer expired.");
-
-    int tokenId = tokenizer->getVocab()->findControlToken(name);
-    prompt->inputs.push_back(tokenId);
-    LOG(DEBUG) << "control token " << name << " -> " << tokenId;
-
+    prompt->prompt->appendControlToken(name);
     return LLM_OK;
   });
+}
+
+llmStatus_t llmPrompt_AppendAudio(
+    llmPrompt_t *prompt,
+    const llmByte_t *audio,
+    int64_t size,
+    int32_t format) {
+  NOT_IMPL();
 }
 
 llmCompletion_t *llmCompletion_New(llmModel_t *model) {
@@ -267,7 +258,6 @@ llmCompletion_t *llmCompletion_New(llmModel_t *model) {
 
         std::unique_ptr<llmCompletion_t> comp = std::make_unique<llmCompletion_t>();
         comp->model_for_generation = model->model_for_generation;
-        comp->tokenizer = model->tokenizer;
         comp->temperature = 1.0f;
         comp->top_k = 50;
         comp->top_p = 0.8f;
@@ -287,9 +277,9 @@ llmStatus_t llmCompletion_SetPrompt(llmCompletion_t *comp, llmPrompt_t *prompt) 
     if (!comp) throw lut::InvalidArgError("comp");
     if (!prompt) throw lut::InvalidArgError("prompt");
     if (comp->generator) throw lut::InvalidArgError("completion already started");
-    if (prompt->inputs.empty()) throw lut::InvalidArgError("prompt is empty");
+    if (prompt->prompt->empty()) throw lut::InvalidArgError("prompt is empty");
 
-    comp->prompt = prompt->inputs;
+    comp->prompt = prompt->prompt;
     return LLM_OK;
   });
 }
@@ -324,68 +314,61 @@ llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperatur
   });
 }
 
-llmStatus_t llmCompletion_Start(llmCompletion_t *comp) {
-  return runAndCatch([comp]() {
+llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
+  try {
     if (!comp) throw lut::InvalidArgError("comp");
-    if (comp->generator) throw lut::InvalidArgError("completion already started");
-    if (comp->prompt.empty()) throw lut::InvalidArgError("prompt is empty");
+    if (comp->prompt->empty()) throw lut::InvalidArgError("prompt is empty");
 
-    std::shared_ptr<ModelForGeneration> model = comp->model_for_generation.lock();
-    std::shared_ptr<Tokenizer> tokenizer = comp->tokenizer.lock();
+    if (comp->error.getCode() != lut::ErrorCode::OK) {
+      return LLM_FALSE;
+    }
 
-    if (!model) throw lut::InvalidArgError("model had been destroyed");
-    if (!tokenizer) throw lut::InvalidArgError("tokenizer had been destroyed");
+    if (!comp->generator) {
+      // prefill
+      std::shared_ptr<ModelForGeneration> model = comp->model_for_generation.lock();
+      if (!model) throw lut::InvalidArgError("model had been destroyed");
 
-    GenerationConfig config;
-    config.temperature = comp->temperature;
-    config.topK = comp->top_k;
-    config.topP = comp->top_p;
+      GenerationConfig config;
+      config.temperature = comp->temperature;
+      config.topK = comp->top_k;
+      config.topP = comp->top_p;
 
-    comp->generator = std::make_shared<Generator>(config, model, tokenizer);
-    comp->generator->forwardPrompt(comp->prompt);
+      comp->generator = std::make_shared<Generator>(config, model);
+      comp->generator->forwardPrompt(*comp->prompt);
+    }
+
+    // decode: generate next token.
+    if (comp->generator->stopped()) {
+      return LLM_FALSE;
+    } else {
+      const char *token = comp->generator->nextToken();
+      if (!token) throw lut::AbortedError("unexpected empty token");
+
+      comp->chunkText = token;
+      return LLM_TRUE;
+    }
+  } catch (const lut::Error &e) {
+    if (comp) comp->error = e;
+    return LLM_FALSE;
+  }
+}
+
+llmStatus_t llmCompletion_GetError(llmCompletion_t *comp) {
+  if (!comp) {
+    lut::Error err = lut::InvalidArgError("comp");
+    setErrorCodeAndMessage(err);
+    return static_cast<llmStatus_t>(err.getCode());
+  }
+
+  if (comp->error.getCode() == lut::ErrorCode::OK) {
     return LLM_OK;
-  });
+  } else {
+    setErrorCodeAndMessage(comp->error);
+    return static_cast<llmStatus_t>(comp->error.getCode());
+  }
 }
 
-llmBool_t llmCompletion_IsActive(llmCompletion_t *comp) {
-  return runAndCatch<llmBool_t>(
-      [comp]() {
-        if (!comp) throw lut::InvalidArgError("comp");
-        if (!comp->generator) throw lut::InvalidArgError("completion not started");
-
-        return !comp->generator->stopped();
-      },
-      false);
-}
-
-llmStatus_t llmCompletion_GenerateNextChunk(llmCompletion_t *comp, llmChunk_t *chunk) {
-  return runAndCatch([comp, chunk]() {
-    if (!comp) throw lut::InvalidArgError("comp");
-    if (!comp->generator) throw lut::InvalidArgError("completion not started");
-    if (comp->generator->stopped()) throw lut::AbortedError("completion stopped");
-
-    const char *token = comp->generator->nextToken();
-    if (!token) throw lut::AbortedError("unexpected empty token");
-
-    chunk->text = token;
-    return LLM_OK;
-  });
-}
-
-llmChunk_t *llmChunk_New() {
-  return new llmChunk_t();
-}
-
-llmStatus_t llmChunk_Delete(llmChunk_t *chunk) {
-  delete chunk;
-  return LLM_OK;
-}
-
-const char *llmChunk_GetText(llmChunk_t *chunk) {
-  return runAndCatch<const char *>(
-      [chunk]() {
-        if (!chunk) throw lut::InvalidArgError("chunk");
-        return chunk->text.c_str();
-      },
-      nullptr);
+const char *llmCompletion_GetText(llmCompletion_t *comp) {
+  if (!comp) return "";
+  return comp->chunkText.c_str();
 }

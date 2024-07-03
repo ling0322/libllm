@@ -87,7 +87,7 @@ func (m *modelImpl) Complete(config CompletionConfig, prompt Prompt) (Completion
 		return nil, err
 	}
 
-	promptHandle, err := newPromptHandle(m.handle)
+	promptHandle, err := newPromptHandle()
 	if err != nil {
 		return nil, err
 	}
@@ -98,11 +98,6 @@ func (m *modelImpl) Complete(config CompletionConfig, prompt Prompt) (Completion
 	}
 
 	ok := C.llmCompletion_SetPrompt(comp.handle.handle, promptHandle.handle)
-	if ok != C.LLM_OK {
-		return nil, errors.New(C.GoString(C.llmGetLastErrorMessage()))
-	}
-
-	ok = C.llmCompletion_Start(comp.handle.handle)
 	if ok != C.LLM_OK {
 		return nil, errors.New(C.GoString(C.llmGetLastErrorMessage()))
 	}

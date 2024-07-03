@@ -113,11 +113,19 @@ Tensor Operators::to(Device device, Tensor tensor) {
   NOT_IMPL();
 }
 
+Tensor Operators::unfold(Tensor input, lut::Span<const int> kernelSize) {
+  NOT_IMPL();
+}
+
 Tensor Operators::cast(Tensor tensor, DType dtype) {
   NOT_IMPL();
 }
 
 DType Operators::getDefaultFloatType() {
+  NOT_IMPL();
+}
+
+Tensor Operators::logMelSpectrogram(Tensor wave) {
   NOT_IMPL();
 }
 

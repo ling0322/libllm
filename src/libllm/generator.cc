@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2023-2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -30,46 +30,25 @@ GenerationConfig::GenerationConfig()
       temperature(1.0f) {
 }
 
-Generator::Generator(
-    GenerationConfig config,
-    std::shared_ptr<ModelForGeneration> model,
-    std::shared_ptr<Tokenizer> tokenizer)
+Generator::Generator(GenerationConfig config, std::shared_ptr<ModelForGeneration> model)
     : _config(config),
       _sampler(config.topK, config.topP),
-      _tokenizer(tokenizer),
       _model(model),
       _currentToken(-1) {
 }
 
-void Generator::forwardPrompt(const std::vector<LongType> &prompt) {
-  for (LongType tokenId : prompt) {
-    LOG(DEBUG) << tokenId << " -> " << _tokenizer->getVocab()->getTokenString(tokenId);
-  }
-
-  Tensor inputs = _model->buildInput(prompt);
-  Tensor hiddenState = _model->forward(_past, inputs);
-
-  CHECK(hiddenState.getDim() == 3);
-  Tensor x = hiddenState.slice(1, {-1, None});
-  Tensor logits = _model->forwardHidden(x);
-  _currentToken = sampleToken(logits);
+void Generator::forwardPrompt(const Prompt &prompt) {
+  _currentToken = sampleToken(_model->prefill(_past, prompt));
 }
 
 const char *Generator::nextToken() {
   if (stopped()) return nullptr;
 
-  const Vocab *vocab = _tokenizer->getVocab();
+  const Vocab *vocab = _model->getVocab();
   const char *token = vocab->getTokenPiece(_currentToken).c_str();
   LOG(DEBUG) << lut::sprintf("%d -> \"%s\"", _currentToken, vocab->getTokenString(_currentToken));
 
-  std::array<LongType, 1> inputData{_currentToken};
-  Tensor inputs = Tensor::create<LongType>({1, 1}, inputData);
-  inputs = F::to(_model->getDevice(), inputs);
-
-  Tensor x = _model->forward(_past, inputs);
-  Tensor logits = _model->forwardHidden(x);
-  _currentToken = sampleToken(logits);
-
+  _currentToken = sampleToken(_model->decode(_past, _currentToken));
   return token;
 }
 

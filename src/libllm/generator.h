@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,7 +20,9 @@
 #pragma once
 
 #include <memory>
+
 #include "libllm/model_for_generation.h"
+#include "libllm/prompt.h"
 #include "libllm/sampler.h"
 
 namespace libllm {
@@ -36,22 +38,19 @@ struct GenerationConfig {
 // LLM text generator
 class Generator {
  public:
-  Generator(GenerationConfig config,
-            std::shared_ptr<ModelForGeneration> model,
-            std::shared_ptr<Tokenizer> tokenizer);
+  Generator(GenerationConfig config, std::shared_ptr<ModelForGeneration> model);
 
-  void forwardPrompt(const std::vector<LongType> &prompt);
+  void forwardPrompt(const Prompt &prompt);
 
   // generate the next word (token). Returns nullptr if the generation is finished.
   const char *nextToken();
-  
+
   bool stopped() const;
 
  private:
   GenerationConfig _config;
   Sampler _sampler;
   StateMap _past;
-  std::shared_ptr<Tokenizer> _tokenizer;
   std::shared_ptr<ModelForGeneration> _model;
   int _currentToken;
 

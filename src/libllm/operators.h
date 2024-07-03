@@ -53,7 +53,9 @@ class Operators {
   virtual void copy(Tensor src, Tensor dest);
   virtual Tensor swiglu(Tensor A);
   virtual Tensor to(Device device, Tensor tensor);
+  virtual Tensor unfold(Tensor input, lut::Span<const int> kernelSize);
   virtual Tensor cast(Tensor tensor, DType dtype);
+  virtual Tensor logMelSpectrogram(Tensor wave);
   virtual Tensor
   rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min, float max);
 

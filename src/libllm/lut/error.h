@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -22,11 +22,12 @@
 #include <exception>
 #include <string>
 
-#define THROW(exType, msg) { \
-  std::string msg_ = msg; \
-  LOG(ERROR) << "an " << #exType << " exception was thrown: " << msg_; \
-  throw lut::exType ## Error(msg_); \
-}
+#define THROW(exType, msg)                                               \
+  {                                                                      \
+    std::string msg_ = msg;                                              \
+    LOG(ERROR) << "an " << #exType << " exception was thrown: " << msg_; \
+    throw lut::exType##Error(msg_);                                      \
+  }
 
 namespace lut {
 
@@ -40,14 +41,15 @@ enum class ErrorCode : int {
 
 class Error : public std::exception {
  public:
+  Error();
   Error(ErrorCode code, const std::string &what);
   ~Error();
- 
+
   // get error code.
   ErrorCode getCode() const;
 
   // implement std::exception.
-  const char* what() const noexcept override;
+  const char *what() const noexcept override;
 
  private:
   ErrorCode _code;
@@ -74,4 +76,4 @@ class NotImplementedError : public Error {
   NotImplementedError(const std::string &what);
 };
 
-} // namespace lut
+}  // namespace lut

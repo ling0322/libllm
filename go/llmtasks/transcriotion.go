@@ -17,24 +17,15 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+package llmtasks
 
-#include <memory>
+import "github.com/ling0322/libllm/go/llm"
 
-#include "libllm/lut/span.h"
-#include "libllm/tensor.h"
+type Transcriber interface {
+	Transcribe(audio []byte, config TranscriptionConfig) (llm.Completion, error)
+}
 
-namespace libllm {
-
-enum class WaveFormat {
-  Wave16kHz16bitMonoPCM,
-  Unknown,
-};
-
-// interface for Tokenizer.
-class Wave {
- public:
-  static Tensor read(lut::Span<const Byte> data, WaveFormat format);
-};
-
-}  // namespace libllm
+type TranscriptionConfig struct {
+	Prompt   string
+	Language string
+}

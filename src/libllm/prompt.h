@@ -17,47 +17,47 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package chat
+#pragma once
 
-import (
-	"github.com/ling0322/libllm/go/llm"
-)
+#include <stdint.h>
 
-type Message struct {
-	Role    string
-	Content string
-}
+#include <string>
+#include <vector>
 
-type Chat struct {
-	model         llm.Model
-	promptBuilder promptBuilder
-	compConfig    llm.CompletionConfig
-}
+#include "libllm/dtype.h"
+#include "libllm/wave.h"
 
-func NewChat(model llm.Model) (*Chat, error) {
-	modelName := model.GetName()
-	promptBuilder, err := newPromptBuilder(modelName)
-	if err != nil {
-		return nil, err
-	}
+namespace libllm {
 
-	return &Chat{
-		model:         model,
-		promptBuilder: promptBuilder,
-		compConfig:    llm.NewCompletionConfig(),
-	}, nil
-}
+struct PromptBlock {
+  enum Type {
+    Text,
+    ControlToken,
+    Wave,
+    Unknown,
+  };
 
-func (c *Chat) Chat(history []Message) (llm.Completion, error) {
-	prompt, err := c.promptBuilder.Build(history)
-	if err != nil {
-		return nil, err
-	}
+  std::string text;
+  std::vector<Byte> data;
+  WaveFormat waveFormat;
+  Type blockType;
 
-	comp, err := c.model.Complete(c.compConfig, prompt)
-	if err != nil {
-		return nil, err
-	}
+  PromptBlock();
+  static std::string typeToString(Type blockType);
+};
 
-	return comp, nil
-}
+class Prompt {
+ public:
+  void appendText(const std::string &text);
+  void appendControlToken(const std::string &controlToken);
+  void appendWave(lut::Span<const Byte> payload, WaveFormat format);
+
+  bool empty() const;
+
+  lut::Span<const PromptBlock> getBlocks() const;
+
+ private:
+  std::vector<PromptBlock> _blocks;
+};
+
+}  // namespace libllm

@@ -17,15 +17,24 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package chat
+package llmtasks
 
-type QA struct {
-	Question string
-	Answer   string
+import (
+	"fmt"
+
+	"github.com/ling0322/libllm/go/llm"
+)
+
+type promptBuilder interface {
+	Build(history []Message) (llm.Prompt, error)
 }
 
-type Context struct {
-	System   string
-	History  []QA
-	Question string
+func newPromptBuilder(modelName string) (promptBuilder, error) {
+	if modelName == "llama" {
+		return &Llama{}, nil
+	} else if modelName == "index" {
+		return &BilibiliIndex{}, nil
+	} else {
+		return nil, fmt.Errorf("unexpected model name %s", modelName)
+	}
 }

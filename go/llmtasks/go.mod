@@ -1,4 +1,4 @@
-module github.com/ling0322/libllm/go/chat
+module github.com/ling0322/libllm/go/llmtasks
 
 go 1.15
 

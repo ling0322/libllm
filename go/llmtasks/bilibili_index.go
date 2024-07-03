@@ -17,24 +17,29 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package chat
+package llmtasks
 
-import (
-	"fmt"
+import "github.com/ling0322/libllm/go/llm"
 
-	"github.com/ling0322/libllm/go/llm"
-)
-
-type promptBuilder interface {
-	Build(history []Message) (llm.Prompt, error)
+type BilibiliIndex struct {
 }
 
-func newPromptBuilder(modelName string) (promptBuilder, error) {
-	if modelName == "llama" {
-		return &Llama{}, nil
-	} else if modelName == "index" {
-		return &BilibiliIndex{}, nil
-	} else {
-		return nil, fmt.Errorf("unexpected model name %s", modelName)
+func (l *BilibiliIndex) Build(history []Message) (llm.Prompt, error) {
+	prompt := llm.NewPrompt()
+	if len(history) > 0 && history[0].Role == "system" {
+		prompt.AppendControlToken("<unk>")
+		prompt.AppendText(history[0].Content)
 	}
+
+	for _, message := range history {
+		if message.Role == "user" {
+			prompt.AppendControlToken("<|reserved_0|>")
+			prompt.AppendText(message.Content)
+			prompt.AppendControlToken("<|reserved_1|>")
+		} else if message.Role == "assistent" {
+			prompt.AppendText(message.Content)
+		}
+	}
+
+	return prompt, nil
 }

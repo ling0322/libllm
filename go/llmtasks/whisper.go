@@ -17,24 +17,49 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+package llmtasks
 
-#include <memory>
+import (
+	"fmt"
 
-#include "libllm/lut/span.h"
-#include "libllm/tensor.h"
+	"github.com/ling0322/libllm/go/llm"
+)
 
-namespace libllm {
+type Whisper struct {
+	model llm.Model
+}
 
-enum class WaveFormat {
-  Wave16kHz16bitMonoPCM,
-  Unknown,
-};
+func NewWhisper(model llm.Model) Transcriber {
+	return &Whisper{model}
+}
 
-// interface for Tokenizer.
-class Wave {
- public:
-  static Tensor read(lut::Span<const Byte> data, WaveFormat format);
-};
+func (w *Whisper) languageToTag(language string) (string, error) {
+	if language == "english" {
+		return "<|en|>", nil
+	}
+	if language == "chinese" {
+		return "<|zh|>", nil
+	}
 
-}  // namespace libllm
+	return "", fmt.Errorf("unexpected language: %s", language)
+}
+
+func (w *Whisper) Transcribe(audio []byte, config TranscriptionConfig) (llm.Completion, error) {
+	prompt := llm.NewPrompt()
+	prompt.AppendAudio(audio, llm.Pcm16kHz16BitMono)
+	if config.Prompt != "" {
+		prompt.AppendControlToken("<|prev|>")
+		prompt.AppendText(config.Prompt)
+	}
+
+	prompt.AppendControlToken("<|startoftranscript|>")
+	languageTag, err := w.languageToTag(config.Language)
+	if err != nil {
+		return nil, err
+	}
+	prompt.AppendControlToken(languageTag)
+	prompt.AppendControlToken("<|transcribe|>")
+
+	comp, err := w.model.Complete(llm.NewCompletionConfig(), prompt)
+	return comp, err
+}

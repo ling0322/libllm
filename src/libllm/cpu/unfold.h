@@ -17,27 +17,17 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package chat
+#pragma once
 
-import "github.com/ling0322/libllm/go/llm"
+#include "libllm/lut/span.h"
+#include "libllm/tensor.h"
 
-type Llama struct {
-}
+namespace libllm {
+namespace op {
+namespace cpu {
 
-func (l *Llama) Build(history []Message) (llm.Prompt, error) {
-	prompt := llm.NewPrompt()
-	prompt.AppendControlToken("<|begin_of_text|>")
-	for _, message := range history {
-		prompt.AppendControlToken("<|start_header_id|>")
-		prompt.AppendText(message.Role)
-		prompt.AppendControlToken("<|end_header_id|>")
-		prompt.AppendText("\n\n" + message.Content)
-		prompt.AppendControlToken("<|eot_id|>")
-	}
+Tensor unfold(const Tensor &src, lut::Span<const int> kernelSize);
 
-	prompt.AppendControlToken("<|start_header_id|>")
-	prompt.AppendText("assistant")
-	prompt.AppendControlToken("<|end_header_id|>")
-	prompt.AppendText("\n\n")
-	return prompt, nil
-}
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

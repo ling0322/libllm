@@ -17,24 +17,27 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+package llmtasks
 
-#include <memory>
+import "github.com/ling0322/libllm/go/llm"
 
-#include "libllm/lut/span.h"
-#include "libllm/tensor.h"
+type Llama struct {
+}
 
-namespace libllm {
+func (l *Llama) Build(history []Message) (llm.Prompt, error) {
+	prompt := llm.NewPrompt()
+	prompt.AppendControlToken("<|begin_of_text|>")
+	for _, message := range history {
+		prompt.AppendControlToken("<|start_header_id|>")
+		prompt.AppendText(message.Role)
+		prompt.AppendControlToken("<|end_header_id|>")
+		prompt.AppendText("\n\n" + message.Content)
+		prompt.AppendControlToken("<|eot_id|>")
+	}
 
-enum class WaveFormat {
-  Wave16kHz16bitMonoPCM,
-  Unknown,
-};
-
-// interface for Tokenizer.
-class Wave {
- public:
-  static Tensor read(lut::Span<const Byte> data, WaveFormat format);
-};
-
-}  // namespace libllm
+	prompt.AppendControlToken("<|start_header_id|>")
+	prompt.AppendText("assistant")
+	prompt.AppendControlToken("<|end_header_id|>")
+	prompt.AppendText("\n\n")
+	return prompt, nil
+}

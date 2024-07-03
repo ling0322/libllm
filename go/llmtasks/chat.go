@@ -17,29 +17,47 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package chat
+package llmtasks
 
-import "github.com/ling0322/libllm/go/llm"
+import (
+	"github.com/ling0322/libllm/go/llm"
+)
 
-type BilibiliIndex struct {
+type Message struct {
+	Role    string
+	Content string
 }
 
-func (l *BilibiliIndex) Build(history []Message) (llm.Prompt, error) {
-	prompt := llm.NewPrompt()
-	if len(history) > 0 && history[0].Role == "system" {
-		prompt.AppendControlToken("<unk>")
-		prompt.AppendText(history[0].Content)
+type Chat struct {
+	model         llm.Model
+	promptBuilder promptBuilder
+	compConfig    llm.CompletionConfig
+}
+
+func NewChat(model llm.Model) (*Chat, error) {
+	modelName := model.GetName()
+	promptBuilder, err := newPromptBuilder(modelName)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, message := range history {
-		if message.Role == "user" {
-			prompt.AppendControlToken("<|reserved_0|>")
-			prompt.AppendText(message.Content)
-			prompt.AppendControlToken("<|reserved_1|>")
-		} else if message.Role == "assistent" {
-			prompt.AppendText(message.Content)
-		}
+	return &Chat{
+		model:         model,
+		promptBuilder: promptBuilder,
+		compConfig:    llm.NewCompletionConfig(),
+	}, nil
+}
+
+func (c *Chat) Chat(history []Message) (llm.Completion, error) {
+	prompt, err := c.promptBuilder.Build(history)
+	if err != nil {
+		return nil, err
 	}
 
-	return prompt, nil
+	comp, err := c.model.Complete(c.compConfig, prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	return comp, nil
 }

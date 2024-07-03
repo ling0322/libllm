@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -39,9 +39,15 @@ std::string getErrorCodeName(ErrorCode code) {
 std::string buildErrorMsg(ErrorCode code, const std::string &what) {
   return getErrorCodeName(code) + ": " + what;
 }
-
-Error::Error(ErrorCode code, const std::string &what) : _code(code), _what(what) {}
-Error::~Error() {}
+Error::Error()
+    : _code(ErrorCode::OK) {
+}
+Error::Error(ErrorCode code, const std::string &what)
+    : _code(code),
+      _what(what) {
+}
+Error::~Error() {
+}
 
 ErrorCode Error::getCode() const {
   return _code;
@@ -52,15 +58,19 @@ const char *Error::what() const noexcept {
 }
 
 AbortedError::AbortedError(const std::string &what)
-    : Error(ErrorCode::Aborted, buildErrorMsg(ErrorCode::Aborted, what)){}
+    : Error(ErrorCode::Aborted, buildErrorMsg(ErrorCode::Aborted, what)) {
+}
 
 OutOfRangeError::OutOfRangeError(const std::string &what)
-    : Error(ErrorCode::OutOfRange, buildErrorMsg(ErrorCode::OutOfRange, what)) {}
+    : Error(ErrorCode::OutOfRange, buildErrorMsg(ErrorCode::OutOfRange, what)) {
+}
 
 InvalidArgError::InvalidArgError(const std::string &what)
-    : Error(ErrorCode::InvalidArg, buildErrorMsg(ErrorCode::InvalidArg, what)) {}
+    : Error(ErrorCode::InvalidArg, buildErrorMsg(ErrorCode::InvalidArg, what)) {
+}
 
 NotImplementedError::NotImplementedError(const std::string &what)
-    : Error(ErrorCode::InvalidArg, buildErrorMsg(ErrorCode::NotImplemented, what)) {}
+    : Error(ErrorCode::InvalidArg, buildErrorMsg(ErrorCode::NotImplemented, what)) {
+}
 
-} // namespace lut
+}  // namespace lut

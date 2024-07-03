@@ -209,10 +209,8 @@ std::vector<float> applyLogMelSpectrogramWindow(
 Tensor logMelSpectrogram(Tensor inputs) {
   CHECK(inputs.getDim() == 1);
   CHECK(inputs.getShape(0) > NumPad);
-  LOG(INFO) << inputs.getShape(0);
 
   int numFrames = (inputs.getShape(0) + NumPad - (NumFft - HopLength)) / HopLength;
-  LOG(INFO) << numFrames;
   Tensor outputs = op::cpu::tensor({numFrames, kMel_OutputDim}, DType::kFloat);
 
   TensorAccessor<const float, 1> inputAccessor(inputs);

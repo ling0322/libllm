@@ -4,7 +4,7 @@
 // Original source file: https://github.com/jeandeaual/go-locale/blob/master/locale_windows.go
 // LICENSE: MIT: https://github.com/jeandeaual/go-locale/blob/master/LICENSE
 
-package i18n
+package bin
 
 import (
 	"strings"

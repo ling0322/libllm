@@ -17,42 +17,38 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package llm
+package main
 
-// #include <stdlib.h>
-// #include "llm_api.h"
-import "C"
 import (
-	"errors"
 	"fmt"
+	"log"
 	"os"
-	"runtime"
+
+	"github.com/ling0322/libllm/go/llm"
+	"github.com/ling0322/libllm/go/llmtasks"
 )
 
-// Generate by Compeltion.
-type Chunk struct {
-	Text string
-}
-
-type chunkHandle struct {
-	handle *C.llmChunk_t
-}
-
-func newChunkHandle() (*chunkHandle, error) {
-	cHandle := C.llmChunk_New()
-	if cHandle == nil {
-		return nil, errors.New(C.GoString(C.llmGetLastErrorMessage()))
+func transcribeMain(model llm.Model) {
+	if gInputFile == "" {
+		log.Fatal("argument -input is required for transcribe task")
 	}
 
-	handle := &chunkHandle{
-		cHandle,
+	transcriber := llmtasks.NewWhisper(model)
+	data, err := os.ReadFile(gInputFile)
+	if err != nil {
+		log.Fatal(err)
 	}
-	runtime.SetFinalizer(handle, func(h *chunkHandle) {
-		status := C.llmChunk_Delete(h.handle)
-		if status != C.LLM_OK {
-			fmt.Fprintln(os.Stderr, "failed to call llmPrompt_Delete()")
-		}
-	})
 
-	return handle, nil
+	comp, err := transcriber.Transcribe(data, llmtasks.TranscriptionConfig{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for comp.Next() {
+		fmt.Print(comp.Text())
+	}
+	if err := comp.Error(); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println()
 }

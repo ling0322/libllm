@@ -11,3 +11,5 @@ AllowShortFunctionsOnASingleLine: false
 PenaltyBreakAssignment: 2000
 BreakConstructorInitializers: BeforeColon
 PackConstructorInitializers: Never
+ReturnTypeBreakingStyle: Automatic
+PenaltyReturnTypeOnItsOwnLine: 8000

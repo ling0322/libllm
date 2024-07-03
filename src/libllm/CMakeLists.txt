@@ -44,11 +44,11 @@ set(libllm_SOURCES
     "cpu/swiglu.cc"
     "cpu/tensor.cc"
     "cpu/transform.cc"
+    "cpu/unfold.cc"
     "cpu/view.cc"
     "bpe_config.cc"
     "bpe_encoder.cc"
     "bpe_model.cc"
-    "chatglm.cc"
     "c_api.cc"
     "context.cc"
     "device.cc"
@@ -60,12 +60,14 @@ set(libllm_SOURCES
     "module.cc"
     "mp.cc"
     "operators.cc"
+    "prompt.cc"
     "qwen.cc"
     "sampler.cc"
     "state_map.cc"
     "tensor.cc"
     "tokenizer.cc"
     "wave.cc"
+    "whisper.cc"
     "../../third_party/ruapu/ruapu.cc")
 
 set(unittest_SOURCES
@@ -75,7 +77,6 @@ set(unittest_SOURCES
     "cpu/test.cc"
     "lut/path_test.cc"
     "lut/strings_test.cc"
-    "chatglm_test.cc"
     "llama_test.cc"
     "module_test.cc"
     "operator_tester.cc"
@@ -258,4 +259,12 @@ add_custom_target(llmbin
     ALL
     DEPENDS libllm
     COMMAND go build -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_SOURCE_DIR}/go/bin/llm
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/go/bin)
+
+add_custom_target(llmtranscribe
+    ALL
+    DEPENDS libllm
+    COMMAND go build 
+        -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm-transcribe${CMAKE_EXECUTABLE_SUFFIX}
+        ${CMAKE_SOURCE_DIR}/go/bin/llm_transcribe
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/go/bin)

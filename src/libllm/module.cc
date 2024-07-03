@@ -231,4 +231,90 @@ Tensor LayerNorm::forward(const Tensor &input) const {
   return F::layerNorm(input, _w, _b, _eps);
 }
 
+// -----------------------------------------------------------------------------------------------+
+//  Conv1D                                                                                        |
+// -----------------------------------------------------------------------------------------------+
+
+constexpr char Conv1D::kWeight[];
+constexpr char Conv1D::kBias[];
+
+Conv1D::Conv1D()
+    : _inChannels(0),
+      _outChannels(0),
+      _kernelSize(0),
+      _hasBias(false) {
+}
+
+std::shared_ptr<Conv1D>
+Conv1D::create(const Context &ctx, int inChannels, int outChannels, int kernelSize, bool bias) {
+  std::shared_ptr<Conv1D> layer{new Conv1D()};
+  layer->setCtx(ctx);
+
+  if (kernelSize == 0 || kernelSize >= 16) {
+    throw lut::AbortedError("invalid kernelSize");
+  }
+
+  layer->_hasBias = bias;
+  layer->_inChannels = inChannels;
+  layer->_outChannels = outChannels;
+  layer->_kernelSize = kernelSize;
+
+  return layer;
+}
+
+void Conv1D::initParameters(const StateMap &stateDict) {
+  const Context &ctx = getCtx();
+
+  std::string nameW = getCtx().name(kWeight);
+  std::string nameB = ctx.name(kBias);
+
+  _w = stateDict.getTensor(nameW);
+  _w.throwIfInvalidShape({_outChannels, _inChannels * _kernelSize}, nameW);
+  _w = moveAndCastFloat(_w, ctx);
+
+  if (_hasBias) {
+    _b = stateDict.getTensor(nameB);
+    _b.throwIfInvalidShape({_outChannels}, nameB);
+    _b = moveAndCastFloat(_b, ctx);
+  } else {
+    if (stateDict.hasTensor(nameB)) {
+      throw lut::AbortedError(lut::sprintf(
+          "In module %s: hasBias=false but bias weight found in state_map.",
+          ctx.name()));
+    }
+  }
+}
+
+void Conv1D::initParameters(lut::Random *generator, DType weightType) {
+  float xs = sqrtf(3.0f / (_inChannels * _kernelSize));
+  _w = F::rand(
+      {_outChannels, _inChannels * _kernelSize},
+      weightType,
+      Device::getCpu(),
+      generator,
+      -xs,
+      xs);
+  _w = moveAndCastFloat(_w, getCtx());
+
+  if (_hasBias) {
+    _b = F::rand({_outChannels}, DType::kFloat, Device::getCpu(), generator, -0.2f, 0.2f);
+    _b = moveAndCastFloat(_b, getCtx());
+  }
+}
+
+Tensor Conv1D::forward(const Tensor &input) const {
+  Tensor x = F::unfold(input, {_kernelSize});
+  if (input.getDim() >= 2) {
+    x = F::matmul(x, _w.transpose(0, 1));
+  } else {
+    NOT_IMPL();
+  }
+
+  if (_hasBias) {
+    x = F::add(x, _b);
+  }
+
+  return x;
+}
+
 }  // namespace libllm

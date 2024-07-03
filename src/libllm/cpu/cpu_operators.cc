@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,16 +20,20 @@
 #include "libllm/cpu/cpu_operators.h"
 
 #include <stdlib.h>
+
 #include <cmath>
 #include <limits>
 #include <memory>
-#include "libllm/cpu/kernel/interface.h"
+
 #include "libllm/cpu/all_close.h"
 #include "libllm/cpu/apply_rotary_pos_emb.h"
 #include "libllm/cpu/binary_op.h"
 #include "libllm/cpu/cast.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/copy.h"
+#include "libllm/cpu/cpu_tensor_data.h"
+#include "libllm/cpu/kernel/interface.h"
+#include "libllm/cpu/log_mel_spectrogram.h"
 #include "libllm/cpu/lookup.h"
 #include "libllm/cpu/matmul.h"
 #include "libllm/cpu/print.h"
@@ -39,7 +43,7 @@
 #include "libllm/cpu/swiglu.h"
 #include "libllm/cpu/tensor.h"
 #include "libllm/cpu/transform.h"
-#include "libllm/cpu/cpu_tensor_data.h"
+#include "libllm/cpu/unfold.h"
 #include "libllm/operators.h"
 #include "libllm/tensor.h"
 
@@ -47,8 +51,8 @@ namespace libllm {
 namespace op {
 namespace cpu {
 
-CPUOperators::CPUOperators() {}
-
+CPUOperators::CPUOperators() {
+}
 
 Tensor CPUOperators::tensor(lut::Span<const int> shape, DType dtype) {
   return op::cpu::tensor(shape, dtype);
@@ -60,8 +64,12 @@ Tensor CPUOperators::tensorLike(Tensor input) {
 
 // -- class CPUOperators ----------
 
-Tensor CPUOperators::rand(lut::Span<const int> shape, DType dtype, lut::Random *generator,
-                          float min, float max) {
+Tensor CPUOperators::rand(
+    lut::Span<const int> shape,
+    DType dtype,
+    lut::Random *generator,
+    float min,
+    float max) {
   return op::cpu::rand(shape, dtype, generator, min, max);
 }
 
@@ -129,6 +137,14 @@ Tensor CPUOperators::to(Device device, Tensor tensor) {
   NOT_IMPL();
 }
 
+Tensor CPUOperators::logMelSpectrogram(Tensor wave) {
+  return cpu::logMelSpectrogram(wave);
+}
+
+Tensor CPUOperators::unfold(Tensor input, lut::Span<const int> kernelSize) {
+  return cpu::unfold(input, kernelSize);
+}
+
 Tensor CPUOperators::cast(Tensor tensor, DType dtype) {
   return cpu::cast(tensor, dtype);
 }
@@ -137,6 +153,6 @@ DType CPUOperators::getDefaultFloatType() {
   return DType::getType<cpu::DefaultFloatType>();
 }
 
-}  // cpu
-}  // op
-}  // ly
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

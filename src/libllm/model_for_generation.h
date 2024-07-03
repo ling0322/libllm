@@ -21,6 +21,7 @@
 
 #include "libllm/context.h"
 #include "libllm/lut/zip_file.h"
+#include "libllm/prompt.h"
 #include "libllm/state_map.h"
 #include "libllm/tensor.h"
 #include "libllm/tokenizer.h"
@@ -37,28 +38,19 @@ class ModelForGeneration {
 
   virtual ~ModelForGeneration() = default;
 
-  // initialize the parameters from stateMap.
-  virtual void initParameters(const StateMap &stateMap) = 0;
+  /// @brief Used in the prefill phase. Forward the input prompt through this language model, update
+  /// the `past` state and return the logits for the next token.
+  /// @param past (StateMap): key-value cache.
+  /// @param prompt (Prompt): the input prompt for prefill.
+  /// @return  <float>(N, 1, V): hidden state from last layer.
+  virtual Tensor prefill(StateMap &past, const Prompt &prompt) const = 0;
 
-  // Forward input token ids through this language model, update the `past` state and return the
-  // hidden state of last layer.
-  // Args:
-  //   past (StateMap): key-value cache.
-  //   inputs <long>(N, L): prompt token ids.
-  // Returns:
-  //   <float>(N, L, D): hidden state from last layer.
-  virtual Tensor forward(StateMap &past, Tensor input) const = 0;
-
-  // Forward the hidden state from last layer and get the logits. hiddenState is usually the
-  // return value of forward().
-  // Args:
-  //   hidden_state <float>(N, L, D): hidden state from last layer.
-  // Returns:
-  //   <float>(N, L, V): logits. V is vocabulary size.
-  virtual Tensor forwardHidden(Tensor hiddenState) const = 0;
-
-  // build model input from the prompt token-ids.
-  virtual Tensor buildInput(const std::vector<LongType> &prompt) const = 0;
+  /// @brief Used in the decodeing phase. Forward input token ids through this language model,
+  /// update the `past` state and return the logits for the next token.
+  /// @param past (StateMap): key-value cache.
+  /// @param inputToken (LongType): the input token.
+  /// @return  <float>(N, 1, V): hidden state from last layer.
+  virtual Tensor decode(StateMap &past, LongType inputToken) const = 0;
 
   /// @brief Return true if tokenId is a stop token. (stop generating texts)
   /// @param tokenId the token id.
@@ -71,6 +63,25 @@ class ModelForGeneration {
   /// @brief Get device of the model.
   /// @return the device.
   virtual Device getDevice() const = 0;
+
+  /// @brief Get the vocabulary (tokenId to token string) of the model.
+  /// @return The vocabulary.
+  const Vocab *getVocab() const;
+
+ protected:
+  std::shared_ptr<Tokenizer> _tokenizer;
+
+  ModelForGeneration() = default;
+
+  /// @brief Initialize the tokenizer.
+  /// @param package The model package.
+  void initTokenizer(lut::ZipFile *package);
+
+  /// @brief Encode a prompt block and append the tokens into `tokenIds`. It will ONLY process two
+  /// types of promptBlock: text and controlToken. Once other type occured, it will fatal directly.
+  /// @param block The block to process.
+  /// @param tokenIds The vector to append processed tokens.
+  void encodePromptBlock(const PromptBlock &block, std::vector<LongType> &tokenIds) const;
 };
 
 }  // namespace libllm
