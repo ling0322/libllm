@@ -32,6 +32,7 @@
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/copy.h"
 #include "libllm/cpu/cpu_tensor_data.h"
+#include "libllm/cpu/gelu.h"
 #include "libllm/cpu/kernel/interface.h"
 #include "libllm/cpu/log_mel_spectrogram.h"
 #include "libllm/cpu/lookup.h"
@@ -109,6 +110,10 @@ Tensor CPUOperators::lookup(Tensor table, Tensor indices) {
   return cpu::lookup(table, indices);
 }
 
+Tensor CPUOperators::gelu(Tensor input) {
+  return cpu::gelu(input);
+}
+
 Tensor CPUOperators::rmsNorm(Tensor input, Tensor weight, float eps) {
   CHECK(input.getDType() == weight.getDType());
 
@@ -141,8 +146,8 @@ Tensor CPUOperators::logMelSpectrogram(Tensor wave) {
   return cpu::logMelSpectrogram(wave);
 }
 
-Tensor CPUOperators::unfold(Tensor input, lut::Span<const int> kernelSize) {
-  return cpu::unfold(input, kernelSize);
+Tensor CPUOperators::unfold(Tensor input, int kernelSize, int stride) {
+  return cpu::unfold(input, kernelSize, stride);
 }
 
 Tensor CPUOperators::cast(Tensor tensor, DType dtype) {

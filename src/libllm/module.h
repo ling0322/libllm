@@ -141,8 +141,11 @@ class Embedding : public Module {
 class Linear : public Module {
  public:
   // create Linear module from context.
-  static std::unique_ptr<Linear>
-  create(const Context &ctx, int inDim, int outDim, bool hasBias = true);
+  static std::unique_ptr<Linear> create(
+      const Context &ctx,
+      int inDim,
+      int outDim,
+      bool hasBias = true);
 
   // implement interface Module
   void initParameters(const StateMap &state_dict) override;
@@ -166,11 +169,18 @@ class Linear : public Module {
   Linear();
 };
 
+/// @brief Apply 1D Convolution to the input tensor. Unlike Conv1D in pytorch, it use (N, L, C) as
+/// input format.
 class Conv1D : public Module {
  public:
   // create Linear module from context.
-  static std::shared_ptr<Conv1D>
-  create(const Context &ctx, int inChennels, int outChannels, int kernelSize, bool bias = true);
+  static std::shared_ptr<Conv1D> create(
+      const Context &ctx,
+      int inChennels,
+      int outChannels,
+      int kernelSize,
+      int stride = 1,
+      bool bias = true);
 
   // implement interface Module
   void initParameters(const StateMap &stateDict) override;
@@ -190,6 +200,7 @@ class Conv1D : public Module {
   int _inChannels;
   int _outChannels;
   int _kernelSize;
+  int _stride;
   bool _hasBias;
 
   Conv1D();

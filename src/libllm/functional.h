@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2023-2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -172,15 +172,21 @@ Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask = Tensor());
 //   <float>(..., D / 2): the output tensor.
 Tensor swiglu(Tensor input);
 
-// Extracts sliding local blocks from the input tensor, also as known as im2col. To make sure the
-// input and output shape are the same after Conv, tt will also pad the input tensor with zero.
-// padding the input with zeros
-// Args:
-//   input <float>(..., D): the input tensor.
-//   kernelSize: the kernel size, len(kernelSize) = 1 for 1D unfold.
-// Returns:
-//   <float>(..., D * product(kernelSize)): the output tensor.
-Tensor unfold(Tensor input, lut::Span<const int> kernelSize);
+/// @brief Apply Gaussian error linear unit (GELU) activation to the inputs. it applies
+/// element-wise the function GELU(x) = x * Phi(x) where Phi(x) is  the Cumulative Distribution. In
+/// the implementation, it did not use the approximate version. Function for Gaussian Distribution.
+/// @param inputs: <float>(..., D): the input tensor.
+/// @return <float>(..., D): the output tensor.
+Tensor gelu(Tensor inputs);
+
+/// @brief (im2col) Extracts sliding local blocks from the input tensor. To make
+/// sure the input and output shape are the same after Conv, it will also pad the input tensor with
+/// zero.
+/// @param input <float>(N, L, C): the input tensor.
+/// @param kernelSize: the kernel size.
+/// @param stride: the stride.
+/// @return  <float>(N, L / stride, D * kernelSize): the output tensor.
+Tensor unfold(Tensor input, int kernelSize, int stride);
 
 /// @brief Extract the log mel spectrogram feature from input wave.
 /// @param wave <float>(wave_len, ): the input wave.

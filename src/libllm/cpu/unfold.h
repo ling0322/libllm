@@ -26,7 +26,7 @@ namespace libllm {
 namespace op {
 namespace cpu {
 
-Tensor unfold(const Tensor &src, lut::Span<const int> kernelSize);
+Tensor unfold(const Tensor &src, int kernelSize, int stride);
 
 }  // namespace cpu
 }  // namespace op

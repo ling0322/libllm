@@ -245,8 +245,13 @@ Conv1D::Conv1D()
       _hasBias(false) {
 }
 
-std::shared_ptr<Conv1D>
-Conv1D::create(const Context &ctx, int inChannels, int outChannels, int kernelSize, bool bias) {
+std::shared_ptr<Conv1D> Conv1D::create(
+    const Context &ctx,
+    int inChannels,
+    int outChannels,
+    int kernelSize,
+    int stride,
+    bool bias) {
   std::shared_ptr<Conv1D> layer{new Conv1D()};
   layer->setCtx(ctx);
 
@@ -258,7 +263,7 @@ Conv1D::create(const Context &ctx, int inChannels, int outChannels, int kernelSi
   layer->_inChannels = inChannels;
   layer->_outChannels = outChannels;
   layer->_kernelSize = kernelSize;
-
+  layer->_stride = stride;
   return layer;
 }
 
@@ -269,8 +274,9 @@ void Conv1D::initParameters(const StateMap &stateDict) {
   std::string nameB = ctx.name(kBias);
 
   _w = stateDict.getTensor(nameW);
-  _w.throwIfInvalidShape({_outChannels, _inChannels * _kernelSize}, nameW);
+  _w.throwIfInvalidShape({_outChannels, _inChannels, _kernelSize}, nameW);
   _w = moveAndCastFloat(_w, ctx);
+  _w = _w.view({_outChannels, -1});
 
   if (_hasBias) {
     _b = stateDict.getTensor(nameB);
@@ -303,7 +309,7 @@ void Conv1D::initParameters(lut::Random *generator, DType weightType) {
 }
 
 Tensor Conv1D::forward(const Tensor &input) const {
-  Tensor x = F::unfold(input, {_kernelSize});
+  Tensor x = F::unfold(input, {_kernelSize}, _stride);
   if (input.getDim() >= 2) {
     x = F::matmul(x, _w.transpose(0, 1));
   } else {

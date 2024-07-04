@@ -47,6 +47,7 @@ class CPUOperators : public Operators {
   Tensor mul(Tensor input, float other) override;
   Tensor mul(Tensor input, Tensor other) override;
   Tensor softmax(Tensor input) override;
+  Tensor gelu(Tensor input) override;
   Tensor add(Tensor a, Tensor b) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;
   Tensor tensorLike(Tensor input) override;
@@ -61,7 +62,7 @@ class CPUOperators : public Operators {
   Tensor to(Device device, Tensor tensor) override;
   Tensor cast(Tensor tensor, DType dtype) override;
   Tensor logMelSpectrogram(Tensor wave) override;
-  Tensor unfold(Tensor input, lut::Span<const int> kernelSize) override;
+  Tensor unfold(Tensor input, int kernelSize, int stride) override;
   Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min, float max)
       override;
 

@@ -247,7 +247,18 @@ llmStatus_t llmPrompt_AppendAudio(
     const llmByte_t *audio,
     int64_t size,
     int32_t format) {
-  NOT_IMPL();
+  return runAndCatch([prompt, audio, size, format]() {
+    if (!prompt) throw lut::InvalidArgError("prompt");
+    if (!audio) throw lut::InvalidArgError("audio");
+    if (size <= 0 || size > 1024 * 1024 * 1024)
+      throw lut::AbortedError("invalid size, [1, 1G) expected");
+    if (format != LLM_WAVE_FORMAT_PCM16KHZ16BITMONO) throw lut::AbortedError("invalid format");
+
+    prompt->prompt->appendWave(
+        lut::Span<const Byte>(reinterpret_cast<const Byte *>(audio), size),
+        WaveFormat::Wave16kHz16bitMonoPCM);
+    return LLM_OK;
+  });
 }
 
 llmCompletion_t *llmCompletion_New(llmModel_t *model) {

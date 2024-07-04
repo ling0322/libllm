@@ -113,7 +113,7 @@ Tensor Operators::to(Device device, Tensor tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::unfold(Tensor input, lut::Span<const int> kernelSize) {
+Tensor Operators::unfold(Tensor input, int kernelSize, int stride) {
   NOT_IMPL();
 }
 

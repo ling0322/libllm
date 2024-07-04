@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -25,8 +25,7 @@ namespace libllm {
 namespace op {
 namespace cpu {
 
-Tensor swiglu(const Tensor &A);
-Tensor swigluFp32(const Tensor &A);
+Tensor gelu(const Tensor &A);
 
 }  // namespace cpu
 }  // namespace op

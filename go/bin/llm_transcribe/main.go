@@ -11,7 +11,6 @@ import (
 
 var gModelPath string
 var gDevice string
-var gTask string
 var gInputFile string
 var gLocalizer *bin.Localizer
 
@@ -74,9 +73,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if gTask == "transcribe" {
-		transcribeMain(model)
-	} else {
-		log.Fatalf("unexpected task: %s", gTask)
-	}
+	transcribeMain(model)
 }

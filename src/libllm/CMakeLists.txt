@@ -34,6 +34,7 @@ set(libllm_SOURCES
     "cpu/cpu_operators.cc"
     "cpu/cpu_tensor_data.cc"
     "cpu/fingerprint.cc"
+    "cpu/gelu.cc"
     "cpu/log_mel_spectrogram.cc"
     "cpu/lookup.cc"
     "cpu/matmul.cc"

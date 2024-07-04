@@ -51,8 +51,10 @@ class EncoderModel : public Module {
   void forward(StateMap &past, Tensor wave);
 
  private:
-  static constexpr int FeatDim = 80;
+  static constexpr int FeatDim = 128;
+  static constexpr int InputSamples = 16000 * 30;
   std::shared_ptr<Conv1D> _conv1;
+  std::shared_ptr<Conv1D> _conv2;
 
   EncoderModel();
 };

@@ -39,7 +39,7 @@ func transcribeMain(model llm.Model) {
 		log.Fatal(err)
 	}
 
-	comp, err := transcriber.Transcribe(data, llmtasks.TranscriptionConfig{})
+	comp, err := transcriber.Transcribe(data, llmtasks.TranscriptionConfig{Language: "english"})
 	if err != nil {
 		log.Fatal(err)
 	}

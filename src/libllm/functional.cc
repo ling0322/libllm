@@ -167,16 +167,16 @@ Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
   return outputs;
 }
 
-Tensor swiglu(Tensor input) {
-  return getOperators(input.getDevice().getType())->swiglu(input);
+Tensor swiglu(Tensor inputs) {
+  return getOperators(inputs.getDevice().getType())->swiglu(inputs);
 }
 
 Tensor logMelSpectrogram(Tensor wave) {
   return getOperators(wave.getDevice().getType())->logMelSpectrogram(wave);
 }
 
-Tensor unfold(Tensor input, lut::Span<const int> kernelSize) {
-  return getOperators(input.getDevice().getType())->unfold(input, kernelSize);
+Tensor unfold(Tensor input, int kernelSize, int stride) {
+  return getOperators(input.getDevice().getType())->unfold(input, kernelSize, stride);
 }
 
 Tensor to(Device device, Tensor tensor) {

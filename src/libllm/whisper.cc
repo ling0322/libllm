@@ -45,16 +45,33 @@ EncoderModel::EncoderModel() {
 }
 
 void EncoderModel::initParameters(const StateMap &stateDict) {
+  _conv1->initParameters(stateDict);
+  _conv2->initParameters(stateDict);
 }
 
 void EncoderModel::initParameters(lut::Random *generator, DType weightType) {
+  _conv1->initParameters(generator, weightType);
+  _conv2->initParameters(generator, weightType);
 }
 
 void EncoderModel::forward(StateMap &past, Tensor wave) {
+  // pad wave.
+  if (wave.getShape(-1) < InputSamples) {
+    Tensor pad = F::zeros({InputSamples}, wave.getDType(), wave.getDevice());
+    F::copy(wave, pad.slice({0, wave.getShape(-1)}));
+    wave = pad;
+  }
+
   Tensor features = F::logMelSpectrogram(wave);
   Tensor x = _conv1->forward(features);
+  x = F::gelu(x);
+
+  x = _conv2->forward(x);
+  x = F::gelu(x);
 
   F::print(x);
+
+  exit(22);
 }
 
 std::shared_ptr<EncoderModel> EncoderModel::fromConfig(const Context &ctx, WhisperConfig config) {
@@ -62,6 +79,7 @@ std::shared_ptr<EncoderModel> EncoderModel::fromConfig(const Context &ctx, Whisp
   model->setCtx(ctx);
 
   model->_conv1 = Conv1D::create(ctx.withName("conv1"), FeatDim, config.hiddenSize, 3);
+  model->_conv2 = Conv1D::create(ctx.withName("conv2"), config.hiddenSize, config.hiddenSize, 3, 2);
   return model;
 }
 
@@ -90,7 +108,7 @@ std::shared_ptr<WhisperModelForGeneration> WhisperModelForGeneration::fromPackag
   StateMap stateMap;
 
   stateMap.read(package->open(modelFile).get());
-  model->_model = EncoderModel::fromConfig(ctx, llamaConfig);
+  model->_model = EncoderModel::fromConfig(ctx.withName("encoder"), llamaConfig);
   model->_model->initParameters(stateMap);
   model->_eotId = llamaIni.getInt("eot_token_id");
   model->_modelName = modelType;
