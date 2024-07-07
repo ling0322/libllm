@@ -37,9 +37,9 @@
 #include "libllm/cpu/log_mel_spectrogram.h"
 #include "libllm/cpu/lookup.h"
 #include "libllm/cpu/matmul.h"
+#include "libllm/cpu/normalizations.h"
 #include "libllm/cpu/print.h"
 #include "libllm/cpu/rand.h"
-#include "libllm/cpu/rms_norm.h"
 #include "libllm/cpu/softmax.h"
 #include "libllm/cpu/swiglu.h"
 #include "libllm/cpu/tensor.h"
@@ -126,6 +126,10 @@ Tensor CPUOperators::causalMask(int max_len) {
 
 Tensor CPUOperators::applyRotaryPosEmb(Tensor A, Tensor roPE) {
   return cpu::applyRotaryPosEmb(A, roPE);
+}
+
+Tensor CPUOperators::layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
+  return cpu::layerNorm(input, weight, bias, eps);
 }
 
 void CPUOperators::copy(Tensor src, Tensor dest) {

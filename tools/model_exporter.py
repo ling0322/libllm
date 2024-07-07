@@ -253,6 +253,10 @@ class ModelExporter:
         ctx = ctx.with_subname("weight")
         self._write(ctx, module.weight)
 
+    def export_linear(self, ctx: Context, module):
+        self._write(ctx.with_subname("weight"), module.weight)
+        self._write(ctx.with_subname("bias"), module.bias)
+
     def export_layer_norm(self, ctx: Context, module: nn.LayerNorm):
         self._write(ctx.with_subname("weight").with_quant(Quant.NONE), module.weight)
         self._write(ctx.with_subname("bias").with_quant(Quant.NONE), module.bias)

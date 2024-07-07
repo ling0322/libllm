@@ -41,9 +41,43 @@ class WhisperExporter(ModelExporter):
         assert(module.dilation == (1, ))
         assert(module.padding == (1, ))
 
+    def _export_enc_pos_embd(self, ctx: Context, module):
+        self._write(ctx, module.weight)
+
+    def _export_attn(self, ctx: Context, module):
+        q_proj = module.q_proj.weight
+        k_proj = module.k_proj.weight
+        v_proj = module.v_proj.weight
+
+        qkv_proj = torch.cat((q_proj, k_proj, v_proj), dim=0)
+        self._write(ctx.with_subname("qkv_proj.weight"), qkv_proj)
+
+        assert module.q_proj.bias is not None
+        assert module.v_proj.bias is not None
+        assert module.k_proj.bias is None
+        q_bias = module.q_proj.bias
+        k_bias = torch.zeros_like(q_bias)
+        v_bias = module.v_proj.bias
+        qkv_bias = torch.cat((q_bias, k_bias, v_bias), dim=0)
+        self._write(ctx.with_subname("qkv_proj.bias"), qkv_bias)
+
+        self._write(ctx.with_subname("out_proj.weight"), module.out_proj.weight)
+        self._write(ctx.with_subname("out_proj.bias"), module.out_proj.bias)
+
+    def _export_encoder_layer(self, ctx: Context, module):
+        self.export_layer_norm(ctx.with_subname("norm1"), module.self_attn_layer_norm)
+        self.export_layer_norm(ctx.with_subname("norm2"), module.final_layer_norm)
+        self._export_attn(ctx.with_subname("attn"), module.self_attn)
+        self.export_linear(ctx.with_subname("fc1"), module.fc1)
+        self.export_linear(ctx.with_subname("fc2"), module.fc2)
+
     def _export_encoder(self, ctx: Context, module):
         self._export_conv1d(ctx.with_subname("conv1"), module.conv1)
         self._export_conv1d(ctx.with_subname("conv2"), module.conv2)
+        self._export_enc_pos_embd(ctx.with_subname("pos_embd"), module.embed_positions)
+        for idx, layer in enumerate(module.layers):
+           self._export_encoder_layer(ctx.with_subname(f"layer{idx}"), layer)
+        self.export_layer_norm(ctx.with_subname("norm"), module.layer_norm)
 
     @classmethod
     def generate_config(cls, whisper_config) -> configparser.ConfigParser:
@@ -52,6 +86,9 @@ class WhisperExporter(ModelExporter):
         
         section = config["whisper"]
         section["hidden_size"] = str(whisper_config.hidden_size)
+        section["encoder_num_heads"] = str(whisper_config.encoder_attention_heads)
+        section["encoder_ffn_dim"] = str(whisper_config.encoder_ffn_dim)
+        section["encoder_num_layers"]  = str(whisper_config.encoder_layers)
 
         return config
 
@@ -62,6 +99,8 @@ class WhisperExporter(ModelExporter):
     def export(cls, whisper_model, fp, quant: Quant):
         model = whisper_model.base_model
         config = whisper_model.config
+
+        assert config.activation_function == "gelu"
 
         ctx = Context("whisper", quant=quant)
         with TensorWriter(fp) as writer:

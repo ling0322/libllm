@@ -45,10 +45,10 @@ void unfold1DKernel(const Tensor &src, Tensor &dest, int kernelSize, int stride)
       int kernekIdxEnd = (kernelSize - 1) / 2;
 
       for (int j : partition.getRange()) {
-        int numChennels = vA.getShape(1);
+        int numChannels = vA.getShape(1);
         int numInFrames = vA.getShape(0);
 
-        for (int d = 0; d < numChennels; ++d) {
+        for (int d = 0; d < numChannels; ++d) {
           for (int k = kernekIdxBegin; k <= kernekIdxEnd; ++k) {
             int srcIdx = j * stride + k;
             int offset = k - kernekIdxBegin;

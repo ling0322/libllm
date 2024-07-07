@@ -211,6 +211,14 @@ std::unique_ptr<LayerNorm> LayerNorm::create(const Context &ctx, int dModel, flo
   return layer;
 }
 
+void LayerNorm::initParameters(lut::Random *generator, DType _) {
+  _w = F::rand({_dModel}, DType::kFloat, Device::getCpu(), generator);
+  _w = moveAndCastFloat(_w, getCtx());
+
+  _b = F::rand({_dModel}, DType::kFloat, Device::getCpu(), generator);
+  _b = moveAndCastFloat(_b, getCtx());
+}
+
 void LayerNorm::initParameters(const StateMap &stateDict) {
   const Context &ctx = getCtx();
 
@@ -228,6 +236,8 @@ void LayerNorm::initParameters(const StateMap &stateDict) {
 }
 
 Tensor LayerNorm::forward(const Tensor &input) const {
+  F::print(_w);
+  F::print(_b);
   return F::layerNorm(input, _w, _b, _eps);
 }
 

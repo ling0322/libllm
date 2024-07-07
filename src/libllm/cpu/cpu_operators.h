@@ -44,6 +44,7 @@ class CPUOperators : public Operators {
   // implement interface Operators
   Tensor lookup(Tensor table, Tensor indices) override;
   Tensor matmul(Tensor a, Tensor b) override;
+  Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
   Tensor mul(Tensor input, float other) override;
   Tensor mul(Tensor input, Tensor other) override;
   Tensor softmax(Tensor input) override;

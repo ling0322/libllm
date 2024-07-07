@@ -72,6 +72,7 @@ class LayerNorm : public Module {
 
   // implement interface Module
   void initParameters(const StateMap &state_dict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
 
   // forward input and return the output.
   Tensor forward(const Tensor &input) const;

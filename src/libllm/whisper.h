@@ -30,10 +30,50 @@ namespace whisper {
 
 struct WhisperConfig {
   int hiddenSize;
+  int encoderNumHeads;
+  int encoderFfnDim;
+  int encoderNumLayers;
 
   WhisperConfig();
 
   static WhisperConfig loadConfig(const lut::IniSection &section);
+};
+
+class EncoderAttention : public Module {
+ public:
+  static std::shared_ptr<EncoderAttention> fromConfig(const Context &ctx, WhisperConfig config);
+  ~EncoderAttention();
+
+  void initParameters(const StateMap &stateDict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
+  Tensor forward(Tensor inputs);
+
+ private:
+  std::shared_ptr<Linear> _qkvProj;
+  std::shared_ptr<Linear> _outProj;
+  int _numHeads;
+  int _hiddenSize;
+
+  EncoderAttention();
+};
+
+class EncoderLayer : public Module {
+ public:
+  static std::shared_ptr<EncoderLayer> fromConfig(const Context &ctx, WhisperConfig config);
+  ~EncoderLayer();
+
+  void initParameters(const StateMap &stateDict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
+  Tensor forward(Tensor inputs);
+
+ private:
+  std::shared_ptr<LayerNorm> _norm1;
+  std::shared_ptr<LayerNorm> _norm2;
+  std::shared_ptr<EncoderAttention> _attn;
+  std::shared_ptr<Linear> _fc1;
+  std::shared_ptr<Linear> _fc2;
+
+  EncoderLayer();
 };
 
 class EncoderModel : public Module {
@@ -48,13 +88,18 @@ class EncoderModel : public Module {
   /// `past`.
   /// @param past the kv_cache to update.
   /// @param wave the input wave.
-  void forward(StateMap &past, Tensor wave);
+  Tensor forward(Tensor wave);
 
  private:
   static constexpr int FeatDim = 128;
-  static constexpr int InputSamples = 16000 * 30;
+  static constexpr int NumFrames = 30;
+  static constexpr int InputSamples = 16000 * NumFrames;
   std::shared_ptr<Conv1D> _conv1;
   std::shared_ptr<Conv1D> _conv2;
+  std::vector<std::shared_ptr<EncoderLayer>> _layers;
+  std::shared_ptr<LayerNorm> _norm;
+  Tensor _posEmbd;
+  int _hiddenSize;
 
   EncoderModel();
 };
