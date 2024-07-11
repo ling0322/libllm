@@ -53,13 +53,16 @@ func (w *Whisper) Transcribe(audio []byte, config TranscriptionConfig) (llm.Comp
 	}
 
 	prompt.AppendControlToken("<|startoftranscript|>")
-	languageTag, err := w.languageToTag(config.Language)
-	if err != nil {
-		return nil, err
-	}
-	prompt.AppendControlToken(languageTag)
-	prompt.AppendControlToken("<|transcribe|>")
+	// languageTag, err := w.languageToTag(config.Language)
+	// if err != nil {
+	// 	return nil, err
+	//}
+	// prompt.AppendControlToken(languageTag)
+	// prompt.AppendControlToken("<|transcribe|>")
 
-	comp, err := w.model.Complete(llm.NewCompletionConfig(), prompt)
+	compConfig := llm.NewCompletionConfig()
+	compConfig.SetTopK(1)
+	compConfig.SupressControlToken("<|notimestamps|>")
+	comp, err := w.model.Complete(compConfig, prompt)
 	return comp, err
 }

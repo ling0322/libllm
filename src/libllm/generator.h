@@ -31,6 +31,7 @@ struct GenerationConfig {
   int topK;
   float topP;
   float temperature;
+  std::vector<int> supressedTokens;
 
   GenerationConfig();
 };
@@ -38,7 +39,9 @@ struct GenerationConfig {
 // LLM text generator
 class Generator {
  public:
-  Generator(GenerationConfig config, std::shared_ptr<ModelForGeneration> model);
+  static std::shared_ptr<Generator> newGenerator(
+      const GenerationConfig &config,
+      std::shared_ptr<ModelForGeneration> model);
 
   void forwardPrompt(const Prompt &prompt);
 
@@ -48,12 +51,14 @@ class Generator {
   bool stopped() const;
 
  private:
-  GenerationConfig _config;
   Sampler _sampler;
   StateMap _past;
   std::shared_ptr<ModelForGeneration> _model;
+  Tensor _supress;
   int _currentToken;
+  float _temperature;
 
+  Generator(const GenerationConfig &config, std::shared_ptr<ModelForGeneration> model);
   int sampleToken(const Tensor &logits);
 };
 

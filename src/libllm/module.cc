@@ -236,8 +236,6 @@ void LayerNorm::initParameters(const StateMap &stateDict) {
 }
 
 Tensor LayerNorm::forward(const Tensor &input) const {
-  F::print(_w);
-  F::print(_b);
   return F::layerNorm(input, _w, _b, _eps);
 }
 

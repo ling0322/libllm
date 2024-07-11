@@ -1,3 +1,5 @@
+#include "libllm/llm.h"
+
 #include <string.h>
 
 #include <atomic>
@@ -9,7 +11,6 @@
 #include "libllm/dtype.h"
 #include "libllm/functional.h"
 #include "libllm/generator.h"
-#include "libllm/llm.h"
 #include "libllm/lut/error.h"
 #include "libllm/lut/ini_config.h"
 #include "libllm/lut/log.h"
@@ -45,6 +46,7 @@ struct llmCompletion_t {
   std::shared_ptr<Generator> generator;
   lut::Error error;
   std::string chunkText;
+  std::vector<int> supressedToken;
 };
 
 struct llmChunk_t {
@@ -325,6 +327,22 @@ llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperatur
   });
 }
 
+llmStatus_t llmCompletion_SupressControlToken(llmCompletion_t *comp, const char *token) {
+  return runAndCatch([comp, token]() {
+    if (!comp) throw lut::InvalidArgError("comp");
+    if (!token) throw lut::InvalidArgError("token");
+
+    std::shared_ptr<ModelForGeneration> model = comp->model_for_generation.lock();
+    if (!model) throw lut::InvalidArgError("model had been destroyed");
+
+    const Vocab *vocab = model->getVocab();
+    int tokenId = vocab->findControlToken(token);
+
+    comp->supressedToken.push_back(tokenId);
+    return LLM_OK;
+  });
+}
+
 llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
   try {
     if (!comp) throw lut::InvalidArgError("comp");
@@ -343,8 +361,9 @@ llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
       config.temperature = comp->temperature;
       config.topK = comp->top_k;
       config.topP = comp->top_p;
+      config.supressedTokens = comp->supressedToken;
 
-      comp->generator = std::make_shared<Generator>(config, model);
+      comp->generator = Generator::newGenerator(config, model);
       comp->generator->forwardPrompt(*comp->prompt);
     }
 

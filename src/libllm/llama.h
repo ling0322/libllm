@@ -123,7 +123,8 @@ class LlamaModel : public Module {
   void initParameters(lut::Random *generator, DType weightType) override;
 
   Tensor forward(StateMap &past, Tensor input) const;
-  Tensor forwardHidden(Tensor hidden) const;
+  Tensor forwardLmHead(Tensor hidden) const;
+  int getOutputDim() const;
 
  private:
   LlamaConfig _config;
@@ -147,6 +148,7 @@ class LlamaModelForGeneration : public ModelForGeneration {
   bool isStopToken(int tokenId) const override;
   const char *getName() const override;
   Device getDevice() const override;
+  int getOutputDim() const override;
 
  protected:
   std::shared_ptr<LlamaModel> _model;

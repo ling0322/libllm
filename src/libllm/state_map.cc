@@ -54,7 +54,7 @@ void StateMap::read(lut::Reader *fp) {
     if (tag != "<r> ") throw lut::AbortedError("invalid tensor map file");
 
     std::pair<std::string, Tensor> kv = readTensor(fp);
-    LOG(INFO) << "Load tensor: " << kv.first;
+    LOG(DEBUG) << "Load tensor: " << kv.first;
     _dict[kv.first] = kv.second;
 
     tag = fp->readString(4);

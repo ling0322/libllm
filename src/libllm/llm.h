@@ -88,6 +88,7 @@ LLMAPI llmStatus_t llmCompletion_Delete(llmCompletion_t *comp);
 LLMAPI llmStatus_t llmCompletion_SetPrompt(llmCompletion_t *comp, llmPrompt_t *prompt);
 LLMAPI llmStatus_t llmCompletion_SetTopP(llmCompletion_t *comp, float topP);
 LLMAPI llmStatus_t llmCompletion_SetTopK(llmCompletion_t *comp, int32_t topK);
+LLMAPI llmStatus_t llmCompletion_SupressControlToken(llmCompletion_t *comp, const char *token);
 LLMAPI llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperature);
 LLMAPI llmBool_t llmCompletion_Next(llmCompletion_t *comp);
 LLMAPI llmStatus_t llmCompletion_GetError(llmCompletion_t *comp);

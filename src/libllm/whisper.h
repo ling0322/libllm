@@ -33,6 +33,10 @@ struct WhisperConfig {
   int encoderNumHeads;
   int encoderFfnDim;
   int encoderNumLayers;
+  int decoderNumLayers;
+  int decoderFfnDim;
+  int vocabSize;
+  int maxTgtLength;
 
   WhisperConfig();
 
@@ -86,7 +90,6 @@ class EncoderModel : public Module {
 
   /// @brief Forward the wave through the whisper encoder model and update the key-value cache in
   /// `past`.
-  /// @param past the kv_cache to update.
   /// @param wave the input wave.
   Tensor forward(Tensor wave);
 
@@ -104,6 +107,125 @@ class EncoderModel : public Module {
   EncoderModel();
 };
 
+class DecoderInitModel : public Module {
+ public:
+  static std::shared_ptr<DecoderInitModel> fromConfig(const Context &ctx, WhisperConfig config);
+  ~DecoderInitModel();
+
+  void initParameters(const StateMap &stateDict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
+
+  /// @brief Forward the encoderHidden through the cross attention kv-projection layers and update
+  /// the key-value cache for cross attention in `past`.
+  /// @param past the kv_cache to update.
+  /// @param wave the hidden output from encoder model.
+  void forward(StateMap &past, Tensor encoderHidden);
+
+ private:
+  std::vector<std::shared_ptr<Linear>> _kvProjs;
+  int _dModel;
+
+  DecoderInitModel();
+};
+
+class Attention : public Module {
+ public:
+  static std::shared_ptr<Attention> selfAttn(const Context &ctx, WhisperConfig config);
+  static std::shared_ptr<Attention> crossAttn(const Context &ctx, WhisperConfig config);
+  ~Attention();
+
+  void initParameters(const StateMap &stateDict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
+  Tensor forward(StateMap &past, Tensor inputs);
+
+ private:
+  static constexpr int PastBlockSize = 2;
+
+  std::shared_ptr<Linear> _proj;
+  std::shared_ptr<Linear> _outProj;
+  int _numHeads;
+  int _hiddenSize;
+  bool _selfAttn;
+
+  std::string _namePastK;
+  std::string _namePastV;
+  std::string _namePastLen;
+
+  Attention();
+
+  /// @brief Common part of initialization for cross attention and self attention.
+  /// @param config
+  void initCommon(WhisperConfig config);
+
+  /// @brief Get the present kv tensor from input kv and past kv tensors. NOTE: do not modify the
+  /// content of returned tensors since they were the kv cache in next iteration.
+  /// @param past the kv cache.
+  /// @param k the input k.
+  /// @param v the input v.
+  std::pair<Tensor, Tensor> getPresentKV(StateMap &past, Tensor k, Tensor v);
+
+  /// @brief Get context (history) length for the self attention.
+  /// @param past the kv_cache.
+  /// @return the context length.
+  int getCtxLength(const StateMap &past) const;
+};
+
+class DecoderLayer : public Module {
+ public:
+  static constexpr char CrossAttn[] = "cross_attn";
+  static constexpr char SelfAttn[] = "self_attn";
+
+  static std::shared_ptr<DecoderLayer> fromConfig(const Context &ctx, WhisperConfig config);
+  ~DecoderLayer();
+
+  void initParameters(const StateMap &stateDict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
+
+  Tensor forward(StateMap &past, Tensor inputs);
+
+ private:
+  std::shared_ptr<LayerNorm> _norm1;
+  std::shared_ptr<LayerNorm> _norm2;
+  std::shared_ptr<LayerNorm> _norm3;
+  std::shared_ptr<Attention> _selfAttn;
+  std::shared_ptr<Attention> _crossAttn;
+  std::shared_ptr<Linear> _fc1;
+  std::shared_ptr<Linear> _fc2;
+
+  DecoderLayer();
+};
+
+class DecoderModel : public Module {
+ public:
+  static std::shared_ptr<DecoderModel> fromConfig(const Context &ctx, WhisperConfig config);
+  ~DecoderModel();
+
+  void initParameters(const StateMap &stateDict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
+
+  Tensor forward(StateMap &past, Tensor inputs);
+  Tensor forwardLmHead(Tensor inputs);
+  int getOutputDim() const;
+
+ private:
+  std::vector<std::shared_ptr<DecoderLayer>> _layers;
+  std::shared_ptr<Embedding> _embd;
+  std::shared_ptr<LayerNorm> _norm;
+  std::shared_ptr<Linear> _outProj;
+  Tensor _posEmbd;
+  std::string _namePastLen;
+  int _dModel;
+  int _maxTgtLength;
+  int _outputDim;
+
+  DecoderModel();
+
+  /// @brief Get context (history) length for the positional embedding.
+  /// @param past the kv_cache.
+  /// @return the context length.
+  int getCtxLength(const StateMap &past) const;
+};
+
 class WhisperModelForGeneration : public ModelForGeneration {
  public:
   static std::shared_ptr<WhisperModelForGeneration> fromPackage(
@@ -116,15 +238,18 @@ class WhisperModelForGeneration : public ModelForGeneration {
   bool isStopToken(int tokenId) const override;
   const char *getName() const override;
   Device getDevice() const override;
+  int getOutputDim() const override;
 
  protected:
-  std::shared_ptr<EncoderModel> _model;
+  std::shared_ptr<EncoderModel> _encoder;
+  std::shared_ptr<DecoderInitModel> _decoderInit;
+  std::shared_ptr<DecoderModel> _decoder;
   std::string _modelName;
   int _eotId;
 
   WhisperModelForGeneration();
   void init(const Context &ctx, const lut::IniConfig &config);
-  Tensor buildInput(const Prompt &prompt) const;
+  Tensor buildDecoderInput(lut::Span<const PromptBlock> prompt) const;
 };
 
 }  // namespace whisper

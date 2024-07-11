@@ -44,13 +44,18 @@ class WhisperExporter(ModelExporter):
     def _export_enc_pos_embd(self, ctx: Context, module):
         self._write(ctx, module.weight)
 
-    def _export_attn(self, ctx: Context, module):
+    def _export_attn(self, ctx: Context, module, cross_attn=False):
         q_proj = module.q_proj.weight
         k_proj = module.k_proj.weight
         v_proj = module.v_proj.weight
 
-        qkv_proj = torch.cat((q_proj, k_proj, v_proj), dim=0)
-        self._write(ctx.with_subname("qkv_proj.weight"), qkv_proj)
+        if cross_attn:
+            kv_proj = torch.cat((k_proj, v_proj), dim=0)
+            self._write(ctx.with_subname("kv_proj.weight"), kv_proj)
+            self._write(ctx.with_subname("q_proj.weight"), q_proj)
+        else:
+            qkv_proj = torch.cat((q_proj, k_proj, v_proj), dim=0)
+            self._write(ctx.with_subname("qkv_proj.weight"), qkv_proj)
 
         assert module.q_proj.bias is not None
         assert module.v_proj.bias is not None
@@ -58,8 +63,14 @@ class WhisperExporter(ModelExporter):
         q_bias = module.q_proj.bias
         k_bias = torch.zeros_like(q_bias)
         v_bias = module.v_proj.bias
-        qkv_bias = torch.cat((q_bias, k_bias, v_bias), dim=0)
-        self._write(ctx.with_subname("qkv_proj.bias"), qkv_bias)
+
+        if cross_attn:
+            kv_bias = torch.cat((k_bias, v_bias), dim=0)
+            self._write(ctx.with_subname("kv_proj.bias"), kv_bias)
+            self._write(ctx.with_subname("q_proj.bias"), q_bias)
+        else:
+            qkv_bias = torch.cat((q_bias, k_bias, v_bias), dim=0)
+            self._write(ctx.with_subname("qkv_proj.bias"), qkv_bias)
 
         self._write(ctx.with_subname("out_proj.weight"), module.out_proj.weight)
         self._write(ctx.with_subname("out_proj.bias"), module.out_proj.bias)
@@ -79,6 +90,22 @@ class WhisperExporter(ModelExporter):
            self._export_encoder_layer(ctx.with_subname(f"layer{idx}"), layer)
         self.export_layer_norm(ctx.with_subname("norm"), module.layer_norm)
 
+    def _export_decoder_layer(self, ctx: Context, module):
+        self.export_layer_norm(ctx.with_subname("norm1"), module.self_attn_layer_norm)
+        self.export_layer_norm(ctx.with_subname("norm2"), module.encoder_attn_layer_norm)
+        self.export_layer_norm(ctx.with_subname("norm3"), module.final_layer_norm)
+        self._export_attn(ctx.with_subname("self_attn"), module.self_attn)
+        self._export_attn(ctx.with_subname("cross_attn"), module.encoder_attn, cross_attn=True)
+        self.export_linear(ctx.with_subname("fc1"), module.fc1)
+        self.export_linear(ctx.with_subname("fc2"), module.fc2)
+
+    def _export_decoder(self, ctx: Context, module):
+        self.export_embedding(ctx.with_subname("embd"), module.embed_tokens)
+        self._export_enc_pos_embd(ctx.with_subname("pos_embd"), module.embed_positions)
+        for idx, layer in enumerate(module.layers):
+           self._export_decoder_layer(ctx.with_subname(f"layer{idx}"), layer)
+        self.export_layer_norm(ctx.with_subname("norm"), module.layer_norm)
+
     @classmethod
     def generate_config(cls, whisper_config) -> configparser.ConfigParser:
         config = configparser.ConfigParser()
@@ -89,15 +116,24 @@ class WhisperExporter(ModelExporter):
         section["encoder_num_heads"] = str(whisper_config.encoder_attention_heads)
         section["encoder_ffn_dim"] = str(whisper_config.encoder_ffn_dim)
         section["encoder_num_layers"]  = str(whisper_config.encoder_layers)
+        section["decoder_num_layers"]  = str(whisper_config.decoder_layers)
+        section["decoder_ffn_dim"]  = str(whisper_config.decoder_ffn_dim)
+        section["vocab_size"]  = str(whisper_config.vocab_size)
+        section["max_tgt_length"]  = str(whisper_config.max_target_positions)
 
         return config
 
-    def _export(self, ctx: Context, module):
-        self._export_encoder(ctx.with_subname("encoder"), module.encoder)
+    def _export(self, ctx: Context, whisper_model):
+        model = whisper_model.base_model
+        self._export_encoder(ctx.with_subname("encoder"), model.encoder)
+        self._export_decoder(ctx.with_subname("decoder"), model.decoder)
+        self.export_linear(
+            ctx.with_subname("decoder").with_subname("out_proj"),
+            whisper_model.proj_out,
+            has_bias=False)
 
     @classmethod
     def export(cls, whisper_model, fp, quant: Quant):
-        model = whisper_model.base_model
         config = whisper_model.config
 
         assert config.activation_function == "gelu"
@@ -105,7 +141,7 @@ class WhisperExporter(ModelExporter):
         ctx = Context("whisper", quant=quant)
         with TensorWriter(fp) as writer:
             exporter = cls(writer)
-            exporter._export(ctx, model)
+            exporter._export(ctx, whisper_model)
 
         ini_config = cls.generate_config(config)
         ini_config["model"] = {}

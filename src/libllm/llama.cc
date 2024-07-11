@@ -385,9 +385,13 @@ Tensor LlamaModel::forward(StateMap &past, Tensor input) const {
   return x;
 }
 
-Tensor LlamaModel::forwardHidden(Tensor hidden) const {
+Tensor LlamaModel::forwardLmHead(Tensor hidden) const {
   Tensor logits = _outProj->forward(hidden);
   return logits;
+}
+
+int LlamaModel::getOutputDim() const {
+  return _config.vocabSize;
 }
 
 // -----------------------------------------------------------------------------------------------+
@@ -429,7 +433,7 @@ Tensor LlamaModelForGeneration::prefill(StateMap &past, const Prompt &prompt) co
   CHECK(x.getDim() == 3);
 
   x = x.slice(1, {-1, None});
-  x = _model->forwardHidden(x);
+  x = _model->forwardLmHead(x);
 
   return x;
 }
@@ -440,7 +444,7 @@ Tensor LlamaModelForGeneration::decode(StateMap &past, LongType inputToken) cons
   inputs = F::to(getDevice(), inputs);
 
   Tensor x = _model->forward(past, inputs);
-  x = _model->forwardHidden(x);
+  x = _model->forwardLmHead(x);
 
   return x;
 }
@@ -474,6 +478,10 @@ const char *LlamaModelForGeneration::getName() const {
 
 Device LlamaModelForGeneration::getDevice() const {
   return _model->getCtx().getDevice();
+}
+
+int LlamaModelForGeneration::getOutputDim() const {
+  return _model->getOutputDim();
 }
 
 }  // namespace llama

@@ -68,6 +68,10 @@ const Vocab *ModelForGeneration::getVocab() const {
   return _tokenizer->getVocab();
 }
 
+const Tokenizer *ModelForGeneration::getTokenizer() const {
+  return _tokenizer.get();
+}
+
 void ModelForGeneration::encodePromptBlock(
     const PromptBlock &block,
     std::vector<LongType> &tokenIds) const {

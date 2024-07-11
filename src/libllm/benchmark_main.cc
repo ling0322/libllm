@@ -30,8 +30,8 @@
 #include "libllm/lut/flags.h"
 #include "libllm/lut/random.h"
 #include "libllm/lut/time.h"
-#include "libllm/operators.h"
 #include "libllm/model_for_generation.h"
+#include "libllm/operators.h"
 
 constexpr int MagicNumber = 0x55aa;
 constexpr double MaxWait = 10;
@@ -96,14 +96,14 @@ float benchmarkTokenGeneration(
   inputToken = F::to(model->getCtx().getDevice(), inputToken);
 
   x = model->forward(pastClone, inputToken);
-  x = model->forwardHidden(x);
+  x = model->forwardLmHead(x);
 
   double t0 = lut::now();
   int nLoop = 0;
   while (lut::now() - t0 < MaxWait) {
     StateMap pastClone = past.clone();
     x = model->forward(pastClone, inputToken);
-    x = model->forwardHidden(x);
+    x = model->forwardLmHead(x);
     ++nLoop;
   }
   double t1 = lut::now();
@@ -132,8 +132,11 @@ llama::LlamaConfig getLlamaConfig(LlamaType type) {
   NOT_IMPL();
 }
 
-std::shared_ptr<llama::LlamaModel>
-getLlamaModel(lut::Random *r, LlamaType type, Device device, DType weightType) {
+std::shared_ptr<llama::LlamaModel> getLlamaModel(
+    lut::Random *r,
+    LlamaType type,
+    Device device,
+    DType weightType) {
   Context ctx;
   ctx.setDevice(device);
   ctx.setFloatDType(F::getDefaultFloatType(device));
@@ -183,7 +186,7 @@ int benchmarkMain(Device device) {
   libllm::benchmarkLlama(model, 512, libllm::DType::kQInt4x32);
 
   printf("----------------------------------------------------------\n");
-  
+
   libllm::destroyOperators();
   return 0;
 }

@@ -64,9 +64,18 @@ class ModelForGeneration {
   /// @return the device.
   virtual Device getDevice() const = 0;
 
+  /// @brief get the output dimension of model. This dimention is usually the same as vocabulary
+  /// size. But for some specific models, they are different.
+  /// @return the output dimension of the model.
+  virtual int getOutputDim() const = 0;
+
   /// @brief Get the vocabulary (tokenId to token string) of the model.
   /// @return The vocabulary.
   const Vocab *getVocab() const;
+
+  /// @brief Get the tokenizer of the model.
+  /// @return The tokenizer.
+  const Tokenizer *getTokenizer() const;
 
  protected:
   std::shared_ptr<Tokenizer> _tokenizer;
