@@ -92,4 +92,8 @@ void ModelForGeneration::encodePromptBlock(
   }
 }
 
+std::shared_ptr<LogitsProcessor> ModelForGeneration::newLogitsProcessor() const {
+  return nullptr;
+}
+
 }  // namespace libllm

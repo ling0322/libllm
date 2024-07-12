@@ -54,6 +54,7 @@ class Generator {
   Sampler _sampler;
   StateMap _past;
   std::shared_ptr<ModelForGeneration> _model;
+  std::shared_ptr<LogitsProcessor> _logitsProcessor;
   Tensor _supress;
   int _currentToken;
   float _temperature;

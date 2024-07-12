@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -19,29 +19,15 @@
 
 #pragma once
 
-#include <utility>
-
-#include "libllm/lut/random.h"
-#include "libllm/lut/span.h"
 #include "libllm/tensor.h"
 
 namespace libllm {
+namespace op {
+namespace cpu {
 
-class Sampler {
- public:
-  Sampler(int topK, float topP);
+// fill tensor with value
+void fill(Tensor tensor, float value);
 
-  int sample(const Tensor &distribution);
-
- private:
-  lut::Random _random;
-  int _topK;
-  float _topP;
-  std::vector<std::pair<int, float>> _topBuffer;
-
-  std::vector<int> getTopK(const Tensor &distribution);
-  std::vector<int> getTopP(const Tensor &distribution, lut::Span<const int> topK);
-  int sampleTopP(const Tensor &distribution, lut::Span<const int> topP);
-};
-
+}  // namespace cpu
+}  // namespace op
 }  // namespace libllm

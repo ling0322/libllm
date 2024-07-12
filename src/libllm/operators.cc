@@ -53,7 +53,19 @@ Tensor Operators::softmax(Tensor input) {
   NOT_IMPL();
 }
 
+Tensor Operators::sum(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::max(Tensor input) {
+  NOT_IMPL();
+}
+
 Tensor Operators::gelu(Tensor input) {
+  NOT_IMPL();
+}
+
+void Operators::fill(Tensor input, float value) {
   NOT_IMPL();
 }
 

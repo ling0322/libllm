@@ -179,6 +179,21 @@ Tensor swiglu(Tensor input);
 /// @return <float>(..., D): the output tensor.
 Tensor gelu(Tensor inputs);
 
+/// @brief fill tensor with value.
+/// @param tensor the tensor to fill.
+/// @param value the value.
+void fill(Tensor tensor, float value);
+
+/// @brief Returns the sum of each row of the input tensor in the given dimension dim.
+/// @param tensor <float>(d1, d2, ..., dn) the input tensor.
+/// @return <float>(d1, d2, ..., dn-1): the output tensor.
+Tensor sum(Tensor tensor, int dim = -1);
+
+/// @brief Returns the maximum value of each row of the input tensor in the given dimension dim.
+/// @param tensor <float>(d1, d2, ..., dn) the input tensor.
+/// @return <float>(d1, d2, ..., dn-1): the output tensor.
+Tensor max(Tensor tensor, int dim = -1);
+
 /// @brief (im2col) Extracts sliding local blocks from the input tensor. To make
 /// sure the input and output shape are the same after Conv, it will also pad the input tensor with
 /// zero.

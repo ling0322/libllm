@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,31 +17,55 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "libllm/cpu/fill.h"
 
-#include <utility>
-
-#include "libllm/lut/random.h"
-#include "libllm/lut/span.h"
+#include "libllm/cpu/accessor.h"
+#include "libllm/cpu/common.h"
+#include "libllm/cpu/tensor.h"
+#include "libllm/mp.h"
 #include "libllm/tensor.h"
 
 namespace libllm {
+namespace op {
+namespace cpu {
 
-class Sampler {
- public:
-  Sampler(int topK, float topP);
+template<typename T>
+void fillKernel(Tensor A, float value) {
+  TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(A);
+  MP::parallelFor({vC.getLength()}, [&vC, value](MP::Partition partition) {
+    for (int j : partition.getRange()) {
+      TensorAccessor<T, 1> c = vC.getTensor(j);
 
-  int sample(const Tensor &distribution);
+      for (int i = 0; i < c.getShape(0); ++i) {
+        c[i] = value;
+      }
+    }
+  });
+}
 
- private:
-  lut::Random _random;
-  int _topK;
-  float _topP;
-  std::vector<std::pair<int, float>> _topBuffer;
+void fill(Tensor src, float value) {
+  if (src.getDType() == DType::kFloat) {
+    if (src.getNumEl() == 1) {
+      *src.getData<float>() = value;
+    } else {
+      fillKernel<float>(src, value);
+    }
+    return;
+  }
+#if LUT_CPU_ARCH == LUT_AARCH64
+  if (src.getDType() == DType::kFloat16) {
+    if (src.getNumEl() == 1) {
+      *src.getData<Float16>() = value;
+    } else {
+      fillKernel<Float16>(src, value);
+    }
+    return;
+  }
+#endif
 
-  std::vector<int> getTopK(const Tensor &distribution);
-  std::vector<int> getTopP(const Tensor &distribution, lut::Span<const int> topK);
-  int sampleTopP(const Tensor &distribution, lut::Span<const int> topP);
-};
+  NOT_IMPL();
+}
 
+}  // namespace cpu
+}  // namespace op
 }  // namespace libllm

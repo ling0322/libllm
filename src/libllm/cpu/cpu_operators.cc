@@ -32,6 +32,7 @@
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/copy.h"
 #include "libllm/cpu/cpu_tensor_data.h"
+#include "libllm/cpu/fill.h"
 #include "libllm/cpu/gelu.h"
 #include "libllm/cpu/kernel/interface.h"
 #include "libllm/cpu/log_mel_spectrogram.h"
@@ -40,6 +41,7 @@
 #include "libllm/cpu/normalizations.h"
 #include "libllm/cpu/print.h"
 #include "libllm/cpu/rand.h"
+#include "libllm/cpu/reduce.h"
 #include "libllm/cpu/softmax.h"
 #include "libllm/cpu/swiglu.h"
 #include "libllm/cpu/tensor.h"
@@ -112,6 +114,18 @@ Tensor CPUOperators::lookup(Tensor table, Tensor indices) {
 
 Tensor CPUOperators::gelu(Tensor input) {
   return cpu::gelu(input);
+}
+
+void CPUOperators::fill(Tensor input, float value) {
+  return cpu::fill(input, value);
+}
+
+Tensor CPUOperators::sum(Tensor inputs) {
+  return cpu::reduce(inputs, MapReduceType::SUM);
+}
+
+Tensor CPUOperators::max(Tensor inputs) {
+  return cpu::reduce(inputs, MapReduceType::MAX);
 }
 
 Tensor CPUOperators::rmsNorm(Tensor input, Tensor weight, float eps) {

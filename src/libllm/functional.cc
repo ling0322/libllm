@@ -151,6 +151,20 @@ void copy(Tensor src, Tensor dest) {
   }
 }
 
+Tensor sum(Tensor tensor, int dim) {
+  CHECK(dim == -1 || dim == tensor.getDim() - 1);
+  return getOperators(tensor.getDevice().getType())->sum(tensor);
+}
+
+Tensor max(Tensor tensor, int dim) {
+  CHECK(dim == -1 || dim == tensor.getDim() - 1);
+  return getOperators(tensor.getDevice().getType())->max(tensor);
+}
+
+void fill(Tensor tensor, float value) {
+  getOperators(tensor.getDevice().getType())->fill(tensor, value);
+}
+
 Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
   float dK = 1.0f / sqrtf(1.0f * q.getShape(-1));
   q = F::mul(q, sqrtf(dK));

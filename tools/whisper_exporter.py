@@ -66,14 +66,14 @@ class WhisperExporter(ModelExporter):
 
         if cross_attn:
             kv_bias = torch.cat((k_bias, v_bias), dim=0)
-            self._write(ctx.with_subname("kv_proj.bias"), kv_bias)
-            self._write(ctx.with_subname("q_proj.bias"), q_bias)
+            self._write(ctx.with_subname("kv_proj.bias").with_quant(Quant.NONE), kv_bias)
+            self._write(ctx.with_subname("q_proj.bias").with_quant(Quant.NONE), q_bias)
         else:
             qkv_bias = torch.cat((q_bias, k_bias, v_bias), dim=0)
-            self._write(ctx.with_subname("qkv_proj.bias"), qkv_bias)
+            self._write(ctx.with_subname("qkv_proj.bias").with_quant(Quant.NONE), qkv_bias)
 
         self._write(ctx.with_subname("out_proj.weight"), module.out_proj.weight)
-        self._write(ctx.with_subname("out_proj.bias"), module.out_proj.bias)
+        self._write(ctx.with_subname("out_proj.bias").with_quant(Quant.NONE), module.out_proj.bias)
 
     def _export_encoder_layer(self, ctx: Context, module):
         self.export_layer_norm(ctx.with_subname("norm1"), module.self_attn_layer_norm)
@@ -85,7 +85,7 @@ class WhisperExporter(ModelExporter):
     def _export_encoder(self, ctx: Context, module):
         self._export_conv1d(ctx.with_subname("conv1"), module.conv1)
         self._export_conv1d(ctx.with_subname("conv2"), module.conv2)
-        self._export_enc_pos_embd(ctx.with_subname("pos_embd"), module.embed_positions)
+        self._export_enc_pos_embd(ctx.with_subname("pos_embd").with_quant(Quant.NONE), module.embed_positions)
         for idx, layer in enumerate(module.layers):
            self._export_encoder_layer(ctx.with_subname(f"layer{idx}"), layer)
         self.export_layer_norm(ctx.with_subname("norm"), module.layer_norm)
@@ -101,7 +101,7 @@ class WhisperExporter(ModelExporter):
 
     def _export_decoder(self, ctx: Context, module):
         self.export_embedding(ctx.with_subname("embd"), module.embed_tokens)
-        self._export_enc_pos_embd(ctx.with_subname("pos_embd"), module.embed_positions)
+        self._export_enc_pos_embd(ctx.with_subname("pos_embd").with_quant(Quant.NONE), module.embed_positions)
         for idx, layer in enumerate(module.layers):
            self._export_decoder_layer(ctx.with_subname(f"layer{idx}"), layer)
         self.export_layer_norm(ctx.with_subname("norm"), module.layer_norm)

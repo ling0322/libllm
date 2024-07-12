@@ -49,7 +49,10 @@ class CPUOperators : public Operators {
   Tensor mul(Tensor input, Tensor other) override;
   Tensor softmax(Tensor input) override;
   Tensor gelu(Tensor input) override;
+  void fill(Tensor input, float value) override;
   Tensor add(Tensor a, Tensor b) override;
+  Tensor sum(Tensor inputs) override;
+  Tensor max(Tensor inputs) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;
   Tensor tensorLike(Tensor input) override;
   Tensor zeros(lut::Span<const int> shape, DType dtype) override;

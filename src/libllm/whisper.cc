@@ -19,6 +19,8 @@
 
 #include "libllm/whisper.h"
 
+#include <limits>
+
 #include "libllm/constants.h"
 #include "libllm/functional.h"
 #include "libllm/lut/error.h"
@@ -637,7 +639,6 @@ Tensor DecoderModel::forward(StateMap &past, Tensor inputs) {
   }
 
   x = _norm->forward(x);
-  F::print(x);
   return x;
 }
 
@@ -650,7 +651,73 @@ int DecoderModel::getOutputDim() const {
 }
 
 // -----------------------------------------------------------------------------------------------+
-// class WhisperModelForGeneration                                                                |
+// class WhisperLogitsProcessor                                                                   |
+// -----------------------------------------------------------------------------------------------+
+
+WhisperLogitsProcessor::WhisperLogitsProcessor()
+    : _lastTimeToken(-1),
+      _beginTimeToken(-1),
+      _endTimeToken(-1),
+      _eotToken(-1) {
+}
+
+std::shared_ptr<WhisperLogitsProcessor> WhisperLogitsProcessor::newProcessor(
+    std::shared_ptr<Tokenizer> tokenizer) {
+  std::shared_ptr<WhisperLogitsProcessor> processor{new WhisperLogitsProcessor()};
+  processor->_lastTimeToken = -1;
+  processor->_beginTimeToken = tokenizer->getVocab()->findControlToken("<|0.00|>");
+  processor->_endTimeToken = tokenizer->getVocab()->findControlToken("<|30.00|>");
+  processor->_eotToken = tokenizer->getVocab()->findControlToken("<|endoftext|>");
+  processor->_transcribeToken = tokenizer->getVocab()->findControlToken("<|transcribe|>");
+  processor->_translateToken = tokenizer->getVocab()->findControlToken("<|translate|>");
+
+  return processor;
+}
+
+void WhisperLogitsProcessor::notifyToken(int tokenId) {
+  _history.push_back(tokenId);
+  if (tokenId >= _beginTimeToken && tokenId <= _endTimeToken) {
+    _lastTimeToken = tokenId;
+  }
+}
+
+void WhisperLogitsProcessor::processLogits(Tensor logits) {
+  bool lastWasTimestamp = _history.size() >= 1 && _history.back() >= _beginTimeToken;
+  bool penultimateWasTimestamp = _history.size() < 2 ||
+                                 _history[_history.size() - 2] >= _beginTimeToken ||
+                                 _history[_history.size() - 2] == _transcribeToken ||
+                                 _history[_history.size() - 2] == _translateToken;
+
+  if (lastWasTimestamp) {
+    if (penultimateWasTimestamp) {
+      LOG(DEBUG) << "fill " << _beginTimeToken << " to " << _endTimeToken + 1;
+      F::fill(logits.slice(-1, {_beginTimeToken, _endTimeToken + 1}), -Inf);
+      F::fill(logits.slice(-1, {_eotToken, _eotToken + 1}), -Inf);
+    } else {
+      LOG(DEBUG) << "fill " << 0 << " to " << _eotToken;
+      F::fill(logits.slice(-1, {0, _eotToken}), -Inf);
+    }
+  }
+
+  if (_lastTimeToken > 0) {
+    LOG(DEBUG) << "fill " << _beginTimeToken << " to " << _lastTimeToken + 1;
+    F::fill(logits.slice(-1, {_beginTimeToken, _lastTimeToken + 1}), -Inf);
+  }
+
+  Tensor probs = F::softmax(logits);
+  Tensor maxText = F::max(probs.slice(-1, {0, _eotToken + 1}));
+  Tensor sumTimestamp = F::sum(probs.slice(-1, {_beginTimeToken, _endTimeToken + 1}));
+
+  float maxTextVal = *maxText.getData<float>();
+  float sumTimestampVal = *sumTimestamp.getData<float>();
+  LOG(DEBUG) << maxTextVal << " vs " << sumTimestampVal;
+  if (sumTimestampVal >= 0.2) {
+    F::fill(logits.slice(-1, {0, _eotToken}), -Inf);
+  }
+}
+
+// -----------------------------------------------------------------------------------------------+
+// class WhisperModelForGeneration |
 // -----------------------------------------------------------------------------------------------+
 
 WhisperModelForGeneration::WhisperModelForGeneration()
@@ -749,6 +816,10 @@ Device WhisperModelForGeneration::getDevice() const {
 
 int WhisperModelForGeneration::getOutputDim() const {
   return _decoder->getOutputDim();
+}
+
+std::shared_ptr<LogitsProcessor> WhisperModelForGeneration::newLogitsProcessor() const {
+  return WhisperLogitsProcessor::newProcessor(_tokenizer);
 }
 
 }  // namespace whisper

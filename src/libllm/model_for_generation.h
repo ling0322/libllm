@@ -28,6 +28,20 @@
 
 namespace libllm {
 
+/// @brief logits processor used in the generator.
+class LogitsProcessor {
+ public:
+  virtual ~LogitsProcessor() = default;
+
+  /// @brief tells the logits processor that an token is emitted by input prompt or generator.
+  /// @param tokenId the id of token.
+  virtual void notifyToken(int tokenId) = 0;
+
+  /// @brief process the logits tensor.
+  /// @param logits the logits tensor to process.
+  virtual void processLogits(Tensor logits) = 0;
+};
+
 // base class for language model.
 class ModelForGeneration {
  public:
@@ -76,6 +90,10 @@ class ModelForGeneration {
   /// @brief Get the tokenizer of the model.
   /// @return The tokenizer.
   const Tokenizer *getTokenizer() const;
+
+  /// @brief create a logits processor for this model.
+  /// @return new instance of LogitsProcessor.
+  virtual std::shared_ptr<LogitsProcessor> newLogitsProcessor() const;
 
  protected:
   std::shared_ptr<Tokenizer> _tokenizer;

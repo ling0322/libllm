@@ -226,6 +226,28 @@ class DecoderModel : public Module {
   int getCtxLength(const StateMap &past) const;
 };
 
+class WhisperLogitsProcessor : public LogitsProcessor {
+ public:
+  static std::shared_ptr<WhisperLogitsProcessor> newProcessor(std::shared_ptr<Tokenizer> tokenizer);
+
+  void notifyToken(int tokenId) override;
+  void processLogits(Tensor logits) override;
+
+ private:
+  static constexpr float Inf = std::numeric_limits<float>::infinity();
+
+  std::vector<int> _history;
+
+  int _lastTimeToken;
+  int _beginTimeToken;
+  int _endTimeToken;
+  int _eotToken;
+  int _transcribeToken;
+  int _translateToken;
+
+  WhisperLogitsProcessor();
+};
+
 class WhisperModelForGeneration : public ModelForGeneration {
  public:
   static std::shared_ptr<WhisperModelForGeneration> fromPackage(
@@ -239,6 +261,7 @@ class WhisperModelForGeneration : public ModelForGeneration {
   const char *getName() const override;
   Device getDevice() const override;
   int getOutputDim() const override;
+  std::shared_ptr<LogitsProcessor> newLogitsProcessor() const override;
 
  protected:
   std::shared_ptr<EncoderModel> _encoder;

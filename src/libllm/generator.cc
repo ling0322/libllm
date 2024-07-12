@@ -43,26 +43,16 @@ std::shared_ptr<Generator> Generator::newGenerator(
     const GenerationConfig &config,
     std::shared_ptr<ModelForGeneration> model) {
   std::shared_ptr<Generator> generator{new Generator(config, model)};
-  Device device = model->getDevice();
-
-  if (!config.supressedTokens.empty()) {
-    std::vector<float> supressTensor(model->getOutputDim());
-    std::fill(supressTensor.begin(), supressTensor.end(), 0.0f);
-    for (int tokenId : config.supressedTokens) {
-      supressTensor[tokenId] = -std::numeric_limits<float>::infinity();
-    }
-
-    Tensor supress = Tensor::create({model->getOutputDim()}, lut::makeConstSpan(supressTensor));
-    supress = F::to(model->getDevice(), supress);
-    supress = F::cast(supress, F::getDefaultFloatType(device));
-    generator->_supress = supress;
-  }
+  generator->_logitsProcessor = model->newLogitsProcessor();
 
   return generator;
 }
 
 void Generator::forwardPrompt(const Prompt &prompt) {
   _currentToken = sampleToken(_model->prefill(_past, prompt));
+  if (_logitsProcessor) {
+    _logitsProcessor->notifyToken(_currentToken);
+  }
 }
 
 const char *Generator::nextToken() {
@@ -70,9 +60,16 @@ const char *Generator::nextToken() {
 
   const Vocab *vocab = _model->getVocab();
   const char *token = vocab->getTokenPiece(_currentToken).c_str();
-  LOG(INFO) << lut::sprintf("%d -> \"%s\"", _currentToken, vocab->getTokenString(_currentToken));
+  if (std::string(token) == "") {
+    token = vocab->getTokenString(_currentToken).c_str();
+  }
+
+  LOG(DEBUG) << lut::sprintf("%d -> \"%s\"", _currentToken, vocab->getTokenString(_currentToken));
 
   _currentToken = sampleToken(_model->decode(_past, _currentToken));
+  if (_logitsProcessor) {
+    _logitsProcessor->notifyToken(_currentToken);
+  }
   return token;
 }
 
@@ -89,6 +86,9 @@ int Generator::sampleToken(const Tensor &logits) {
   }
   if (!_supress.empty()) {
     x = F::add(x, _supress);
+  }
+  if (_logitsProcessor) {
+    _logitsProcessor->processLogits(x);
   }
 
   x = F::softmax(x);
