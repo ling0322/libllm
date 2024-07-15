@@ -661,15 +661,14 @@ WhisperLogitsProcessor::WhisperLogitsProcessor()
       _eotToken(-1) {
 }
 
-std::shared_ptr<WhisperLogitsProcessor> WhisperLogitsProcessor::newProcessor(
-    std::shared_ptr<Tokenizer> tokenizer) {
+std::shared_ptr<WhisperLogitsProcessor> WhisperLogitsProcessor::newProcessor(const Vocab *vocab) {
   std::shared_ptr<WhisperLogitsProcessor> processor{new WhisperLogitsProcessor()};
   processor->_lastTimeToken = -1;
-  processor->_beginTimeToken = tokenizer->getVocab()->findControlToken("<|0.00|>");
-  processor->_endTimeToken = tokenizer->getVocab()->findControlToken("<|30.00|>");
-  processor->_eotToken = tokenizer->getVocab()->findControlToken("<|endoftext|>");
-  processor->_transcribeToken = tokenizer->getVocab()->findControlToken("<|transcribe|>");
-  processor->_translateToken = tokenizer->getVocab()->findControlToken("<|translate|>");
+  processor->_beginTimeToken = vocab->findControlToken("<|0.00|>");
+  processor->_endTimeToken = vocab->findControlToken("<|30.00|>");
+  processor->_eotToken = vocab->findControlToken("<|endoftext|>");
+  processor->_transcribeToken = vocab->findControlToken("<|transcribe|>");
+  processor->_translateToken = vocab->findControlToken("<|translate|>");
 
   return processor;
 }
@@ -710,14 +709,13 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
 
   float maxTextVal = *maxText.getData<float>();
   float sumTimestampVal = *sumTimestamp.getData<float>();
-  LOG(DEBUG) << maxTextVal << " vs " << sumTimestampVal;
-  if (sumTimestampVal >= 0.2) {
+  if (sumTimestampVal >= maxTextVal) {
     F::fill(logits.slice(-1, {0, _eotToken}), -Inf);
   }
 }
 
 // -----------------------------------------------------------------------------------------------+
-// class WhisperModelForGeneration |
+// class WhisperModelForGeneration                                                                |
 // -----------------------------------------------------------------------------------------------+
 
 WhisperModelForGeneration::WhisperModelForGeneration()
@@ -816,10 +814,6 @@ Device WhisperModelForGeneration::getDevice() const {
 
 int WhisperModelForGeneration::getOutputDim() const {
   return _decoder->getOutputDim();
-}
-
-std::shared_ptr<LogitsProcessor> WhisperModelForGeneration::newLogitsProcessor() const {
-  return WhisperLogitsProcessor::newProcessor(_tokenizer);
 }
 
 }  // namespace whisper

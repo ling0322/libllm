@@ -72,7 +72,6 @@ llmStatus_t (*p_llmCompletion_SetPrompt)(llmCompletion_t *comp, llmPrompt_t *pro
 llmStatus_t (*p_llmCompletion_SetTopP)(llmCompletion_t *comp, float topP);
 llmStatus_t (*p_llmCompletion_SetTopK)(llmCompletion_t *comp, int32_t topK);
 llmStatus_t (*p_llmCompletion_SetTemperature)(llmCompletion_t *comp, float temperature);
-llmStatus_t (*p_llmCompletion_SupressControlToken)(llmCompletion_t *comp, const char *token);
 llmBool_t (*p_llmCompletion_Next)(llmCompletion_t *comp);
 llmStatus_t (*p_llmCompletion_GetError)(llmCompletion_t *comp);
 const char *(*p_llmCompletion_GetText)(llmCompletion_t *comp);
@@ -121,7 +120,6 @@ llmStatus_t llmLoadSymbols(LLM_HMODULE hDll) {
   LOAD_SYMBOL(hDll, llmCompletion_SetTopP);
   LOAD_SYMBOL(hDll, llmCompletion_SetTopK);
   LOAD_SYMBOL(hDll, llmCompletion_SetTemperature);
-  LOAD_SYMBOL(hDll, llmCompletion_SupressControlToken);
   LOAD_SYMBOL(hDll, llmCompletion_Next);
   LOAD_SYMBOL(hDll, llmCompletion_GetError);
   LOAD_SYMBOL(hDll, llmCompletion_GetText);
@@ -151,7 +149,6 @@ llmStatus_t llmDestroyLibrary(LLM_HMODULE handle) {
   p_llmCompletion_SetTopP = NULL;
   p_llmCompletion_SetTopK = NULL;
   p_llmCompletion_SetTemperature = NULL;
-  p_llmCompletion_SupressControlToken = NULL;
   p_llmCompletion_Next = NULL;
   p_llmCompletion_GetError = NULL;
   p_llmCompletion_GetText = NULL;
@@ -257,10 +254,6 @@ llmStatus_t llmCompletion_SetTopK(llmCompletion_t *comp, int32_t topK) {
 
 llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperature) {
   return p_llmCompletion_SetTemperature(comp, temperature);
-}
-
-llmStatus_t llmCompletion_SupressControlToken(llmCompletion_t *comp, const char *token) {
-  return p_llmCompletion_SupressControlToken(comp, token);
 }
 
 llmBool_t llmCompletion_Next(llmCompletion_t *comp) {

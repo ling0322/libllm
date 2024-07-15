@@ -65,7 +65,6 @@ set(libllm_SOURCES
     "operators.cc"
     "prompt.cc"
     "qwen.cc"
-    "sampler.cc"
     "state_map.cc"
     "tensor.cc"
     "tokenizer.cc"

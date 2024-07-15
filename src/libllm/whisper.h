@@ -228,7 +228,7 @@ class DecoderModel : public Module {
 
 class WhisperLogitsProcessor : public LogitsProcessor {
  public:
-  static std::shared_ptr<WhisperLogitsProcessor> newProcessor(std::shared_ptr<Tokenizer> tokenizer);
+  static std::shared_ptr<WhisperLogitsProcessor> newProcessor(const Vocab *vocab);
 
   void notifyToken(int tokenId) override;
   void processLogits(Tensor logits) override;
@@ -261,7 +261,6 @@ class WhisperModelForGeneration : public ModelForGeneration {
   const char *getName() const override;
   Device getDevice() const override;
   int getOutputDim() const override;
-  std::shared_ptr<LogitsProcessor> newLogitsProcessor() const override;
 
  protected:
   std::shared_ptr<EncoderModel> _encoder;

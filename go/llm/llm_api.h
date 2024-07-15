@@ -74,7 +74,6 @@ llmStatus_t llmCompletion_SetPrompt(llmCompletion_t *comp, llmPrompt_t *prompt);
 llmStatus_t llmCompletion_SetTopP(llmCompletion_t *comp, float topP);
 llmStatus_t llmCompletion_SetTopK(llmCompletion_t *comp, int32_t topK);
 llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperature);
-llmStatus_t llmCompletion_SupressControlToken(llmCompletion_t *comp, const char *token);
 llmBool_t llmCompletion_Next(llmCompletion_t *comp);
 llmStatus_t llmCompletion_GetError(llmCompletion_t *comp);
 const char *llmCompletion_GetText(llmCompletion_t *comp);

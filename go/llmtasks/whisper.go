@@ -62,8 +62,7 @@ func (w *Whisper) Transcribe(audio []byte, config TranscriptionConfig) (llm.Comp
 
 	compConfig := llm.NewCompletionConfig()
 	compConfig.SetTopK(1)
-	compConfig.SetTemperature(2.0)
-	compConfig.SupressControlToken("<|notimestamps|>")
+	compConfig.SetTemperature(1.5)
 	comp, err := w.model.Complete(compConfig, prompt)
 	return comp, err
 }

@@ -87,14 +87,6 @@ class ModelForGeneration {
   /// @return The vocabulary.
   const Vocab *getVocab() const;
 
-  /// @brief Get the tokenizer of the model.
-  /// @return The tokenizer.
-  const Tokenizer *getTokenizer() const;
-
-  /// @brief create a logits processor for this model.
-  /// @return new instance of LogitsProcessor.
-  virtual std::shared_ptr<LogitsProcessor> newLogitsProcessor() const;
-
  protected:
   std::shared_ptr<Tokenizer> _tokenizer;
 

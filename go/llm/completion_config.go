@@ -24,7 +24,6 @@ package llm
 import "C"
 import (
 	"errors"
-	"unsafe"
 )
 
 // Config for LLM completion.
@@ -38,17 +37,14 @@ type CompletionConfig interface {
 	SetTemperature(temperature float32)
 	GetTemperature() float32
 
-	SupressControlToken(token string)
-
 	// update the llmCompletion_t according to the config.
 	updateCompHandle(compHandle *completionHandle) error
 }
 
 type completionConfigImpl struct {
-	topP                   float32
-	topK                   int
-	temperature            float32
-	supressedControlTokens []string
+	topP        float32
+	topK        int
+	temperature float32
 }
 
 func NewCompletionConfig() CompletionConfig {
@@ -57,10 +53,6 @@ func NewCompletionConfig() CompletionConfig {
 		topK:        50,
 		temperature: 1.0,
 	}
-}
-
-func (c *completionConfigImpl) SupressControlToken(token string) {
-	c.supressedControlTokens = append(c.supressedControlTokens, token)
 }
 
 func (c *completionConfigImpl) SetTopP(topP float32) {
@@ -98,15 +90,6 @@ func (c *completionConfigImpl) updateCompHandle(compHandle *completionHandle) er
 
 	if C.llmCompletion_SetTemperature(compHandle.handle, C.float(c.temperature)) != C.LLM_OK {
 		return errors.New(C.GoString(C.llmGetLastErrorMessage()))
-	}
-
-	for _, token := range c.supressedControlTokens {
-		cToken := C.CString(token)
-		if C.llmCompletion_SupressControlToken(compHandle.handle, cToken) != C.LLM_OK {
-			C.free(unsafe.Pointer(cToken))
-			return errors.New(C.GoString(C.llmGetLastErrorMessage()))
-		}
-		C.free(unsafe.Pointer(cToken))
 	}
 
 	return nil

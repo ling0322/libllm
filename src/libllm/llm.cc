@@ -46,7 +46,6 @@ struct llmCompletion_t {
   std::shared_ptr<Generator> generator;
   lut::Error error;
   std::string chunkText;
-  std::vector<int> supressedToken;
 };
 
 struct llmChunk_t {
@@ -327,22 +326,6 @@ llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperatur
   });
 }
 
-llmStatus_t llmCompletion_SupressControlToken(llmCompletion_t *comp, const char *token) {
-  return runAndCatch([comp, token]() {
-    if (!comp) throw lut::InvalidArgError("comp");
-    if (!token) throw lut::InvalidArgError("token");
-
-    std::shared_ptr<ModelForGeneration> model = comp->model_for_generation.lock();
-    if (!model) throw lut::InvalidArgError("model had been destroyed");
-
-    const Vocab *vocab = model->getVocab();
-    int tokenId = vocab->findControlToken(token);
-
-    comp->supressedToken.push_back(tokenId);
-    return LLM_OK;
-  });
-}
-
 llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
   try {
     if (!comp) throw lut::InvalidArgError("comp");
@@ -361,21 +344,16 @@ llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
       config.temperature = comp->temperature;
       config.topK = comp->top_k;
       config.topP = comp->top_p;
-      config.supressedTokens = comp->supressedToken;
 
-      comp->generator = Generator::newGenerator(config, model);
-      comp->generator->forwardPrompt(*comp->prompt);
+      comp->generator = SamplingGenerator::newGenerator(config, model);
+      comp->generator->setPrompt(*comp->prompt);
     }
 
-    // decode: generate next token.
-    if (comp->generator->stopped()) {
-      return LLM_FALSE;
-    } else {
-      const char *token = comp->generator->nextToken();
-      if (!token) throw lut::AbortedError("unexpected empty token");
-
-      comp->chunkText = token;
+    bool ok = comp->generator->generate();
+    if (ok) {
       return LLM_TRUE;
+    } else {
+      return LLM_FALSE;
     }
   } catch (const lut::Error &e) {
     if (comp) comp->error = e;
@@ -399,6 +377,13 @@ llmStatus_t llmCompletion_GetError(llmCompletion_t *comp) {
 }
 
 const char *llmCompletion_GetText(llmCompletion_t *comp) {
-  if (!comp) return "";
-  return comp->chunkText.c_str();
+  return runAndCatch<const char *>(
+      [comp]() {
+        if (!comp) throw lut::InvalidArgError("comp");
+        if (!comp->generator) throw lut::InvalidArgError("completion not started");
+
+        comp->chunkText = comp->generator->getToken();
+        return comp->chunkText.c_str();
+      },
+      nullptr);
 }

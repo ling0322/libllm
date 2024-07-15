@@ -53,6 +53,7 @@ typedef struct llmModel_t llmModel_t;
 typedef struct llmChunk_t llmChunk_t;
 typedef struct llmPrompt_t llmPrompt_t;
 typedef struct llmCompletion_t llmCompletion_t;
+typedef struct llmLogitsFilter_t llmLogitsFilter_t;
 typedef int32_t llmBool_t;
 typedef int8_t llmByte_t;
 
@@ -88,7 +89,8 @@ LLMAPI llmStatus_t llmCompletion_Delete(llmCompletion_t *comp);
 LLMAPI llmStatus_t llmCompletion_SetPrompt(llmCompletion_t *comp, llmPrompt_t *prompt);
 LLMAPI llmStatus_t llmCompletion_SetTopP(llmCompletion_t *comp, float topP);
 LLMAPI llmStatus_t llmCompletion_SetTopK(llmCompletion_t *comp, int32_t topK);
-LLMAPI llmStatus_t llmCompletion_SupressControlToken(llmCompletion_t *comp, const char *token);
+LLMAPI
+llmStatus_t llmCompletion_SetConfig(llmCompletion_t *comp, const char *key, const char *value);
 LLMAPI llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperature);
 LLMAPI llmBool_t llmCompletion_Next(llmCompletion_t *comp);
 LLMAPI llmStatus_t llmCompletion_GetError(llmCompletion_t *comp);

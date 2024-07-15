@@ -68,10 +68,6 @@ const Vocab *ModelForGeneration::getVocab() const {
   return _tokenizer->getVocab();
 }
 
-const Tokenizer *ModelForGeneration::getTokenizer() const {
-  return _tokenizer.get();
-}
-
 void ModelForGeneration::encodePromptBlock(
     const PromptBlock &block,
     std::vector<LongType> &tokenIds) const {
@@ -90,10 +86,6 @@ void ModelForGeneration::encodePromptBlock(
     default:
       NOT_IMPL();
   }
-}
-
-std::shared_ptr<LogitsProcessor> ModelForGeneration::newLogitsProcessor() const {
-  return nullptr;
 }
 
 }  // namespace libllm
