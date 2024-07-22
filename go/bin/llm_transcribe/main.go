@@ -13,6 +13,7 @@ var gModelPath string
 var gDevice string
 var gInputFile string
 var gLocalizer *bin.Localizer
+var gFfmpegBin string
 
 const (
 	MsgInputQuestion = iota

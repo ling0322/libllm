@@ -19,13 +19,24 @@
 
 package llmtasks
 
-import "github.com/ling0322/libllm/go/llm"
+import (
+	"fmt"
+	"time"
+)
 
-type Transcriber interface {
-	Transcribe(audio []byte, config TranscriptionConfig) (llm.Completion, error)
+type TranscriptionResult struct {
+	Begin    time.Duration
+	End      time.Duration
+	Language string
+	Text     string
 }
 
-type TranscriptionConfig struct {
-	Prompt   string
-	Language string
+type Transcriber interface {
+	Transcribe() bool
+	Result() TranscriptionResult
+	Err() error
+}
+
+func (r *TranscriptionResult) String() string {
+	return fmt.Sprintf("%8s - %8s: %s", r.Begin.String(), r.End.String(), r.Text)
 }

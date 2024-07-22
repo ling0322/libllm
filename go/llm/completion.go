@@ -34,6 +34,13 @@ type Completion interface {
 	Next() bool
 	Error() error
 	Text() string
+
+	// Get the name of current token.
+	// For a normal token Text() will return its byte piece, for example, "foo "; Token() will
+	// return its name in model, for example, "hello_".
+	// For a control token, Text() will return an empty string ("") and Token() will return its
+	// name, for example, "<|endoftext|>".
+	Token() string
 }
 
 type completionHandle struct {
@@ -41,9 +48,10 @@ type completionHandle struct {
 }
 
 type completionImpl struct {
-	handle    *completionHandle
-	chunkText string
-	err       error
+	handle     *completionHandle
+	chunkText  string
+	chunkToken string
+	err        error
 }
 
 func (c *completionImpl) Next() bool {
@@ -58,6 +66,13 @@ func (c *completionImpl) Next() bool {
 		return false
 	}
 	c.chunkText = C.GoString(cText)
+
+	cToken := C.llmCompletion_GetToken(c.handle.handle)
+	if cToken == nil {
+		c.err = errors.New(C.GoString(C.llmGetLastErrorMessage()))
+		return false
+	}
+	c.chunkToken = C.GoString(cToken)
 
 	return true
 }
@@ -76,6 +91,10 @@ func (c *completionImpl) Error() error {
 
 func (c *completionImpl) Text() string {
 	return c.chunkText
+}
+
+func (c *completionImpl) Token() string {
+	return c.chunkToken
 }
 
 func newCompletionImpl(modelHandle *modelHandle) (*completionImpl, error) {

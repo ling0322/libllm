@@ -96,6 +96,15 @@ LLMAPI llmBool_t llmCompletion_Next(llmCompletion_t *comp);
 LLMAPI llmStatus_t llmCompletion_GetError(llmCompletion_t *comp);
 LLMAPI const char *llmCompletion_GetText(llmCompletion_t *comp);
 
+/// @brief Get the name of last generated token.
+/// For a normal token the llmCompletion_GetText() will return its byte piece, for example, "foo ";
+/// llmCompletion_GetToken() will return its name in model, for example, "hello_".
+/// For a control token, llmCompletion_GetText() will return an empty string ("") and
+/// llmCompletion_GetToken() will return its name, for example, "<|endoftext|>".
+/// @param comp the llmCompletion_t.
+/// @return name of the token.
+LLMAPI const char *llmCompletion_GetToken(llmCompletion_t *comp);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif  // __cplusplus

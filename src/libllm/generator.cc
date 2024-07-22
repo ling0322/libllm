@@ -157,10 +157,14 @@ std::string BaseGenerator::getToken() {
 
   const Vocab *vocab = _model->getVocab();
   const char *token = vocab->getTokenPiece(_currentToken).c_str();
-  if (std::string(token) == "") {
-    token = vocab->getTokenString(_currentToken).c_str();
-  }
+  return token;
+}
 
+std::string BaseGenerator::getTokenName() {
+  if (_currentToken < 0) return "";
+
+  const Vocab *vocab = _model->getVocab();
+  const char *token = vocab->getTokenString(_currentToken).c_str();
   return token;
 }
 
@@ -264,7 +268,9 @@ int WhisperGreedyGenerator::searchToken(const Tensor &logits) {
   const float *data = x.getData<float>();
   const float *best = std::max_element(data, data + x.getShape(0));
 
-  return static_cast<int>(best - data);
+  int tokenId = static_cast<int>(best - data);
+  _whisperLogitsProcessor->notifyToken(tokenId);
+  return tokenId;
 }
 
 }  // namespace libllm

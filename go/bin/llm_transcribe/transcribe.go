@@ -33,22 +33,19 @@ func transcribeMain(model llm.Model) {
 		log.Fatal("argument -input is required for transcribe task")
 	}
 
-	transcriber := llmtasks.NewWhisper(model)
-	data, err := os.ReadFile(gInputFile)
+	fd, err := os.Open(gInputFile)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer fd.Close()
 
-	comp, err := transcriber.Transcribe(data, llmtasks.TranscriptionConfig{Language: "english"})
-	if err != nil {
+	transcriber := llmtasks.NewWhisperTranscriber(model, fd)
+	for transcriber.Transcribe() {
+		r := transcriber.Result()
+		fmt.Println(r.String())
+	}
+
+	if err = transcriber.Err(); err != nil {
 		log.Fatal(err)
 	}
-
-	for comp.Next() {
-		fmt.Print(comp.Text())
-	}
-	if err := comp.Error(); err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println()
 }

@@ -20,6 +20,8 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <unordered_map>
 
 #include "libllm/lut/random.h"
 #include "libllm/model_for_generation.h"
@@ -31,6 +33,7 @@ struct GenerationConfig {
   int topK;
   float topP;
   float temperature;
+  std::unordered_map<std::string, std::string> kvConfig;
 
   GenerationConfig();
 };
@@ -38,6 +41,8 @@ struct GenerationConfig {
 /// @brief Given model and the generation config, generate tokens.
 class Generator {
  public:
+  enum { Sampling, Whisper };
+
   virtual ~Generator() = default;
 
   /// @brief set the prompt to prefill.
@@ -51,6 +56,10 @@ class Generator {
   /// @brief get the piece of current token.
   /// @return piece of current token.
   virtual std::string getToken() = 0;
+
+  /// @brief get the display name of current token.
+  /// @return name of current token.
+  virtual std::string getTokenName() = 0;
 };
 
 class BaseGenerator : public Generator {
@@ -60,6 +69,7 @@ class BaseGenerator : public Generator {
 
   bool generate() override;
   std::string getToken() override;
+  std::string getTokenName() override;
   void setPrompt(const Prompt &prompt) override;
 
  protected:

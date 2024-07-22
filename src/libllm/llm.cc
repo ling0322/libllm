@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <unordered_map>
 
 #include "libllm/context.h"
 #include "libllm/dtype.h"
@@ -29,6 +30,10 @@ using libllm::Prompt;
 using libllm::Tokenizer;
 using lut::IniConfig;
 
+constexpr char LlmConfigKey_GeneratorType[] = "generator.type";
+constexpr char LlmConfigValue_Sampler[] = "sampler";
+constexpr char LlmConfigValue_Whisper[] = "whisper";
+
 struct llmModel_t {
   Context ctx;
   std::shared_ptr<ModelForGeneration> model_for_generation;
@@ -46,6 +51,7 @@ struct llmCompletion_t {
   std::shared_ptr<Generator> generator;
   lut::Error error;
   std::string chunkText;
+  std::unordered_map<std::string, std::string> kvConfig;
 };
 
 struct llmChunk_t {
@@ -108,6 +114,16 @@ Device getDeviceFromApi(int apiDevice) {
       }
     default:
       throw lut::InvalidArgError("invalid device type");
+  }
+}
+
+int parseGeneratorType(const std::string &name) {
+  if (name == LlmConfigValue_Sampler) {
+    return Generator::Sampling;
+  } else if (name == LlmConfigValue_Whisper) {
+    return Generator::Whisper;
+  } else {
+    throw lut::AbortedError("invalid generator type: " + name);
   }
 }
 
@@ -284,6 +300,17 @@ llmStatus_t llmCompletion_Delete(llmCompletion_t *comp) {
   return LLM_OK;
 }
 
+llmStatus_t llmCompletion_SetConfig(llmCompletion_t *comp, const char *key, const char *value) {
+  return runAndCatch([comp, key, value]() {
+    if (!comp) throw lut::InvalidArgError("comp");
+    if (!key) throw lut::InvalidArgError("key");
+    if (!value) throw lut::InvalidArgError("value");
+
+    comp->kvConfig[key] = value;
+    return LLM_OK;
+  });
+}
+
 llmStatus_t llmCompletion_SetPrompt(llmCompletion_t *comp, llmPrompt_t *prompt) {
   return runAndCatch([comp, prompt]() {
     if (!comp) throw lut::InvalidArgError("comp");
@@ -345,7 +372,23 @@ llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
       config.topK = comp->top_k;
       config.topP = comp->top_p;
 
-      comp->generator = SamplingGenerator::newGenerator(config, model);
+      int generatorType = Generator::Sampling;
+      for (const auto &kv : comp->kvConfig) {
+        if (kv.first == LlmConfigKey_GeneratorType) {
+          generatorType = parseGeneratorType(kv.second);
+        } else {
+          throw lut::AbortedError("invalid configuration key: " + kv.first);
+        }
+      }
+
+      if (generatorType == Generator::Sampling) {
+        comp->generator = SamplingGenerator::newGenerator(config, model);
+      } else if (generatorType == Generator::Whisper) {
+        comp->generator = WhisperGreedyGenerator::newGenerator(config, model);
+      } else {
+        NOT_IMPL();
+      }
+
       comp->generator->setPrompt(*comp->prompt);
     }
 
@@ -355,6 +398,7 @@ llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
     } else {
       return LLM_FALSE;
     }
+
   } catch (const lut::Error &e) {
     if (comp) comp->error = e;
     return LLM_FALSE;
@@ -383,6 +427,18 @@ const char *llmCompletion_GetText(llmCompletion_t *comp) {
         if (!comp->generator) throw lut::InvalidArgError("completion not started");
 
         comp->chunkText = comp->generator->getToken();
+        return comp->chunkText.c_str();
+      },
+      nullptr);
+}
+
+const char *llmCompletion_GetToken(llmCompletion_t *comp) {
+  return runAndCatch<const char *>(
+      [comp]() {
+        if (!comp) throw lut::InvalidArgError("comp");
+        if (!comp->generator) throw lut::InvalidArgError("completion not started");
+
+        comp->chunkText = comp->generator->getTokenName();
         return comp->chunkText.c_str();
       },
       nullptr);

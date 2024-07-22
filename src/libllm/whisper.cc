@@ -237,6 +237,8 @@ void EncoderModel::initParameters(lut::Random *generator, DType weightType) {
 }
 
 Tensor EncoderModel::forward(Tensor wave) {
+  CHECK(wave.getDim() == 1 && wave.getShape(-1) <= InputSamples);
+
   // pad wave.
   if (wave.getShape(-1) < InputSamples) {
     Tensor pad = F::zeros({InputSamples}, wave.getDType(), wave.getDevice());
@@ -670,6 +672,8 @@ std::shared_ptr<WhisperLogitsProcessor> WhisperLogitsProcessor::newProcessor(con
   processor->_transcribeToken = vocab->findControlToken("<|transcribe|>");
   processor->_translateToken = vocab->findControlToken("<|translate|>");
 
+  LOG(INFO) << "WhisperLogitsProcessor created";
+
   return processor;
 }
 
@@ -689,17 +693,14 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
 
   if (lastWasTimestamp) {
     if (penultimateWasTimestamp) {
-      LOG(DEBUG) << "fill " << _beginTimeToken << " to " << _endTimeToken + 1;
       F::fill(logits.slice(-1, {_beginTimeToken, _endTimeToken + 1}), -Inf);
       F::fill(logits.slice(-1, {_eotToken, _eotToken + 1}), -Inf);
     } else {
-      LOG(DEBUG) << "fill " << 0 << " to " << _eotToken;
       F::fill(logits.slice(-1, {0, _eotToken}), -Inf);
     }
   }
 
   if (_lastTimeToken > 0) {
-    LOG(DEBUG) << "fill " << _beginTimeToken << " to " << _lastTimeToken + 1;
     F::fill(logits.slice(-1, {_beginTimeToken, _lastTimeToken + 1}), -Inf);
   }
 
