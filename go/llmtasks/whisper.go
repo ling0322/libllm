@@ -28,6 +28,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"sync"
@@ -36,11 +37,17 @@ import (
 	"github.com/ling0322/libllm/go/llm"
 )
 
+var regexpLangToken = regexp.MustCompile(`^<\|([a-z][a-z][a-z]?)\|>$`)
 var getFfmpegBin = sync.OnceValue[string](getFfmpegBinInternal)
 
 var ErrInvalidWhisperSequence = errors.New("invalid sequence for Whisper model")
 var ErrStreamIsNil = errors.New("input stream is nil")
 var ErrWhisperModelIsNil = errors.New("whisper model is nil")
+var ErrNoMoreResults = errors.New("no more results")
+var ErrAudioEndOfStream = errors.New("audio end of stream")
+
+const SampleRate = 16000
+const BytesPerSample = 2
 
 const (
 	whisperStateAudio = iota
@@ -74,6 +81,12 @@ type WhisperTranscriber struct {
 
 	// the predicted language.
 	predictedLanguage string
+
+	// the wave bytes for decoding. The format is 16khz 16bit mono-channel PCM without headfer.
+	wavePayload []byte
+
+	// offset of the current segment in wavePayload.
+	waveOffset time.Duration
 }
 
 // create a new instance of WhisperTranscriber from whisper model and stream of input file.
@@ -164,8 +177,140 @@ func (w *WhisperTranscriber) parseTimestampToken(token string) (time.Duration, b
 	return time.Duration(math.Round(offset*1000) * float64(time.Millisecond)), true
 }
 
+// complete next token from whisper model. If completion ends, return ErrNoMoreResults. For other
+// errors, return it directly.
+func (w *WhisperTranscriber) completeNext() error {
+	ok := w.comp.Next()
+	if w.comp.Error() != nil {
+		return w.comp.Error()
+	} else if !ok {
+		return ErrNoMoreResults
+	}
+
+	return nil
+}
+
+// decode one transcription from Whisper. Here transcription means a piece of text wrapped by begin
+// and end timestamp tokens. On success, returns the result. If the whisper model generation ends
+// in the begining or half of the transcription, return ErrNoMoreResults.
+func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) {
+	result := TranscriptionResult{Language: w.predictedLanguage}
+
+	err := w.completeNext()
+	if err != nil {
+		return TranscriptionResult{}, err
+	}
+
+	beginOffset, ok := w.parseTimestampToken(w.comp.Token())
+	if !ok {
+		return TranscriptionResult{}, ErrInvalidWhisperSequence
+	}
+	result.Begin = w.waveOffset + beginOffset
+
+	transcriptionDone := false
+	for w.comp.Next() {
+		token := w.comp.Token()
+		piece := w.comp.Text()
+		slog.Info("comp.next()", "token", token, "piece", piece)
+		offset, isTimestampToken := w.parseTimestampToken(token)
+		if isTimestampToken {
+			result.End = w.waveOffset + offset
+			transcriptionDone = true
+			break
+		}
+
+		result.Text += piece
+	}
+	if w.comp.Error() != nil {
+		return TranscriptionResult{}, err
+	} else if !transcriptionDone {
+		// generation stops at half of the transcription.
+		return TranscriptionResult{}, ErrNoMoreResults
+	}
+
+	return result, nil
+}
+
+// parse a language token and return the language name.
+func (w *WhisperTranscriber) parseLanguageToken(token string) (lang string, ok bool) {
+	match := regexpLangToken.FindStringSubmatch(token)
+	if len(match) == 0 {
+		return "", false
+	}
+
+	return match[1], true
+}
+
+// prefill audio and prompt when in the begining of decoding or last audio segment finished. If no
+// transcriotion result or <|nospeech|> got, return ErrNoMoreResults.
+func (w *WhisperTranscriber) prefillNextAudioSegment() error {
+	slog.Info("prefill segment", "offset", w.waveOffset)
+	nsPerSample := 1000000000 / SampleRate
+	sampleOffset := int(w.waveOffset.Nanoseconds() / int64(nsPerSample))
+	byteOffset := sampleOffset * 2
+	if len(w.wavePayload)-byteOffset < SampleRate/10 {
+		// ignore the last segment that less than 0.1s.
+		return ErrAudioEndOfStream
+	}
+
+	nBytes := min(len(w.wavePayload)-byteOffset, 30*SampleRate*2)
+	audio := w.wavePayload[byteOffset : byteOffset+nBytes]
+
+	prompt := llm.NewPrompt()
+	prompt.AppendAudio(audio, llm.Pcm16kHz16BitMono)
+	prompt.AppendControlToken("<|startoftranscript|>")
+
+	compConfig := llm.NewCompletionConfig()
+	compConfig.SetTopK(1)
+	compConfig.SetTemperature(1.5)
+	compConfig.SetConfig("generator.type", "whisper")
+	comp, err := w.WhisperModel.Complete(compConfig, prompt)
+	if err != nil {
+		return err
+	}
+
+	// first token would be language token or <|nospeech|>
+	w.comp = comp
+	err = w.completeNext()
+	if err != nil {
+		return err
+	}
+
+	// exit once no speech for the whole audio segment.
+	if w.comp.Token() == "<|nospeech|>" {
+		return ErrNoMoreResults
+	}
+
+	// language token.
+	lang, ok := w.parseLanguageToken(w.comp.Token())
+	if !ok {
+		return ErrInvalidWhisperSequence
+	}
+	w.predictedLanguage = lang
+
+	// transcribe token
+	err = w.completeNext()
+	if err != nil {
+		return err
+	}
+
+	if w.comp.Token() != "<|transcribe|>" {
+		return ErrInvalidWhisperSequence
+	}
+
+	// setup the compeltion done.
+	return nil
+}
+
 // implements interface Transcriber.
 func (w *WhisperTranscriber) Transcribe() bool {
+	if w.wavePayload == nil {
+		w.wavePayload, w.err = convertToPcm(w.InputStream)
+	}
+	if w.err != nil {
+		return false
+	}
+
 	if w.WhisperModel == nil {
 		w.err = ErrWhisperModelIsNil
 		return false
@@ -176,95 +321,46 @@ func (w *WhisperTranscriber) Transcribe() bool {
 		return false
 	}
 
-	if w.state == whisperStateAudio {
-		audio, err := convertToPcm(w.InputStream)
-		if err != nil {
+	// loop until we got a valid transcription.
+	for {
+		beginOfSegment := false
+		if w.comp == nil {
+			w.err = w.prefillNextAudioSegment()
+			beginOfSegment = true
+		}
+
+		if errors.Is(w.err, ErrNoMoreResults) {
+			w.comp = nil
+			w.err = nil
+			w.waveOffset += 30 * time.Second
+			continue
+		} else if errors.Is(w.err, ErrAudioEndOfStream) {
+			w.comp = nil
+			w.err = nil
+			return false
+		} else if w.err != nil {
+			return false
+		}
+
+		result, err := w.decodeTranscription()
+		if errors.Is(err, ErrNoMoreResults) && beginOfSegment {
+			// if no result for the whole audio segment, move forward to the next 30s segment.
+			w.comp = nil
+			w.waveOffset += 30 * time.Second
+			continue
+		} else if errors.Is(err, ErrNoMoreResults) && !beginOfSegment {
+			// move the wave offset to the end of last completed transcription.
+			w.comp = nil
+			w.waveOffset = w.result.End
+			continue
+		} else if err != nil {
 			w.err = err
 			return false
 		}
 
-		audio = audio[:16000*30*2]
-
-		prompt := llm.NewPrompt()
-		prompt.AppendAudio(audio, llm.Pcm16kHz16BitMono)
-		prompt.AppendControlToken("<|startoftranscript|>")
-
-		compConfig := llm.NewCompletionConfig()
-		compConfig.SetTopK(1)
-		compConfig.SetTemperature(1.5)
-		compConfig.SetConfig("generator.type", "whisper")
-		comp, err := w.WhisperModel.Complete(compConfig, prompt)
-		if err != nil {
-			w.err = err
-			return false
-		}
-
-		w.comp = comp
-		w.state = whisperStateStartOfTranscription
+		w.result = result
+		return true
 	}
-
-	result := TranscriptionResult{Language: w.predictedLanguage}
-	for w.comp.Next() {
-		token := w.comp.Token()
-		piece := w.comp.Text()
-		timeOffset, isTimestampToken := w.parseTimestampToken(token)
-		if w.state == whisperStateStartOfTranscription && token == "<|nospeech|>" {
-			// no speech, stop transcription.
-			return false
-		} else if w.state == whisperStateStartOfTranscription && len(token) == 6 {
-			w.predictedLanguage = token[2 : len(token)-2]
-			result.Language = w.predictedLanguage
-			w.state = whisperStateLanguage
-		} else if w.state == whisperStateStartOfTranscription {
-			w.err = ErrInvalidWhisperSequence
-			return false
-		} else if w.state == whisperStateLanguage && token == "<|transcribe|>" {
-			w.state = whisperStateTranscribe
-		} else if w.state == whisperStateLanguage {
-			w.err = ErrInvalidWhisperSequence
-			return false
-		} else if w.state == whisperStateTranscribe && isTimestampToken {
-			result.Begin = timeOffset
-			w.state = whisperStateBeginTime
-		} else if w.state == whisperStateTranscribe {
-			w.err = ErrInvalidWhisperSequence
-			return false
-		} else if w.state == whisperStateBeginTime && piece != "" {
-			result.Text += piece
-			w.state = whisperStateText
-		} else if w.state == whisperStateBeginTime {
-			w.err = ErrInvalidWhisperSequence
-			return false
-		} else if w.state == whisperStateText && piece != "" {
-			result.Text += piece
-		} else if w.state == whisperStateText && isTimestampToken {
-			result.End = timeOffset
-			w.state = whisperStateEndTime
-			w.result = result
-
-			return true
-		} else if w.state == whisperStateText {
-			// ignore other control tokens once transcription started.
-		} else if w.state == whisperStateEndTime && isTimestampToken {
-			result.Begin = timeOffset
-			w.state = whisperStateBeginTime
-		} else if w.state == whisperStateEndTime {
-			w.err = ErrInvalidWhisperSequence
-			return false
-		} else {
-			w.err = ErrInvalidWhisperSequence
-			return false
-		}
-	}
-	if err := w.comp.Error(); err != nil {
-		w.err = err
-	}
-
-	if w.state != whisperStateEndTime {
-		w.err = ErrInvalidWhisperSequence
-	}
-
-	return false
 }
 
 // implements interface Transcriber.

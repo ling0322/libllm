@@ -672,8 +672,6 @@ std::shared_ptr<WhisperLogitsProcessor> WhisperLogitsProcessor::newProcessor(con
   processor->_transcribeToken = vocab->findControlToken("<|transcribe|>");
   processor->_translateToken = vocab->findControlToken("<|translate|>");
 
-  LOG(INFO) << "WhisperLogitsProcessor created";
-
   return processor;
 }
 
@@ -694,7 +692,6 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
   if (lastWasTimestamp) {
     if (penultimateWasTimestamp) {
       F::fill(logits.slice(-1, {_beginTimeToken, _endTimeToken + 1}), -Inf);
-      F::fill(logits.slice(-1, {_eotToken, _eotToken + 1}), -Inf);
     } else {
       F::fill(logits.slice(-1, {0, _eotToken}), -Inf);
     }
