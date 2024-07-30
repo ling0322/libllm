@@ -15,7 +15,7 @@
 // original file:
 // https://android.googlesource.com/platform/external/wpa_supplicant/+/4d8c3c1ca334d1319decf3e2c5d2be0cf472e3f9/base64.c
 
-#include <malloc.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 

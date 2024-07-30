@@ -68,7 +68,6 @@ T getReduceInitial() {
 template<typename T, ReduceType REDUCE_TYPE>
 Tensor reduceKernel(Tensor A) {
   std::vector<int> shape = A.getShape();
-  shape.back() == 1;
   Tensor C = tensor(shape, A.getDType());
 
   TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(A);
