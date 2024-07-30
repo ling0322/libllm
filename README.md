@@ -13,6 +13,14 @@ Welcome to libLLM, an open-source project designed for efficient inference of la
 | Index-1.9B-Character (Role-playing) | 🤗[Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-character-q4.llmpkg) |
 | Index-1.9B-Chat | 🤗[Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-chat-q4.llmpkg) |
 
+## Quickstart
+
+To run and chat with Bilibili-Index-1.9B-Character:
+
+```bash
+$ llm chat -model index-character
+```
+
 ## Key features:
 
 - Optimized for everyday devices: libLLM has been optimized to run smoothly on common personal computers, ensuring the powerful capabilities of large language models are accessible to a wider range of users.
@@ -65,22 +73,24 @@ $ make -j
 ## Run libllm command line
 
 ```bash
-$ ./src/llm/llm -config ../model/chatglm3-6b-libllm-q4/chatglm3.config 
-INFO 2023-12-19T08:56:47Z lymath.cc:42] lymath: Use Avx512 backend.
-INFO 2023-12-19T08:56:48Z cuda_operators.cc:46] cuda numDevices = 1
-INFO 2023-12-19T08:56:48Z cuda_operators.cc:47] cuda:0 maxThreadsPerMultiProcessor = 2048
-INFO 2023-12-19T08:56:48Z cuda_operators.cc:49] cuda:0 multiProcessorCount = 20
-INFO 2023-12-19T08:56:48Z llm.cc:123] OMP max_threads = 20
-INFO 2023-12-19T08:56:48Z bpe_model.cc:34] read tokenizer from ../model/chatglm3-6b-libllm-q4/chatglm3.tokenizer.bin
-INFO 2023-12-19T08:56:48Z model_factory.cc:35] model_type = chatglm3
-INFO 2023-12-19T08:56:48Z model_factory.cc:36] device = cuda
-INFO 2023-12-19T08:56:48Z state_map.cc:58] read state map from ../model/chatglm3-6b-libllm-q4/chatglm3.q4.bin
-INFO 2023-12-19T08:56:51Z state_map.cc:68] reading ... 100.0%
-INFO 2023-12-19T08:56:51Z state_map.cc:69] 200 tensors read.
-> 你好
- 
- 你好👋！我是人工智能助手 ChatGLM3-6B，很高兴见到你，欢迎问我任何问题。
-(29 token, time=0.92s, 31.75ms per token)
+$ src/libllm/llm chat -model index-character
+INFO 2024-07-30T12:02:28Z interface.cc:67] ISA support: AVX2=1 F16C=1 AVX512F=1
+INFO 2024-07-30T12:02:28Z interface.cc:71] Use Avx512 backend.
+INFO 2024-07-30T12:02:30Z matmul.cc:43] Use GEMM from cuBLAS.
+INFO 2024-07-30T12:02:30Z cuda_operators.cc:51] cuda numDevices = 2
+INFO 2024-07-30T12:02:30Z cuda_operators.cc:52] cuda:0 maxThreadsPerMultiProcessor = 2048
+INFO 2024-07-30T12:02:30Z cuda_operators.cc:54] cuda:0 multiProcessorCount = 20
+INFO 2024-07-30T12:02:30Z thread_pool.cc:73] ThreadPool started. numThreads=20
+INFO 2024-07-30T12:02:30Z llm.cc:204] read model package: /home/xiaoych/.libllm/models/bilibili-index-1.9b-character-q4.llmpkg
+INFO 2024-07-30T12:02:30Z model_for_generation.cc:43] model_type = index
+INFO 2024-07-30T12:02:30Z model_for_generation.cc:44] device = cuda
+INFO 2024-07-30T12:02:31Z state_map.cc:66] 220 tensors read.
+Please input your question.
+    Type ':new' to start a new session (clean history).
+    Type ':sys <system_prompt>' to set the system prompt and start a new session .
+> hi
+您好！我是Index，请问有什么我可以帮助您的吗？
+(12 tokens, time=0.76s, 63.47ms per token)
 > 
 ```
 
