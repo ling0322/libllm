@@ -22,6 +22,7 @@ package main
 import (
 	"bufio"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -33,7 +34,35 @@ import (
 	"github.com/ling0322/libllm/go/skill"
 )
 
-func chatMain(model llm.Model) {
+func printChatUsage(fs *flag.FlagSet) {
+	fmt.Fprintln(os.Stderr, "Usage: llm chat [OPTIONS]")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Options:")
+	fs.PrintDefaults()
+	fmt.Fprintln(os.Stderr, "")
+}
+
+func chatMain(args []string) {
+	fs := flag.NewFlagSet("", flag.ExitOnError)
+	fs.Usage = func() {
+		printChatUsage(fs)
+	}
+
+	addModelFlag(fs)
+	addDeviceFlag(fs)
+	_ = fs.Parse(args)
+
+	if fs.NArg() != 0 {
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	modelName := getModelArg(fs)
+	model, err := llm.NewModel(modelName, getDeviceArg())
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	llmChat, err := skill.NewChat(model)
 	if err != nil {
 		log.Fatal(err)

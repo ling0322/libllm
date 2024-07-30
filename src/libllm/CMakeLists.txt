@@ -260,13 +260,5 @@ add_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)
 add_custom_target(llmbin
     ALL
     DEPENDS libllm
-    COMMAND go build -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_SOURCE_DIR}/go/bin/llm
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/go/bin)
-
-add_custom_target(llmtranscribe
-    ALL
-    DEPENDS libllm
-    COMMAND go build 
-        -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm-transcribe${CMAKE_EXECUTABLE_SUFFIX}
-        ${CMAKE_SOURCE_DIR}/go/bin/llm_transcribe
+    COMMAND go build -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_SOURCE_DIR}/go/bin
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/go/bin)

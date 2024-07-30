@@ -20,6 +20,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -28,12 +29,40 @@ import (
 	"github.com/ling0322/libllm/go/skill"
 )
 
-func transcribeMain(model llm.Model) {
-	if gInputFile == "" {
-		log.Fatal("argument -input is required for transcribe task")
+func printTranscribeUsage(fs *flag.FlagSet) {
+	fmt.Fprintln(os.Stderr, "Usage: llm transribe [OPTIONS]")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Options:")
+	fs.PrintDefaults()
+	fmt.Fprintln(os.Stderr, "")
+}
+
+func transcribeMain(args []string) {
+	fs := flag.NewFlagSet("", flag.ExitOnError)
+	fs.Usage = func() {
+		printTranscribeUsage(fs)
 	}
 
-	fd, err := os.Open(gInputFile)
+	addDeviceFlag(fs)
+	addModelFlag(fs)
+	addInputFlag(fs)
+	_ = fs.Parse(args)
+
+	modelFile := getModelArg(fs)
+	device := getDeviceArg()
+	inputFile := getInputArg(fs)
+
+	if fs.NArg() != 0 {
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	model, err := llm.NewModel(modelFile, device)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fd, err := os.Open(inputFile)
 	if err != nil {
 		log.Fatal(err)
 	}
