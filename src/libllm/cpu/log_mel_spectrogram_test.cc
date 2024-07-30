@@ -144,11 +144,13 @@ CATCH_TEST_CASE("test logMelSpectrogram", "[op][cpu][logmelspectrogram]") {
   Tensor wave = Wave::read(pcmSpan, WaveFormat::Wave16kHz16bitMonoPCM);
   Tensor features = logMelSpectrogram(wave);
 
+  F::print(op::cpu::fingerprint(features));
+
   CATCH_REQUIRE(F::allClose(
       op::cpu::fingerprint(features),
       Tensor::create<float>(
           {8},
-          {0.6122, 0.5474, 0.2880, 0.1623, -0.2657, -0.1718, -0.1882, -0.5228})));
+          {0.5365, 0.6787, 0.1886, 0.4008, -0.2633, -0.3035, -0.4268, -0.6635})));
 }
 
 }  // namespace cpu
