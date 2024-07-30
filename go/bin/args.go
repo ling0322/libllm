@@ -1,6 +1,3 @@
-//go:build !windows
-// +build !windows
-
 // The MIT License (MIT)
 //
 // Copyright (c) 2024 Xiaoyang Chen
@@ -23,17 +20,59 @@
 package main
 
 import (
-	"fmt"
+	"flag"
+	"log"
 	"os"
 	"strings"
+
+	"github.com/ling0322/libllm/go/llm"
 )
 
-func getLocale() (string, error) {
-	locale, ok := os.LookupEnv("LANGUAGE")
-	if !ok || locale == "" {
-		return "", fmt.Errorf("unable to get locale")
+var gModelPath string
+var gDevice string
+var gInputFile string
+
+func addDeviceFlag(fs *flag.FlagSet) {
+	fs.StringVar(&gDevice, "device", "auto", "inference device, either cpu, cuda or auto")
+}
+
+func getDeviceArg() llm.Device {
+	var device llm.Device
+	if strings.ToLower(gDevice) == "cpu" {
+		device = llm.Cpu
+	} else if strings.ToLower(gDevice) == "cuda" {
+		device = llm.Cuda
+	} else if strings.ToLower(gDevice) == "auto" {
+		device = llm.Auto
+	} else {
+		log.Fatalf("unexpected device %s", gDevice)
 	}
 
-	locale = strings.ToLower(locale)
-	return locale, nil
+	return device
+}
+
+func addModelFlag(fs *flag.FlagSet) {
+	fs.StringVar(&gModelPath, "model", "", "the libllm model file *.llmpkg")
+}
+
+func getModelArg(fs *flag.FlagSet) string {
+	if gModelPath == "" {
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	return gModelPath
+}
+
+func addInputFlag(fs *flag.FlagSet) {
+	fs.StringVar(&gInputFile, "input", "", "the input file.")
+}
+
+func getInputArg(fs *flag.FlagSet) string {
+	if gInputFile == "" {
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	return gInputFile
 }

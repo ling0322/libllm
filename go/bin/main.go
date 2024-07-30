@@ -1,6 +1,3 @@
-//go:build !windows
-// +build !windows
-
 // The MIT License (MIT)
 //
 // Copyright (c) 2024 Xiaoyang Chen
@@ -25,15 +22,33 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 )
 
-func getLocale() (string, error) {
-	locale, ok := os.LookupEnv("LANGUAGE")
-	if !ok || locale == "" {
-		return "", fmt.Errorf("unable to get locale")
+func printCommandUsage() {
+	fmt.Fprintln(os.Stderr, "Usage: llm COMMAND")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Commands:")
+	fmt.Fprintln(os.Stderr, "    chat           Chat with LLM")
+	fmt.Fprintln(os.Stderr, "    transcribe     Transcribe audio or video file to text")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Run 'llm COMMAND -h' for more information on a command.")
+}
+
+func main() {
+	if len(os.Args) == 1 {
+		printCommandUsage()
+		os.Exit(1)
 	}
 
-	locale = strings.ToLower(locale)
-	return locale, nil
+	command := os.Args[1]
+	switch command {
+	case "chat":
+		chatMain(os.Args[2:])
+	case "transcribe":
+		transcribeMain(os.Args[2:])
+	default:
+		fmt.Fprintf(os.Stderr, "Invalid command \"%s\"\n\n", command)
+		printCommandUsage()
+		os.Exit(1)
+	}
 }
