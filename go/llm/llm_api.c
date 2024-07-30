@@ -101,7 +101,9 @@ void *llmLoadLibrary(const char *libraryPath) {
     return LLM_ABORTED;                                              \
   }
 
-llmStatus_t llmLoadSymbols(LLM_HMODULE hDll) {
+llmStatus_t llmLoadSymbols(void *pDll) {
+  LLM_HMODULE hDll = (LLM_HMODULE)pDll;
+
   LOAD_SYMBOL(hDll, llmInit);
   LOAD_SYMBOL(hDll, llmDestroy);
   LOAD_SYMBOL(hDll, llmGetLastErrorMessage);
@@ -132,7 +134,7 @@ llmStatus_t llmLoadSymbols(LLM_HMODULE hDll) {
 }
 
 // load the libllm shared library.
-llmStatus_t llmDestroyLibrary(LLM_HMODULE handle) {
+llmStatus_t llmDestroyLibrary(void *handle) {
   p_llmInit = NULL;
   p_llmDestroy = NULL;
   p_llmGetLastErrorMessage = NULL;
@@ -166,7 +168,7 @@ llmStatus_t llmDestroyLibrary(LLM_HMODULE handle) {
     return LLM_ABORTED;
   }
 #elif defined(LUT_PLATFORM_WINDOWS)
-  BOOL success = FreeLibrary(handle);
+  BOOL success = FreeLibrary((LLM_HMODULE)handle);
   if (FALSE == success) {
     return LLM_ABORTED;
   }
