@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,10 +20,11 @@
 #pragma once
 
 #include <memory>
+
 #include "libllm/context.h"
+#include "libllm/lut/random.h"
 #include "libllm/state_map.h"
 #include "libllm/tensor.h"
-#include "libllm/lut/random.h"
 #include "tensor.h"
 
 namespace libllm {
@@ -50,11 +51,15 @@ class Module {
 
   /// @brief Get context of current module.
   /// @return reference of Context.
-  const Context &getCtx() const { return _ctx; }
+  const Context &getCtx() const {
+    return _ctx;
+  }
 
   /// @brief Set the context of current module.
   /// @param ctx reference of Context.
-  void setCtx(const Context &ctx) { _ctx = ctx; }
+  void setCtx(const Context &ctx) {
+    _ctx = ctx;
+  }
 
  private:
   Context _ctx;
@@ -64,13 +69,14 @@ class Module {
 class LayerNorm : public Module {
  public:
   static std::unique_ptr<LayerNorm> create(const Context &ctx, int d_model, float eps = 1e-5);
-  
+
   // implement interface Module
   void initParameters(const StateMap &state_dict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
 
   // forward input and return the output.
   Tensor forward(const Tensor &input) const;
- 
+
  private:
   // tensor names.
   static constexpr char kWeight[] = "weight";
@@ -135,9 +141,12 @@ class Embedding : public Module {
 
 class Linear : public Module {
  public:
-  // create Linear module from context. 
+  // create Linear module from context.
   static std::unique_ptr<Linear> create(
-      const Context &ctx, int inDim, int outDim, bool hasBias = true);
+      const Context &ctx,
+      int inDim,
+      int outDim,
+      bool hasBias = true);
 
   // implement interface Module
   void initParameters(const StateMap &state_dict) override;
@@ -159,6 +168,43 @@ class Linear : public Module {
   bool _hasBias;
 
   Linear();
+};
+
+/// @brief Apply 1D Convolution to the input tensor. Unlike Conv1D in pytorch, it use (N, L, C) as
+/// input format.
+class Conv1D : public Module {
+ public:
+  // create Linear module from context.
+  static std::shared_ptr<Conv1D> create(
+      const Context &ctx,
+      int inChennels,
+      int outChannels,
+      int kernelSize,
+      int stride = 1,
+      bool bias = true);
+
+  // implement interface Module
+  void initParameters(const StateMap &stateDict) override;
+  void initParameters(lut::Random *generator, DType weightType) override;
+
+  // forward input and return the output.
+  Tensor forward(const Tensor &input) const;
+
+ private:
+  // tensor names.
+  static constexpr char kWeight[] = "weight";
+  static constexpr char kBias[] = "bias";
+
+  Tensor _w;
+  Tensor _b;
+
+  int _inChannels;
+  int _outChannels;
+  int _kernelSize;
+  int _stride;
+  bool _hasBias;
+
+  Conv1D();
 };
 
 }  // namespace libllm

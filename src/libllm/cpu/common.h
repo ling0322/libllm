@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,10 +19,10 @@
 
 #pragma once
 
-#include "libllm/tensor.h"
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/kernel/interface.h"
 #include "libllm/lut/span.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
@@ -65,6 +65,6 @@ inline void applyDequant(int64_t offset, int n, const TensorData *data, Float16 
       kernel::CpuMathBackend::DEFAULT);
 }
 
-}  // cpu
-}  // op
-}  // ly
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

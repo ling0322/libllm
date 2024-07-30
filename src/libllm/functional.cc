@@ -24,6 +24,7 @@
 #include "libllm/lut/error.h"
 #include "libllm/lut/strings.h"
 #include "libllm/operators.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace F {
@@ -150,6 +151,20 @@ void copy(Tensor src, Tensor dest) {
   }
 }
 
+Tensor sum(Tensor tensor, int dim) {
+  CHECK(dim == -1 || dim == tensor.getDim() - 1);
+  return getOperators(tensor.getDevice().getType())->sum(tensor);
+}
+
+Tensor max(Tensor tensor, int dim) {
+  CHECK(dim == -1 || dim == tensor.getDim() - 1);
+  return getOperators(tensor.getDevice().getType())->max(tensor);
+}
+
+void fill(Tensor tensor, float value) {
+  getOperators(tensor.getDevice().getType())->fill(tensor, value);
+}
+
 Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
   float dK = 1.0f / sqrtf(1.0f * q.getShape(-1));
   q = F::mul(q, sqrtf(dK));
@@ -166,8 +181,16 @@ Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
   return outputs;
 }
 
-Tensor swiglu(Tensor input) {
-  return getOperators(input.getDevice().getType())->swiglu(input);
+Tensor swiglu(Tensor inputs) {
+  return getOperators(inputs.getDevice().getType())->swiglu(inputs);
+}
+
+Tensor logMelSpectrogram(Tensor wave) {
+  return getOperators(wave.getDevice().getType())->logMelSpectrogram(wave);
+}
+
+Tensor unfold(Tensor input, int kernelSize, int stride) {
+  return getOperators(input.getDevice().getType())->unfold(input, kernelSize, stride);
 }
 
 Tensor to(Device device, Tensor tensor) {

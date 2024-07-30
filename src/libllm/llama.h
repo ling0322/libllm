@@ -123,7 +123,8 @@ class LlamaModel : public Module {
   void initParameters(lut::Random *generator, DType weightType) override;
 
   Tensor forward(StateMap &past, Tensor input) const;
-  Tensor forwardHidden(Tensor hidden) const;
+  Tensor forwardLmHead(Tensor hidden) const;
+  int getOutputDim() const;
 
  private:
   LlamaConfig _config;
@@ -137,19 +138,17 @@ class LlamaModel : public Module {
 
 class LlamaModelForGeneration : public ModelForGeneration {
  public:
-  static std::shared_ptr<LlamaModelForGeneration> fromConfig(
+  static std::shared_ptr<LlamaModelForGeneration> fromPackage(
       const Context &ctx,
-      const lut::IniConfig &config);
+      lut::ZipFile *package);
 
-  // implements interface ModelForGeneration
-  void initParameters(const StateMap &stateDict) override;
+  Tensor prefill(StateMap &past, const Prompt &prompt) const override;
+  Tensor decode(StateMap &past, LongType inputToken) const override;
 
-  Tensor forward(StateMap &past, Tensor input) const override;
-  Tensor forwardHidden(Tensor hidden) const override;
-  Tensor buildInput(const std::vector<LongType> &prompt) const override;
   bool isStopToken(int tokenId) const override;
   const char *getName() const override;
   Device getDevice() const override;
+  int getOutputDim() const override;
 
  protected:
   std::shared_ptr<LlamaModel> _model;
@@ -157,7 +156,7 @@ class LlamaModelForGeneration : public ModelForGeneration {
   int _eotId;
 
   LlamaModelForGeneration();
-  void init(const Context &ctx, const lut::IniConfig &config);
+  Tensor buildInput(const Prompt &prompt) const;
 };
 
 }  // namespace llama

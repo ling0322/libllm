@@ -53,7 +53,19 @@ Tensor Operators::softmax(Tensor input) {
   NOT_IMPL();
 }
 
+Tensor Operators::sum(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::max(Tensor input) {
+  NOT_IMPL();
+}
+
 Tensor Operators::gelu(Tensor input) {
+  NOT_IMPL();
+}
+
+void Operators::fill(Tensor input, float value) {
   NOT_IMPL();
 }
 
@@ -105,7 +117,15 @@ Tensor Operators::swiglu(Tensor A) {
   NOT_IMPL();
 }
 
+Tensor Operators::melFbank(Tensor A) {
+  NOT_IMPL();
+}
+
 Tensor Operators::to(Device device, Tensor tensor) {
+  NOT_IMPL();
+}
+
+Tensor Operators::unfold(Tensor input, int kernelSize, int stride) {
   NOT_IMPL();
 }
 
@@ -114,6 +134,10 @@ Tensor Operators::cast(Tensor tensor, DType dtype) {
 }
 
 DType Operators::getDefaultFloatType() {
+  NOT_IMPL();
+}
+
+Tensor Operators::logMelSpectrogram(Tensor wave) {
   NOT_IMPL();
 }
 

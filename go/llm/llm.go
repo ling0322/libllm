@@ -35,11 +35,13 @@ import (
 )
 
 type Device int32
+type AudioFormat int32
 
 const (
-	Cpu  = Device(0x0000)
-	Cuda = Device(0x0100)
-	Auto = Device(0x1f00)
+	Cpu               = Device(0x0000)
+	Cuda              = Device(0x0100)
+	Auto              = Device(0x1f00)
+	Pcm16kHz16BitMono = AudioFormat(0x0001)
 )
 
 var gInit atomic.Bool

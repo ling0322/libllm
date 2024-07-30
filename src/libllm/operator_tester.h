@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,22 +20,17 @@
 #pragma once
 
 #include "libllm/device.h"
-#include "libllm/operators.h"
 #include "libllm/lut/attributes.h"
+#include "libllm/operators.h"
 
 namespace libllm {
 
 class OperatorTester {
  public:
   using ShapeType = std::initializer_list<int>;
-  
+
   static constexpr uint32_t MagicNumber = 0x33;
-  enum class OperatorType {
-    Add,
-    Mul,
-    Softmax,
-    Swiglu
-  };
+  enum class OperatorType { Add, Mul, Softmax, Swiglu };
 
   OperatorTester();
 
@@ -68,7 +63,7 @@ class OperatorTester {
   float _rtol;
   Operators *_op;
   Operators *_referenceOp;
-  
+
   Device _testDevice;
   DType _testFloatType;
 };

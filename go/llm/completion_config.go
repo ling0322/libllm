@@ -22,7 +22,10 @@ package llm
 // #include <stdlib.h>
 // #include "llm_api.h"
 import "C"
-import "errors"
+import (
+	"errors"
+	"unsafe"
+)
 
 // Config for LLM completion.
 type CompletionConfig interface {
@@ -35,6 +38,8 @@ type CompletionConfig interface {
 	SetTemperature(temperature float32)
 	GetTemperature() float32
 
+	SetConfig(key, value string)
+
 	// update the llmCompletion_t according to the config.
 	updateCompHandle(compHandle *completionHandle) error
 }
@@ -43,6 +48,8 @@ type completionConfigImpl struct {
 	topP        float32
 	topK        int
 	temperature float32
+
+	kvConfig map[string]string
 }
 
 func NewCompletionConfig() CompletionConfig {
@@ -50,6 +57,7 @@ func NewCompletionConfig() CompletionConfig {
 		topP:        0.8,
 		topK:        50,
 		temperature: 1.0,
+		kvConfig:    map[string]string{},
 	}
 }
 
@@ -77,6 +85,10 @@ func (c *completionConfigImpl) GetTemperature() float32 {
 	return c.temperature
 }
 
+func (c *completionConfigImpl) SetConfig(key, value string) {
+	c.kvConfig[key] = value
+}
+
 func (c *completionConfigImpl) updateCompHandle(compHandle *completionHandle) error {
 	if C.llmCompletion_SetTopP(compHandle.handle, C.float(c.topP)) != C.LLM_OK {
 		return errors.New(C.GoString(C.llmGetLastErrorMessage()))
@@ -88,6 +100,17 @@ func (c *completionConfigImpl) updateCompHandle(compHandle *completionHandle) er
 
 	if C.llmCompletion_SetTemperature(compHandle.handle, C.float(c.temperature)) != C.LLM_OK {
 		return errors.New(C.GoString(C.llmGetLastErrorMessage()))
+	}
+
+	for key, value := range c.kvConfig {
+		cKey := C.CString(key)
+		cValue := C.CString(value)
+		ok := C.llmCompletion_SetConfig(compHandle.handle, cKey, cValue)
+		C.free(unsafe.Pointer(cKey))
+		C.free(unsafe.Pointer(cValue))
+		if ok != C.LLM_OK {
+			return errors.New(C.GoString(C.llmGetLastErrorMessage()))
+		}
 	}
 
 	return nil

@@ -26,10 +26,6 @@
 #include "libllm/lut/strings.h"
 #include "libllm/mp.h"
 
-#ifndef _OPENMP
-#error OpenMP required
-#endif
-
 namespace libllm {
 namespace op {
 namespace cpu {

@@ -31,8 +31,16 @@ import (
 
 // Config for LLM completion.
 type Completion interface {
-	IsActive() bool
-	GenerateNextChunk() (Chunk, error)
+	Next() bool
+	Error() error
+	Text() string
+
+	// Get the name of current token.
+	// For a normal token Text() will return its byte piece, for example, "foo "; Token() will
+	// return its name in model, for example, "hello_".
+	// For a control token, Text() will return an empty string ("") and Token() will return its
+	// name, for example, "<|endoftext|>".
+	Token() string
 }
 
 type completionHandle struct {
@@ -40,28 +48,53 @@ type completionHandle struct {
 }
 
 type completionImpl struct {
-	handle      *completionHandle
-	chunkHandle *chunkHandle
+	handle     *completionHandle
+	chunkText  string
+	chunkToken string
+	err        error
 }
 
-func (c *completionImpl) IsActive() bool {
-	return C.llmCompletion_IsActive(c.handle.handle) != 0
-}
-
-func (c *completionImpl) GenerateNextChunk() (Chunk, error) {
-	status := C.llmCompletion_GenerateNextChunk(c.handle.handle, c.chunkHandle.handle)
-	if status != C.LLM_OK {
-		return Chunk{}, errors.New(C.GoString(C.llmGetLastErrorMessage()))
+func (c *completionImpl) Next() bool {
+	ok := C.llmCompletion_Next(c.handle.handle) != 0
+	if !ok {
+		return false
 	}
 
-	chunk := Chunk{}
-	cText := C.llmChunk_GetText(c.chunkHandle.handle)
+	cText := C.llmCompletion_GetText(c.handle.handle)
 	if cText == nil {
-		return Chunk{}, errors.New(C.GoString(C.llmGetLastErrorMessage()))
+		c.err = errors.New(C.GoString(C.llmGetLastErrorMessage()))
+		return false
+	}
+	c.chunkText = C.GoString(cText)
+
+	cToken := C.llmCompletion_GetToken(c.handle.handle)
+	if cToken == nil {
+		c.err = errors.New(C.GoString(C.llmGetLastErrorMessage()))
+		return false
+	}
+	c.chunkToken = C.GoString(cToken)
+
+	return true
+}
+
+func (c *completionImpl) Error() error {
+	if c.err != nil {
+		return c.err
 	}
 
-	chunk.Text = C.GoString(cText)
-	return chunk, nil
+	if C.llmCompletion_GetError(c.handle.handle) != C.LLM_OK {
+		return errors.New(C.GoString(C.llmGetLastErrorMessage()))
+	}
+
+	return nil
+}
+
+func (c *completionImpl) Text() string {
+	return c.chunkText
+}
+
+func (c *completionImpl) Token() string {
+	return c.chunkToken
 }
 
 func newCompletionImpl(modelHandle *modelHandle) (*completionImpl, error) {
@@ -70,14 +103,8 @@ func newCompletionImpl(modelHandle *modelHandle) (*completionImpl, error) {
 		return nil, err
 	}
 
-	chunkHandle, err := newChunkHandle()
-	if err != nil {
-		return nil, err
-	}
-
 	return &completionImpl{
-		handle:      handle,
-		chunkHandle: chunkHandle,
+		handle: handle,
 	}, nil
 }
 

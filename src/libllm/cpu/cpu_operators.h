@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,7 +20,9 @@
 #pragma once
 
 #include <stdint.h>
+
 #include <memory>
+
 #include "libllm/operators.h"
 #include "libllm/tensor.h"
 
@@ -42,10 +44,15 @@ class CPUOperators : public Operators {
   // implement interface Operators
   Tensor lookup(Tensor table, Tensor indices) override;
   Tensor matmul(Tensor a, Tensor b) override;
+  Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
   Tensor mul(Tensor input, float other) override;
   Tensor mul(Tensor input, Tensor other) override;
   Tensor softmax(Tensor input) override;
+  Tensor gelu(Tensor input) override;
+  void fill(Tensor input, float value) override;
   Tensor add(Tensor a, Tensor b) override;
+  Tensor sum(Tensor inputs) override;
+  Tensor max(Tensor inputs) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;
   Tensor tensorLike(Tensor input) override;
   Tensor zeros(lut::Span<const int> shape, DType dtype) override;
@@ -58,8 +65,10 @@ class CPUOperators : public Operators {
   Tensor swiglu(Tensor A) override;
   Tensor to(Device device, Tensor tensor) override;
   Tensor cast(Tensor tensor, DType dtype) override;
-  Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min,
-              float max) override;
+  Tensor logMelSpectrogram(Tensor wave) override;
+  Tensor unfold(Tensor input, int kernelSize, int stride) override;
+  Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min, float max)
+      override;
 
   DType getDefaultFloatType() override;
 
@@ -67,7 +76,6 @@ class CPUOperators : public Operators {
   typedef TensorShape::Elem Shape;
 };
 
-}  // cpu
-}  // op
-}  // ly
-
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

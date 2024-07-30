@@ -41,7 +41,11 @@ class Operators {
   virtual Tensor mul(Tensor input, Tensor other);
   virtual Tensor softmax(Tensor input);
   virtual Tensor add(Tensor input, Tensor other);
+  virtual Tensor sum(Tensor input);
+  virtual Tensor max(Tensor input);
+  virtual Tensor melFbank(Tensor input);
   virtual Tensor gelu(Tensor input);
+  virtual void fill(Tensor input, float value);
   virtual Tensor tensor(lut::Span<const int> shape, DType dtype);
   virtual Tensor tensorLike(Tensor input);
   virtual Tensor zeros(lut::Span<const int> shape, DType dtype);
@@ -52,9 +56,15 @@ class Operators {
   virtual void copy(Tensor src, Tensor dest);
   virtual Tensor swiglu(Tensor A);
   virtual Tensor to(Device device, Tensor tensor);
+  virtual Tensor unfold(Tensor input, int kernelSize, int stride);
   virtual Tensor cast(Tensor tensor, DType dtype);
-  virtual Tensor
-  rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min, float max);
+  virtual Tensor logMelSpectrogram(Tensor wave);
+  virtual Tensor rand(
+      lut::Span<const int> shape,
+      DType dtype,
+      lut::Random *generator,
+      float min,
+      float max);
 
   virtual DType getDefaultFloatType();
 };

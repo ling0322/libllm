@@ -26,7 +26,9 @@
 #define LLM_DEVICE_CUDA 0x0100
 #define LLM_DEVICE_AUTO 0x1f00
 #define LLM_API_VERSION 20240101
+#define LLM_WAVE_FORMAT_PCM16KHZ16BITMONO 0x0001
 #define LLM_OK 0
+#define LLM_ABORTED 1
 
 typedef int32_t llmStatus_t;
 typedef struct llmModel_t llmModel_t;
@@ -34,6 +36,7 @@ typedef struct llmChunk_t llmChunk_t;
 typedef struct llmPrompt_t llmPrompt_t;
 typedef struct llmCompletion_t llmCompletion_t;
 typedef int32_t llmBool_t;
+typedef int8_t llmByte_t;
 
 void *llmLoadLibrary(const char *libraryPath);
 llmStatus_t llmLoadSymbols(void *hDll);
@@ -53,25 +56,28 @@ llmStatus_t llmModel_Load(llmModel_t *model);
 const char *llmModel_GetName(llmModel_t *model);
 
 // llmPrompt_t
-llmPrompt_t *llmPrompt_New(llmModel_t *model);
+llmPrompt_t *llmPrompt_New();
 llmStatus_t llmPrompt_Delete(llmPrompt_t *prompt);
 llmStatus_t llmPrompt_AppendText(llmPrompt_t *prompt, const char *text);
 llmStatus_t llmPrompt_AppendControlToken(llmPrompt_t *prompt, const char *token);
 
+llmStatus_t llmPrompt_AppendAudio(
+    llmPrompt_t *prompt,
+    const llmByte_t *audio,
+    int64_t size,
+    int32_t format);
+
 // llmCompletion_t
 llmCompletion_t *llmCompletion_New(llmModel_t *model);
 llmStatus_t llmCompletion_Delete(llmCompletion_t *comp);
+llmStatus_t llmCompletion_SetConfig(llmCompletion_t *comp, const char *key, const char *value);
 llmStatus_t llmCompletion_SetPrompt(llmCompletion_t *comp, llmPrompt_t *prompt);
 llmStatus_t llmCompletion_SetTopP(llmCompletion_t *comp, float topP);
 llmStatus_t llmCompletion_SetTopK(llmCompletion_t *comp, int32_t topK);
 llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperature);
-llmStatus_t llmCompletion_Start(llmCompletion_t *comp);
-llmBool_t llmCompletion_IsActive(llmCompletion_t *comp);
-llmStatus_t llmCompletion_GenerateNextChunk(llmCompletion_t *comp, llmChunk_t *chunk);
-
-// llmChunk_t
-llmChunk_t *llmChunk_New();
-llmStatus_t llmChunk_Delete(llmChunk_t *chunk);
-const char *llmChunk_GetText(llmChunk_t *chunk);
+llmBool_t llmCompletion_Next(llmCompletion_t *comp);
+llmStatus_t llmCompletion_GetError(llmCompletion_t *comp);
+const char *llmCompletion_GetText(llmCompletion_t *comp);
+const char *llmCompletion_GetToken(llmCompletion_t *comp);
 
 #endif  // LIBLLM_LLM_API_

@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,8 +20,12 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <unordered_map>
+
+#include "libllm/lut/random.h"
 #include "libllm/model_for_generation.h"
-#include "libllm/sampler.h"
+#include "libllm/prompt.h"
 
 namespace libllm {
 
@@ -29,33 +33,106 @@ struct GenerationConfig {
   int topK;
   float topP;
   float temperature;
+  std::unordered_map<std::string, std::string> kvConfig;
 
   GenerationConfig();
 };
 
-// LLM text generator
+/// @brief Given model and the generation config, generate tokens.
 class Generator {
  public:
-  Generator(GenerationConfig config,
-            std::shared_ptr<ModelForGeneration> model,
-            std::shared_ptr<Tokenizer> tokenizer);
+  enum { Sampling, Whisper };
 
-  void forwardPrompt(const std::vector<LongType> &prompt);
+  virtual ~Generator() = default;
 
-  // generate the next word (token). Returns nullptr if the generation is finished.
-  const char *nextToken();
-  
-  bool stopped() const;
+  /// @brief set the prompt to prefill.
+  /// @param prompt the prompt;
+  virtual void setPrompt(const Prompt &prompt) = 0;
 
- private:
-  GenerationConfig _config;
-  Sampler _sampler;
+  /// @brief generate next token. Return false if generation is finished.
+  /// @return if generation is finished.
+  virtual bool generate() = 0;
+
+  /// @brief get the piece of current token.
+  /// @return piece of current token.
+  virtual std::string getToken() = 0;
+
+  /// @brief get the display name of current token.
+  /// @return name of current token.
+  virtual std::string getTokenName() = 0;
+};
+
+class BaseGenerator : public Generator {
+ public:
+  BaseGenerator(std::shared_ptr<ModelForGeneration> model);
+  ~BaseGenerator() = default;
+
+  bool generate() override;
+  std::string getToken() override;
+  std::string getTokenName() override;
+  void setPrompt(const Prompt &prompt) override;
+
+ protected:
+  Prompt _prompt;
   StateMap _past;
-  std::shared_ptr<Tokenizer> _tokenizer;
   std::shared_ptr<ModelForGeneration> _model;
   int _currentToken;
 
-  int sampleToken(const Tensor &logits);
+  virtual int searchToken(const Tensor &logits) = 0;
+};
+
+class Sampler {
+ public:
+  Sampler(int topK, float topP);
+
+  int sample(const Tensor &distribution);
+
+ private:
+  lut::Random _random;
+  int _topK;
+  float _topP;
+  std::vector<std::pair<int, float>> _topBuffer;
+
+  std::vector<int> getTopK(const Tensor &distribution);
+  std::vector<int> getTopP(const Tensor &distribution, lut::Span<const int> topK);
+  int sampleTopP(const Tensor &distribution, lut::Span<const int> topP);
+};
+
+// generator by sampling.
+class SamplingGenerator : public BaseGenerator {
+ public:
+  static std::shared_ptr<SamplingGenerator> newGenerator(
+      const GenerationConfig &config,
+      std::shared_ptr<ModelForGeneration> model);
+  ~SamplingGenerator() = default;
+
+ protected:
+  int searchToken(const Tensor &logits) override;
+
+ private:
+  Sampler _sampler;
+  float _temperature;
+
+  SamplingGenerator(const GenerationConfig &config, std::shared_ptr<ModelForGeneration> model);
+};
+
+class WhisperGreedyGenerator : public BaseGenerator {
+ public:
+  static std::shared_ptr<WhisperGreedyGenerator> newGenerator(
+      const GenerationConfig &config,
+      std::shared_ptr<ModelForGeneration> model);
+  ~WhisperGreedyGenerator() = default;
+
+  void setPrompt(const Prompt &prompt) override;
+
+ protected:
+  int searchToken(const Tensor &logits) override;
+
+ private:
+  float _temperature;
+  std::shared_ptr<LogitsProcessor> _whisperLogitsProcessor;
+
+  WhisperGreedyGenerator(const GenerationConfig &config, std::shared_ptr<ModelForGeneration> model);
 };
 
 }  // namespace libllm

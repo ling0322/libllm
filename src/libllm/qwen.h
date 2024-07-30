@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,8 +20,9 @@
 #pragma once
 
 #include <memory>
-#include "libllm/lut/ini_config.h"
+
 #include "libllm/llama.h"
+#include "libllm/lut/ini_config.h"
 #include "libllm/model_for_generation.h"
 
 namespace libllm {
@@ -32,9 +33,9 @@ namespace qwen {
 /// here.
 class QwenModelForGeneration : public llama::LlamaModelForGeneration {
  public:
-  static std::shared_ptr<QwenModelForGeneration> fromConfig(
+  static std::shared_ptr<QwenModelForGeneration> fromPackage(
       const Context &ctx,
-      const lut::IniConfig &config);
+      lut::ZipFile *package);
 
   // noncopyable
   QwenModelForGeneration(QwenModelForGeneration &) = delete;

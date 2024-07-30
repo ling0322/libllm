@@ -19,7 +19,6 @@
 
 #include "libllm/model_for_generation.h"
 
-#include "libllm/chatglm.h"
 #include "libllm/constants.h"
 #include "libllm/llama.h"
 #include "libllm/lut/error.h"
@@ -27,6 +26,7 @@
 #include "libllm/lut/strings.h"
 #include "libllm/lut/zip_file.h"
 #include "libllm/qwen.h"
+#include "libllm/whisper.h"
 
 namespace libllm {
 
@@ -45,27 +45,47 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
 
   Context ctx = fromCtx.withName(modelType);
   std::shared_ptr<ModelForGeneration> model;
-  if (modelType == "chatglm2" || modelType == "chatglm3") {
-    model = chatglm::ChatGlmModelForGeneration::fromConfig(ctx, *ini);
-  } else if (modelType == "llama") {
-    model = llama::LlamaModelForGeneration::fromConfig(ctx, *ini);
+  if (modelType == "llama") {
+    model = llama::LlamaModelForGeneration::fromPackage(ctx, package);
+  } else if (modelType == "whisper") {
+    model = whisper::WhisperModelForGeneration::fromPackage(ctx, package);
   } else if (modelType == "index") {
-    model = llama::LlamaModelForGeneration::fromConfig(ctx, *ini);
+    model = llama::LlamaModelForGeneration::fromPackage(ctx, package);
   } else if (modelType == "qwen") {
-    model = qwen::QwenModelForGeneration::fromConfig(ctx, *ini);
+    model = qwen::QwenModelForGeneration::fromPackage(ctx, package);
   } else {
     throw lut::AbortedError(lut::sprintf("unexpected model type: %s", modelType));
   }
 
-  // read state map.
-  std::string modelFile = ini->getSection(ModelSection).getString(ModelFileField);
-
-  StateMap stateMap;
-  stateMap.read(package->open(modelFile).get());
-
-  // initialize parameters.
-  model->initParameters(stateMap);
   return model;
+}
+
+void ModelForGeneration::initTokenizer(lut::ZipFile *package) {
+  _tokenizer = Tokenizer::fromPackage(package);
+}
+
+const Vocab *ModelForGeneration::getVocab() const {
+  return _tokenizer->getVocab();
+}
+
+void ModelForGeneration::encodePromptBlock(
+    const PromptBlock &block,
+    std::vector<LongType> &tokenIds) const {
+  int tokenId;
+  switch (block.blockType) {
+    case PromptBlock::ControlToken:
+      tokenId = _tokenizer->getVocab()->findControlToken(block.text);
+      tokenIds.push_back(tokenId);
+      LOG(DEBUG) << "control token " << block.text << " -> " << tokenId;
+      break;
+    case PromptBlock::Text:
+      for (int tokenId : _tokenizer->encode(block.text)) {
+        tokenIds.push_back(tokenId);
+      }
+      break;
+    default:
+      NOT_IMPL();
+  }
 }
 
 }  // namespace libllm

@@ -34,6 +34,7 @@ import (
 type Prompt interface {
 	AppendText(text string)
 	AppendControlToken(text string)
+	AppendAudio(data []byte, format AudioFormat)
 
 	// Update the llmPrompt_t instance according to the current prompt.
 	updatePromptHandle(handle *promptHandle) error
@@ -55,6 +56,11 @@ type controlTokenPromptElem struct {
 	token string
 }
 
+type audioPromptElem struct {
+	payload []byte
+	format  AudioFormat
+}
+
 type promptHandle struct {
 	handle *C.llmPrompt_t
 }
@@ -69,6 +75,10 @@ func (p *promptImpl) AppendText(text string) {
 
 func (p *promptImpl) AppendControlToken(text string) {
 	p.elements = append(p.elements, &controlTokenPromptElem{text})
+}
+
+func (p *promptImpl) AppendAudio(audio []byte, format AudioFormat) {
+	p.elements = append(p.elements, &audioPromptElem{audio, format})
 }
 
 func (p *promptImpl) updatePromptHandle(handle *promptHandle) error {
@@ -110,8 +120,24 @@ func (e *controlTokenPromptElem) AppendTo(handle *promptHandle) error {
 	return nil
 }
 
-func newPromptHandle(m *modelHandle) (*promptHandle, error) {
-	cHandle := C.llmPrompt_New(m.handle)
+func (e *audioPromptElem) AppendTo(handle *promptHandle) error {
+	cPayload := C.CBytes(e.payload)
+	defer C.free(unsafe.Pointer(cPayload))
+
+	status := C.llmPrompt_AppendAudio(
+		handle.handle,
+		(*C.llmByte_t)(cPayload),
+		C.int64_t(len(e.payload)),
+		C.int32_t(Pcm16kHz16BitMono))
+	if status != C.LLM_OK {
+		return errors.New(C.GoString(C.llmGetLastErrorMessage()))
+	}
+
+	return nil
+}
+
+func newPromptHandle() (*promptHandle, error) {
+	cHandle := C.llmPrompt_New()
 	if cHandle == nil {
 		return nil, errors.New(C.GoString(C.llmGetLastErrorMessage()))
 	}
