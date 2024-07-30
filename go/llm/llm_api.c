@@ -79,7 +79,7 @@ const char *(*p_llmCompletion_GetText)(llmCompletion_t *comp);
 const char *(*p_llmCompletion_GetToken)(llmCompletion_t *comp);
 
 // load the libllm shared library.
-LLM_HMODULE llmLoadLibrary(const char *libraryPath) {
+void *llmLoadLibrary(const char *libraryPath) {
   // first try to load the dll from same folder as current module.
 #if defined(LUT_PLATFORM_APPLE) || defined(LUT_PLATFORM_LINUX)
   return dlopen(libraryPath, RTLD_NOW);
