@@ -30,6 +30,7 @@ func printCommandUsage() {
 	fmt.Fprintln(os.Stderr, "Commands:")
 	fmt.Fprintln(os.Stderr, "    chat           Chat with LLM")
 	fmt.Fprintln(os.Stderr, "    transcribe     Transcribe audio or video file to text")
+	fmt.Fprintln(os.Stderr, "    download       Download model to local")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Run 'llm COMMAND -h' for more information on a command.")
 }
@@ -46,6 +47,8 @@ func main() {
 		chatMain(os.Args[2:])
 	case "transcribe":
 		transcribeMain(os.Args[2:])
+	case "download":
+		downloadMain(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "Invalid command \"%s\"\n\n", command)
 		printCommandUsage()

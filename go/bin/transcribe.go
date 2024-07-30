@@ -25,7 +25,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/ling0322/libllm/go/llm"
 	"github.com/ling0322/libllm/go/skill"
 )
 
@@ -57,7 +56,7 @@ func transcribeMain(args []string) {
 		os.Exit(1)
 	}
 
-	model, err := llm.NewModel(modelFile, device)
+	model, err := createModelAutoDownload(modelFile, device)
 	if err != nil {
 		log.Fatal(err)
 	}

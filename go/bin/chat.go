@@ -30,7 +30,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ling0322/libllm/go/llm"
 	"github.com/ling0322/libllm/go/skill"
 )
 
@@ -58,7 +57,7 @@ func chatMain(args []string) {
 	}
 
 	modelName := getModelArg(fs)
-	model, err := llm.NewModel(modelName, getDeviceArg())
+	model, err := createModelAutoDownload(modelName, getDeviceArg())
 	if err != nil {
 		log.Fatal(err)
 	}
