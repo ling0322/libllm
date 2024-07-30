@@ -17,47 +17,27 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package llmtasks
+package skill
 
-import (
-	"github.com/ling0322/libllm/go/llm"
-)
+import "github.com/ling0322/libllm/go/llm"
 
-type Message struct {
-	Role    string
-	Content string
+type Llama struct {
 }
 
-type Chat struct {
-	model         llm.Model
-	promptBuilder promptBuilder
-	compConfig    llm.CompletionConfig
-}
-
-func NewChat(model llm.Model) (*Chat, error) {
-	modelName := model.GetName()
-	promptBuilder, err := newPromptBuilder(modelName)
-	if err != nil {
-		return nil, err
+func (l *Llama) Build(history []Message) (llm.Prompt, error) {
+	prompt := llm.NewPrompt()
+	prompt.AppendControlToken("<|begin_of_text|>")
+	for _, message := range history {
+		prompt.AppendControlToken("<|start_header_id|>")
+		prompt.AppendText(message.Role)
+		prompt.AppendControlToken("<|end_header_id|>")
+		prompt.AppendText("\n\n" + message.Content)
+		prompt.AppendControlToken("<|eot_id|>")
 	}
 
-	return &Chat{
-		model:         model,
-		promptBuilder: promptBuilder,
-		compConfig:    llm.NewCompletionConfig(),
-	}, nil
-}
-
-func (c *Chat) Chat(history []Message) (llm.Completion, error) {
-	prompt, err := c.promptBuilder.Build(history)
-	if err != nil {
-		return nil, err
-	}
-
-	comp, err := c.model.Complete(c.compConfig, prompt)
-	if err != nil {
-		return nil, err
-	}
-
-	return comp, nil
+	prompt.AppendControlToken("<|start_header_id|>")
+	prompt.AppendText("assistant")
+	prompt.AppendControlToken("<|end_header_id|>")
+	prompt.AppendText("\n\n")
+	return prompt, nil
 }

@@ -1,4 +1,4 @@
-module github.com/ling0322/libllm/go/llmtasks
+module github.com/ling0322/libllm/go/skill
 
 go 1.21
 

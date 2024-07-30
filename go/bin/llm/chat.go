@@ -30,11 +30,11 @@ import (
 	"time"
 
 	"github.com/ling0322/libllm/go/llm"
-	"github.com/ling0322/libllm/go/llmtasks"
+	"github.com/ling0322/libllm/go/skill"
 )
 
 func chatMain(model llm.Model) {
-	llmChat, err := llmtasks.NewChat(model)
+	llmChat, err := skill.NewChat(model)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func chatMain(model llm.Model) {
 	fmt.Println(gLocalizer.Get(MsgInputQuestionNew))
 	fmt.Println(gLocalizer.Get(MsgInputQuestionSys))
 
-	history := []llmtasks.Message{}
+	history := []skill.Message{}
 	systemPrompt := ""
 	for {
 		reader := bufio.NewReader(os.Stdin)
@@ -59,21 +59,21 @@ func chatMain(model llm.Model) {
 		question = strings.TrimSpace(question)
 		if len(question) > 5 && strings.ToLower(question)[0:5] == ":sys " {
 			systemPrompt = strings.TrimSpace(question[5:])
-			history = []llmtasks.Message{}
+			history = []skill.Message{}
 			continue
 		} else if strings.ToLower(question) == ":new" {
 			fmt.Println(gLocalizer.Get(MsgNewSession))
-			history = []llmtasks.Message{}
+			history = []skill.Message{}
 			continue
 		} else if question == "" {
 			continue
 		}
 
 		if len(history) == 0 && systemPrompt != "" {
-			history = append(history, llmtasks.Message{Role: "system", Content: systemPrompt})
+			history = append(history, skill.Message{Role: "system", Content: systemPrompt})
 		}
 
-		history = append(history, llmtasks.Message{Role: "user", Content: question})
+		history = append(history, skill.Message{Role: "user", Content: question})
 		comp, err := llmChat.Chat(history)
 		if err != nil {
 			log.Fatal(err)
@@ -91,7 +91,7 @@ func chatMain(model llm.Model) {
 			log.Fatal(err)
 		}
 
-		history = append(history, llmtasks.Message{Role: "assistant", Content: answer})
+		history = append(history, skill.Message{Role: "assistant", Content: answer})
 		fmt.Println()
 
 		dur := time.Since(t0)

@@ -671,6 +671,7 @@ std::shared_ptr<WhisperLogitsProcessor> WhisperLogitsProcessor::newProcessor(con
   processor->_eotToken = vocab->findControlToken("<|endoftext|>");
   processor->_transcribeToken = vocab->findControlToken("<|transcribe|>");
   processor->_translateToken = vocab->findControlToken("<|translate|>");
+  processor->_noTimestampToken = vocab->findControlToken("<|notimestamps|>");
 
   return processor;
 }
@@ -684,10 +685,15 @@ void WhisperLogitsProcessor::notifyToken(int tokenId) {
 
 void WhisperLogitsProcessor::processLogits(Tensor logits) {
   bool lastWasTimestamp = _history.size() >= 1 && _history.back() >= _beginTimeToken;
+  bool lastWasTranscribe = _history.size() >= 1 && _history.back() == _transcribeToken;
   bool penultimateWasTimestamp = _history.size() < 2 ||
                                  _history[_history.size() - 2] >= _beginTimeToken ||
                                  _history[_history.size() - 2] == _transcribeToken ||
                                  _history[_history.size() - 2] == _translateToken;
+
+  if (lastWasTranscribe) {
+    F::fill(logits.slice(-1, {_noTimestampToken, _noTimestampToken + 1}), -Inf);
+  }
 
   if (lastWasTimestamp) {
     if (penultimateWasTimestamp) {

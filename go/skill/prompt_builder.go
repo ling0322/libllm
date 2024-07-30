@@ -17,27 +17,24 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package llmtasks
+package skill
 
-import "github.com/ling0322/libllm/go/llm"
+import (
+	"fmt"
 
-type Llama struct {
+	"github.com/ling0322/libllm/go/llm"
+)
+
+type promptBuilder interface {
+	Build(history []Message) (llm.Prompt, error)
 }
 
-func (l *Llama) Build(history []Message) (llm.Prompt, error) {
-	prompt := llm.NewPrompt()
-	prompt.AppendControlToken("<|begin_of_text|>")
-	for _, message := range history {
-		prompt.AppendControlToken("<|start_header_id|>")
-		prompt.AppendText(message.Role)
-		prompt.AppendControlToken("<|end_header_id|>")
-		prompt.AppendText("\n\n" + message.Content)
-		prompt.AppendControlToken("<|eot_id|>")
+func newPromptBuilder(modelName string) (promptBuilder, error) {
+	if modelName == "llama" {
+		return &Llama{}, nil
+	} else if modelName == "index" {
+		return &BilibiliIndex{}, nil
+	} else {
+		return nil, fmt.Errorf("unexpected model name %s", modelName)
 	}
-
-	prompt.AppendControlToken("<|start_header_id|>")
-	prompt.AppendText("assistant")
-	prompt.AppendControlToken("<|end_header_id|>")
-	prompt.AppendText("\n\n")
-	return prompt, nil
 }

@@ -244,6 +244,7 @@ class WhisperLogitsProcessor : public LogitsProcessor {
   int _eotToken;
   int _transcribeToken;
   int _translateToken;
+  int _noTimestampToken;
 
   WhisperLogitsProcessor();
 };

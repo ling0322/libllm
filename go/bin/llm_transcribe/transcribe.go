@@ -25,7 +25,7 @@ import (
 	"os"
 
 	"github.com/ling0322/libllm/go/llm"
-	"github.com/ling0322/libllm/go/llmtasks"
+	"github.com/ling0322/libllm/go/skill"
 )
 
 func transcribeMain(model llm.Model) {
@@ -39,7 +39,7 @@ func transcribeMain(model llm.Model) {
 	}
 	defer fd.Close()
 
-	transcriber := llmtasks.NewWhisperTranscriber(model, fd)
+	transcriber := skill.NewWhisperTranscriber(model, fd)
 	for transcriber.Transcribe() {
 		r := transcriber.Result()
 		fmt.Println(r.String())

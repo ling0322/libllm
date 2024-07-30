@@ -17,24 +17,47 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package llmtasks
+package skill
 
 import (
-	"fmt"
-
 	"github.com/ling0322/libllm/go/llm"
 )
 
-type promptBuilder interface {
-	Build(history []Message) (llm.Prompt, error)
+type Message struct {
+	Role    string
+	Content string
 }
 
-func newPromptBuilder(modelName string) (promptBuilder, error) {
-	if modelName == "llama" {
-		return &Llama{}, nil
-	} else if modelName == "index" {
-		return &BilibiliIndex{}, nil
-	} else {
-		return nil, fmt.Errorf("unexpected model name %s", modelName)
+type Chat struct {
+	model         llm.Model
+	promptBuilder promptBuilder
+	compConfig    llm.CompletionConfig
+}
+
+func NewChat(model llm.Model) (*Chat, error) {
+	modelName := model.GetName()
+	promptBuilder, err := newPromptBuilder(modelName)
+	if err != nil {
+		return nil, err
 	}
+
+	return &Chat{
+		model:         model,
+		promptBuilder: promptBuilder,
+		compConfig:    llm.NewCompletionConfig(),
+	}, nil
+}
+
+func (c *Chat) Chat(history []Message) (llm.Completion, error) {
+	prompt, err := c.promptBuilder.Build(history)
+	if err != nil {
+		return nil, err
+	}
+
+	comp, err := c.model.Complete(c.compConfig, prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	return comp, nil
 }
