@@ -375,6 +375,11 @@ void convertFloatToHalf(int n, const float *x, Float16 *y, Mode mode, CpuMathBac
 #if LUT_CPU_ARCH == LUT_AARCH64
   } else if (backendType == CpuMathBackend::ASIMDHP && mode == Mode::OMP) {
     cvt<float, Float16, CpuMathBackend::ASIMDHP, Mode::OMP>(n, x, 0, y, 0);
+#elif LUT_CPU_ARCH == LUT_AMD64
+  } else if (backendType == CpuMathBackend::AVX2 && mode == Mode::OMP) {
+    cvt<float, Float16, CpuMathBackend::FALLBACK, Mode::OMP>(n, x, 0, y, 0);
+  } else if (backendType == CpuMathBackend::AVX512 && mode == Mode::OMP) {
+    cvt<float, Float16, CpuMathBackend::FALLBACK, Mode::OMP>(n, x, 0, y, 0);
 #endif
   } else {
     NOT_IMPL();

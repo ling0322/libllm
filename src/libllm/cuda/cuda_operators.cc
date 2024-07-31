@@ -26,14 +26,19 @@
 #include "libllm/cuda/cast.h"
 #include "libllm/cuda/causal_mask.h"
 #include "libllm/cuda/copy.h"
+#include "libllm/cuda/fill.h"
+#include "libllm/cuda/gelu.h"
+#include "libllm/cuda/layer_norm.h"
 #include "libllm/cuda/lookup.h"
 #include "libllm/cuda/matmul.h"
 #include "libllm/cuda/print.h"
+#include "libllm/cuda/reduce.h"
 #include "libllm/cuda/rms_norm.h"
 #include "libllm/cuda/softmax.h"
 #include "libllm/cuda/swiglu.h"
 #include "libllm/cuda/to_device.h"
 #include "libllm/cuda/transform.h"
+#include "libllm/cuda/unfold.h"
 #include "libllm/functional.h"
 
 namespace libllm {
@@ -55,6 +60,23 @@ Operators *CudaOperators::create() {
             << getCudaDeviceAttribute(cudaDevAttrMultiProcessorCount);
 
   return op.release();
+}
+
+void CudaOperators::fill(Tensor input, float value) {
+  return op::cuda::fill(input, value);
+}
+
+Tensor CudaOperators::gelu(Tensor input) {
+  return op::cuda::gelu(input);
+}
+
+Tensor CudaOperators::max(Tensor inputs) {
+  return op::cuda::reduce(inputs, MapReduceType::MAX);
+}
+
+Tensor CudaOperators::sum(Tensor inputs) {
+  Tensor A = op::cuda::reduce(inputs, MapReduceType::SUM_FP16_FP32);
+  return castFloatToHalf(A);
 }
 
 Tensor CudaOperators::lookup(Tensor table, Tensor indices) {
@@ -85,6 +107,10 @@ Tensor CudaOperators::rmsNorm(Tensor input, Tensor weight, float eps) {
   return op::cuda::rmsNorm(input, weight, eps);
 }
 
+Tensor CudaOperators::layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
+  return op::cuda::layerNorm(input, weight, bias, eps);
+}
+
 Tensor CudaOperators::causalMask(int max_len) {
   return op::cuda::causalMask(max_len);
 }
@@ -97,6 +123,10 @@ Tensor CudaOperators::tensor(lut::Span<const int> shape, DType dtype) {
   if (dtype == DType::kFloat16) return createCudaTensorHalf(shape);
 
   NOT_IMPL();
+}
+
+Tensor CudaOperators::unfold(Tensor input, int kernelSize, int stride) {
+  return op::cuda::unfold(input, kernelSize, stride);
 }
 
 Tensor CudaOperators::tensorLike(Tensor input) {
@@ -140,6 +170,13 @@ Tensor CudaOperators::cast(Tensor tensor, DType dtype) {
 
 DType CudaOperators::getDefaultFloatType() {
   return DType::kFloat16;
+}
+
+Tensor CudaOperators::zeros(lut::Span<const int> shape, DType dtype) {
+  Tensor tensor = createCudaTensorHalf(shape);
+  op::cuda::fill(tensor, 0.0);
+
+  return tensor;
 }
 
 }  // namespace cuda

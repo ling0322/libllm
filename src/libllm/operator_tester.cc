@@ -306,6 +306,9 @@ bool OperatorTester::testUnaryOp(OperatorTester::OperatorType op, ShapeType shap
     case OperatorType::Swiglu:
       xr = F::swiglu(a);
       break;
+    case OperatorType::Gelu:
+      xr = F::gelu(a);
+      break;
     default:
       NOT_IMPL();
   }
@@ -318,11 +321,12 @@ bool OperatorTester::testUnaryOp(OperatorTester::OperatorType op, ShapeType shap
   }
   if (op == OperatorType::Softmax && !_printBenchmarkInfo) x = _op->softmax(x);
   if (op == OperatorType::Swiglu) x = _op->swiglu(x);
+  if (op == OperatorType::Gelu) x = _op->gelu(x);
 
   x = _op->cast(x, DType::kFloat);
   x = _op->to(Device::getCpu(), x);
 
-  return F::allClose(x, xr, 5e-3f);
+  return F::allClose(x, xr, _rtol, _atol);
 }
 
 bool OperatorTester::testRmsNorm(ShapeType shape) {
@@ -346,6 +350,33 @@ bool OperatorTester::testRmsNorm(ShapeType shape) {
   x = _op->to(Device::getCpu(), x);
 
   return F::allClose(x, xr, 5e-3f);
+}
+
+bool OperatorTester::testLayerNorm(ShapeType shape) {
+  lut::Random random(MagicNumber);
+  Tensor a = F::rand(shape, DType::kFloat, Device::kCpu, &random, -1, 100);
+  Tensor mean = F::rand({a.getShape(-1)}, DType::kFloat, Device::kCpu, &random);
+  Tensor var = F::rand({a.getShape(-1)}, DType::kFloat, Device::kCpu, &random);
+  Tensor xr = F::layerNorm(a, mean, var, 1e-5);
+
+  Tensor x = _op->to(_testDevice, a);
+  x = _op->cast(x, _testFloatType);
+  mean = _op->to(_testDevice, mean);
+  mean = _op->cast(mean, _testFloatType);
+  var = _op->to(_testDevice, var);
+  var = _op->cast(var, _testFloatType);
+
+  if (_printBenchmarkInfo) {
+    LOG_TIME(
+        x = _op->layerNorm(x, mean, var, 1e-5),
+        lut::sprintf("shape=%s OP::layerNorm", a.getShapeString()));
+  } else {
+    x = _op->layerNorm(x, mean, var, 1e-5);
+  };
+  x = _op->cast(x, DType::kFloat);
+  x = _op->to(Device::getCpu(), x);
+
+  return F::allClose(x, xr, _rtol, _atol);
 }
 
 bool OperatorTester::testCausalMask() {
@@ -375,6 +406,25 @@ bool OperatorTester::testRoPE() {
   x = _op->to(Device::getCpu(), x);
 
   return F::allClose(x, xr, 5e-3f);
+}
+
+bool OperatorTester::testUnfold() {
+  constexpr int DIM = 129;
+
+  lut::Random random(MagicNumber);
+  Tensor a = F::rand({2, 5, DIM}, DType::kFloat, Device::getCpu(), &random);
+  Tensor xr = F::unfold(a, 5, 2);
+
+  Tensor x = _op->to(_testDevice, a);
+  x = _op->cast(x, _testFloatType);
+  x = _op->unfold(x, 5, 2);
+  x = _op->cast(x, DType::kFloat);
+  x = _op->to(Device::getCpu(), x);
+
+  F::print(x);
+  F::print(xr);
+
+  return F::allClose(x, xr, _rtol, _atol);
 }
 
 }  // namespace libllm

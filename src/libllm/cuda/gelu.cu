@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,31 +17,52 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include <cuda_fp16.h>
 
-#include "libllm/tensor.h"
+#include "libllm/cuda/common.h"
+#include "libllm/cuda/gelu.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-enum class MapReduceType {
-  // Sum of exp(x). FP16_FP32 means the input type if fp16, intermediate and output type is fp32.
-  SUM_EXP_FP16_FP32,
+__device__ constexpr float Sqrt2 = 1.4142136f;
 
-  // Sum of x^2.
-  SUM_SQUARE_FP16_FP32,
+__global__ void geluKernel3D(PackedSubtensor<const half, 3> A, PackedSubtensor<half, 3> C) {
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-  // Sum of x.
-  SUM_FP16_FP32,
+  if (z >= C.getShape(0) || y >= C.getShape(1) || x >= C.getShape(2)) return;
 
-  // Get maximun number in list.
-  MAX
-};
+  float a = __half2float(A[z][y][x]);
+  float c = a * 0.5f * (1.0f + erf(a / Sqrt2));
 
-Tensor reduce(Tensor A, MapReduceType reduceType);
-Tensor reduceHalfToSingle3D(Tensor A, MapReduceType reduceType);
-Tensor reduceHalf3D(Tensor A, MapReduceType reduceType);
+  C[z][y][x] = __float2half(c);
+}
+
+Tensor gelu3D(const Tensor &tensor) {
+  Tensor C = createCudaTensorHalf(tensor.getShape());
+
+  constexpr int blockSize = 256;
+  dim3 d;
+  d.z = C.getShape(0);
+  d.y = C.getShape(1);
+  d.x = (C.getShape(2) + blockSize - 1) / blockSize;
+
+  geluKernel3D<<<d, blockSize>>>(tensor, C);
+  cudaDeviceSynchronize();
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+  return C;
+}
+
+Tensor gelu(const Tensor &tensor) {
+  CHECK(tensor.getDevice().getType() == Device::kCuda);
+
+  if (tensor.getDim() == 3) return gelu3D(tensor);
+
+  NOT_IMPL();
+}
 
 }  // namespace cuda
 }  // namespace op

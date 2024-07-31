@@ -32,7 +32,7 @@ namespace libllm {
 namespace op {
 namespace cuda {
 
-enum class MapType { EXP_FP16_FP32, SQUARE_FP16_FP32, IDENTITY, UNKNOWN };
+enum class MapType { EXP_FP16_FP32, SQUARE_FP16_FP32, IDENTITY, FP16_FP32, UNKNOWN };
 enum class ReduceType { SUM, MAX, UNKNOWN };
 
 __device__ __forceinline__ constexpr MapType getMapType(MapReduceType mapReduceType) {
@@ -41,6 +41,8 @@ __device__ __forceinline__ constexpr MapType getMapType(MapReduceType mapReduceT
       return MapType::EXP_FP16_FP32;
     case MapReduceType::SUM_SQUARE_FP16_FP32:
       return MapType::SQUARE_FP16_FP32;
+    case MapReduceType::SUM_FP16_FP32:
+      return MapType::FP16_FP32;
     case MapReduceType::MAX:
       return MapType::IDENTITY;
     default:
@@ -52,6 +54,7 @@ __device__ __forceinline__ constexpr ReduceType getReduceType(MapReduceType mapR
   switch (mapReduceType) {
     case MapReduceType::SUM_EXP_FP16_FP32:
     case MapReduceType::SUM_SQUARE_FP16_FP32:
+    case MapReduceType::SUM_FP16_FP32:
       return ReduceType::SUM;
     case MapReduceType::MAX:
       return ReduceType::MAX;
@@ -96,6 +99,9 @@ __global__ void reduce0Kernel3D(
           break;
         case MapType::SQUARE_FP16_FP32:
           elemMap = static_cast<float>(elemIn) * static_cast<float>(elemIn);
+          break;
+        case MapType::FP16_FP32:
+          elemMap = static_cast<float>(elemIn);
           break;
         case MapType::IDENTITY:
           elemMap = elemIn;
@@ -163,6 +169,9 @@ Tensor reduceHalfToSingle3D(Tensor A, MapReduceType reduceType) {
       reduce0Kernel3D<half, float, MapReduceType::SUM_SQUARE_FP16_FP32, blockSize>
           <<<d, blockSize>>>(A, C);
       break;
+    case MapReduceType::SUM_FP16_FP32:
+      reduce0Kernel3D<half, float, MapReduceType::SUM_FP16_FP32, blockSize><<<d, blockSize>>>(A, C);
+      break;
     case MapReduceType::MAX:
       reduce0Kernel3D<half, float, MapReduceType::MAX, blockSize><<<d, blockSize>>>(A, C);
       break;
@@ -173,6 +182,27 @@ Tensor reduceHalfToSingle3D(Tensor A, MapReduceType reduceType) {
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return C;
+}
+
+Tensor reduceHalfToSingle2D(Tensor A, MapReduceType reduceType) {
+  CHECK(A.getDType() == DType::kFloat16);
+  CHECK(A.getDim() == 2);
+
+  int d0 = A.getShape(0);
+  int d1 = A.getShape(1);
+
+  Tensor C = reduceHalfToSingle3D(A.view({1, d0, d1}), reduceType);
+  return C.view({d0});
+}
+
+Tensor reduceHalfToSingle1D(Tensor A, MapReduceType reduceType) {
+  CHECK(A.getDType() == DType::kFloat16);
+  CHECK(A.getDim() == 1);
+
+  int d0 = A.getShape(0);
+
+  Tensor C = reduceHalfToSingle3D(A.view({1, 1, d0}), reduceType);
+  return C.view({1});
 }
 
 Tensor reduceHalf3D(Tensor A, MapReduceType reduceType) {
@@ -203,8 +233,39 @@ Tensor reduceHalf3D(Tensor A, MapReduceType reduceType) {
   return C;
 }
 
+Tensor reduceHalf2D(Tensor A, MapReduceType reduceType) {
+  CHECK(A.getDType() == DType::kFloat16);
+  CHECK(A.getDim() == 2);
+
+  int d0 = A.getShape(0);
+  int d1 = A.getShape(1);
+
+  Tensor C = reduceHalf3D(A.view({1, d0, d1}), reduceType);
+  return C.view({d0});
+}
+
+Tensor reduceHalf1D(Tensor A, MapReduceType reduceType) {
+  CHECK(A.getDType() == DType::kFloat16);
+  CHECK(A.getDim() == 1);
+
+  int d0 = A.getShape(0);
+
+  Tensor C = reduceHalf3D(A.view({1, 1, d0}), reduceType);
+  return C.view({1});
+}
+
+Tensor reduceHalf(Tensor A, MapReduceType reduceType) {
+  if (A.getDim() == 3) return reduceHalf3D(A, reduceType);
+  if (A.getDim() == 2) return reduceHalf2D(A, reduceType);
+  if (A.getDim() == 1) return reduceHalf1D(A, reduceType);
+
+  NOT_IMPL();
+}
+
 Tensor reduceHalfToSingle(Tensor A, MapReduceType reduceType) {
   if (A.getDim() == 3) return reduceHalfToSingle3D(A, reduceType);
+  if (A.getDim() == 2) return reduceHalfToSingle2D(A, reduceType);
+  if (A.getDim() == 1) return reduceHalfToSingle1D(A, reduceType);
 
   NOT_IMPL();
 }
@@ -213,6 +274,8 @@ Tensor reduce(Tensor A, MapReduceType reduceType) {
   CHECK(A.getDType() == DType::kFloat16);
 
   if (reduceType == MapReduceType::SUM_EXP_FP16_FP32) return reduceHalfToSingle(A, reduceType);
+  if (reduceType == MapReduceType::SUM_FP16_FP32) return reduceHalfToSingle(A, reduceType);
+  if (reduceType == MapReduceType::MAX) return reduceHalf(A, reduceType);
 
   NOT_IMPL();
 }

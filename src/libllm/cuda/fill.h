@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -25,23 +25,7 @@ namespace libllm {
 namespace op {
 namespace cuda {
 
-enum class MapReduceType {
-  // Sum of exp(x). FP16_FP32 means the input type if fp16, intermediate and output type is fp32.
-  SUM_EXP_FP16_FP32,
-
-  // Sum of x^2.
-  SUM_SQUARE_FP16_FP32,
-
-  // Sum of x.
-  SUM_FP16_FP32,
-
-  // Get maximun number in list.
-  MAX
-};
-
-Tensor reduce(Tensor A, MapReduceType reduceType);
-Tensor reduceHalfToSingle3D(Tensor A, MapReduceType reduceType);
-Tensor reduceHalf3D(Tensor A, MapReduceType reduceType);
+void fill(Tensor tensor, float value);
 
 }  // namespace cuda
 }  // namespace op

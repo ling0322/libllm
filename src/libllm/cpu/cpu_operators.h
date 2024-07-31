@@ -42,33 +42,33 @@ class CPUOperators : public Operators {
   static std::unique_ptr<Operators> createFp32Only();
 
   // implement interface Operators
+  Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) override;
+  Tensor add(Tensor a, Tensor b) override;
+  bool allClose(Tensor A, Tensor B, float rtol, float atol) override;
+  Tensor cast(Tensor tensor, DType dtype) override;
+  Tensor causalMask(int max_len) override;
+  void copy(Tensor src, Tensor dest) override;
+  void fill(Tensor input, float value) override;
+  Tensor gelu(Tensor input) override;
+  Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
+  Tensor logMelSpectrogram(Tensor wave) override;
   Tensor lookup(Tensor table, Tensor indices) override;
   Tensor matmul(Tensor a, Tensor b) override;
-  Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
+  Tensor max(Tensor inputs) override;
   Tensor mul(Tensor input, float other) override;
   Tensor mul(Tensor input, Tensor other) override;
-  Tensor softmax(Tensor input) override;
-  Tensor gelu(Tensor input) override;
-  void fill(Tensor input, float value) override;
-  Tensor add(Tensor a, Tensor b) override;
-  Tensor sum(Tensor inputs) override;
-  Tensor max(Tensor inputs) override;
-  Tensor tensor(lut::Span<const int> shape, DType dtype) override;
-  Tensor tensorLike(Tensor input) override;
-  Tensor zeros(lut::Span<const int> shape, DType dtype) override;
-  bool allClose(Tensor A, Tensor B, float rtol, float atol) override;
   void print(Tensor tensor) override;
-  Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
-  Tensor causalMask(int max_len) override;
-  Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) override;
-  void copy(Tensor src, Tensor dest) override;
-  Tensor swiglu(Tensor A) override;
-  Tensor to(Device device, Tensor tensor) override;
-  Tensor cast(Tensor tensor, DType dtype) override;
-  Tensor logMelSpectrogram(Tensor wave) override;
-  Tensor unfold(Tensor input, int kernelSize, int stride) override;
   Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min, float max)
       override;
+  Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
+  Tensor softmax(Tensor input) override;
+  Tensor sum(Tensor inputs) override;
+  Tensor swiglu(Tensor A) override;
+  Tensor tensor(lut::Span<const int> shape, DType dtype) override;
+  Tensor tensorLike(Tensor input) override;
+  Tensor to(Device device, Tensor tensor) override;
+  Tensor unfold(Tensor input, int kernelSize, int stride) override;
+  Tensor zeros(lut::Span<const int> shape, DType dtype) override;
 
   DType getDefaultFloatType() override;
 

@@ -42,6 +42,7 @@ Tensor rmsNorm(Tensor input, Tensor weight, float eps) {
 }
 
 Tensor matmul(Tensor A, Tensor B) {
+  CHECK(A.getDevice().getType() == B.getDevice().getType());
   CHECK(!A.empty());
   CHECK(!B.empty());
 
