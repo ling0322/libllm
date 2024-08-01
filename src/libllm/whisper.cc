@@ -249,7 +249,6 @@ Tensor EncoderModel::forward(Tensor wave) {
   }
 
   Tensor features = F::logMelSpectrogram(wave);
-  LOG(INFO) << getCtx().getDevice().getName();
   features = moveAndCastFloat(features, getCtx());
 
   CHECK(features.getDim() == 2);

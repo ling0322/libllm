@@ -181,7 +181,7 @@ func (w *WhisperTranscriber) parseTimestampToken(token string) (time.Duration, b
 // errors, return it directly.
 func (w *WhisperTranscriber) completeNext() error {
 	ok := w.comp.Next()
-	slog.Info("completeNext()", "token", w.comp.Token(), "piece", w.comp.Text())
+	slog.Debug("completeNext()", "token", w.comp.Token(), "piece", w.comp.Text())
 	if w.comp.Error() != nil {
 		return w.comp.Error()
 	} else if !ok {
@@ -212,7 +212,7 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 	for w.comp.Next() {
 		token := w.comp.Token()
 		piece := w.comp.Text()
-		slog.Info("comp.next()", "token", token, "piece", piece)
+		slog.Debug("comp.next()", "token", token, "piece", piece)
 		offset, isTimestampToken := w.parseTimestampToken(token)
 		if isTimestampToken {
 			result.End = w.waveOffset + offset
@@ -245,7 +245,6 @@ func (w *WhisperTranscriber) parseLanguageToken(token string) (lang string, ok b
 // prefill audio and prompt when in the begining of decoding or last audio segment finished. If no
 // transcriotion result or <|nospeech|> got, return ErrNoMoreResults.
 func (w *WhisperTranscriber) prefillNextAudioSegment() error {
-	slog.Info("prefill segment", "offset", w.waveOffset)
 	nsPerSample := 1000000000 / SampleRate
 	sampleOffset := int(w.waveOffset.Nanoseconds() / int64(nsPerSample))
 	byteOffset := sampleOffset * 2
@@ -253,6 +252,7 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 		// ignore the last segment that less than 0.1s.
 		return ErrAudioEndOfStream
 	}
+	slog.Debug("prefill segment", "offset", w.waveOffset, "byteOffset", byteOffset)
 
 	nBytes := min(len(w.wavePayload)-byteOffset, 30*SampleRate*2)
 	audio := w.wavePayload[byteOffset : byteOffset+nBytes]
@@ -372,4 +372,9 @@ func (w *WhisperTranscriber) Result() TranscriptionResult {
 // implements interface Transcriber.
 func (w *WhisperTranscriber) Err() error {
 	return w.err
+}
+
+// implements interface Transcriber.
+func (w *WhisperTranscriber) Offset() time.Duration {
+	return w.waveOffset
 }

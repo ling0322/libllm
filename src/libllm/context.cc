@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,10 +19,10 @@
 
 #include "libllm/context.h"
 
-#include "libllm/lut/error.h"
-#include "libllm/lut/strings.h"
 #include "libllm/device.h"
+#include "libllm/lut/error.h"
 #include "libllm/lut/log.h"
+#include "libllm/lut/strings.h"
 
 namespace libllm {
 
@@ -33,15 +33,22 @@ Context Context::getCpu() {
   return ctx;
 }
 
-Context::Context() : _floatType(DType::kFloat) {}
+Context::Context()
+    : _floatType(DType::kFloat),
+      _debug(false) {
+}
 
 Context Context::withName(const std::string &name) const {
   CHECK(!name.empty());
-  Context ctx;
-  ctx._device = _device;
-  ctx._floatType = _floatType;
-  ctx._propertyBag = _propertyBag;
+  Context ctx = *this;
   ctx._ns = this->name(name);
+
+  return ctx;
+}
+
+Context Context::withDebugMode(bool debugMode) const {
+  Context ctx = *this;
+  ctx._debug = debugMode;
 
   return ctx;
 }

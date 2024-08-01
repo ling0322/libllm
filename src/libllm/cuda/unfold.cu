@@ -46,7 +46,7 @@ __global__ void unfold1DKernel3D(
   int yA = y * stride + kernelIdxBegin + x % kernelSize;
   int xA = x / kernelSize;
 
-  if (yA >= 0 && yA <= A.getShape(1)) {
+  if (yA >= 0 && yA < A.getShape(1)) {
     C[z][y][x] = A[z][yA][xA];
   } else {
     C[z][y][x] = 0.0;

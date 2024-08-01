@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -21,6 +21,7 @@
 
 #include <map>
 #include <string>
+
 #include "libllm/device.h"
 #include "libllm/dtype.h"
 
@@ -43,25 +44,39 @@ class Context {
   // get name under the namespace of this context. If no parameter given, return the name of the
   // context itself.
   std::string name(const std::string &name) const;
-  std::string name() const { return _ns; }
+  std::string name() const {
+    return _ns;
+  }
 
   // device.
-  const Device &getDevice() const; 
-  void setDevice(const Device &device) { _device = device; }
+  const Device &getDevice() const;
+  void setDevice(const Device &device) {
+    _device = device;
+  }
 
   // default float type.
-  DType getFloatDType() const { return _floatType; }
-  void setFloatDType(DType dtype) { _floatType = dtype; }
+  DType getFloatDType() const {
+    return _floatType;
+  }
+  void setFloatDType(DType dtype) {
+    _floatType = dtype;
+  }
 
   /// Get or set value from the k-v store.
   std::string get(const std::string &key) const;
   void set(const std::string &key, const std::string &value);
+
+  Context withDebugMode(bool debugMode) const;
+  bool getDebugMode() const {
+    return _debug;
+  }
 
  private:
   std::string _ns;
   std::map<std::string, std::string> _propertyBag;
   Device _device;
   DType _floatType;
+  bool _debug;
 };
 
 }  // namespace libllm

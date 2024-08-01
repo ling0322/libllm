@@ -35,6 +35,7 @@ type Transcriber interface {
 	Transcribe() bool
 	Result() TranscriptionResult
 	Err() error
+	Offset() time.Duration
 }
 
 func (r *TranscriptionResult) String() string {
