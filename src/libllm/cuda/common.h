@@ -27,10 +27,10 @@
 
 #include "libllm/cuda/subtensor.h"
 #include "libllm/dtype.h"
-#include "libllm/lut/c_ptr.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/strings.h"
 #include "libllm/tensor.h"
+#include "lut/c_ptr.h"
+#include "lut/error.h"
+#include "lut/strings.h"
 
 #define LL_CHECK_CONTIGUOUS(x)                                           \
   {                                                                      \

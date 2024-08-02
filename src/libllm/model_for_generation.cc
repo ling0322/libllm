@@ -21,12 +21,12 @@
 
 #include "libllm/constants.h"
 #include "libllm/llama.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/path.h"
-#include "libllm/lut/strings.h"
-#include "libllm/lut/zip_file.h"
 #include "libllm/qwen.h"
 #include "libllm/whisper.h"
+#include "lut/error.h"
+#include "lut/path.h"
+#include "lut/strings.h"
+#include "lut/zip_file.h"
 
 namespace libllm {
 

@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,8 +20,9 @@
 #pragma once
 
 #include <vector>
-#include "libllm/lut/span.h"
+
 #include "libllm/tensor.h"
+#include "lut/span.h"
 
 namespace libllm {
 namespace op {
@@ -51,7 +52,10 @@ class TensorAccessorBase {
     return _data;
   }
 
-  TensorAccessorBase(const TensorShape::Elem *size, T *data) : _size(size), _data(data) {}
+  TensorAccessorBase(const TensorShape::Elem *size, T *data)
+      : _size(size),
+        _data(data) {
+  }
 
  protected:
   const TensorShape::Elem *_size;
@@ -61,11 +65,16 @@ class TensorAccessorBase {
 template<typename T, int DIM>
 class TensorAccessor : public TensorAccessorBase<T, DIM> {
  public:
-  TensorAccessor(Tensor &tensor) : TensorAccessorBase<T, DIM>(tensor) {}
-  TensorAccessor(const Tensor &tensor) : TensorAccessorBase<T, DIM>(tensor) {}
+  TensorAccessor(Tensor &tensor)
+      : TensorAccessorBase<T, DIM>(tensor) {
+  }
+  TensorAccessor(const Tensor &tensor)
+      : TensorAccessorBase<T, DIM>(tensor) {
+  }
 
-  TensorAccessor(const TensorShape::Elem *size, T *data) : 
-      TensorAccessorBase<T, DIM>(size, data) {}
+  TensorAccessor(const TensorShape::Elem *size, T *data)
+      : TensorAccessorBase<T, DIM>(size, data) {
+  }
 
   TensorAccessor<T, DIM - 1> operator[](int index) {
     int64_t offset = index * this->_size[0].stride;
@@ -80,11 +89,16 @@ class TensorAccessor : public TensorAccessorBase<T, DIM> {
 template<typename T>
 class TensorAccessor<T, 1> : public TensorAccessorBase<T, 1> {
  public:
-  TensorAccessor(Tensor &tensor) : TensorAccessorBase<T, 1>(tensor) {}
-  TensorAccessor(const Tensor &tensor) : TensorAccessorBase<T, 1>(tensor) {}
+  TensorAccessor(Tensor &tensor)
+      : TensorAccessorBase<T, 1>(tensor) {
+  }
+  TensorAccessor(const Tensor &tensor)
+      : TensorAccessorBase<T, 1>(tensor) {
+  }
 
-  TensorAccessor(const TensorShape::Elem *size, T *data) :
-      TensorAccessorBase<T, 1>(size, data) {}
+  TensorAccessor(const TensorShape::Elem *size, T *data)
+      : TensorAccessorBase<T, 1>(size, data) {
+  }
 
   T &operator[](int index) {
     int64_t offset = index * this->_size[0].stride;
@@ -101,13 +115,19 @@ class TensorList {
  public:
   static TensorList<T, DIM> fromTensor(const Tensor &src);
   static TensorList<T, DIM> fromTensor(Tensor &src);
-  
+
   lut::Span<const TensorShape::Elem> getShape() const {
-    return lut::Span<const TensorShape::Elem>(_shape, DIM); 
+    return lut::Span<const TensorShape::Elem>(_shape, DIM);
   }
-  int getShape(int d) const { return _shape[d].shape; }
-  int getLength() const { return static_cast<int>(_pointerList.size()); }
-  lut::Span<T *const> getDataPtrList() const { return lut::makeConstSpan(_pointerList); }
+  int getShape(int d) const {
+    return _shape[d].shape;
+  }
+  int getLength() const {
+    return static_cast<int>(_pointerList.size());
+  }
+  lut::Span<T *const> getDataPtrList() const {
+    return lut::makeConstSpan(_pointerList);
+  }
 
   TensorAccessor<T, DIM> getTensor(int index) const {
     return TensorAccessor<T, DIM>(_shape, _pointerList[index]);
@@ -117,9 +137,10 @@ class TensorList {
   const TensorShape::Elem *_shape;
   std::vector<T *> _pointerList;
 
-  TensorList(const TensorShape::Elem *shape, std::vector<T *> &&pointerList):
-      _shape(shape),
-      _pointerList(std::move(pointerList)) {}
+  TensorList(const TensorShape::Elem *shape, std::vector<T *> &&pointerList)
+      : _shape(shape),
+        _pointerList(std::move(pointerList)) {
+  }
 };
 
 template<typename T, int SUBTENSOR_DIM>
@@ -167,7 +188,6 @@ TensorList<T, DIM> TensorList<T, DIM>::fromTensor(Tensor &src) {
   return TensorList<T, DIM>(tensorShape, std::move(pointerList));
 }
 
-}  // cpu
-}  // op
-}  // libllm
-
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

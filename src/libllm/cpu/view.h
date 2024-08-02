@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,7 +20,7 @@
 #pragma once
 
 #include "libllm/tensor.h"
-#include "libllm/lut/span.h"
+#include "lut/span.h"
 
 namespace libllm {
 namespace op {
@@ -32,12 +32,11 @@ Tensor view(const Tensor &src, lut::Span<const int> view);
 std::vector<Tensor::ShapeType> getRealShape(int64_t numEl, lut::Span<const int> view);
 
 // infer the stride for new view, according to the original stride.
-std::vector<TensorShape::Elem> getViewShapeStride(
-    const Tensor &src, lut::Span<const int> view);
+std::vector<TensorShape::Elem> getViewShapeStride(const Tensor &src, lut::Span<const int> view);
 
 // merge contiguous dimensions in the shape of `src`.
 std::vector<TensorShape::Elem> mergeContigShape(const Tensor &src);
 
-}  // cpu
-}  // op
-}  // ly
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,12 +19,12 @@
 
 #pragma once
 
-#include "libllm/tensor.h"
-#include "libllm/module.h"
-#include "libllm/test_helper.h"
 #include "libllm/cpu/fingerprint.h"
-#include "libllm/lut/random.h"
-#include "libllm/lut/span.h"
+#include "libllm/module.h"
+#include "libllm/tensor.h"
+#include "libllm/test_helper.h"
+#include "lut/random.h"
+#include "lut/span.h"
 
 namespace libllm {
 
@@ -72,9 +72,12 @@ class ModuleTester {
   /// @param ref the reference data.
   bool allClose(Tensor a, lut::Span<const float> ref) const;
 
-  
-  DType getWeightType() const { return _weightType; }
-  Device getDevice() const { return _device; }
+  DType getWeightType() const {
+    return _weightType;
+  }
+  Device getDevice() const {
+    return _device;
+  }
 
  protected:
   Device _device;

@@ -12,14 +12,14 @@
 #include "libllm/dtype.h"
 #include "libllm/functional.h"
 #include "libllm/generator.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/ini_config.h"
-#include "libllm/lut/log.h"
-#include "libllm/lut/zip_file.h"
 #include "libllm/model_for_generation.h"
 #include "libllm/operators.h"
 #include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
+#include "lut/error.h"
+#include "lut/ini_config.h"
+#include "lut/log.h"
+#include "lut/zip_file.h"
 
 using libllm::Context;
 using libllm::GenerationConfig;

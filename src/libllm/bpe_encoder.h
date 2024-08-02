@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -21,20 +21,20 @@
 
 #include <queue>
 #include <vector>
-#include "libllm/lut/noncopyable.h"
-#include "libllm/lut/pool.h"
+
 #include "libllm/bpe_config.h"
 #include "libllm/bpe_model.h"
+#include "lut/noncopyable.h"
+#include "lut/pool.h"
 
 namespace libllm {
-
 
 // String to BPE token-ids encoder.
 class BPEEncoder : private lut::NonCopyable {
  public:
   BPEEncoder(const BPEModel *model, const BPEConfig &config);
 
-  // encode string to token ids. 
+  // encode string to token ids.
   std::vector<int> encode(const std::string &s);
 
  private:
@@ -46,7 +46,9 @@ class BPEEncoder : private lut::NonCopyable {
     Symbol *next;
     int tokenId;
 
-    bool valid() const { return tokenId != Vocab::kInvalidToken; }
+    bool valid() const {
+      return tokenId != Vocab::kInvalidToken;
+    }
   };
 
   struct Bigram {

@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include "libllm/lut/random.h"
-#include "libllm/lut/span.h"
 #include "libllm/tensor.h"
+#include "lut/random.h"
+#include "lut/span.h"
 
 namespace libllm {
 namespace F {

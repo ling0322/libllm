@@ -22,8 +22,8 @@
 #include <math.h>
 
 #include "libllm/functional.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/strings.h"
+#include "lut/error.h"
+#include "lut/strings.h"
 
 namespace libllm {
 
@@ -318,9 +318,6 @@ void Conv1D::initParameters(lut::Random *generator, DType weightType) {
 
 Tensor Conv1D::forward(const Tensor &input) const {
   Tensor x = F::unfold(input, _kernelSize, _stride);
-  if (getCtx().getDebugMode()) {
-    F::print(x);
-  }
   if (input.getDim() >= 2) {
     x = F::matmul(x, _w.transpose(0, 1));
   } else {

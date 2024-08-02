@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,13 +19,17 @@
 
 #include "libllm/device.h"
 
-#include "libllm/lut/log.h"
 #include "libllm/cuda/cuda_operators.h"
+#include "lut/log.h"
 
 namespace libllm {
 
-Device::Device() : _type(Type::kUnknown) {}
-Device::Device(Type type) : _type(type) {}
+Device::Device()
+    : _type(Type::kUnknown) {
+}
+Device::Device(Type type)
+    : _type(type) {
+}
 
 Device Device::getCpu() {
   return Device(Type::kCpu);

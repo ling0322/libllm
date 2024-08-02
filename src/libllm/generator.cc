@@ -24,9 +24,9 @@
 #include <algorithm>
 
 #include "libllm/functional.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/strings.h"
 #include "libllm/whisper.h"
+#include "lut/error.h"
+#include "lut/strings.h"
 
 namespace libllm {
 

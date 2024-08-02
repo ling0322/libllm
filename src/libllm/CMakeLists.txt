@@ -1,25 +1,7 @@
-find_package(OpenMP)
 if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
-
-set(lut_SOURCES
-    "lut/internal/log.cc"
-    "lut/internal/sprintf.cc"
-    "lut/base64.cc"
-    "lut/error.cc"
-    "lut/flags.cc"
-    "lut/half.cc"
-    "lut/ini_config.cc"
-    "lut/is_debug.cc"
-    "lut/path.cc"
-    "lut/random.cc"
-    "lut/reader.cc"
-    "lut/strings.cc"
-    "lut/time.cc"
-    "lut/thread_pool.cc"
-    "lut/zip_file.cc")
 
 set(libllm_SOURCES
     "cpu/kernel/fallback.cc"
@@ -72,29 +54,19 @@ set(libllm_SOURCES
     "whisper.cc"
     "../../third_party/ruapu/ruapu.cc")
 
-set(unittest_SOURCES
+set(libllm_test_SOURCES
     "cpu/kernel/benchmark.cc"
     "cpu/kernel/interface_test.cc"
     "cpu/log_mel_spectrogram_test.cc"
     "cpu/test.cc"
-    "lut/path_test.cc"
-    "lut/strings_test.cc"
     "llama_test.cc"
     "module_test.cc"
     "operator_tester.cc"
     "tensor_test.cc"
-    "test_helper.cc"
-    "test_main.cc")
+    "test_helper.cc")
 
-set(llm_SOURCES
-    "dialog_manager.cc"
-    "llm_main.cc")
-
-
-set(benchmark_SOURCES "benchmark_main.cc")
 
 set(libllm_INCDIR ".." "../../third_party")
-set(libllm_LIBADD lut ${CMAKE_DL_LIBS})
 
 if(WITH_OPENMP)
     if(NOT OPENMP_FOUND)
@@ -102,7 +74,6 @@ if(WITH_OPENMP)
     endif()
     set(libllm_SOURCES ${libllm_SOURCES} "mp_openmp.cc")
     set(libllm_INCDIR ${libllm_INCDIR} ${OpenMP_CXX_INCLUDE_DIRS})
-    set(libllm_LIBADD ${libllm_LIBADD} OpenMP::OpenMP_CXX)
 else()
     set(libllm_SOURCES ${libllm_SOURCES} "mp_thread_pool.cc")
 endif()
@@ -135,40 +106,15 @@ if (WITH_CUDA)
         "cuda/transform.cu"
         "cuda/unfold.cu")
 
-    set(unittest_SOURCES ${unittest_SOURCES} "cuda/test.cc")
+    set(libllm_test_SOURCES ${libllm_test_SOURCES} "cuda/test.cc")
 
     if (WITH_CUTLASS)
         set(libllm_SOURCES ${libllm_SOURCES} "cuda/gemm_cutlass.cu")
     endif(WITH_CUTLASS)
 
-    set(llmextcublas_SOURCES
+    set(llmplugincublas_SOURCES
         "cuda/gemm_cublas.cc"
-        "lut/internal/log.cc")
-endif()
-
-# OS specific code
-if(WIN32)
-    set(libllm_SOURCES
-        ${libllm_SOURCES}
-        "lut/path_windows.cc"
-        "lut/platform_windows.cc"
-        "lut/shared_library_windows.cc")
-endif()
-if(UNIX)
-    set(libllm_SOURCES
-        ${libllm_SOURCES}
-        "lut/platform_linux.cc"
-        "lut/shared_library_linux.cc")
-endif()
-if(UNIX AND APPLE)
-    set(libllm_SOURCES
-        ${libllm_SOURCES}
-        "lut/path_darwin.cc")
-endif()
-if(UNIX AND NOT APPLE)
-    set(libllm_SOURCES
-        ${libllm_SOURCES}
-        "lut/path_linux.cc")
+        "../lut/internal/log.cc")
 endif()
 
 # CPU specific code
@@ -193,22 +139,25 @@ if(LIBLLM_KERNEL_X86_64)
             "cpu/kernel/avx2.cc"
             PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mf16c")
     endif(UNIX)
-    set(unittest_SOURCES 
-        ${unittest_SOURCES}
+    set(libllm_test_SOURCES 
+        ${libllm_test_SOURCES}
         "cpu/kernel/avx2_test.cc"
         "cpu/kernel/avx512_test.cc")
 endif()
+
 if(LIBLLM_KERNEL_AARCH64)
     set(libllm_SOURCES ${libllm_SOURCES} "cpu/kernel/asimdhp.cc")
-    set(unittest_SOURCES 
-        ${unittest_SOURCES}
+    set(libllm_test_SOURCES 
+        ${libllm_test_SOURCES}
         "cpu/test_float16.cc"
         "cpu/kernel/asimdhp_test.cc")
 endif()
 
-add_library(lut STATIC ${lut_SOURCES})
-set_target_properties(lut PROPERTIES CXX_VISIBILITY_PRESET hidden)
-target_include_directories(lut PRIVATE ${libllm_INCDIR})
+if (WITH_CUDA)
+    add_library(llmplugincublas_static OBJECT ${llmplugincublas_SOURCES})
+    target_compile_options(llmplugincublas_static PRIVATE "-DLIBLLM_EXPORTS")
+    target_include_directories(llmplugincublas_static PRIVATE ${libllm_INCDIR})
+endif()
 
 add_library(libllm_static OBJECT ${libllm_SOURCES})
 target_compile_options(libllm_static PRIVATE "-DLIBLLM_EXPORTS")
@@ -216,53 +165,5 @@ set_target_properties(libllm_static PROPERTIES CXX_VISIBILITY_PRESET hidden)
 set_target_properties(libllm_static PROPERTIES CUDA_VISIBILITY_PRESET hidden)
 target_include_directories(libllm_static PRIVATE ${libllm_INCDIR})
 
-add_library(libllm SHARED $<TARGET_OBJECTS:libllm_static>)
-target_link_libraries(libllm ${libllm_LIBADD}  )
-set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
-if(UNIX AND NOT APPLE)
-    target_link_options(libllm PUBLIC "-Wl,--no-undefined")
-endif()
-
-set(unittest_LIBADD
-    libllm_static
-    ${libllm_LIBADD}
-    catch2)
-if (WITH_MKL)
-    set(unittest_LIBADD
-        ${unittest_LIBADD}
-        mkl_intel_lp64
-        mkl_intel_thread
-        mkl_core
-        iomp5)
-endif()
-
-set(benchmark_LIBADD
-    libllm_static
-    ${libllm_LIBADD})
-
-add_library(catch2 STATIC  "../../third_party/catch2/catch_amalgamated.cpp")
-add_executable(unittest ${unittest_SOURCES})
-target_include_directories(unittest PRIVATE ${libllm_INCDIR})
-target_link_libraries(unittest ${unittest_LIBADD})
-
-add_executable(benchmark ${benchmark_SOURCES})
-target_include_directories(benchmark PRIVATE ${libllm_INCDIR})
-target_link_libraries(benchmark ${benchmark_LIBADD})
-
-if (WITH_CUDA)
-    add_library(llmextcublas SHARED ${llmextcublas_SOURCES})
-    target_include_directories(llmextcublas PRIVATE ${libllm_INCDIR})
-    target_link_libraries(llmextcublas lut CUDA::cublas)
-    if(UNIX)
-        target_link_options(llmextcublas PUBLIC "-Wl,--no-undefined")
-    endif(UNIX)
-endif()
-
-enable_testing()
-add_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)
-
-add_custom_target(llmbin
-    ALL
-    DEPENDS libllm
-    COMMAND go build -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_SOURCE_DIR}/go/bin
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/go/bin)
+add_library(libllm_test OBJECT ${libllm_test_SOURCES})
+target_include_directories(libllm_test PRIVATE ${libllm_INCDIR})

@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <functional>
 
-#include "libllm/lut/range.h"
+#include "lut/range.h"
 
 namespace libllm {
 

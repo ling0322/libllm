@@ -20,8 +20,8 @@
 #include "../../third_party/catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/kernel/interface.h"
 #include "libllm/operators.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/log.h"
+#include "lut/error.h"
+#include "lut/log.h"
 
 int main(int argc, char **argv) {
   libllm::initOperators();

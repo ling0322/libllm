@@ -20,8 +20,8 @@
 #pragma once
 
 #include "libllm/cpu/kernel/abstract.h"
-#include "libllm/lut/log.h"
 #include "libllm/mp.h"
+#include "lut/log.h"
 
 namespace libllm {
 namespace op {

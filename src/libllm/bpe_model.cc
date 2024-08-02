@@ -21,9 +21,9 @@
 
 #include <limits>
 
-#include "libllm/lut/error.h"
-#include "libllm/lut/reader.h"
-#include "libllm/lut/strings.h"
+#include "lut/error.h"
+#include "lut/reader.h"
+#include "lut/strings.h"
 
 namespace libllm {
 

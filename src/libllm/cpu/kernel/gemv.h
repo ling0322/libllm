@@ -26,8 +26,8 @@
 
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/util.h"
-#include "libllm/lut/c_ptr.h"
 #include "libllm/mp.h"
+#include "lut/c_ptr.h"
 
 namespace libllm {
 namespace op {

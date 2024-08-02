@@ -22,8 +22,8 @@
 #include "catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/fingerprint.h"
 #include "libllm/functional.h"
-#include "libllm/lut/base64.h"
 #include "libllm/wave.h"
+#include "lut/base64.h"
 
 namespace libllm {
 namespace op {
@@ -143,8 +143,6 @@ CATCH_TEST_CASE("test logMelSpectrogram", "[op][cpu][logmelspectrogram]") {
 
   Tensor wave = Wave::read(pcmSpan, WaveFormat::Wave16kHz16bitMonoPCM);
   Tensor features = logMelSpectrogram(wave);
-
-  F::print(op::cpu::fingerprint(features));
 
   CATCH_REQUIRE(F::allClose(
       op::cpu::fingerprint(features),

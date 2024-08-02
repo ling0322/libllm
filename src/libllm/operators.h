@@ -22,9 +22,9 @@
 #include <stdint.h>
 
 #include "libllm/device.h"
-#include "libllm/lut/random.h"
-#include "libllm/lut/thread_pool.h"
 #include "libllm/tensor.h"
+#include "lut/random.h"
+#include "lut/thread_pool.h"
 
 namespace libllm {
 

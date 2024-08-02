@@ -24,9 +24,9 @@
 #include <memory>
 
 #include "libllm/cpu/kernel/abstract.h"
-#include "libllm/lut/c_ptr.h"
-#include "libllm/lut/platform.h"
-#include "libllm/lut/span.h"
+#include "lut/c_ptr.h"
+#include "lut/platform.h"
+#include "lut/span.h"
 
 namespace libllm {
 namespace op {

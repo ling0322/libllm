@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,23 +17,23 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cuda/gemm_cutlass.h"
-
 #include <cuda_fp16.h>
 #include <cutlass/gemm/device/gemm.h>
 #include <cutlass/gemm/device/gemm_array.h>
-#include "libllm/dtype.h"
+
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/matmul.h"
 #include "libllm/cuda/common.h"
-#include "libllm/lut/error.h"
+#include "libllm/cuda/gemm_cutlass.h"
+#include "libllm/dtype.h"
+#include "lut/error.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-using cutlass::layout::RowMajor;
 using cutlass::layout::ColumnMajor;
+using cutlass::layout::RowMajor;
 
 std::shared_ptr<Gemm> CutlassGemm::create() {
   std::shared_ptr<CutlassGemm> mm = std::make_shared<CutlassGemm>();
@@ -54,20 +54,18 @@ lut::ErrorCode hgemmT(
     cutlass::half_t *C,
     int ldc) {
   using CutlassGemm = cutlass::gemm::device::Gemm<
-      cutlass::half_t, LayoutA,
-      cutlass::half_t, layoutB,
-      cutlass::half_t, RowMajor,
+      cutlass::half_t,
+      LayoutA,
+      cutlass::half_t,
+      layoutB,
+      cutlass::half_t,
+      RowMajor,
       float,
       cutlass::arch::OpClassSimt,
       cutlass::arch::Sm61>;
   CutlassGemm gemmOperator;
-  typename CutlassGemm::Arguments args(
-      {m, n, k},
-      {A, lda},
-      {B, ldb},
-      {C, ldc},
-      {C, ldc},
-      {alpha, beta});
+  typename CutlassGemm::Arguments
+      args({m, n, k}, {A, lda}, {B, ldb}, {C, ldc}, {C, ldc}, {alpha, beta});
   cutlass::Status status = gemmOperator(args);
   if (status != cutlass::Status::kSuccess) {
     return lut::ErrorCode::Aborted;
@@ -118,22 +116,19 @@ lut::ErrorCode hgemmArrayT(
     int ldc,
     int batchSize) {
   using CutlassGemm = cutlass::gemm::device::GemmArray<
-      cutlass::half_t, LayoutA,
-      cutlass::half_t, layoutB,
-      cutlass::half_t, RowMajor,
+      cutlass::half_t,
+      LayoutA,
+      cutlass::half_t,
+      layoutB,
+      cutlass::half_t,
+      RowMajor,
       float,
       cutlass::arch::OpClassSimt,
       cutlass::arch::Sm61>;
   CutlassGemm gemmOperator;
 
-  typename CutlassGemm::Arguments args(
-      {m, n, k},
-      A, lda,
-      B, ldb,
-      C, ldc,
-      C, ldc,
-      {alpha, beta},
-      batchSize);
+  typename CutlassGemm::Arguments
+      args({m, n, k}, A, lda, B, ldb, C, ldc, C, ldc, {alpha, beta}, batchSize);
   cutlass::Status status = gemmOperator(args);
   if (status != cutlass::Status::kSuccess) {
     return lut::ErrorCode::Aborted;
@@ -168,25 +163,23 @@ lut::ErrorCode cutlassHgemmArray(
     return hgemmArrayT<ColumnMajor, ColumnMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc, bs);
   }
 
-  
   return lut::ErrorCode::Aborted;
 }
 
-
 lut::ErrorCode CutlassGemm::hgemm(
-      bool transA,
-      bool transB,
-      int m,
-      int n,
-      int k,
-      __half alpha,
-      const __half *A, 
-      int lda,
-      const __half *B,
-      int ldb,
-      __half beta,
-      __half *C,
-      int ldc) {
+    bool transA,
+    bool transB,
+    int m,
+    int n,
+    int k,
+    __half alpha,
+    const __half *A,
+    int lda,
+    const __half *B,
+    int ldb,
+    __half beta,
+    __half *C,
+    int ldc) {
   cutlass::half_t alphaH = *reinterpret_cast<cutlass::half_t *>(&alpha);
   cutlass::half_t betaH = *reinterpret_cast<cutlass::half_t *>(&beta);
   return cutlassHgemm(
@@ -204,7 +197,6 @@ lut::ErrorCode CutlassGemm::hgemm(
       reinterpret_cast<cutlass::half_t *>(C),
       ldc);
 }
-
 
 lut::ErrorCode CutlassGemm::hgemmArray(
     bool transA,
@@ -240,6 +232,6 @@ lut::ErrorCode CutlassGemm::hgemmArray(
       batchSize);
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

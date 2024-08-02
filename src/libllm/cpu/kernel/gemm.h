@@ -23,9 +23,9 @@
 #include "libllm/cpu/kernel/block.h"
 #include "libllm/cpu/kernel/cvt.h"
 #include "libllm/cpu/kernel/gemv.h"
-#include "libllm/lut/log.h"
-#include "libllm/lut/time.h"
 #include "libllm/mp.h"
+#include "lut/log.h"
+#include "lut/time.h"
 
 namespace libllm {
 namespace op {

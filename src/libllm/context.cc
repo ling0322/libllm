@@ -20,9 +20,9 @@
 #include "libllm/context.h"
 
 #include "libllm/device.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/log.h"
-#include "libllm/lut/strings.h"
+#include "lut/error.h"
+#include "lut/log.h"
+#include "lut/strings.h"
 
 namespace libllm {
 

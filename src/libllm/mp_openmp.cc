@@ -27,9 +27,9 @@
 #include <functional>
 #include <thread>
 
-#include "libllm/lut/log.h"
-#include "libllm/lut/range.h"
-#include "libllm/lut/thread_pool.h"
+#include "lut/log.h"
+#include "lut/range.h"
+#include "lut/thread_pool.h"
 
 namespace libllm {
 

@@ -23,9 +23,9 @@
 #include <string>
 #include <unordered_map>
 
-#include "libllm/lut/random.h"
 #include "libllm/model_for_generation.h"
 #include "libllm/prompt.h"
+#include "lut/random.h"
 
 namespace libllm {
 
