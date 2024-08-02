@@ -20,8 +20,6 @@
 package skill
 
 import (
-	"fmt"
-
 	"github.com/ling0322/libllm/go/llm"
 )
 
@@ -35,6 +33,6 @@ func newPromptBuilder(modelName string) (promptBuilder, error) {
 	} else if modelName == "index" {
 		return &BilibiliIndex{}, nil
 	} else {
-		return nil, fmt.Errorf("unexpected model name %s", modelName)
+		return nil, ErrInvalidModelForChat
 	}
 }

@@ -26,11 +26,14 @@ import (
 	"strings"
 
 	"github.com/ling0322/libllm/go/llm"
+	"github.com/ling0322/libllm/go/skill"
 )
 
 var gModelPath string
 var gDevice string
 var gInputFile string
+var gLang string
+var gTargetLang string
 
 func addDeviceFlag(fs *flag.FlagSet) {
 	fs.StringVar(&gDevice, "device", "auto", "inference device, either cpu, cuda or auto")
@@ -75,4 +78,40 @@ func getInputArg(fs *flag.FlagSet) string {
 	}
 
 	return gInputFile
+}
+
+func addLangFlag(fs *flag.FlagSet) {
+	fs.StringVar(&gLang, "lang", "", "the language of input.")
+}
+
+func getLangArg(fs *flag.FlagSet) skill.Lang {
+	if gLang == "" {
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	lang, err := skill.ParseLang(gLang)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return lang
+}
+
+func addTargetLangFlag(fs *flag.FlagSet) {
+	fs.StringVar(&gTargetLang, "targetlang", "", "the target language.")
+}
+
+func getTergatLangArg(fs *flag.FlagSet) skill.Lang {
+	if gTargetLang == "" {
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	lang, err := skill.ParseLang(gTargetLang)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return lang
 }

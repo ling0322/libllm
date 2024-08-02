@@ -17,44 +17,29 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package main
+package skill
 
 import (
-	"fmt"
-	"os"
+	"github.com/ling0322/libllm/go/llm"
 )
 
-func printCommandUsage() {
-	fmt.Fprintln(os.Stderr, "Usage: llm COMMAND")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Commands:")
-	fmt.Fprintln(os.Stderr, "    chat           Chat with LLM")
-	fmt.Fprintln(os.Stderr, "    transcribe     Transcribe audio or video file to text")
-	fmt.Fprintln(os.Stderr, "    download       Download model to local")
-	fmt.Fprintln(os.Stderr, "    translate      Translate text")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Run 'llm COMMAND -h' for more information on a command.")
+type Translator interface {
+	Translate(text string, source, target Lang) (llm.Completion, error)
+
+	// return true if the translator supports the source and target language pairs.
+	IsSupport(source, target Lang) bool
 }
 
-func main() {
-	if len(os.Args) == 1 {
-		printCommandUsage()
-		os.Exit(1)
+func NewTranslator(model llm.Model) (Translator, error) {
+	if model == nil {
+		return nil, ErrModelIsNil
 	}
 
-	command := os.Args[1]
-	switch command {
-	case "chat":
-		chatMain(os.Args[2:])
-	case "transcribe":
-		transcribeMain(os.Args[2:])
-	case "download":
-		downloadMain(os.Args[2:])
-	case "translate":
-		translationMain(os.Args[2:])
+	modelName := model.GetName()
+	switch modelName {
+	case "index":
+		return &indexTranslator{model}, nil
 	default:
-		fmt.Fprintf(os.Stderr, "Invalid command \"%s\"\n\n", command)
-		printCommandUsage()
-		os.Exit(1)
+		return nil, ErrInvalidModelForTranslation
 	}
 }
