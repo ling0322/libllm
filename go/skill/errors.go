@@ -17,44 +17,12 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package main
+package skill
 
-import (
-	"fmt"
-	"os"
-)
+import "errors"
 
-func printCommandUsage() {
-	fmt.Fprintln(os.Stderr, "Usage: llm COMMAND")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Commands:")
-	fmt.Fprintln(os.Stderr, "    chat           Chat with LLM")
-	fmt.Fprintln(os.Stderr, "    transcribe     Transcribe audio or video file to text")
-	fmt.Fprintln(os.Stderr, "    download       Download model to local")
-	fmt.Fprintln(os.Stderr, "    translate      Translate text")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Run 'llm COMMAND -h' for more information on a command.")
-}
-
-func main() {
-	if len(os.Args) == 1 {
-		printCommandUsage()
-		os.Exit(1)
-	}
-
-	command := os.Args[1]
-	switch command {
-	case "chat":
-		chatMain(os.Args[2:])
-	case "transcribe":
-		transcribeMain(os.Args[2:])
-	case "download":
-		downloadMain(os.Args[2:])
-	case "translate":
-		translationMain(os.Args[2:])
-	default:
-		fmt.Fprintf(os.Stderr, "Invalid command \"%s\"\n\n", command)
-		printCommandUsage()
-		os.Exit(1)
-	}
-}
+var ErrModelIsNil = errors.New("model is nil")
+var ErrInvalidModelForChat = errors.New("invalid model for chat")
+var ErrInvalidModelForTranslation = errors.New("invalid model for translation")
+var ErrUnexpectedLanguage = errors.New("unexcpected language")
+var ErrInvalidOrUnsupportedLanguageCode = errors.New("invalid or unsupported ISO 639 language code")
