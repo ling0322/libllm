@@ -120,6 +120,9 @@ if (WITH_CUDA)
         "cuda/cuda_operators.cc"
         "cuda/cuda_tensor_data.cc"
         "cuda/dequant.cu"
+        "cuda/fill.cu"
+        "cuda/gelu.cu"
+        "cuda/layer_norm.cu"
         "cuda/lookup.cu"
         "cuda/matmul.cc"
         "cuda/matvec.cu"
@@ -129,7 +132,8 @@ if (WITH_CUDA)
         "cuda/softmax.cu"
         "cuda/swiglu.cu"
         "cuda/to_device.cc"
-        "cuda/transform.cu")
+        "cuda/transform.cu"
+        "cuda/unfold.cu")
 
     set(unittest_SOURCES ${unittest_SOURCES} "cuda/test.cc")
 

@@ -61,7 +61,7 @@ class Module {
     _ctx = ctx;
   }
 
- private:
+ protected:
   Context _ctx;
 };
 

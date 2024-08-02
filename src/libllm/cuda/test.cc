@@ -59,6 +59,16 @@ CATCH_TEST_CASE("test CUDA lookup", "[op][cuda]") {
   CATCH_REQUIRE(tester.testLookupQInt4());
 }
 
+CATCH_TEST_CASE("test CUDA unfold", "[op][cuda]") {
+  OperatorTester tester = getOperatorTester();
+  CATCH_REQUIRE(tester.withTol(2e-3).testUnfold());
+}
+
+CATCH_TEST_CASE("test CUDA layerNorm", "[op][cuda]") {
+  OperatorTester tester = getOperatorTester();
+  CATCH_REQUIRE(tester.withTol(5e-3).testLayerNorm({1, 1, 160}));
+}
+
 CATCH_TEST_CASE("test CUDA matMul", "[op][cuda]") {
   OperatorTester tester = getOperatorTester();
   CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({1, 1, 128}, {50, 128}, true));
@@ -93,8 +103,9 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
   }
 
   CATCH_SECTION("test activations") {
-    CATCH_REQUIRE(tester.testUnaryOp(OperatorType::Softmax, {2, 5, 150}));
-    CATCH_REQUIRE(tester.testUnaryOp(OperatorType::Swiglu, {2, 5, 150}));
+    CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Softmax, {2, 5, 150}));
+    CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Swiglu, {2, 5, 150}));
+    CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Gelu, {2, 5, 150}));
   }
 
   CATCH_SECTION("test normalizations") {
@@ -125,6 +136,7 @@ CATCH_TEST_CASE("benchmark CUDA operators", "[op][cuda][benchmark]") {
 
   CATCH_SECTION("benchmark normalizations") {
     CATCH_REQUIRE(tester.testRmsNorm({2, 256, 4096}));
+    CATCH_REQUIRE(tester.testLayerNorm({2, 256, 4096}));
   }
 }
 

@@ -406,7 +406,7 @@ std::shared_ptr<TensorShape> TensorShape::squeeze(int dim) const {
 }
 
 std::shared_ptr<TensorShape> TensorShape::unsqueeze(int dim) const {
-  dim = getRealDim(dim);
+  if (dim != getDim()) dim = getRealDim(dim);
 
   std::shared_ptr<TensorShape> size{new TensorShape()};
   size->_data = lut::FixedArray<Elem>(getDim() + 1);

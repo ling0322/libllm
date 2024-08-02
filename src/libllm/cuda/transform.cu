@@ -25,8 +25,11 @@ namespace op {
 namespace cuda {
 
 template<typename T>
-__global__ void
-transform5DKernel(PackedSubtensor<const T, 5> src, T alpha, T beta, PackedSubtensor<T, 5> dest) {
+__global__ void transform5DKernel(
+    PackedSubtensor<const T, 5> src,
+    T alpha,
+    T beta,
+    PackedSubtensor<T, 5> dest) {
   int d4 = blockIdx.x * blockDim.x + threadIdx.x;
   int d3 = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -43,8 +46,11 @@ transform5DKernel(PackedSubtensor<const T, 5> src, T alpha, T beta, PackedSubten
 }
 
 template<typename T>
-__global__ void
-transform4DKernel(PackedSubtensor<const T, 4> src, T alpha, T beta, PackedSubtensor<T, 4> dest) {
+__global__ void transform4DKernel(
+    PackedSubtensor<const T, 4> src,
+    T alpha,
+    T beta,
+    PackedSubtensor<T, 4> dest) {
   int d3 = blockIdx.x * blockDim.x + threadIdx.x;
 
   dim3 dz = splitIndexToDim3(blockIdx.y * blockDim.y + threadIdx.y, src.getSize());
@@ -60,8 +66,11 @@ transform4DKernel(PackedSubtensor<const T, 4> src, T alpha, T beta, PackedSubten
 }
 
 template<typename T>
-__global__ void
-transform3DKernel(PackedSubtensor<const T, 3> src, T alpha, T beta, PackedSubtensor<T, 3> dest) {
+__global__ void transform3DKernel(
+    PackedSubtensor<const T, 3> src,
+    T alpha,
+    T beta,
+    PackedSubtensor<T, 3> dest) {
   int d2 = blockIdx.x * blockDim.x + threadIdx.x;
   int d1 = blockIdx.y * blockDim.y + threadIdx.y;
   int d0 = blockIdx.z * blockDim.z + threadIdx.z;
@@ -126,6 +135,24 @@ void transform3D(Tensor src, Tensor dest, T alpha, T beta) {
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
 
+template<typename T>
+void transform2D(Tensor src, Tensor dest, T alpha, T beta) {
+  src.throwIfInvalidShape(dest.getShape(), "transform2D");
+
+  int d0 = src.getShape(0);
+  int d1 = src.getShape(1);
+
+  return transform3D(src.view({1, d0, d1}), dest.view({1, d0, d1}), alpha, beta);
+}
+
+template<typename T>
+void transform1D(Tensor src, Tensor dest, T alpha, T beta) {
+  src.throwIfInvalidShape(dest.getShape(), "transform2D");
+
+  int d0 = src.getShape(0);
+  return transform3D(src.view({1, 1, d0}), dest.view({1, 1, d0}), alpha, beta);
+}
+
 void transformHalf(Tensor src, Tensor dest, half alpha, half beta) {
   CHECK(src.getDType() == DType::kFloat16);
   CHECK(dest.getDType() == DType::kFloat16);
@@ -133,6 +160,8 @@ void transformHalf(Tensor src, Tensor dest, half alpha, half beta) {
   if (src.getDim() == 5) return transform5D<half>(src, dest, alpha, beta);
   if (src.getDim() == 4) return transform4D<half>(src, dest, alpha, beta);
   if (src.getDim() == 3) return transform3D<half>(src, dest, alpha, beta);
+  if (src.getDim() == 2) return transform2D<half>(src, dest, alpha, beta);
+  if (src.getDim() == 1) return transform1D<half>(src, dest, alpha, beta);
 
   NOT_IMPL();
 }

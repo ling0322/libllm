@@ -318,6 +318,9 @@ void Conv1D::initParameters(lut::Random *generator, DType weightType) {
 
 Tensor Conv1D::forward(const Tensor &input) const {
   Tensor x = F::unfold(input, _kernelSize, _stride);
+  if (getCtx().getDebugMode()) {
+    F::print(x);
+  }
   if (input.getDim() >= 2) {
     x = F::matmul(x, _w.transpose(0, 1));
   } else {

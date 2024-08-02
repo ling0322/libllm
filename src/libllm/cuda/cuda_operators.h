@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -40,22 +40,30 @@ class CudaOperators : public Operators {
   static Operators *create();
 
   // implement interface Operators
+  Tensor cast(Tensor tensor, DType dtype) override;
+  Tensor add(Tensor a, Tensor b) override;
+  Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) override;
+  Tensor causalMask(int max_len) override;
+  void copy(Tensor src, Tensor dest) override;
+  void fill(Tensor input, float value) override;
+  Tensor gelu(Tensor input) override;
+  Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
   Tensor lookup(Tensor table, Tensor indices) override;
   Tensor matmul(Tensor a, Tensor b) override;
+  Tensor max(Tensor inputs) override;
   Tensor mul(Tensor input, float other) override;
   Tensor mul(Tensor input, Tensor other) override;
+  void print(Tensor tensor) override;
+  Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor softmax(Tensor input) override;
-  Tensor add(Tensor a, Tensor b) override;
+  Tensor sum(Tensor inputs) override;
+  Tensor swiglu(Tensor A) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;
   Tensor tensorLike(Tensor input) override;
-  Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
-  Tensor causalMask(int max_len) override;
-  Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) override;
-  void copy(Tensor src, Tensor dest) override;
-  void print(Tensor tensor) override;
-  Tensor swiglu(Tensor A) override;
   Tensor to(Device device, Tensor tensor) override;
-  Tensor cast(Tensor tensor, DType dtype) override;
+  Tensor unfold(Tensor input, int kernelSize, int stride) override;
+  Tensor zeros(lut::Span<const int> shape, DType dtype) override;
+
   DType getDefaultFloatType() override;
 
  private:
@@ -64,8 +72,8 @@ class CudaOperators : public Operators {
   CudaOperators() = default;
 };
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm
 
 libllm::Operators *llynCreateCudaOperators();

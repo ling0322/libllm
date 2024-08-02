@@ -23,7 +23,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
+	"time"
 
 	"github.com/ling0322/libllm/go/skill"
 )
@@ -67,6 +69,7 @@ func transcribeMain(args []string) {
 	}
 	defer fd.Close()
 
+	d0 := time.Now()
 	transcriber := skill.NewWhisperTranscriber(model, fd)
 	for transcriber.Transcribe() {
 		r := transcriber.Result()
@@ -76,4 +79,11 @@ func transcribeMain(args []string) {
 	if err = transcriber.Err(); err != nil {
 		log.Fatal(err)
 	}
+
+	processingTime := time.Since(d0)
+	slog.Info(
+		fmt.Sprintf("processed %s audio in %s, rtf=%.3f",
+			transcriber.Offset(),
+			processingTime.Round(time.Millisecond),
+			processingTime.Seconds()/transcriber.Offset().Seconds()))
 }

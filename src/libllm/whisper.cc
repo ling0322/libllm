@@ -164,6 +164,7 @@ Tensor EncoderLayer::forward(Tensor inputs) {
   Tensor residual = inputs;
 
   Tensor x = _norm1->forward(inputs);
+
   x = _attn->forward(x);
   x = F::add(x, residual);
 
@@ -175,6 +176,7 @@ Tensor EncoderLayer::forward(Tensor inputs) {
 
   x = _fc2->forward(x);
   x = F::add(x, residual);
+
   return x;
 }
 
@@ -247,6 +249,7 @@ Tensor EncoderModel::forward(Tensor wave) {
   }
 
   Tensor features = F::logMelSpectrogram(wave);
+  features = moveAndCastFloat(features, getCtx());
 
   CHECK(features.getDim() == 2);
   features = features.unsqueeze(0);
@@ -263,6 +266,7 @@ Tensor EncoderModel::forward(Tensor wave) {
   }
 
   x = _norm->forward(x);
+
   return x;
 }
 
@@ -453,6 +457,7 @@ Tensor Attention::forward(StateMap &past, Tensor inputs) {
     v = qkv.slice(-1, {_hiddenSize * 2, _hiddenSize * 3});
 
     std::tie(k, v) = getPresentKV(past, k, v);
+
   } else {
     q = _proj->forward(inputs);
 
@@ -481,6 +486,7 @@ Tensor Attention::forward(StateMap &past, Tensor inputs) {
 
   x = F::contiguous(x.transpose(1, 2)).view({bsz, len, _hiddenSize});
   x = _outProj->forward(x);
+
   return x;
 }
 
@@ -711,6 +717,9 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
   Tensor maxText = F::max(probs.slice(-1, {0, _eotToken + 1}));
   Tensor sumTimestamp = F::sum(probs.slice(-1, {_beginTimeToken, _endTimeToken + 1}));
 
+  maxText = F::cast(F::to(Device::getCpu(), maxText), DType::kFloat);
+  sumTimestamp = F::cast(F::to(Device::getCpu(), sumTimestamp), DType::kFloat);
+
   float maxTextVal = *maxText.getData<float>();
   float sumTimestampVal = *sumTimestamp.getData<float>();
   if (sumTimestampVal >= maxTextVal) {
@@ -784,6 +793,7 @@ Tensor WhisperModelForGeneration::prefill(StateMap &past, const Prompt &prompt) 
 
   Tensor wave = Wave::read(audioBlock.data, audioBlock.waveFormat);
   Tensor encoderHidden = _encoder->forward(wave);
+
   _decoderInit->forward(past, encoderHidden);
 
   Tensor inputs = buildDecoderInput(prompt.getBlocks().subspan(1));
