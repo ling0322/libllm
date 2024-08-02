@@ -13,6 +13,11 @@ Welcome to libLLM, an open-source project designed for efficient inference of la
 | Index-1.9B-Character (Role-playing) | 🤗[Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-character-q4.llmpkg) |
 | Index-1.9B-Chat | 🤗[Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-chat-q4.llmpkg) |
 
+## Recent updates
+
+- [2024-08-02] Support the translation command in llm.
+- [2024-07-30] Support model downloading from huggingface. For example, `llm chat -model index-character` will automatically download the `index-character` model from 🤗[Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-chat-q4.llmpkg).
+
 ## Quickstart
 
 To run and chat with Bilibili-Index-1.9B-Character:
