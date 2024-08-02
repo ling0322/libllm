@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -21,9 +21,9 @@
 
 #include "libllm/device.h"
 #include "libllm/dtype.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/platform.h"
-#include "libllm/lut/span.h"
+#include "lut/error.h"
+#include "lut/platform.h"
+#include "lut/span.h"
 
 namespace libllm {
 namespace op {
@@ -32,7 +32,8 @@ namespace cpu {
 CpuTensorData::Slot::Slot()
     : data(nullptr),
       numel(0),
-      dtype(DType::kUnknown) {}
+      dtype(DType::kUnknown) {
+}
 
 int64_t CpuTensorData::Slot::getNumEl() const {
   return numel;
@@ -44,7 +45,9 @@ Byte *CpuTensorData::Slot::getRawData() const {
   return data;
 }
 
-CpuTensorData::CpuTensorData() : _numSlot(0) {}
+CpuTensorData::CpuTensorData()
+    : _numSlot(0) {
+}
 
 void CpuTensorData::readSlot(lut::Reader *fp, int slotIdx) {
   CHECK(slotIdx < MaxSlot);
@@ -53,19 +56,16 @@ void CpuTensorData::readSlot(lut::Reader *fp, int slotIdx) {
   CHECK(slot.data == nullptr);
 
   slot.dtype = fp->readValue<int16_t>();
-  if (!slot.dtype.isValid())
-    THROW(Aborted, "invalid dtype.");
+  if (!slot.dtype.isValid()) THROW(Aborted, "invalid dtype.");
 
   slot.numel = fp->readValue<int64_t>();
-  if (slot.numel > MaxNumEl)
-    throw lut::AbortedError("tensor too big");
-  
+  if (slot.numel > MaxNumEl) throw lut::AbortedError("tensor too big");
+
   int64_t size = slot.dtype.getTotalSize(slot.numel);
   slot.data = reinterpret_cast<Byte *>(lut::alloc32ByteAlignedMem(size));
   fp->readSpan(lut::makeSpan(reinterpret_cast<int8_t *>(slot.data), size));
   int magicNumber = fp->readValue<int16_t>();
-  if (magicNumber != 0x55aa)
-    throw lut::AbortedError("bad tensor data format (magic number).");
+  if (magicNumber != 0x55aa) throw lut::AbortedError("bad tensor data format (magic number).");
 }
 
 std::shared_ptr<TensorData> CpuTensorData::create(int64_t numel, DType dtype) {
@@ -97,13 +97,11 @@ std::shared_ptr<TensorData> CpuTensorData::create(
 std::shared_ptr<TensorData> CpuTensorData::read(lut::Reader *fp) {
   std::shared_ptr<CpuTensorData> tensorData = std::make_shared<CpuTensorData>();
 
-  if (fp->readString(4) != "tdat")
-    throw lut::AbortedError("bad tensor data format.");
+  if (fp->readString(4) != "tdat") throw lut::AbortedError("bad tensor data format.");
 
   int32_t numSlot = fp->readValue<int32_t>();
-  if (numSlot <= 0 || numSlot > 3)
-    throw lut::AbortedError("invalid num slot.");
-  
+  if (numSlot <= 0 || numSlot > 3) throw lut::AbortedError("invalid num slot.");
+
   // slot 0
   tensorData->readSlot(fp, 0);
 

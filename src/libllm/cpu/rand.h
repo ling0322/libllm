@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,7 +20,7 @@
 #pragma once
 
 #include "libllm/tensor.h"
-#include "libllm/lut/random.h"
+#include "lut/random.h"
 
 namespace libllm {
 namespace op {
@@ -30,6 +30,6 @@ Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, flo
 Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, float max);
 Tensor randQ4(lut::Span<const int> shape, lut::Random *generator, float min, float max);
 
-}  // cpu
-}  // op
-}  // ly
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm

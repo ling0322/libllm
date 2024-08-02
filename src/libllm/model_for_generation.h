@@ -20,11 +20,11 @@
 #pragma once
 
 #include "libllm/context.h"
-#include "libllm/lut/zip_file.h"
 #include "libllm/prompt.h"
 #include "libllm/state_map.h"
 #include "libllm/tensor.h"
 #include "libllm/tokenizer.h"
+#include "lut/zip_file.h"
 
 namespace libllm {
 

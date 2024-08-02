@@ -21,8 +21,8 @@
 
 #include <memory>
 
-#include "libllm/lut/span.h"
 #include "libllm/tensor.h"
+#include "lut/span.h"
 
 namespace libllm {
 

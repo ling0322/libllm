@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,12 +19,13 @@
 
 #pragma once
 
-#include <cuda_runtime.h>
 #include <cuda_fp16.h>
-#include "libllm/tensor.h"
+#include <cuda_runtime.h>
+
 #include "libllm/cuda/common.h"
 #include "libllm/cuda/gemm.h"
-#include "libllm/lut/shared_library.h"
+#include "libllm/tensor.h"
+#include "lut/shared_library.h"
 
 namespace libllm {
 namespace op {
@@ -56,6 +57,6 @@ class MatMul {
   std::vector<const half *> getBatch(const Tensor &A, int nBatchDim);
 };
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

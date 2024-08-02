@@ -22,9 +22,9 @@
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/common.h"
 #include "libllm/cpu/tensor.h"
-#include "libllm/lut/attributes.h"
 #include "libllm/mp.h"
 #include "libllm/tensor.h"
+#include "lut/attributes.h"
 
 namespace libllm {
 namespace op {

@@ -26,9 +26,9 @@
 
 #include "libllm/device.h"
 #include "libllm/dtype.h"
-#include "libllm/lut/fixed_array.h"
-#include "libllm/lut/reader.h"
-#include "libllm/lut/span.h"
+#include "lut/fixed_array.h"
+#include "lut/reader.h"
+#include "lut/span.h"
 
 namespace libllm {
 
@@ -51,8 +51,10 @@ class Tensor {
   /// @param shape pointer to TensorShape.
   /// @param data pointer to TensorData.
   /// @return The Tensor created.
-  static Tensor
-  create(std::shared_ptr<TensorShape> shape, std::shared_ptr<TensorData> data, int64_t offset = 0);
+  static Tensor create(
+      std::shared_ptr<TensorShape> shape,
+      std::shared_ptr<TensorData> data,
+      int64_t offset = 0);
 
   // constructor and destructor.
   Tensor();

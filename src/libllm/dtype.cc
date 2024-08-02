@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,8 +19,8 @@
 
 #include "libllm/dtype.h"
 
-#include "libllm/lut/log.h"
-#include "libllm/lut/strings.h"
+#include "lut/log.h"
+#include "lut/strings.h"
 
 #ifdef LIBLLM_CUDA_ENABLED
 #include <cuda_fp16.h>
@@ -36,7 +36,9 @@ constexpr int16_t DType::kFloat16;
 constexpr int16_t DType::kQInt4x32;
 constexpr int16_t DType::kInt8;
 
-DType::DType(int16_t dtype) : _dtype(dtype) {}
+DType::DType(int16_t dtype)
+    : _dtype(dtype) {
+}
 
 template<>
 DType DType::getTypeImpl<float>() {
@@ -68,7 +70,6 @@ DType DType::getTypeImpl<half>() {
   return DType::kFloat16;
 }
 #endif
-
 
 int64_t DType::getTotalSize(int64_t numel) const {
   switch (_dtype) {

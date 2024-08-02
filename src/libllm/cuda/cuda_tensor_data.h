@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,9 +20,10 @@
 #pragma once
 
 #include <initializer_list>
-#include "libllm/lut/span.h"
+
 #include "libllm/device.h"
 #include "libllm/tensor.h"
+#include "lut/span.h"
 
 namespace libllm {
 namespace op {
@@ -31,8 +32,7 @@ namespace cuda {
 class CudaTensorData : public TensorData {
  public:
   static std::shared_ptr<TensorData> create(int64_t numel, DType dtype);
-  static std::shared_ptr<TensorData> create(
-      lut::Span<const std::pair<int64_t, DType>> slots);
+  static std::shared_ptr<TensorData> create(lut::Span<const std::pair<int64_t, DType>> slots);
 
   CudaTensorData();
   ~CudaTensorData();
@@ -58,6 +58,6 @@ class CudaTensorData : public TensorData {
   int _numSlot;
 };
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

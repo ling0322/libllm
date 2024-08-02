@@ -28,7 +28,7 @@
 #include "libllm/cuda/gemm_cutlass.h"
 #include "libllm/cuda/matvec.h"
 #include "libllm/dtype.h"
-#include "libllm/lut/strings.h"
+#include "lut/strings.h"
 
 namespace libllm {
 namespace op {
@@ -62,7 +62,7 @@ std::shared_ptr<MatMul> MatMul::create() {
 std::shared_ptr<MatMul> MatMul::createCublas() {
   std::shared_ptr<MatMul> mm{new MatMul()};
 
-  mm->_gemmExtLib = lut::SharedLibrary::open("llmextcublas");
+  mm->_gemmExtLib = lut::SharedLibrary::open("llmplugincublas");
 
   std::function<op::cuda::Gemm *()> factory;
   std::function<void(op::cuda::Gemm *)> deleter;

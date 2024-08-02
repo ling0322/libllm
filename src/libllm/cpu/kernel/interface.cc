@@ -33,10 +33,10 @@
 #include "libllm/cpu/kernel/gemm.h"
 #include "libllm/cpu/kernel/gemv.h"
 #include "libllm/cpu/kernel/interface.h"
-#include "libllm/lut/is_debug.h"
-#include "libllm/lut/log.h"
-#include "libllm/lut/platform.h"
-#include "libllm/lut/strings.h"
+#include "lut/is_debug.h"
+#include "lut/log.h"
+#include "lut/platform.h"
+#include "lut/strings.h"
 #include "ruapu/ruapu.h"
 
 namespace libllm {

@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include "libllm/lut/span.h"
 #include "libllm/tensor.h"
+#include "lut/span.h"
 
 namespace libllm {
 namespace op {

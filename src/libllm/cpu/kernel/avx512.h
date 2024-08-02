@@ -23,7 +23,7 @@
 
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/avx2.h"
-#include "libllm/lut/log.h"
+#include "lut/log.h"
 
 namespace libllm {
 namespace op {

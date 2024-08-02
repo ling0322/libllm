@@ -29,8 +29,8 @@
 #include "libllm/cpu/kernel/interface.h"
 #include "libllm/cpu/lookup.h"
 #include "libllm/cpu/tensor.h"
-#include "libllm/lut/half.h"
 #include "libllm/tensor.h"
+#include "lut/half.h"
 
 namespace libllm {
 namespace op {

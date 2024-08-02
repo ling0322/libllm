@@ -29,10 +29,10 @@
 #include "libllm/cuda/matvec.h"
 #include "libllm/device.h"
 #include "libllm/functional.h"
-#include "libllm/lut/half.h"
-#include "libllm/lut/random.h"
-#include "libllm/lut/time.h"
 #include "libllm/operator_tester.h"
+#include "lut/half.h"
+#include "lut/random.h"
+#include "lut/time.h"
 
 #define CONCAT2(l, r) l##r
 #define CONCAT(l, r) CONCAT2(l, r)

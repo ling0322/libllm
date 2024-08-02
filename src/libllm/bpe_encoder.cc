@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,18 +19,18 @@
 
 #include "libllm/bpe_encoder.h"
 
-#include "libllm/lut/strings.h"
+#include "lut/strings.h"
 
 namespace libllm {
 
 BPEEncoder::BPEEncoder(const BPEModel *model, const BPEConfig &config)
     : _model(model),
       _config(&config),
-      _header(nullptr) {}
+      _header(nullptr) {
+}
 
 void BPEEncoder::initQueue() {
-  Symbol *p = _header->next,
-         *q = p->next;
+  Symbol *p = _header->next, *q = p->next;
   while (q) {
     addBigramIfExist(p, q);
     p = q;
@@ -69,8 +69,7 @@ std::vector<int> BPEEncoder::encode(const std::string &s) {
 }
 
 void BPEEncoder::addBigramIfExist(Symbol *left, Symbol *right) {
-  if (left == _header || right == nullptr ||
-      _model->isSpecialToken(right->tokenId) ||
+  if (left == _header || right == nullptr || _model->isSpecialToken(right->tokenId) ||
       _model->isSpecialToken(left->tokenId)) {
     return;
   }
@@ -119,7 +118,7 @@ BPEEncoder::Symbol *BPEEncoder::mergeBigram(const Bigram &bigram) {
 
 std::vector<std::string> BPEEncoder::splitBytes(const std::string &s) {
   std::vector<std::string> l;
-  
+
   char buffer[2] = " ";
   for (char ch : s) {
     buffer[0] = ch;
@@ -137,7 +136,7 @@ BPEEncoder::Symbol *BPEEncoder::appendToken(Symbol *tail, int tokenId) {
   symbol->next = nullptr;
 
   tail->next = symbol;
-  
+
   return symbol;
 }
 

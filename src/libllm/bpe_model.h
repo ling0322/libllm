@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,14 +20,14 @@
 #pragma once
 
 #include <unordered_map>
-#include "libllm/lut/reader.h"
+
 #include "libllm/vocab.h"
+#include "lut/reader.h"
 
 namespace libllm {
 
 // Store tne data from sentence-piece BPE model.
-class BPEModel : public Vocab,
-                 private lut::NonCopyable {
+class BPEModel : public Vocab, private lut::NonCopyable {
  public:
   // token flags.
   static constexpr int kUnknown = 1;
@@ -66,7 +66,9 @@ class BPEModel : public Vocab,
 
   // get token-id for a single byte.
   int getByteId(int byte) const;
-  bool isByteTokenAvailable() const { return _isByteTokenAvailable; }
+  bool isByteTokenAvailable() const {
+    return _isByteTokenAvailable;
+  }
 
  private:
   struct TokenInfo;
@@ -83,7 +85,7 @@ class BPEModel : public Vocab,
 
   int _unkId;
   int _spaceId;
-  
+
   BPEModel();
 
   // read model from fp
@@ -101,7 +103,9 @@ struct BPEModel::TokenInfo {
   std::string tokenString;
   int8_t flag;
 
-  constexpr bool isSpecialToken() const { return flag != 0; }
+  constexpr bool isSpecialToken() const {
+    return flag != 0;
+  }
 };
 
 }  // namespace libllm

@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -22,11 +22,13 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 #include <stdint.h>
+
 #include <type_traits>
-#include "libllm/lut/error.h"
-#include "libllm/lut/strings.h"
-#include "libllm/tensor.h"
+
 #include "libllm/cuda/cuda_tensor_data.h"
+#include "libllm/tensor.h"
+#include "lut/error.h"
+#include "lut/strings.h"
 
 namespace libllm {
 namespace op {
@@ -40,7 +42,10 @@ struct Size {
 template<typename T, int DIM>
 class SubtensorBase {
  public:
-  __device__ SubtensorBase(const Size *size, T *data) : _size(size), _data(data) {}
+  __device__ SubtensorBase(const Size *size, T *data)
+      : _size(size),
+        _data(data) {
+  }
 
  protected:
   const Size *_size;
@@ -50,7 +55,9 @@ class SubtensorBase {
 template<typename T, int DIM>
 class Subtensor : public SubtensorBase<T, DIM> {
  public:
-  __device__ Subtensor(const Size *size, T *data) : SubtensorBase<T, DIM>(size, data) {}
+  __device__ Subtensor(const Size *size, T *data)
+      : SubtensorBase<T, DIM>(size, data) {
+  }
 
   __device__ Subtensor<T, DIM - 1> operator[](int index) {
     int64_t offset = index * this->_size[0].stride;
@@ -65,7 +72,9 @@ class Subtensor : public SubtensorBase<T, DIM> {
 template<typename T>
 class Subtensor<T, 1> : public SubtensorBase<T, 1> {
  public:
-  __device__ Subtensor(const Size *size, T *data) : SubtensorBase<T, 1>(size, data) {}
+  __device__ Subtensor(const Size *size, T *data)
+      : SubtensorBase<T, 1>(size, data) {
+  }
 
   __device__ T &operator[](int index) {
     int64_t offset = index * this->_size[0].stride;
@@ -77,7 +86,7 @@ class Subtensor<T, 1> : public SubtensorBase<T, 1> {
   }
 };
 
-/// @brief A packed tensor accessor. `Packed` means the subtensor also packed with the tensor 
+/// @brief A packed tensor accessor. `Packed` means the subtensor also packed with the tensor
 /// metadata.
 /// @tparam T Tensor data type.
 /// @tparam DIM Dimension of this tensor.
@@ -100,9 +109,15 @@ class PackedSubtensorBase {
     }
   }
 
-  __device__ int getShape(int dim) const { return this->_size[dim].shape; }
-  __device__ const Size *getSize() const { return _size; }
-  __device__ T *getData() const { return _data; }
+  __device__ int getShape(int dim) const {
+    return this->_size[dim].shape;
+  }
+  __device__ const Size *getSize() const {
+    return _size;
+  }
+  __device__ T *getData() const {
+    return _data;
+  }
 
  protected:
   Size _size[DIM];
@@ -112,8 +127,12 @@ class PackedSubtensorBase {
 template<typename T, int DIM>
 class PackedSubtensor : public PackedSubtensorBase<T, DIM> {
  public:
-  __host__ PackedSubtensor(Tensor &tensor) : PackedSubtensorBase<T, DIM>(tensor) {}
-  __host__ PackedSubtensor(const Tensor &tensor) : PackedSubtensorBase<T, DIM>(tensor) {}
+  __host__ PackedSubtensor(Tensor &tensor)
+      : PackedSubtensorBase<T, DIM>(tensor) {
+  }
+  __host__ PackedSubtensor(const Tensor &tensor)
+      : PackedSubtensorBase<T, DIM>(tensor) {
+  }
 
   __device__ Subtensor<T, DIM - 1> operator[](int index) {
     int64_t offset = index * this->_size[0].stride;
@@ -128,8 +147,12 @@ class PackedSubtensor : public PackedSubtensorBase<T, DIM> {
 template<typename T>
 class PackedSubtensor<T, 1> : public PackedSubtensorBase<T, 1> {
  public:
-  __host__ PackedSubtensor(Tensor &tensor) : PackedSubtensorBase<T, 1>(tensor) {}
-  __host__ PackedSubtensor(const Tensor &tensor) : PackedSubtensorBase<T, 1>(tensor) {}
+  __host__ PackedSubtensor(Tensor &tensor)
+      : PackedSubtensorBase<T, 1>(tensor) {
+  }
+  __host__ PackedSubtensor(const Tensor &tensor)
+      : PackedSubtensorBase<T, 1>(tensor) {
+  }
 
   __device__ T &operator[](int index) {
     int64_t offset = index * this->_size[0].stride;
@@ -141,6 +164,6 @@ class PackedSubtensor<T, 1> : public PackedSubtensorBase<T, 1> {
   }
 };
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

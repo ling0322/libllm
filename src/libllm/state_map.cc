@@ -20,9 +20,9 @@
 #include "libllm/state_map.h"
 
 #include "libllm/functional.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/strings.h"
-#include "libllm/lut/time.h"
+#include "lut/error.h"
+#include "lut/strings.h"
+#include "lut/time.h"
 
 namespace libllm {
 

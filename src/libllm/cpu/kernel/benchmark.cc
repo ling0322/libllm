@@ -17,7 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "catch2/catch_amalgamated.hpp"
+#include "../../../../third_party/catch2/catch_amalgamated.hpp"
 
 #ifdef MKL_ENABLED
 #include <mkl.h>
@@ -29,10 +29,10 @@
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/gemm.h"
 #include "libllm/cpu/kernel/interface.h"
-#include "libllm/lut/attributes.h"
-#include "libllm/lut/log.h"
-#include "libllm/lut/strings.h"
-#include "libllm/lut/time.h"
+#include "lut/attributes.h"
+#include "lut/log.h"
+#include "lut/strings.h"
+#include "lut/time.h"
 
 namespace libllm {
 namespace op {

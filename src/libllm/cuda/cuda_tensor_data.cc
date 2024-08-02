@@ -24,10 +24,10 @@
 #include "libllm/cuda/common.h"
 #include "libllm/device.h"
 #include "libllm/dtype.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/platform.h"
-#include "libllm/lut/span.h"
-#include "libllm/lut/strings.h"
+#include "lut/error.h"
+#include "lut/platform.h"
+#include "lut/span.h"
+#include "lut/strings.h"
 
 namespace libllm {
 namespace op {

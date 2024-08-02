@@ -26,11 +26,11 @@
 
 #include "libllm/cpu/cast.h"
 #include "libllm/cpu/tensor.h"
-#include "libllm/lut/half.h"
-#include "libllm/lut/random.h"
-#include "libllm/lut/time.h"
 #include "libllm/mp.h"
 #include "libllm/tensor.h"
+#include "lut/half.h"
+#include "lut/random.h"
+#include "lut/time.h"
 
 namespace libllm {
 namespace op {

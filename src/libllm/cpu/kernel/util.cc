@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,10 +20,12 @@
 #include "libllm/cpu/kernel/util.h"
 
 #include <math.h>
+
 #include <algorithm>
+
 #include "libllm/cpu/kernel/abstract.h"
-#include "libllm/lut/half.h"
-#include "libllm/lut/platform.h"
+#include "lut/half.h"
+#include "lut/platform.h"
 
 #ifdef LUT_ARCH_AARCH64
 #include <arm_neon.h>
@@ -33,7 +35,6 @@ namespace libllm {
 namespace op {
 namespace cpu {
 namespace kernel {
-
 
 float cvt_h2s(Float16 vh) {
 #ifdef LUT_ARCH_AARCH64
@@ -59,4 +60,3 @@ Float16 cvt_s2h(float vf) {
 }  // namespace cpu
 }  // namespace op
 }  // namespace libllm
-

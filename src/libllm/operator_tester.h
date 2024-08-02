@@ -20,8 +20,8 @@
 #pragma once
 
 #include "libllm/device.h"
-#include "libllm/lut/attributes.h"
 #include "libllm/operators.h"
+#include "lut/attributes.h"
 
 namespace libllm {
 

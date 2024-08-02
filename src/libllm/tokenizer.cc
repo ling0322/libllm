@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,12 +19,11 @@
 
 #include "libllm/tokenizer.h"
 
-#include "libllm/lut/error.h"
-#include "libllm/lut/strings.h"
 #include "libllm/bpe_config.h"
 #include "libllm/bpe_encoder.h"
 #include "libllm/bpe_model.h"
-
+#include "lut/error.h"
+#include "lut/strings.h"
 
 namespace libllm {
 
@@ -47,7 +46,8 @@ class BPETokenizer : public Tokenizer {
   BPETokenizer();
 };
 
-BPETokenizer::BPETokenizer() {}
+BPETokenizer::BPETokenizer() {
+}
 
 std::unique_ptr<BPETokenizer> BPETokenizer::fromStream(lut::Reader *reader, BPEConfig config) {
   std::unique_ptr<BPETokenizer> tokenizer{new BPETokenizer()};
@@ -69,8 +69,7 @@ const Vocab *BPETokenizer::getVocab() const {
 // -- class Tokenizer ----------
 
 std::shared_ptr<Tokenizer> Tokenizer::fromPackage(lut::ZipFile *package) {
-  std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(
-      package->open(ConfigFile).get());
+  std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(package->open(ConfigFile).get());
 
   lut::IniSection tokenizerSection = ini->getSection("tokenizer");
   std::string type = tokenizerSection.getString("type");

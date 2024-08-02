@@ -23,8 +23,8 @@
 #include <unordered_map>
 #include <utility>
 
-#include "libllm/lut/reader.h"
 #include "libllm/tensor.h"
+#include "lut/reader.h"
 
 namespace libllm {
 

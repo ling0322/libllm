@@ -8,6 +8,8 @@ option(WITH_OPENMP "Build with OpenMP." ON)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
 option(MKL_PREFIX "Prefix for MKL headers and libraries." "/opt/intel/mkl")
 
+find_package(OpenMP)
+
 set(CMAKE_CUDA_RUNTIME_LIBRARY Static)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
@@ -81,4 +83,64 @@ if(HAVE_FP16)
     add_compile_definitions(LIBLLM_HAVE_FP16)
 endif()
 
-add_subdirectory("src/libllm")
+add_subdirectory("src")
+
+set(libllm_LIBADD lut ${CMAKE_DL_LIBS})
+
+if(WITH_OPENMP)
+    set(libllm_LIBADD ${libllm_LIBADD} OpenMP::OpenMP_CXX)
+endif()
+
+add_library(libllm SHARED $<TARGET_OBJECTS:libllm_static>)
+target_link_libraries(libllm ${libllm_LIBADD}  )
+set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
+if(UNIX AND NOT APPLE)
+    target_link_options(libllm PUBLIC "-Wl,--no-undefined")
+endif()
+
+set(unittest_LIBADD
+    libllm_static
+    libllm_test
+    lut_test
+    ${libllm_LIBADD}
+    catch2)
+if (WITH_MKL)
+    set(unittest_LIBADD
+        ${unittest_LIBADD}
+        mkl_intel_lp64
+        mkl_intel_thread
+        mkl_core
+        iomp5)
+endif()
+
+set(benchmark_LIBADD
+    libllm_static
+    ${libllm_LIBADD})
+
+add_library(catch2 STATIC  "../third_party/catch2/catch_amalgamated.cpp")
+add_executable(unittest "src/libllm/test_main.cc")
+target_include_directories(unittest PRIVATE "src")
+
+target_link_libraries(unittest ${unittest_LIBADD})
+
+add_executable(benchmark "src/libllm/benchmark_main.cc")
+target_include_directories(benchmark PRIVATE "src")
+target_link_libraries(benchmark ${benchmark_LIBADD})
+
+if (WITH_CUDA)
+    add_library(llmplugincublas SHARED $<TARGET_OBJECTS:llmplugincublas_static>)
+    target_include_directories(llmplugincublas PRIVATE ${libllm_INCDIR})
+    target_link_libraries(llmplugincublas lut CUDA::cublas)
+    if(UNIX)
+        target_link_options(llmplugincublas PUBLIC "-Wl,--no-undefined")
+    endif(UNIX)
+endif()
+
+enable_testing()
+add_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)
+
+add_custom_target(llm
+    ALL
+    DEPENDS libllm
+    COMMAND go build -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_SOURCE_DIR}/go/bin
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/go/bin)

@@ -21,10 +21,10 @@
 
 #include "catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/fingerprint.h"
-#include "libllm/lut/random.h"
-#include "libllm/lut/span.h"
 #include "libllm/tensor.h"
 #include "libllm/test_helper.h"
+#include "lut/random.h"
+#include "lut/span.h"
 
 namespace libllm {
 

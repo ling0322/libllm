@@ -26,8 +26,8 @@
 #include "libllm/cpu/cpu_tensor_data.h"
 #include "libllm/cpu/view.h"
 #include "libllm/functional.h"
-#include "libllm/lut/error.h"
-#include "libllm/lut/strings.h"
+#include "lut/error.h"
+#include "lut/strings.h"
 
 namespace libllm {
 

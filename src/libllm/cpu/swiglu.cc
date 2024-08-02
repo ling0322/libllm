@@ -23,8 +23,8 @@
 
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/tensor.h"
-#include "libllm/lut/thread_pool.h"
 #include "libllm/mp.h"
+#include "lut/thread_pool.h"
 
 namespace libllm {
 namespace op {
