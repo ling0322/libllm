@@ -23,7 +23,7 @@ Welcome to libLLM, an open-source project designed for efficient inference of la
 To run and chat with Bilibili-Index-1.9B-Character:
 
 ```bash
-$ llm chat -model index-character
+$ llm chat -m index-character
 ```
 
 ## Key features:
@@ -78,7 +78,7 @@ $ make -j
 ## Run libllm command line
 
 ```bash
-$ src/libllm/llm chat -model index-character
+$ src/libllm/llm chat -m index-character
 INFO 2024-07-30T12:02:28Z interface.cc:67] ISA support: AVX2=1 F16C=1 AVX512F=1
 INFO 2024-07-30T12:02:28Z interface.cc:71] Use Avx512 backend.
 INFO 2024-07-30T12:02:30Z matmul.cc:43] Use GEMM from cuBLAS.

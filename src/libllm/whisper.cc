@@ -709,8 +709,8 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
     }
   }
 
-  if (_lastTimeToken > 0) {
-    F::fill(logits.slice(-1, {_beginTimeToken, _lastTimeToken + 1}), -Inf);
+  if (_lastTimeToken > _beginTimeToken) {
+    F::fill(logits.slice(-1, {_beginTimeToken, _lastTimeToken}), -Inf);
   }
 
   Tensor probs = F::softmax(logits);

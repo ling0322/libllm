@@ -24,8 +24,7 @@ package llm
 import "C"
 import (
 	"errors"
-	"fmt"
-	"os"
+	"log/slog"
 	"runtime"
 	"unsafe"
 )
@@ -34,6 +33,7 @@ import (
 type Model interface {
 	GetName() string
 	Complete(config CompletionConfig, prompt Prompt) (Completion, error)
+	Dispose()
 }
 
 type modelHandle struct {
@@ -115,6 +115,25 @@ func (m *modelImpl) GetName() string {
 	}
 }
 
+func (m *modelImpl) Dispose() {
+	m.handle.dispose()
+	m.handle = nil
+}
+
+func (h *modelHandle) dispose() {
+	if h.handle == nil {
+		return
+	}
+	status := C.llmModel_Delete(h.handle)
+	if status != C.LLM_OK {
+		slog.Error(
+			"failed to call llmModel_Delete()",
+			"message", C.GoString(C.llmGetLastErrorMessage()))
+	}
+
+	h.handle = nil
+}
+
 func newModelHandle() (*modelHandle, error) {
 	cHandle := C.llmModel_New()
 	if cHandle == nil {
@@ -125,10 +144,7 @@ func newModelHandle() (*modelHandle, error) {
 		cHandle,
 	}
 	runtime.SetFinalizer(handle, func(h *modelHandle) {
-		status := C.llmModel_Delete(h.handle)
-		if status != C.LLM_OK {
-			fmt.Fprintln(os.Stderr, "failed to call llmModel_Delete()")
-		}
+		h.dispose()
 	})
 
 	return handle, nil

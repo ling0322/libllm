@@ -22,6 +22,7 @@ package main
 import (
 	"flag"
 	"log"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -29,68 +30,137 @@ import (
 	"github.com/ling0322/libllm/go/skill"
 )
 
-var gModelPath string
-var gDevice string
-var gInputFile string
-var gLang string
-var gTargetLang string
+type binArgs struct {
+	fs *flag.FlagSet
 
-func addDeviceFlag(fs *flag.FlagSet) {
-	fs.StringVar(&gDevice, "device", "auto", "inference device, either cpu, cuda or auto")
+	modelPath  string
+	device     string
+	inputFile  string
+	outputFile string
+	lang       string
+	targetLang string
 }
 
-func getDeviceArg() llm.Device {
+func newBinArgs(fs *flag.FlagSet) *binArgs {
+	return &binArgs{
+		fs: fs,
+	}
+}
+
+func (a *binArgs) addDeviceFlag() {
+	a.fs.StringVar(&a.device, "device", "auto", "inference device, either cpu, cuda or auto")
+}
+
+func (a *binArgs) getDevice() llm.Device {
 	var device llm.Device
-	if strings.ToLower(gDevice) == "cpu" {
+	if strings.ToLower(a.device) == "cpu" {
 		device = llm.Cpu
-	} else if strings.ToLower(gDevice) == "cuda" {
+	} else if strings.ToLower(a.device) == "cuda" {
 		device = llm.Cuda
-	} else if strings.ToLower(gDevice) == "auto" {
+	} else if strings.ToLower(a.device) == "auto" {
 		device = llm.Auto
 	} else {
-		log.Fatalf("unexpected device %s", gDevice)
+		log.Fatalf("unexpected device %s", a.device)
 	}
 
 	return device
 }
 
-func addModelFlag(fs *flag.FlagSet) {
-	fs.StringVar(&gModelPath, "model", "", "the libllm model file *.llmpkg")
+func (a *binArgs) addModelFlag() {
+	a.fs.StringVar(&a.modelPath, "m", "", "the libllm model, it could be model name or model file,"+
+		" model files are with suffix \".llmpkg\". "+
+		"\nFor some specific tasks like transcription-translation, it could be a list of"+
+		" models, seperated by \",\".")
 }
 
-func getModelArg(fs *flag.FlagSet) string {
-	if gModelPath == "" {
-		fs.Usage()
+func (a *binArgs) getModel() string {
+	if a.modelPath == "" {
+		slog.Error("model name (-m) is empty.")
+		a.fs.Usage()
 		os.Exit(1)
 	}
 
-	return gModelPath
-}
-
-func addInputFlag(fs *flag.FlagSet) {
-	fs.StringVar(&gInputFile, "input", "", "the input file.")
-}
-
-func getInputArg(fs *flag.FlagSet) string {
-	if gInputFile == "" {
-		fs.Usage()
+	models := a.splitModels()
+	if len(models) != 1 {
+		slog.Error("only 1 model (-m) is expected, please check if there is any unexpected comma" +
+			" \",\" in model arg (-m).")
+		a.fs.Usage()
 		os.Exit(1)
 	}
 
-	return gInputFile
+	return models[0]
 }
 
-func addLangFlag(fs *flag.FlagSet) {
-	fs.StringVar(&gLang, "lang", "", "the language of input.")
+func (a *binArgs) splitModels() []string {
+	models := strings.Split(a.modelPath, ",")
+	for _, model := range models {
+		if model == "" {
+			slog.Error("invalid model name (-m).")
+			a.fs.Usage()
+			os.Exit(1)
+		}
+	}
+
+	return models
 }
 
-func getLangArg(fs *flag.FlagSet) skill.Lang {
-	if gLang == "" {
-		fs.Usage()
+func (a *binArgs) getNumModels() int {
+	return len(a.splitModels())
+}
+
+func (a *binArgs) getModelList() []string {
+	if a.modelPath == "" {
+		slog.Error("model name (-m) is empty.")
+		a.fs.Usage()
 		os.Exit(1)
 	}
 
-	lang, err := skill.ParseLang(gLang)
+	return a.splitModels()
+}
+
+func (a *binArgs) addInputFlag() {
+	a.fs.StringVar(&a.inputFile, "i", "", "the input file.")
+}
+
+func (a *binArgs) getInput() string {
+	if a.inputFile == "" {
+		slog.Error("input file (-i) is empty.")
+		a.fs.Usage()
+		os.Exit(1)
+	}
+
+	log.Println(a)
+	return a.inputFile
+}
+
+func (a *binArgs) addOutputFlag() {
+	a.fs.StringVar(&a.outputFile, "o", "", "the output file.")
+}
+
+func (a *binArgs) getOutput() string {
+
+	log.Println("22222")
+	if a.outputFile == "" {
+		slog.Error("output file (-o) is empty.")
+		a.fs.Usage()
+		os.Exit(1)
+	}
+
+	return a.outputFile
+}
+
+func (a *binArgs) addLangFlag() {
+	a.fs.StringVar(&a.lang, "lang", "", "the language of input.")
+}
+
+func (a *binArgs) getLang() skill.Lang {
+	if a.lang == "" {
+		slog.Error("language (-lang) is empty.")
+		a.fs.Usage()
+		os.Exit(1)
+	}
+
+	lang, err := skill.ParseLang(a.lang)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -98,17 +168,18 @@ func getLangArg(fs *flag.FlagSet) skill.Lang {
 	return lang
 }
 
-func addTargetLangFlag(fs *flag.FlagSet) {
-	fs.StringVar(&gTargetLang, "targetlang", "", "the target language.")
+func (a *binArgs) addTargetLangFlag() {
+	a.fs.StringVar(&a.targetLang, "targetlang", "", "the target language.")
 }
 
-func getTergatLangArg(fs *flag.FlagSet) skill.Lang {
-	if gTargetLang == "" {
-		fs.Usage()
+func (a *binArgs) getTargetLang() skill.Lang {
+	if a.targetLang == "" {
+		slog.Error("target language (-targetlang) is empty.")
+		a.fs.Usage()
 		os.Exit(1)
 	}
 
-	lang, err := skill.ParseLang(gTargetLang)
+	lang, err := skill.ParseLang(a.targetLang)
 	if err != nil {
 		log.Fatal(err)
 	}

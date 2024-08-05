@@ -33,9 +33,8 @@ type indexTranslator struct {
 	model llm.Model
 }
 
-var sysPromptIndexTranslation = "你是一个翻译助手，对于用户输入的每一个%s句子，你必须一字不漏的把" +
-	"他们翻译成%s。翻译的结果*必须*保持遵循原来的意思，不要添加以及估故意删除任何内容。并且，*必须*保证句子" +
-	"的通顺，易于阅读。最后，每次回复请以\"这句话的翻译结果是：\"开头。"
+var sysPromptIndexTranslation = "把用户输入的%s文本翻译成%s。*不要*添加以及删除任何内容，*不要*反回空的结果，*必须*不能出现原始文本！！！" +
+	"每次回复请以\"这句话的翻译结果是：\"开头。"
 
 func (l *BilibiliIndex) Build(history []Message) (llm.Prompt, error) {
 	prompt := llm.NewPrompt()
@@ -84,7 +83,7 @@ func (l *indexTranslator) getLangString(lang Lang) (name string, err error) {
 	case Chinese:
 		return "中文", nil
 	case English:
-		return "英语", nil
+		return "英文", nil
 	case Japanese:
 		return "日语", nil
 	default:

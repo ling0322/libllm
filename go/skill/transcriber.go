@@ -36,8 +36,13 @@ type Transcriber interface {
 	Result() TranscriptionResult
 	Err() error
 	Offset() time.Duration
+	Dispose()
 }
 
 func (r *TranscriptionResult) String() string {
 	return fmt.Sprintf("%8s - %8s: %s", r.Begin.String(), r.End.String(), r.Text)
+}
+
+func (r *TranscriptionResult) Duration() time.Duration {
+	return r.End - r.Begin
 }

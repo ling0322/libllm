@@ -303,6 +303,13 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 	return nil
 }
 
+func (w *WhisperTranscriber) disposeCompAndSetToNil() {
+	if w.comp != nil {
+		w.comp.Dispose()
+		w.comp = nil
+	}
+}
+
 // implements interface Transcriber.
 func (w *WhisperTranscriber) Transcribe() bool {
 	if w.wavePayload == nil {
@@ -331,12 +338,12 @@ func (w *WhisperTranscriber) Transcribe() bool {
 		}
 
 		if errors.Is(w.err, ErrNoMoreResults) {
-			w.comp = nil
+			w.disposeCompAndSetToNil()
 			w.err = nil
 			w.waveOffset += 30 * time.Second
 			continue
 		} else if errors.Is(w.err, ErrAudioEndOfStream) {
-			w.comp = nil
+			w.disposeCompAndSetToNil()
 			w.err = nil
 			return false
 		} else if w.err != nil {
@@ -346,12 +353,12 @@ func (w *WhisperTranscriber) Transcribe() bool {
 		result, err := w.decodeTranscription()
 		if errors.Is(err, ErrNoMoreResults) && beginOfSegment {
 			// if no result for the whole audio segment, move forward to the next 30s segment.
-			w.comp = nil
+			w.disposeCompAndSetToNil()
 			w.waveOffset += 30 * time.Second
 			continue
 		} else if errors.Is(err, ErrNoMoreResults) && !beginOfSegment {
 			// move the wave offset to the end of last completed transcription.
-			w.comp = nil
+			w.disposeCompAndSetToNil()
 			w.waveOffset = w.result.End
 			continue
 		} else if err != nil {
@@ -372,6 +379,13 @@ func (w *WhisperTranscriber) Result() TranscriptionResult {
 // implements interface Transcriber.
 func (w *WhisperTranscriber) Err() error {
 	return w.err
+}
+
+// implements interface Transcriber.
+func (w *WhisperTranscriber) Dispose() {
+	if w.comp != nil {
+		w.disposeCompAndSetToNil()
+	}
 }
 
 // implements interface Transcriber.

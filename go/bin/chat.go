@@ -47,8 +47,10 @@ func chatMain(args []string) {
 		printChatUsage(fs)
 	}
 
-	addModelFlag(fs)
-	addDeviceFlag(fs)
+	ba := newBinArgs(fs)
+
+	ba.addModelFlag()
+	ba.addDeviceFlag()
 	_ = fs.Parse(args)
 
 	if fs.NArg() != 0 {
@@ -56,8 +58,8 @@ func chatMain(args []string) {
 		os.Exit(1)
 	}
 
-	modelName := getModelArg(fs)
-	model, err := createModelAutoDownload(modelName, getDeviceArg())
+	modelName := ba.getModel()
+	model, err := createModelAutoDownload(modelName, ba.getDevice())
 	if err != nil {
 		log.Fatal(err)
 	}
