@@ -33,7 +33,7 @@ type indexTranslator struct {
 	model llm.Model
 }
 
-var sysPromptIndexTranslation = "把用户输入的%s文本翻译成%s。*不要*添加以及删除任何内容，*不要*反回空的结果，*必须*不能出现原始文本！！！" +
+var sysPromptIndexTranslation = "你是一个专业且流利的翻译大语言模型，你能够把用户输入的%s文本翻译成%s，生成的翻译结果不要添加以及删除任何内容，不要是空的结果，不能出现原始文本！！！" +
 	"每次回复请以\"这句话的翻译结果是：\"开头。"
 
 func (l *BilibiliIndex) Build(history []Message) (llm.Prompt, error) {

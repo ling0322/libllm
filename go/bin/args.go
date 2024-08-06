@@ -129,7 +129,6 @@ func (a *binArgs) getInput() string {
 		os.Exit(1)
 	}
 
-	log.Println(a)
 	return a.inputFile
 }
 
@@ -138,8 +137,6 @@ func (a *binArgs) addOutputFlag() {
 }
 
 func (a *binArgs) getOutput() string {
-
-	log.Println("22222")
 	if a.outputFile == "" {
 		slog.Error("output file (-o) is empty.")
 		a.fs.Usage()

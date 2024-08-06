@@ -21,7 +21,6 @@ package skill
 
 import (
 	"log"
-	"log/slog"
 	"strings"
 	"time"
 	"unicode"
@@ -87,10 +86,7 @@ func (m *TranscriptionMerger) maybeSentenceBoundaryEn(left, right TranscriptionR
 	flagCapitalR := unicode.IsUpper(rightText[0])
 	flagLetterR := unicode.IsLetter(rightText[0])
 	flagLongTranscriptionL := len(strings.Split(left.Text, " ")) > 30
-
-	if flagLongTranscriptionL {
-		slog.Info("flagLongTranscriptionL", "text", left.Text, "flagSoftBoundaryPunctL", flagSoftBoundaryPunctL)
-	}
+	flagLongAudioLengthL := left.Duration() > 15*time.Second
 
 	switch {
 	case flagLongSil && flagBoundaryPunctL:
@@ -106,6 +102,8 @@ func (m *TranscriptionMerger) maybeSentenceBoundaryEn(left, right TranscriptionR
 	case flagLongTranscriptionL && flagSoftBoundaryPunctL:
 		return true
 	case flagLongTranscriptionL && flagBoundaryPunctL:
+		return true
+	case flagLongAudioLengthL:
 		return true
 	default:
 		return false

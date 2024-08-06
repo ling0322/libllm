@@ -666,7 +666,12 @@ WhisperLogitsProcessor::WhisperLogitsProcessor()
     : _lastTimeToken(-1),
       _beginTimeToken(-1),
       _endTimeToken(-1),
-      _eotToken(-1) {
+      _eotToken(-1),
+      _transcribeToken(-1),
+      _translateToken(-1),
+      _noTimestampToken(-1),
+      _langEnToken(-1),
+      _langSuToken(-1) {
 }
 
 std::shared_ptr<WhisperLogitsProcessor> WhisperLogitsProcessor::newProcessor(const Vocab *vocab) {
@@ -678,6 +683,8 @@ std::shared_ptr<WhisperLogitsProcessor> WhisperLogitsProcessor::newProcessor(con
   processor->_transcribeToken = vocab->findControlToken("<|transcribe|>");
   processor->_translateToken = vocab->findControlToken("<|translate|>");
   processor->_noTimestampToken = vocab->findControlToken("<|notimestamps|>");
+  processor->_langEnToken = vocab->findControlToken("<|en|>");
+  processor->_langSuToken = vocab->findControlToken("<|su|>");
 
   return processor;
 }
@@ -690,6 +697,8 @@ void WhisperLogitsProcessor::notifyToken(int tokenId) {
 }
 
 void WhisperLogitsProcessor::processLogits(Tensor logits) {
+  bool lastWasLang = _history.size() >= 1 && _history.back() >= _langEnToken &&
+                     _history.back() <= _langSuToken;
   bool lastWasTimestamp = _history.size() >= 1 && _history.back() >= _beginTimeToken;
   bool lastWasTranscribe = _history.size() >= 1 && _history.back() == _transcribeToken;
   bool penultimateWasTimestamp = _history.size() < 2 ||
@@ -701,6 +710,10 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
     F::fill(logits.slice(-1, {_noTimestampToken, _noTimestampToken + 1}), -Inf);
   }
 
+  if (lastWasLang) {
+    F::fill(logits.slice(-1, {_translateToken, _translateToken + 1}), -Inf);
+  }
+
   if (lastWasTimestamp) {
     if (penultimateWasTimestamp) {
       F::fill(logits.slice(-1, {_beginTimeToken, _endTimeToken + 1}), -Inf);
@@ -710,7 +723,7 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
   }
 
   if (_lastTimeToken > _beginTimeToken) {
-    F::fill(logits.slice(-1, {_beginTimeToken, _lastTimeToken}), -Inf);
+    F::fill(logits.slice(-1, {_beginTimeToken, _lastTimeToken + 1}), -Inf);
   }
 
   Tensor probs = F::softmax(logits);

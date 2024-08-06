@@ -181,7 +181,7 @@ func (w *WhisperTranscriber) parseTimestampToken(token string) (time.Duration, b
 // errors, return it directly.
 func (w *WhisperTranscriber) completeNext() error {
 	ok := w.comp.Next()
-	slog.Debug("completeNext()", "token", w.comp.Token(), "piece", w.comp.Text())
+	slog.Info("completeNext()", "token", w.comp.Token(), "piece", w.comp.Text())
 	if w.comp.Error() != nil {
 		return w.comp.Error()
 	} else if !ok {
@@ -212,7 +212,7 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 	for w.comp.Next() {
 		token := w.comp.Token()
 		piece := w.comp.Text()
-		slog.Debug("comp.next()", "token", token, "piece", piece)
+		slog.Info("comp.next()", "token", token, "piece", piece)
 		offset, isTimestampToken := w.parseTimestampToken(token)
 		if isTimestampToken {
 			result.End = w.waveOffset + offset
@@ -263,7 +263,6 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 
 	compConfig := llm.NewCompletionConfig()
 	compConfig.SetTopK(1)
-	compConfig.SetTemperature(1.5)
 	compConfig.SetConfig("generator.type", "whisper")
 	comp, err := w.WhisperModel.Complete(compConfig, prompt)
 	if err != nil {
