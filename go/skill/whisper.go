@@ -22,6 +22,7 @@ package skill
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"math"
@@ -181,7 +182,7 @@ func (w *WhisperTranscriber) parseTimestampToken(token string) (time.Duration, b
 // errors, return it directly.
 func (w *WhisperTranscriber) completeNext() error {
 	ok := w.comp.Next()
-	slog.Info("completeNext()", "token", w.comp.Token(), "piece", w.comp.Text())
+	slog.Debug("completeNext()", "token", w.comp.Token(), "piece", w.comp.Text())
 	if w.comp.Error() != nil {
 		return w.comp.Error()
 	} else if !ok {
@@ -204,7 +205,7 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 
 	beginOffset, ok := w.parseTimestampToken(w.comp.Token())
 	if !ok {
-		return TranscriptionResult{}, ErrInvalidWhisperSequence
+		return TranscriptionResult{}, fmt.Errorf("%w: not a time token", ErrInvalidWhisperSequence)
 	}
 	result.Begin = w.waveOffset + beginOffset
 
@@ -252,7 +253,7 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 		// ignore the last segment that less than 0.1s.
 		return ErrAudioEndOfStream
 	}
-	slog.Debug("prefill segment", "offset", w.waveOffset, "byteOffset", byteOffset)
+	slog.Info("prefill segment", "offset", w.waveOffset, "byteOffset", byteOffset)
 
 	nBytes := min(len(w.wavePayload)-byteOffset, 30*SampleRate*2)
 	audio := w.wavePayload[byteOffset : byteOffset+nBytes]
@@ -284,7 +285,7 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 	// language token.
 	lang, ok := w.parseLanguageToken(w.comp.Token())
 	if !ok {
-		return ErrInvalidWhisperSequence
+		return fmt.Errorf("%w: not a language token", ErrInvalidWhisperSequence)
 	}
 	w.predictedLanguage = lang
 
@@ -295,7 +296,7 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 	}
 
 	if w.comp.Token() != "<|transcribe|>" {
-		return ErrInvalidWhisperSequence
+		return fmt.Errorf("%w: not a transcribe token", ErrInvalidWhisperSequence)
 	}
 
 	// setup the compeltion done.

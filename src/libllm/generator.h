@@ -130,6 +130,7 @@ class WhisperGreedyGenerator : public BaseGenerator {
 
  private:
   float _temperature;
+  std::vector<int> _history;
   std::shared_ptr<LogitsProcessor> _whisperLogitsProcessor;
 
   WhisperGreedyGenerator(const GenerationConfig &config, std::shared_ptr<ModelForGeneration> model);

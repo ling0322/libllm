@@ -337,6 +337,7 @@ class TransformersFastBpeModelReader:
 
         # special symbols
         for piece, token_id in self._tokenizer.added_tokens_encoder.items():
+            print("SPECIAL SYMBOL", piece, token_id)
             while token_id >= len(vocab):
                 vocab.append(Token.unused(token_id))
 

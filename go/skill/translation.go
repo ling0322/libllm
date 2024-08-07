@@ -23,8 +23,16 @@ import (
 	"github.com/ling0322/libllm/go/llm"
 )
 
+type TranslationRequest struct {
+	Text              string
+	LeftContextSource string
+	LeftContextTarget string
+	SourceLang        Lang
+	TargetLang        Lang
+}
+
 type Translator interface {
-	Translate(text string, source, target Lang) (llm.Completion, error)
+	Translate(request TranslationRequest) (llm.Completion, error)
 
 	// return true if the translator supports the source and target language pairs.
 	IsSupport(source, target Lang) bool

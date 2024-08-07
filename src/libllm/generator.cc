@@ -264,12 +264,14 @@ int WhisperGreedyGenerator::searchToken(const Tensor &logits) {
     x = F::to(Device::kCpu, x);
   }
 
-  CHECK(x.getDim() == 1 && x.getStride(0) == 1);
+  // repetition penalty
+  for (int i = 0; i < 20; ++i) CHECK(x.getDim() == 1 && x.getStride(0) == 1);
   const float *data = x.getData<float>();
   const float *best = std::max_element(data, data + x.getShape(0));
 
   int tokenId = static_cast<int>(best - data);
   _whisperLogitsProcessor->notifyToken(tokenId);
+  _history.push_back(tokenId);
   return tokenId;
 }
 

@@ -69,6 +69,11 @@ CATCH_TEST_CASE("test CUDA layerNorm", "[op][cuda]") {
   CATCH_REQUIRE(tester.withTol(5e-3).testLayerNorm({1, 1, 160}));
 }
 
+CATCH_TEST_CASE("test CUDA repetitionPenalty", "[op][cuda]") {
+  OperatorTester tester = getOperatorTester();
+  CATCH_REQUIRE(tester.withTol(1e-3).testRepetitionPenalty());
+}
+
 CATCH_TEST_CASE("test CUDA matMul", "[op][cuda]") {
   OperatorTester tester = getOperatorTester();
   CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({1, 1, 128}, {50, 128}, true));

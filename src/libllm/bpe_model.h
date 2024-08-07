@@ -45,6 +45,7 @@ class BPEModel : public Vocab, private lut::NonCopyable {
   const std::string &getTokenPiece(int token_id) const override;
   const std::string &getTokenString(int token_id) const override;
   int getVocabSize() const override;
+  bool isControlToken(int tokenId) const override;
 
   /// @brief Get the id of <unknown> token. If no <unknown> tag exists in the model, return
   /// Vocab::kInvalidToken instead.

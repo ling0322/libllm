@@ -60,6 +60,7 @@ class CPUOperators : public Operators {
   void print(Tensor tensor) override;
   Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min, float max)
       override;
+  void repetitionPenalty(Tensor logits, Tensor history, float weight) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor softmax(Tensor input) override;
   Tensor sum(Tensor inputs) override;

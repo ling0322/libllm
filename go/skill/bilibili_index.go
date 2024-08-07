@@ -21,6 +21,7 @@ package skill
 
 import (
 	"fmt"
+	"math/rand"
 
 	"github.com/ling0322/libllm/go/llm"
 )
@@ -33,8 +34,25 @@ type indexTranslator struct {
 	model llm.Model
 }
 
-var sysPromptIndexTranslation = "你是一个专业且流利的翻译大语言模型，你能够把用户输入的%s文本翻译成%s，生成的翻译结果不要添加以及删除任何内容，不要是空的结果，不能出现原始文本！！！" +
-	"每次回复请以\"这句话的翻译结果是：\"开头。"
+var sysPromptIndexTranslation = "翻译%s到%s，回复请以\"翻译结果：\"开头。"
+
+var translationExamples = []map[Lang]string{
+	{
+		English:  "Today is Sunday.",
+		Chinese:  "今天是星期天。",
+		Japanese: "今日は日曜日です。",
+	},
+	{
+		English:  "Hello.",
+		Chinese:  "你好。",
+		Japanese: "ごきげんよう。",
+	},
+	{
+		English:  "Hello, World.",
+		Chinese:  "你好，世界。",
+		Japanese: "こんにちは世界。",
+	},
+}
 
 func (l *BilibiliIndex) Build(history []Message) (llm.Prompt, error) {
 	prompt := llm.NewPrompt()
@@ -105,22 +123,29 @@ func (l *indexTranslator) getSysPrompt(source, target Lang) (prompt string, err 
 	return fmt.Sprintf(sysPromptIndexTranslation, srcLang, tgtLang), nil
 }
 
-func (l *indexTranslator) Translate(text string, source, target Lang) (llm.Completion, error) {
+func (l *indexTranslator) Translate(request TranslationRequest) (llm.Completion, error) {
 	chat, err := NewChat(l.model)
 	if err != nil {
 		return nil, err
 	}
 
-	sysPrompt, err := l.getSysPrompt(source, target)
+	sysPrompt, err := l.getSysPrompt(request.SourceLang, request.TargetLang)
 	if err != nil {
 		return nil, err
 	}
 
-	messages := []Message{
-		{"system", sysPrompt},
-		{"user", text},
-		{"assistent", "这句话的翻译结果是："},
+	exampleIdx := rand.Intn(len(translationExamples))
+	leftCtxSrc := translationExamples[exampleIdx][request.SourceLang]
+	leftCtxTgt := translationExamples[exampleIdx][request.TargetLang]
+	if request.LeftContextSource != "" {
+		leftCtxSrc = request.LeftContextSource
+		leftCtxTgt = request.LeftContextTarget
 	}
 
+	messages := []Message{
+		{"system", sysPrompt},
+		{"user", leftCtxSrc + request.Text},
+		{"assistent", "翻译结果：" + leftCtxTgt},
+	}
 	return chat.Chat(messages)
 }

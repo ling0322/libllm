@@ -236,7 +236,7 @@ class WhisperLogitsProcessor : public LogitsProcessor {
  private:
   static constexpr float Inf = std::numeric_limits<float>::infinity();
 
-  std::vector<int> _history;
+  std::vector<LongType> _history;
 
   int _lastTimeToken;
   int _beginTimeToken;
@@ -247,6 +247,8 @@ class WhisperLogitsProcessor : public LogitsProcessor {
   int _noTimestampToken;
   int _langEnToken;
   int _langSuToken;
+
+  int _lastTimeTokenIdx;
 
   WhisperLogitsProcessor();
 };

@@ -408,6 +408,22 @@ bool OperatorTester::testRoPE() {
   return F::allClose(x, xr, 5e-3f);
 }
 
+bool OperatorTester::testRepetitionPenalty() {
+  lut::Random random(MagicNumber);
+  Tensor a = F::rand({2, 16}, DType::kFloat, Device::getCpu(), &random);
+  Tensor h = Tensor::create<LongType>({2, 4}, {1, 0, 1, 3, 0, 0, 0, 1});
+
+  Tensor x = _op->to(_testDevice, a);
+  Tensor y = _op->to(_testDevice, h);
+  x = _op->cast(x, _testFloatType);
+  _op->repetitionPenalty(x, y, 1.5);
+  x = _op->cast(x, DType::kFloat);
+  x = _op->to(Device::getCpu(), x);
+
+  F::repetitionPenalty(a, h, 1.5);
+  return F::allClose(x, a, _rtol, _atol);
+}
+
 bool OperatorTester::testUnfold() {
   constexpr int DIM = 129;
 

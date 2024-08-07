@@ -478,7 +478,7 @@ Tensor Attention::forward(StateMap &past, Tensor inputs) {
   v = v.transpose(1, 2);
 
   Tensor x;
-  if (_selfAttn && inputs.getShape(1) == 1) {
+  if (_selfAttn && inputs.getShape(1) > 1) {
     x = F::attention(q, k, v, F::causalMask(q.getShape(2), getCtx().getDevice()));
   } else {
     x = F::attention(q, k, v);
@@ -671,7 +671,8 @@ WhisperLogitsProcessor::WhisperLogitsProcessor()
       _translateToken(-1),
       _noTimestampToken(-1),
       _langEnToken(-1),
-      _langSuToken(-1) {
+      _langSuToken(-1),
+      _lastTimeTokenIdx(0) {
 }
 
 std::shared_ptr<WhisperLogitsProcessor> WhisperLogitsProcessor::newProcessor(const Vocab *vocab) {
@@ -706,6 +707,15 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
                                  _history[_history.size() - 2] == _transcribeToken ||
                                  _history[_history.size() - 2] == _translateToken;
 
+  constexpr int MaxHistory = 5;
+  if (!_history.empty()) {
+    Tensor history = Tensor::create<LongType>(
+        {std::min<int>(_history.size(), MaxHistory)},
+        lut::makeConstSpan(_history).subspan(std::max<LongType>(_history.size() - MaxHistory, 0)));
+    history = F::to(logits.getDevice(), history);
+    F::repetitionPenalty(logits, history, 1.5);
+  }
+
   if (lastWasTranscribe) {
     F::fill(logits.slice(-1, {_noTimestampToken, _noTimestampToken + 1}), -Inf);
   }
@@ -715,6 +725,7 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
   }
 
   if (lastWasTimestamp) {
+    _lastTimeTokenIdx = static_cast<int>(_history.size());
     if (penultimateWasTimestamp) {
       F::fill(logits.slice(-1, {_beginTimeToken, _endTimeToken + 1}), -Inf);
     } else {
@@ -735,7 +746,7 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
 
   float maxTextVal = *maxText.getData<float>();
   float sumTimestampVal = *sumTimestamp.getData<float>();
-  if (sumTimestampVal >= maxTextVal) {
+  if (sumTimestampVal >= maxTextVal || _history.size() - _lastTimeTokenIdx > 70) {
     F::fill(logits.slice(-1, {0, _eotToken}), -Inf);
   }
 }
@@ -790,6 +801,7 @@ Tensor WhisperModelForGeneration::buildDecoderInput(lut::Span<const PromptBlock>
   }
 
   int len = inputData.size();
+  LOG(INFO) << "prompt size " << len;
   Tensor inputs = Tensor::create<LongType>({1, len}, inputData);
   inputs = F::to(_decoder->getCtx().getDevice(), inputs);
   return inputs;
@@ -811,6 +823,7 @@ Tensor WhisperModelForGeneration::prefill(StateMap &past, const Prompt &prompt) 
 
   Tensor inputs = buildDecoderInput(prompt.getBlocks().subspan(1));
   Tensor x = _decoder->forward(past, inputs);
+  F::print(x);
 
   x = x.slice(1, {-1, None});
   x = _decoder->forwardLmHead(x);

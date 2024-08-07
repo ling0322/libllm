@@ -42,6 +42,7 @@
 #include "libllm/cpu/print.h"
 #include "libllm/cpu/rand.h"
 #include "libllm/cpu/reduce.h"
+#include "libllm/cpu/repetition_penalty.h"
 #include "libllm/cpu/softmax.h"
 #include "libllm/cpu/swiglu.h"
 #include "libllm/cpu/tensor.h"
@@ -126,6 +127,12 @@ Tensor CPUOperators::sum(Tensor inputs) {
 
 Tensor CPUOperators::max(Tensor inputs) {
   return cpu::reduce(inputs, MapReduceType::MAX);
+}
+
+void CPUOperators::repetitionPenalty(Tensor logits, Tensor history, float weight) {
+  CHECK(history.getDType() == DType::kLong);
+
+  return cpu::repetitionPenalty(logits, history, weight);
 }
 
 Tensor CPUOperators::rmsNorm(Tensor input, Tensor weight, float eps) {

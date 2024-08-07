@@ -192,6 +192,10 @@ bool BPEModel::isSpecialToken(int token_id) const {
   return _tokens[token_id].isSpecialToken();
 }
 
+bool BPEModel::isControlToken(int tokenId) const {
+  return _tokens[tokenId].isSpecialToken();
+}
+
 int32_t BPEModel::getTokenFlag(int token_id) const {
   return _tokens[token_id].flag;
 }

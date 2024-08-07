@@ -152,6 +152,10 @@ void copy(Tensor src, Tensor dest) {
   }
 }
 
+void repetitionPenalty(Tensor logits, Tensor history, float weight) {
+  getOperators(logits.getDevice().getType())->repetitionPenalty(logits, history, weight);
+}
+
 Tensor sum(Tensor tensor, int dim) {
   CHECK(dim == -1 || dim == tensor.getDim() - 1);
   return getOperators(tensor.getDevice().getType())->sum(tensor);

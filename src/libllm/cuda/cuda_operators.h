@@ -54,6 +54,7 @@ class CudaOperators : public Operators {
   Tensor mul(Tensor input, float other) override;
   Tensor mul(Tensor input, Tensor other) override;
   void print(Tensor tensor) override;
+  void repetitionPenalty(Tensor logits, Tensor history, float weight) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor softmax(Tensor input) override;
   Tensor sum(Tensor inputs) override;

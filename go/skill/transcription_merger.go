@@ -106,7 +106,7 @@ func (m *TranscriptionMerger) maybeSentenceBoundaryEn(left, right TranscriptionR
 	case flagLongAudioLengthL:
 		return true
 	default:
-		return false
+		return true
 	}
 }
 

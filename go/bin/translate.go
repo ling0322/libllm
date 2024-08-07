@@ -48,13 +48,8 @@ type translationResult struct {
 	processingTime time.Duration
 }
 
-func translate(
-	translator skill.Translator,
-	srcLang, tgtLang skill.Lang,
-	text string,
-	onToken func(string)) (translationResult, error) {
-
-	text = strings.TrimSpace(text)
+func translate(translator skill.Translator, req skill.TranslationRequest, onToken func(string)) (translationResult, error) {
+	text := strings.TrimSpace(req.Text)
 	if text == "" {
 		return translationResult{
 			srcText:        text,
@@ -64,7 +59,7 @@ func translate(
 		}, nil
 	}
 
-	comp, err := translator.Translate(text, srcLang, tgtLang)
+	comp, err := translator.Translate(req)
 	if err != nil {
 		return translationResult{}, err
 	}
@@ -135,9 +130,13 @@ func translationMain(args []string) {
 			log.Fatal(err)
 		}
 
-		result, err := translate(translator, srcLang, tgtLang, question, func(s string) {
-			fmt.Print(s)
-		})
+		req := skill.TranslationRequest{
+			Text:       question,
+			SourceLang: srcLang,
+			TargetLang: tgtLang,
+		}
+
+		result, err := translate(translator, req, func(s string) { fmt.Print(s) })
 		if err != nil {
 			log.Fatal(err)
 		}

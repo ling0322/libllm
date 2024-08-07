@@ -33,6 +33,7 @@
 #include "libllm/cuda/matmul.h"
 #include "libllm/cuda/print.h"
 #include "libllm/cuda/reduce.h"
+#include "libllm/cuda/repetition_penalty.h"
 #include "libllm/cuda/rms_norm.h"
 #include "libllm/cuda/softmax.h"
 #include "libllm/cuda/swiglu.h"
@@ -101,6 +102,12 @@ Tensor CudaOperators::softmax(Tensor input) {
 
 Tensor CudaOperators::add(Tensor input, Tensor other) {
   return op::cuda::binaryOp(input, other, BinaryOp::ADD);
+}
+
+void CudaOperators::repetitionPenalty(Tensor logits, Tensor history, float weight) {
+  CHECK(history.getDType() == DType::kLong);
+
+  return op::cuda::repetitionPenalty(logits, history, weight);
 }
 
 Tensor CudaOperators::rmsNorm(Tensor input, Tensor weight, float eps) {

@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/asticode/go-astisub"
-	"github.com/ling0322/libllm/go/llm"
 	"github.com/ling0322/libllm/go/skill"
 )
 
@@ -52,41 +51,6 @@ func TranscriptionToSubtitle(transcriptions []skill.TranscriptionResult) *astisu
 	}
 
 	return s
-}
-
-func translateTranscription(
-	translationModel string,
-	device llm.Device,
-	srcLang, tgtLang skill.Lang,
-	transcriptions []skill.TranscriptionResult) ([]skill.TranscriptionResult, error) {
-
-	model, err := createModelAutoDownload(translationModel, device)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	translator, err := skill.NewTranslator(model)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	merger := skill.NewTranscriptionMerger(skill.TranscriptionMergeOptions{
-		Language: skill.English,
-	})
-	transcriptions = merger.Merge(transcriptions)
-	translatedTrxn := []skill.TranscriptionResult{}
-	for _, t := range transcriptions {
-		tr, err := translate(translator, srcLang, tgtLang, t.Text, nil)
-		if err != nil {
-			return nil, err
-		}
-		slog.Info(fmt.Sprintf("translate \"%s\" to \"%s\"", t.Text, tr.tgtText))
-
-		t.Text = tr.tgtText
-		translatedTrxn = append(translatedTrxn, t)
-	}
-
-	return translatedTrxn, nil
 }
 
 func transcribeMain(args []string) {
@@ -165,11 +129,15 @@ func transcribeMain(args []string) {
 	model.Dispose()
 
 	if translationModelFile != "" {
-		transcriptions, err = translateTranscription(
-			translationModelFile, device, srcLang, tgtLang, transcriptions)
-	}
-	if err != nil {
-		log.Fatal(err)
+		tt, err := newTranscripotionTranslator(translationModelFile, device, srcLang, tgtLang)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		transcriptions, err = tt.translate(transcriptions)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	slog.Info(fmt.Sprintf("save file to %s", outputFile))
