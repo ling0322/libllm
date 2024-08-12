@@ -36,13 +36,16 @@ type transcriptionTranslator struct {
 	tgtLang    skill.Lang
 }
 
-func (t *transcriptionTranslator) translateOneInternal(text string) (translationResult, error) {
+func (t *transcriptionTranslator) translateOneInternal(
+	text string, temperature float32) (translationResult, error) {
+
 	req := skill.TranslationRequest{
 		Text:              text,
 		LeftContextSource: strings.Join(t.historySrc, " "),
 		LeftContextTarget: strings.Join(t.historyTgt, " "),
 		SourceLang:        t.srcLang,
 		TargetLang:        t.tgtLang,
+		Temperature:       temperature,
 	}
 	tr, err := translate(t.translator, req, nil)
 	if err != nil {
@@ -55,12 +58,14 @@ func (t *transcriptionTranslator) translateOneInternal(text string) (translation
 func (t *transcriptionTranslator) translateOneWithRetry(text string) (translationResult, error) {
 	var tr translationResult
 	var err error
+	var temperature float32 = 1.0
 	for n := 0; n < 5; n++ {
-		tr, err = t.translateOneInternal(text)
+		tr, err = t.translateOneInternal(text, temperature)
 		if err != nil {
 			return translationResult{}, err
 		}
 
+		tr.tgtText = strings.ReplaceAll(tr.tgtText, "\n", " ")
 		tr.tgtText = strings.TrimSpace(tr.tgtText)
 		if tr.tgtText != "" {
 			return tr, nil
@@ -71,6 +76,7 @@ func (t *transcriptionTranslator) translateOneWithRetry(text string) (translatio
 		t.historyTgt = []string{}
 	}
 
+	tr.tgtText = text
 	return tr, nil
 }
 
@@ -98,10 +104,6 @@ func (t *transcriptionTranslator) translateOne(text string) (translationResult, 
 
 func (t *transcriptionTranslator) translate(
 	transcriptions []skill.TranscriptionResult) ([]skill.TranscriptionResult, error) {
-	merger := skill.NewTranscriptionMerger(skill.TranscriptionMergeOptions{
-		Language: skill.English,
-	})
-	transcriptions = merger.Merge(transcriptions)
 	translatedTrxn := []skill.TranscriptionResult{}
 	for _, transcription := range transcriptions {
 		tr, err := t.translateOne(transcription.Text)

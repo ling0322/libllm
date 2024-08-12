@@ -213,7 +213,7 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 	for w.comp.Next() {
 		token := w.comp.Token()
 		piece := w.comp.Text()
-		slog.Info("comp.next()", "token", token, "piece", piece)
+		slog.Debug("comp.next()", "token", token, "piece", piece)
 		offset, isTimestampToken := w.parseTimestampToken(token)
 		if isTimestampToken {
 			result.End = w.waveOffset + offset
@@ -223,6 +223,7 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 
 		result.Text += piece
 	}
+	slog.Info("<EOT> got")
 	if w.comp.Error() != nil {
 		return TranscriptionResult{}, err
 	} else if !transcriptionDone {

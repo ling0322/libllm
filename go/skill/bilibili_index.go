@@ -34,12 +34,12 @@ type indexTranslator struct {
 	model llm.Model
 }
 
-var sysPromptIndexTranslation = "翻译%s到%s，回复请以\"翻译结果：\"开头。"
+var sysPromptIndexTranslation = "翻译%s到%s，不要换行，回复请以\"翻译结果：\"开头。"
 
 var translationExamples = []map[Lang]string{
 	{
 		English:  "Today is Sunday.",
-		Chinese:  "今天是星期天。",
+		Chinese:  "今天是星期日。",
 		Japanese: "今日は日曜日です。",
 	},
 	{
@@ -147,5 +147,10 @@ func (l *indexTranslator) Translate(request TranslationRequest) (llm.Completion,
 		{"user", leftCtxSrc + request.Text},
 		{"assistent", "翻译结果：" + leftCtxTgt},
 	}
+
+	if request.Temperature > 0 {
+		chat.SetTemperature(request.Temperature)
+	}
+
 	return chat.Chat(messages)
 }

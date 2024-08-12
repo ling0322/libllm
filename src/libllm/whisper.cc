@@ -727,9 +727,10 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
   if (lastWasTimestamp) {
     _lastTimeTokenIdx = static_cast<int>(_history.size());
     if (penultimateWasTimestamp) {
-      F::fill(logits.slice(-1, {_beginTimeToken, _endTimeToken + 1}), -Inf);
+      // do not mask the <|30.00|> timestamp tag
+      F::fill(logits.slice(-1, {_beginTimeToken, _endTimeToken}), -Inf);
     } else {
-      F::fill(logits.slice(-1, {0, _eotToken}), -Inf);
+      F::fill(logits.slice(-1, {0, _eotToken + 1}), -Inf);
     }
   }
 
@@ -823,7 +824,6 @@ Tensor WhisperModelForGeneration::prefill(StateMap &past, const Prompt &prompt) 
 
   Tensor inputs = buildDecoderInput(prompt.getBlocks().subspan(1));
   Tensor x = _decoder->forward(past, inputs);
-  F::print(x);
 
   x = x.slice(1, {-1, None});
   x = _decoder->forwardLmHead(x);

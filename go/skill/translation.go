@@ -29,6 +29,7 @@ type TranslationRequest struct {
 	LeftContextTarget string
 	SourceLang        Lang
 	TargetLang        Lang
+	Temperature       float32
 }
 
 type Translator interface {
