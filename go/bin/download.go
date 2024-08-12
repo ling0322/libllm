@@ -167,7 +167,8 @@ func downloadMain(args []string) {
 		printDownloadUsage(fs)
 	}
 
-	addModelFlag(fs)
+	ba := newBinArgs(fs)
+	ba.addModelFlag()
 	_ = fs.Parse(args)
 
 	if fs.NArg() != 0 {
@@ -175,7 +176,7 @@ func downloadMain(args []string) {
 		os.Exit(1)
 	}
 
-	modelName := getModelArg(fs)
+	modelName := ba.getModel()
 	if modelPath, err := checkModelInCache(modelName); err == nil {
 		fmt.Printf("model \"%s\" already downloaded. Path is \"%s\"\n", modelName, modelPath)
 	}

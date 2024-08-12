@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -36,7 +36,8 @@ class Vocab {
   // vocabulary.
   virtual int findToken(const std::string &piece) const = 0;
 
-  /// @brief find control token id by string. Exception will be thrown of the control token not exist.
+  /// @brief find control token id by string. Exception will be thrown of the control token not
+  /// exist.
   /// @param name name of the control token.
   /// @return id of the token.
   virtual int findControlToken(const std::string &name) const = 0;
@@ -53,9 +54,11 @@ class Vocab {
   // total number of tokens in the vocabulary.
   virtual int getVocabSize() const = 0;
 
+  // return true if token is a control token.
+  virtual bool isControlToken(int tokenId) const = 0;
+
   // id for unknown token.
   virtual int getUnkId() const = 0;
 };
-
 
 }  // namespace libllm

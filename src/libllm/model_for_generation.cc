@@ -80,7 +80,10 @@ void ModelForGeneration::encodePromptBlock(
       break;
     case PromptBlock::Text:
       for (int tokenId : _tokenizer->encode(block.text)) {
-        tokenIds.push_back(tokenId);
+        if (!getVocab()->isControlToken(tokenId)) {
+          tokenIds.push_back(tokenId);
+          LOG(DEBUG) << "token " << tokenId << " -> " << getVocab()->getTokenString(tokenId);
+        }
       }
       break;
     default:

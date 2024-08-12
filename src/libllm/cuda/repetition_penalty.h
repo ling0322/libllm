@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2024 Xiaoyang Chen
+// Copyright (c) 2023 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,38 +17,16 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package skill
+#pragma once
 
-import (
-	"github.com/ling0322/libllm/go/llm"
-)
+#include "libllm/tensor.h"
 
-type TranslationRequest struct {
-	Text              string
-	LeftContextSource string
-	LeftContextTarget string
-	SourceLang        Lang
-	TargetLang        Lang
-	Temperature       float32
-}
+namespace libllm {
+namespace op {
+namespace cuda {
 
-type Translator interface {
-	Translate(request TranslationRequest) (llm.Completion, error)
+void repetitionPenalty(Tensor logits, Tensor history, float weight);
 
-	// return true if the translator supports the source and target language pairs.
-	IsSupport(source, target Lang) bool
-}
-
-func NewTranslator(model llm.Model) (Translator, error) {
-	if model == nil {
-		return nil, ErrModelIsNil
-	}
-
-	modelName := model.GetName()
-	switch modelName {
-	case "index":
-		return &indexTranslator{model}, nil
-	default:
-		return nil, ErrInvalidModelForTranslation
-	}
-}
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

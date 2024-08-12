@@ -48,6 +48,10 @@ func NewChat(model llm.Model) (*Chat, error) {
 	}, nil
 }
 
+func (c *Chat) SetTemperature(temperature float32) {
+	c.compConfig.SetTemperature(temperature)
+}
+
 func (c *Chat) Chat(history []Message) (llm.Completion, error) {
 	prompt, err := c.promptBuilder.Build(history)
 	if err != nil {

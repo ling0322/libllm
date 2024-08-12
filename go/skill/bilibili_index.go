@@ -21,6 +21,7 @@ package skill
 
 import (
 	"fmt"
+	"math/rand"
 
 	"github.com/ling0322/libllm/go/llm"
 )
@@ -33,9 +34,25 @@ type indexTranslator struct {
 	model llm.Model
 }
 
-var sysPromptIndexTranslation = "你是一个翻译助手，对于用户输入的每一个%s句子，你必须一字不漏的把" +
-	"他们翻译成%s。翻译的结果*必须*保持遵循原来的意思，不要添加以及估故意删除任何内容。并且，*必须*保证句子" +
-	"的通顺，易于阅读。最后，每次回复请以\"这句话的翻译结果是：\"开头。"
+var sysPromptIndexTranslation = "翻译%s到%s，不要换行，回复请以\"翻译结果：\"开头。"
+
+var translationExamples = []map[Lang]string{
+	{
+		English:  "Today is Sunday.",
+		Chinese:  "今天是星期日。",
+		Japanese: "今日は日曜日です。",
+	},
+	{
+		English:  "Hello.",
+		Chinese:  "你好。",
+		Japanese: "ごきげんよう。",
+	},
+	{
+		English:  "Hello, World.",
+		Chinese:  "你好，世界。",
+		Japanese: "こんにちは世界。",
+	},
+}
 
 func (l *BilibiliIndex) Build(history []Message) (llm.Prompt, error) {
 	prompt := llm.NewPrompt()
@@ -84,7 +101,7 @@ func (l *indexTranslator) getLangString(lang Lang) (name string, err error) {
 	case Chinese:
 		return "中文", nil
 	case English:
-		return "英语", nil
+		return "英文", nil
 	case Japanese:
 		return "日语", nil
 	default:
@@ -106,21 +123,33 @@ func (l *indexTranslator) getSysPrompt(source, target Lang) (prompt string, err 
 	return fmt.Sprintf(sysPromptIndexTranslation, srcLang, tgtLang), nil
 }
 
-func (l *indexTranslator) Translate(text string, source, target Lang) (llm.Completion, error) {
+func (l *indexTranslator) Translate(request TranslationRequest) (llm.Completion, error) {
 	chat, err := NewChat(l.model)
 	if err != nil {
 		return nil, err
 	}
 
-	sysPrompt, err := l.getSysPrompt(source, target)
+	sysPrompt, err := l.getSysPrompt(request.SourceLang, request.TargetLang)
 	if err != nil {
 		return nil, err
 	}
 
+	exampleIdx := rand.Intn(len(translationExamples))
+	leftCtxSrc := translationExamples[exampleIdx][request.SourceLang]
+	leftCtxTgt := translationExamples[exampleIdx][request.TargetLang]
+	if request.LeftContextSource != "" {
+		leftCtxSrc = request.LeftContextSource
+		leftCtxTgt = request.LeftContextTarget
+	}
+
 	messages := []Message{
 		{"system", sysPrompt},
-		{"user", text},
-		{"assistent", "这句话的翻译结果是："},
+		{"user", leftCtxSrc + request.Text},
+		{"assistent", "翻译结果：" + leftCtxTgt},
+	}
+
+	if request.Temperature > 0 {
+		chat.SetTemperature(request.Temperature)
 	}
 
 	return chat.Chat(messages)

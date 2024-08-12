@@ -25,6 +25,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime"
 )
@@ -41,6 +42,8 @@ type Completion interface {
 	// For a control token, Text() will return an empty string ("") and Token() will return its
 	// name, for example, "<|endoftext|>".
 	Token() string
+
+	Dispose()
 }
 
 type completionHandle struct {
@@ -97,6 +100,11 @@ func (c *completionImpl) Token() string {
 	return c.chunkToken
 }
 
+func (c *completionImpl) Dispose() {
+	c.handle.dispose()
+	c.handle = nil
+}
+
 func newCompletionImpl(modelHandle *modelHandle) (*completionImpl, error) {
 	handle, err := newCompletionHandle(modelHandle)
 	if err != nil {
@@ -106,6 +114,22 @@ func newCompletionImpl(modelHandle *modelHandle) (*completionImpl, error) {
 	return &completionImpl{
 		handle: handle,
 	}, nil
+}
+
+func (h *completionHandle) dispose() error {
+	if h.handle == nil {
+		return nil
+	}
+
+	status := C.llmCompletion_Delete(h.handle)
+	if status != C.LLM_OK {
+		slog.Error(
+			"failed to call llmCompletion_Delete()",
+			"message", C.GoString(C.llmGetLastErrorMessage()))
+	}
+
+	h.handle = nil
+	return nil
 }
 
 func newCompletionHandle(m *modelHandle) (*completionHandle, error) {

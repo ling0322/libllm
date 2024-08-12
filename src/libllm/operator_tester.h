@@ -58,6 +58,7 @@ class OperatorTester {
   LUT_CHECK_RETURN bool testCausalMask();
   LUT_CHECK_RETURN bool testRoPE();
   LUT_CHECK_RETURN bool testUnfold();
+  LUT_CHECK_RETURN bool testRepetitionPenalty();
 
  private:
   bool _printBenchmarkInfo;

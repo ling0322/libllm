@@ -41,16 +41,62 @@ func printTranslateUsage(fs *flag.FlagSet) {
 	fmt.Fprintln(os.Stderr, "")
 }
 
+type translationResult struct {
+	srcText        string
+	tgtText        string
+	numTokens      int
+	processingTime time.Duration
+}
+
+func translate(translator skill.Translator, req skill.TranslationRequest, onToken func(string)) (translationResult, error) {
+	text := strings.TrimSpace(req.Text)
+	if text == "" {
+		return translationResult{
+			srcText:        text,
+			tgtText:        "",
+			numTokens:      0,
+			processingTime: time.Duration(0),
+		}, nil
+	}
+
+	comp, err := translator.Translate(req)
+	if err != nil {
+		return translationResult{}, err
+	}
+
+	t0 := time.Now()
+	answer := ""
+	numToken := 0
+	for comp.Next() {
+		if onToken != nil {
+			onToken(comp.Text())
+		}
+		answer += comp.Text()
+		numToken++
+	}
+	if err := comp.Error(); err != nil {
+		return translationResult{}, err
+	}
+
+	return translationResult{
+		srcText:        text,
+		tgtText:        answer,
+		numTokens:      numToken,
+		processingTime: time.Since(t0),
+	}, nil
+}
+
 func translationMain(args []string) {
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	fs.Usage = func() {
 		printTranslateUsage(fs)
 	}
 
-	addModelFlag(fs)
-	addDeviceFlag(fs)
-	addLangFlag(fs)
-	addTargetLangFlag(fs)
+	ba := newBinArgs(fs)
+	ba.addModelFlag()
+	ba.addDeviceFlag()
+	ba.addLangFlag()
+	ba.addTargetLangFlag()
 	_ = fs.Parse(args)
 
 	if fs.NArg() != 0 {
@@ -58,8 +104,8 @@ func translationMain(args []string) {
 		os.Exit(1)
 	}
 
-	modelName := getModelArg(fs)
-	model, err := createModelAutoDownload(modelName, getDeviceArg())
+	modelName := ba.getModel()
+	model, err := createModelAutoDownload(modelName, ba.getDevice())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,8 +115,8 @@ func translationMain(args []string) {
 		log.Fatal(err)
 	}
 
-	srcLang := getLangArg(fs)
-	tgtLang := getTergatLangArg(fs)
+	srcLang := ba.getLang()
+	tgtLang := ba.getTargetLang()
 
 	for {
 		reader := bufio.NewReader(os.Stdin)
@@ -84,35 +130,23 @@ func translationMain(args []string) {
 			log.Fatal(err)
 		}
 
-		question = strings.TrimSpace(question)
-		if question == "" {
-			continue
+		req := skill.TranslationRequest{
+			Text:       question,
+			SourceLang: srcLang,
+			TargetLang: tgtLang,
 		}
 
-		comp, err := translator.Translate(question, srcLang, tgtLang)
+		result, err := translate(translator, req, func(s string) { fmt.Print(s) })
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		t0 := time.Now()
-		answer := ""
-		numToken := 0
-		for comp.Next() {
-			fmt.Print(comp.Text())
-			answer += comp.Text()
-			numToken++
-		}
-		if err := comp.Error(); err != nil {
-			log.Fatal(err)
-		}
-
 		fmt.Println()
-		dur := time.Since(t0)
 		fmt.Printf(
 			gLocalizer.Get(MsgStat),
-			numToken,
-			dur.Seconds(),
-			dur.Seconds()*1000/float64(numToken),
+			result.numTokens,
+			result.processingTime.Seconds(),
+			result.processingTime.Seconds()*1000/float64(result.numTokens),
 		)
 	}
 }

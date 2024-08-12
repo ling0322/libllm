@@ -22,7 +22,8 @@ package skill
 type Lang int
 
 const (
-	English = Lang(iota)
+	Unknown = Lang(iota)
+	English
 	Chinese
 	Japanese
 )

@@ -22,6 +22,7 @@ package skill
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"math"
@@ -204,7 +205,7 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 
 	beginOffset, ok := w.parseTimestampToken(w.comp.Token())
 	if !ok {
-		return TranscriptionResult{}, ErrInvalidWhisperSequence
+		return TranscriptionResult{}, fmt.Errorf("%w: not a time token", ErrInvalidWhisperSequence)
 	}
 	result.Begin = w.waveOffset + beginOffset
 
@@ -222,6 +223,7 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 
 		result.Text += piece
 	}
+	slog.Info("<EOT> got")
 	if w.comp.Error() != nil {
 		return TranscriptionResult{}, err
 	} else if !transcriptionDone {
@@ -252,7 +254,7 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 		// ignore the last segment that less than 0.1s.
 		return ErrAudioEndOfStream
 	}
-	slog.Debug("prefill segment", "offset", w.waveOffset, "byteOffset", byteOffset)
+	slog.Info("prefill segment", "offset", w.waveOffset, "byteOffset", byteOffset)
 
 	nBytes := min(len(w.wavePayload)-byteOffset, 30*SampleRate*2)
 	audio := w.wavePayload[byteOffset : byteOffset+nBytes]
@@ -263,7 +265,6 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 
 	compConfig := llm.NewCompletionConfig()
 	compConfig.SetTopK(1)
-	compConfig.SetTemperature(1.5)
 	compConfig.SetConfig("generator.type", "whisper")
 	comp, err := w.WhisperModel.Complete(compConfig, prompt)
 	if err != nil {
@@ -285,7 +286,7 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 	// language token.
 	lang, ok := w.parseLanguageToken(w.comp.Token())
 	if !ok {
-		return ErrInvalidWhisperSequence
+		return fmt.Errorf("%w: not a language token", ErrInvalidWhisperSequence)
 	}
 	w.predictedLanguage = lang
 
@@ -296,11 +297,18 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 	}
 
 	if w.comp.Token() != "<|transcribe|>" {
-		return ErrInvalidWhisperSequence
+		return fmt.Errorf("%w: not a transcribe token", ErrInvalidWhisperSequence)
 	}
 
 	// setup the compeltion done.
 	return nil
+}
+
+func (w *WhisperTranscriber) disposeCompAndSetToNil() {
+	if w.comp != nil {
+		w.comp.Dispose()
+		w.comp = nil
+	}
 }
 
 // implements interface Transcriber.
@@ -331,12 +339,12 @@ func (w *WhisperTranscriber) Transcribe() bool {
 		}
 
 		if errors.Is(w.err, ErrNoMoreResults) {
-			w.comp = nil
+			w.disposeCompAndSetToNil()
 			w.err = nil
 			w.waveOffset += 30 * time.Second
 			continue
 		} else if errors.Is(w.err, ErrAudioEndOfStream) {
-			w.comp = nil
+			w.disposeCompAndSetToNil()
 			w.err = nil
 			return false
 		} else if w.err != nil {
@@ -346,12 +354,12 @@ func (w *WhisperTranscriber) Transcribe() bool {
 		result, err := w.decodeTranscription()
 		if errors.Is(err, ErrNoMoreResults) && beginOfSegment {
 			// if no result for the whole audio segment, move forward to the next 30s segment.
-			w.comp = nil
+			w.disposeCompAndSetToNil()
 			w.waveOffset += 30 * time.Second
 			continue
 		} else if errors.Is(err, ErrNoMoreResults) && !beginOfSegment {
 			// move the wave offset to the end of last completed transcription.
-			w.comp = nil
+			w.disposeCompAndSetToNil()
 			w.waveOffset = w.result.End
 			continue
 		} else if err != nil {
@@ -372,6 +380,13 @@ func (w *WhisperTranscriber) Result() TranscriptionResult {
 // implements interface Transcriber.
 func (w *WhisperTranscriber) Err() error {
 	return w.err
+}
+
+// implements interface Transcriber.
+func (w *WhisperTranscriber) Dispose() {
+	if w.comp != nil {
+		w.disposeCompAndSetToNil()
+	}
 }
 
 // implements interface Transcriber.

@@ -214,7 +214,8 @@ WhisperGreedyGenerator::WhisperGreedyGenerator(
     const GenerationConfig &config,
     std::shared_ptr<ModelForGeneration> model)
     : BaseGenerator(model),
-      _temperature(config.temperature) {
+      _temperature(config.temperature),
+      _noSpeechToken(-1) {
 }
 
 std::shared_ptr<WhisperGreedyGenerator> WhisperGreedyGenerator::newGenerator(
@@ -228,6 +229,7 @@ std::shared_ptr<WhisperGreedyGenerator> WhisperGreedyGenerator::newGenerator(
 
   generator->_whisperLogitsProcessor = whisper::WhisperLogitsProcessor::newProcessor(
       model->getVocab());
+  generator->_noSpeechToken = model->getVocab()->findControlToken("<|nospeech|>");
 
   return generator;
 }
@@ -265,11 +267,18 @@ int WhisperGreedyGenerator::searchToken(const Tensor &logits) {
   }
 
   CHECK(x.getDim() == 1 && x.getStride(0) == 1);
-  const float *data = x.getData<float>();
+  float *data = x.getData<float>();
+  data[_noSpeechToken] = 0.0f;
+
   const float *best = std::max_element(data, data + x.getShape(0));
 
   int tokenId = static_cast<int>(best - data);
+  if (tokenId == _noSpeechToken) {
+    LOG(INFO) << "<|nospeech|> prob=" << data[tokenId];
+  }
+
   _whisperLogitsProcessor->notifyToken(tokenId);
+  _history.push_back(tokenId);
   return tokenId;
 }
 

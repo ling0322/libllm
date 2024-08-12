@@ -129,6 +129,10 @@ Tensor Operators::unfold(Tensor input, int kernelSize, int stride) {
   NOT_IMPL();
 }
 
+void Operators::repetitionPenalty(Tensor logits, Tensor history, float weight) {
+  NOT_IMPL();
+}
+
 Tensor Operators::cast(Tensor tensor, DType dtype) {
   NOT_IMPL();
 }

@@ -57,6 +57,7 @@ class Operators {
   virtual Tensor swiglu(Tensor A);
   virtual Tensor to(Device device, Tensor tensor);
   virtual Tensor unfold(Tensor input, int kernelSize, int stride);
+  virtual void repetitionPenalty(Tensor logits, Tensor history, float weight);
   virtual Tensor cast(Tensor tensor, DType dtype);
   virtual Tensor logMelSpectrogram(Tensor wave);
   virtual Tensor rand(

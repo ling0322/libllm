@@ -208,6 +208,12 @@ Tensor unfold(Tensor input, int kernelSize, int stride);
 /// @return <float>(feature_len, FeatDim=80): the logMelSpectrogram feature.
 Tensor logMelSpectrogram(Tensor wave);
 
+/// @brief Apply repetition penalty to the logits tensor according to the history tensor.
+/// @param logits <float>(N, vocab_size): the logits tensor to apply repetition penalty.
+/// @param history <long>(N, hsitory_len): the token history.
+/// @param weight weight of repetition penalty.
+void repetitionPenalty(Tensor logits, Tensor history, float weight);
+
 /// @brief Copy the tensor to target device. If `castFloat` is true and the tensor type is float,
 //         it will cast the data type to default float type of that device.
 /// @param tensor the source tensor.
