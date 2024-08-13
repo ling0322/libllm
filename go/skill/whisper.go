@@ -223,7 +223,6 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 
 		result.Text += piece
 	}
-	slog.Info("<EOT> got")
 	if w.comp.Error() != nil {
 		return TranscriptionResult{}, err
 	} else if !transcriptionDone {

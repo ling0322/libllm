@@ -182,7 +182,7 @@ def run_whisper(huggingface_name):
 
     print(pipe(audio_file))
 
-MODEL_NAME = "openai/whisper-large-v2"
+MODEL_NAME = "openai/whisper-large-v3"
 MODEL_BIN = "model.bin"
 MODEL_INI = "model.ini"
 TOKENIZER_BIN = "tokenizer.bin"

@@ -802,7 +802,6 @@ Tensor WhisperModelForGeneration::buildDecoderInput(lut::Span<const PromptBlock>
   }
 
   int len = inputData.size();
-  LOG(INFO) << "prompt size " << len;
   Tensor inputs = Tensor::create<LongType>({1, len}, inputData);
   inputs = F::to(_decoder->getCtx().getDevice(), inputs);
   return inputs;
