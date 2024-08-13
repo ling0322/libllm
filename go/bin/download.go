@@ -22,11 +22,13 @@ var ModelCacheDir = getModelCacheDir()
 var modelUrls = map[string]string{
 	"index-chat":      "https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/resolve/main/bilibili-index-1.9b-chat-q4.llmpkg",
 	"index-character": "https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/resolve/main/bilibili-index-1.9b-character-q4.llmpkg",
+	"whisper-large-v3": "https://huggingface.co/ling0322/whisper-libllm/resolve/main/whisper-large-v3-q4.llmpkg",
 }
 
 var modelFilenames = map[string]string{
 	"index-chat":      "bilibili-index-1.9b-chat-q4.llmpkg",
 	"index-character": "bilibili-index-1.9b-character-q4.llmpkg",
+	"whisper-large-v3": "whisper-large-v3-q4.llmpkg",
 }
 
 func getModelCacheDir() string {
