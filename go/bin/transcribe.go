@@ -99,14 +99,8 @@ func transcribeMain(args []string) {
 		log.Fatal(err)
 	}
 
-	fd, err := os.Open(inputFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer fd.Close()
-
 	d0 := time.Now()
-	transcriber := skill.NewWhisperTranscriber(model, fd)
+	transcriber := skill.NewWhisperTranscriber(model, inputFile)
 	transcriptions := []skill.TranscriptionResult{}
 	for transcriber.Transcribe() {
 		r := transcriber.Result()

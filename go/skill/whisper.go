@@ -20,29 +20,20 @@
 package skill
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"math"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/ling0322/libllm/go/llm"
 )
 
 var regexpLangToken = regexp.MustCompile(`^<\|([a-z][a-z][a-z]?)\|>$`)
-var getFfmpegBin = sync.OnceValue[string](getFfmpegBinInternal)
-
 var ErrInvalidWhisperSequence = errors.New("invalid sequence for Whisper model")
-var ErrStreamIsNil = errors.New("input stream is nil")
+var ErrFilenameIsEmpty = errors.New("input filename is empty")
 var ErrWhisperModelIsNil = errors.New("whisper model is nil")
 var ErrNoMoreResults = errors.New("no more results")
 var ErrAudioEndOfStream = errors.New("audio end of stream")
@@ -66,7 +57,7 @@ type WhisperTranscriber struct {
 	WhisperModel llm.Model
 
 	// the reader for input file.
-	InputStream io.Reader
+	InputFile string
 
 	// current state in whisper sequence decoding.
 	state int
@@ -91,72 +82,12 @@ type WhisperTranscriber struct {
 }
 
 // create a new instance of WhisperTranscriber from whisper model and stream of input file.
-func NewWhisperTranscriber(whisperModel llm.Model, inputStream io.Reader) *WhisperTranscriber {
+func NewWhisperTranscriber(whisperModel llm.Model, inputFile string) *WhisperTranscriber {
 	return &WhisperTranscriber{
 		WhisperModel: whisperModel,
-		InputStream:  inputStream,
+		InputFile:    inputFile,
 		state:        whisperStateAudio,
 	}
-}
-
-// find the path of ffmpeg.
-func getFfmpegBinInternal() string {
-	ffmpegBin := "ffmpeg"
-	if runtime.GOOS == "windows" {
-		ffmpegBin += ".exe"
-	}
-
-	cmd := exec.Command(ffmpegBin, "-version")
-	err := cmd.Run()
-	if err == nil {
-		// ffmpeg in $PATH
-		return ffmpegBin
-	}
-
-	binPath, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-
-	binDir := filepath.Dir(binPath)
-	ffmpegPath := filepath.Join(binDir, ffmpegBin)
-	_, err = os.Stat(ffmpegPath)
-	if err != nil {
-		return ""
-	}
-
-	// ffmpeg found in the dir as llm, check it.
-	cmd = exec.Command(ffmpegPath, "-version")
-	err = cmd.Run()
-	if err != nil {
-		return ""
-	}
-
-	return ffmpegPath
-}
-
-// convert the input file to pcm .wav file in OS temporary directory using ffmpeg.
-func convertToPcm(inputStream io.Reader) ([]byte, error) {
-	ffmpegBin := getFfmpegBin()
-	if ffmpegBin == "" {
-		return nil, errors.New("unable to find ffmpeg")
-	}
-
-	// ffmpeg found in the dir as llm, check it.
-	cmd := exec.Command(
-		ffmpegBin, "-hide_banner", "-nostdin", "-vn", "-threads", "0", "-i", "-", "-f",
-		"s16le", "-ac", "1", "-acodec", "pcm_s16le", "-ar", "16000", "-")
-	cmd.Stdin = inputStream
-
-	var dataBuffer, errBuffer bytes.Buffer
-	cmd.Stdout = &dataBuffer
-	cmd.Stderr = &errBuffer
-	if err := cmd.Run(); err != nil {
-		slog.Error("ffmpeg failed", "stderr", errBuffer.String())
-		return nil, err
-	}
-
-	return dataBuffer.Bytes(), nil
 }
 
 // parse a whisper timestamp token like <|3.22|>. On success. return the (parsed-time, true). On
@@ -313,7 +244,7 @@ func (w *WhisperTranscriber) disposeCompAndSetToNil() {
 // implements interface Transcriber.
 func (w *WhisperTranscriber) Transcribe() bool {
 	if w.wavePayload == nil {
-		w.wavePayload, w.err = convertToPcm(w.InputStream)
+		w.wavePayload, w.err = ReadAudioFromMediaFile(w.InputFile)
 	}
 	if w.err != nil {
 		return false
@@ -324,8 +255,8 @@ func (w *WhisperTranscriber) Transcribe() bool {
 		return false
 	}
 
-	if w.InputStream == nil {
-		w.err = ErrStreamIsNil
+	if w.InputFile == "" {
+		w.err = ErrFilenameIsEmpty
 		return false
 	}
 

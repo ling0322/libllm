@@ -161,6 +161,12 @@ if (WITH_CUDA)
     target_include_directories(llmplugincublas_static PRIVATE ${libllm_INCDIR})
 endif()
 
+if (ENABLE_FFMPEG_PLUGIN)
+    add_library(llmpluginffmpeg_static OBJECT "read_audio_ffmpeg.cc")
+    target_compile_options(llmpluginffmpeg_static PRIVATE "-DLIBLLM_EXPORTS")
+    target_include_directories(llmpluginffmpeg_static PRIVATE  ${libllm_INCDIR} "../../third_party/ffmpeg-7.0.2/")
+endif()
+
 add_library(libllm_static OBJECT ${libllm_SOURCES})
 target_compile_options(libllm_static PRIVATE "-DLIBLLM_EXPORTS")
 set_target_properties(libllm_static PROPERTIES CXX_VISIBILITY_PRESET hidden)
@@ -169,3 +175,4 @@ target_include_directories(libllm_static PRIVATE ${libllm_INCDIR})
 
 add_library(libllm_test OBJECT ${libllm_test_SOURCES})
 target_include_directories(libllm_test PRIVATE ${libllm_INCDIR})
+
