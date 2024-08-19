@@ -44,8 +44,8 @@ jobs:
              ${{github.workspace}}/build/libllmplugincublas.so
              ${{github.workspace}}/build/libllmpluginffmpeg.so
     - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            release-linux-x64-cuda.zip 
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          release-linux-x64-cuda.zip 
