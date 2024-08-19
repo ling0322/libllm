@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 
 	"github.com/ling0322/libllm/go/llm"
@@ -20,15 +21,44 @@ var ErrInvalidModelName = errors.New("invalid model name")
 var ModelCacheDir = getModelCacheDir()
 
 var modelUrls = map[string]string{
-	"index-chat":      "https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/resolve/main/bilibili-index-1.9b-chat-q4.llmpkg",
-	"index-character": "https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/resolve/main/bilibili-index-1.9b-character-q4.llmpkg",
-	"whisper-large-v3": "https://huggingface.co/ling0322/whisper-libllm/resolve/main/whisper-large-v3-q4.llmpkg",
+	"index:chat:q4":       "https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/resolve/main/bilibili-index-1.9b-chat-q4.llmpkg",
+	"index:character:q4":  "https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/resolve/main/bilibili-index-1.9b-character-q4.llmpkg",
+	"whisper:large-v3:q4": "https://huggingface.co/ling0322/whisper-libllm/resolve/main/whisper-large-v3-q4.llmpkg",
+	"qwen:7b:q4":          "https://huggingface.co/ling0322/qwen-libllm/resolve/main/qwen2-7b-instruct-q4.llmpkg",
+	"qwen:1.5b:q4":        "https://huggingface.co/ling0322/qwen-libllm/resolve/main/qwen2-1.5b-instruct-q4.llmpkg",
 }
 
 var modelFilenames = map[string]string{
-	"index-chat":      "bilibili-index-1.9b-chat-q4.llmpkg",
-	"index-character": "bilibili-index-1.9b-character-q4.llmpkg",
-	"whisper-large-v3": "whisper-large-v3-q4.llmpkg",
+	"index:chat:q4":       "bilibili-index-1.9b-chat-q4.llmpkg",
+	"index:character:q4":  "bilibili-index-1.9b-character-q4.llmpkg",
+	"whisper:large-v3:q4": "whisper-large-v3-q4.llmpkg",
+	"qwen:7b:q4":          "qwen2-7b-instruct-q4.llmpkg",
+	"qwen:1.5b:q4":        "qwen2-1.5b-instruct-q4.llmpkg",
+}
+
+var defaultModelNames = map[string]string{
+	"index":               "index:chat:q4",
+	"index:chat":          "index:chat:q4",
+	"index:chat:q4":       "index:chat:q4",
+	"index:character":     "index:character:q4",
+	"index:character:q4":  "index:character:q4",
+	"whisper":             "whisper:large-v3:q4",
+	"whisper:large-v3":    "whisper:large-v3:q4",
+	"whisper:large-v3:q4": "whisper:large-v3:q4",
+	"qwen":                "qwen:7b:q4",
+	"qwen:7b":             "qwen:7b:q4",
+	"qwen:7b:q4":          "qwen:7b:q4",
+	"qwen:1.5b":           "qwen:1.5b:q4",
+	"qwen:1.5b:q4":        "qwen:1.5b:q4",
+}
+
+func resolveModelName(name string) (resolvedName string, err error) {
+	resolvedName, ok := defaultModelNames[name]
+	if !ok {
+		return "", fmt.Errorf("unable to resolve model name \"%s\"", name)
+	}
+
+	return
 }
 
 func getModelCacheDir() string {
@@ -90,7 +120,7 @@ func downloadModel(name string) (modelPath string, err error) {
 
 	bar := progressbar.DefaultBytes(
 		resp.ContentLength,
-		"Downloading",
+		filename,
 	)
 	_, err = io.Copy(io.MultiWriter(f, bar), resp.Body)
 	if err != nil {
@@ -124,6 +154,11 @@ func checkModelInCache(name string) (modelPath string, err error) {
 }
 
 func getOrDownloadModel(name string) (modelPath string, err error) {
+	name, err = resolveModelName(name)
+	if err != nil {
+		return
+	}
+
 	modelPath, err = checkModelInCache(name)
 	if err == nil {
 		return
@@ -136,11 +171,10 @@ func createModelAutoDownload(nameOrPath string, device llm.Device) (llm.Model, e
 	var modelPath string
 	var err error
 
-	_, ok := modelFilenames[nameOrPath]
-	if ok {
-		modelPath, err = getOrDownloadModel(nameOrPath)
-	} else {
+	if filepath.Ext(nameOrPath) == ".llmpkg" {
 		modelPath = nameOrPath
+	} else {
+		modelPath, err = getOrDownloadModel(nameOrPath)
 	}
 
 	if err != nil {
