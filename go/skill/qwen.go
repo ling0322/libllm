@@ -20,21 +20,42 @@
 package skill
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/ling0322/libllm/go/llm"
 )
 
-type promptBuilder interface {
-	Build(history []Message) (llm.Prompt, error)
+type Qwen struct {
 }
 
-func newPromptBuilder(modelName string) (promptBuilder, error) {
-	if modelName == "llama" {
-		return &Llama{}, nil
-	} else if modelName == "index" {
-		return &BilibiliIndex{}, nil
-	} else if modelName == "qwen" {
-		return &Qwen{}, nil
-	} else {
-		return nil, ErrInvalidModelForChat
+func (l *Qwen) Build(history []Message) (llm.Prompt, error) {
+	if len(history) == 0 {
+		return nil, errors.New("history is empty")
 	}
+
+	prompt := llm.NewPrompt()
+	for _, message := range history[:len(history)-1] {
+		prompt.AppendControlToken("<|im_start|>")
+		prompt.AppendText(fmt.Sprintf("%s\n%s", message.Role, message.Content))
+		prompt.AppendControlToken("<|im_end|>")
+		prompt.AppendText("\n")
+	}
+
+	lastMessage := history[len(history)-1]
+	if lastMessage.Role == "user" {
+		prompt.AppendControlToken("<|im_start|>")
+		prompt.AppendText(fmt.Sprintf("%s\n%s", lastMessage.Role, lastMessage.Content))
+		prompt.AppendControlToken("<|im_end|>")
+		prompt.AppendText("\n")
+		prompt.AppendControlToken("<|im_start|>")
+		prompt.AppendText("assistant\n")
+	} else if lastMessage.Role == "assistant" {
+		prompt.AppendControlToken("<|im_start|>")
+		prompt.AppendText(fmt.Sprintf("%s\n%s", lastMessage.Role, lastMessage.Content))
+	} else {
+		return nil, errors.New("last message should be either user or assistant")
+	}
+
+	return prompt, nil
 }
