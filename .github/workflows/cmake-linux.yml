@@ -13,11 +13,14 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
-    - name: cuda-toolkit
-      uses: Jimver/cuda-toolkit@v0.2.16  
+    - uses: Jimver/cuda-toolkit@v0.2.16
+      id: cuda-toolkit
       with:
-        cuda: '12.5.0'      
+        cuda: '12.5.0'
+    - run: echo "Installed cuda version is: ${{steps.cuda-toolkit.outputs.cuda}}"
+    - run: echo "Cuda install location: ${{steps.cuda-toolkit.outputs.CUDA_PATH}}"
+    - run: nvcc -V
+    - uses: actions/checkout@v3    
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DWITH_CUDA=ON
     - name: Build
