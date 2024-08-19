@@ -137,7 +137,7 @@ def run_llama_chat(huggingface_name):
     response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
     print(response)
 
-MODEL_NAME = "meta-llama/Meta-Llama-3-8B-Instruct"
+MODEL_NAME = "meta-llama/Meta-Llama-3.1-8B"
 MODEL_BIN = "model.bin"
 MODEL_INI = "model.ini"
 TOKENIZER_BIN = "tokenizer.bin"

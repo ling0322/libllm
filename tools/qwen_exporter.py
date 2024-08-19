@@ -109,7 +109,7 @@ def run_qwen(huggingface_name):
     response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
     print(response)
 
-MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"
+MODEL_NAME = "Qwen/Qwen2-7B-Instruct"
 MODEL_BIN = "model.bin"
 MODEL_INI = "model.ini"
 TOKENIZER_BIN = "tokenizer.bin"
@@ -130,8 +130,7 @@ if __name__ == '__main__':
         sys.exit(0)
 
     tokenizer = AutoTokenizer.from_pretrained(args.huggingface_name, use_fast=False)
-    model = AutoModelForCausalLM.from_pretrained(args.huggingface_name, device_map="auto").eval()
-    model.to("cpu")
+    model = AutoModelForCausalLM.from_pretrained(args.huggingface_name, device_map="cpu").eval()
 
     with zipfile.ZipFile(args.output, "w", compression=zipfile.ZIP_STORED) as package:
         with package.open(MODEL_BIN, "w", force_zip64=True) as fp:
