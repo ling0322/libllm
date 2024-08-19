@@ -2,21 +2,6 @@
 
 set -e
 
-uname_out="$(uname -s)"
-case "${uname_out}" in
-    Linux*)     machine=linux;;
-    Darwin*)    machine=darwin;;
-    CYGWIN*)    machine=cygwin;;
-    MINGW*)     machine=mingw;;
-    *)          machine="UNKNOWN:${uname_out}"
-esac
-echo "machine=${machine}"
-
-toolchain_opts=""
-if [ "$machine" = "mingw" ]; then
-  toolchain_opts="--target-os=win64 --arch=x86_64 --toolchain=msvc" 
-fi
-
 if [ ! -d ffmpeg-7.0.2 ]; then
   wget -nv https://www.ffmpeg.org/releases/ffmpeg-7.0.2.tar.gz
   tar xzf ffmpeg-7.0.2.tar.gz
@@ -27,7 +12,6 @@ fi
 cd ffmpeg-7.0.2
 echo "configuring ffmpeg ..."
 ./configure \
-    $toolchain_opts \
     --disable-alsa \
     --disable-x86asm \
     --disable-shared \
