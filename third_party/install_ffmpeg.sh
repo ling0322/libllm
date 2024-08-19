@@ -3,8 +3,8 @@
 set -e
 
 if [ ! -d ffmpeg-7.0.2 ]; then
-  wget https://www.ffmpeg.org/releases/ffmpeg-7.0.2.tar.gz
-  tar xzvf ffmpeg-7.0.2.tar.gz
+  wget -nv https://www.ffmpeg.org/releases/ffmpeg-7.0.2.tar.gz
+  tar xzf ffmpeg-7.0.2.tar.gz
 
   rm ffmpeg-7.0.2.tar.gz
 fi
