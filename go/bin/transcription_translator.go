@@ -76,7 +76,6 @@ func (t *transcriptionTranslator) translateOneWithRetry(text string) (translatio
 		t.historyTgt = []string{}
 	}
 
-	tr.tgtText = text
 	return tr, nil
 }
 
@@ -89,6 +88,7 @@ func (t *transcriptionTranslator) translateOne(text string) (translationResult, 
 	if tr.tgtText == "" {
 		t.historySrc = []string{}
 		t.historyTgt = []string{}
+		tr.tgtText = tr.srcText
 		return tr, nil
 	}
 

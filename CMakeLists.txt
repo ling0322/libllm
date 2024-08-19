@@ -6,6 +6,7 @@ option(WITH_CUDA "CUDA compute support." OFF)
 option(WITH_MKL "MKL support (only for reference)." OFF)
 option(WITH_OPENMP "Build with OpenMP." ON)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
+option(ENABLE_FFMPEG_PLUGIN "build the ffmpeg read audio plugin." OFF)
 option(MKL_PREFIX "Prefix for MKL headers and libraries." "/opt/intel/mkl")
 
 find_package(OpenMP)
@@ -133,6 +134,24 @@ if (WITH_CUDA)
     target_link_libraries(llmplugincublas lut CUDA::cublas)
     if(UNIX)
         target_link_options(llmplugincublas PUBLIC "-Wl,--no-undefined")
+    endif(UNIX)
+endif()
+
+if (ENABLE_FFMPEG_PLUGIN)
+    add_library(llmpluginffmpeg SHARED $<TARGET_OBJECTS:llmpluginffmpeg_static>)
+    target_include_directories(llmpluginffmpeg PRIVATE ${libllm_INCDIR})
+
+    set(ffmpeg_ROOT "third_party/ffmpeg-7.0.2")
+    target_link_directories(llmpluginffmpeg PUBLIC
+        "${ffmpeg_ROOT}/libavformat"
+        "${ffmpeg_ROOT}/libavcodec"
+        "${ffmpeg_ROOT}/libavfilter"
+        "${ffmpeg_ROOT}/libavutil"
+        "${ffmpeg_ROOT}/libswresample")
+    target_link_libraries(
+        llmpluginffmpeg avformat avcodec avfilter avutil swresample ${CMAKE_THREAD_LIBS_INIT}) 
+    if(UNIX)
+        target_link_options(llmpluginffmpeg PUBLIC "-Wl,--no-undefined")
     endif(UNIX)
 endif()
 
