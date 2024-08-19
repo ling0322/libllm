@@ -25,7 +25,7 @@ jobs:
         choco install wget --no-progress 
         bash install_ffmpeg.sh
     - name: Build ffmpeg plugin for Windows
-      run: gcc -shared -o llmpluginffmpeg.dll 
+      run: dir && gcc -shared -o llmpluginffmpeg.dll 
                -Isrc
                -Ithird_party/ffmpeg-7.0.2
                -Lthird_party/ffmpeg-7.0.2/libavformat
