@@ -15,7 +15,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: cuda-toolkit
-      uses: Jimver/cuda-toolkit@v0.2.16        
+      uses: Jimver/cuda-toolkit@v0.2.16  
+      with:
+        cuda: '11.8.0'      
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DWITH_CUDA=ON
     - name: Build
