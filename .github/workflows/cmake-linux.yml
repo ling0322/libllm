@@ -37,5 +37,4 @@ jobs:
         zip release-linux-x64-cuda.zip 
            ${{github.workspace}}/build/llm
            ${{github.workspace}}/build/libllmplugincublas.so
-           ${{github.workspace}}/build/libllmpluginffmpeg.so &&
-        unzip -l release-linux-x64-cuda.zip 
+           ${{github.workspace}}/build/libllmpluginffmpeg.so
