@@ -19,8 +19,8 @@
 
 package ffmpegplugin
 
-// #cgo LDFLAGS: -ldl
-// #cgo CXXFLAGS: -I/home/xiaoych/ffmpeg
+// #cgo linux LDFLAGS: -ldl
+// #cgo darwin LDFLAGS: -ldl
 // #include <string.h>
 // #include <stdlib.h>
 // #include "plugin.h"
