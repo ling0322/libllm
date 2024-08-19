@@ -39,13 +39,14 @@ jobs:
     - name: Test
       run: ctest --verbose -C ${{env.BUILD_TYPE}} --test-dir ${{github.workspace}}/build/src/libllm
     - name: Create release package
-      run: zip release-linux-x64-cuda.zip 
-             ${{github.workspace}}/build/llm
-             ${{github.workspace}}/build/libllmplugincublas.so
-             ${{github.workspace}}/build/libllmpluginffmpeg.so
+      run: cd ${{github.workspace}}/build/ && zip release-linux-x64-cuda.zip 
+             llm
+             libllm.so
+             libllmplugincublas.so
+             libllmpluginffmpeg.so
     - name: Release
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: |
-          release-linux-x64-cuda.zip 
+          ${{github.workspace}}/build/release-linux-x64-cuda.zip 
