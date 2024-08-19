@@ -13,10 +13,13 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
+    - name: Clean up diskspace
+      run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
     - uses: Jimver/cuda-toolkit@v0.2.16
       id: cuda-toolkit
       with:
         cuda: '12.5.0'
+        linux-local-args: '["--toolkit"]'
     - run: nvcc -V
     - uses: actions/checkout@v3    
     - name: Configure CMake
