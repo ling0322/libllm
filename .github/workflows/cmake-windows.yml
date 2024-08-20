@@ -13,6 +13,11 @@ jobs:
   build_ffmpeg_plugin:
     runs-on: windows-latest
     steps:
+    - uses: Jimver/cuda-toolkit@v0.2.16
+      id: cuda-toolkit
+      with:
+        cuda: '12.5.0'
+        linux-local-args: '["--toolkit"]'
     - name: Install Go
       uses: actions/setup-go@v5.0.1
       with:
@@ -23,16 +28,20 @@ jobs:
       run: choco install wget --no-progress 
     - name: Build ffmpeg
       run: cd third_party && bash install_ffmpeg.sh
+    - name: Install cutlass
+      run: cd third_party && bash install_cutlass.sh
     - name: Build ffmpeg plugin for Windows
       run: gcc -shared -o llmpluginffmpeg.dll
                -Isrc
-               -Ithird_party/ffmpeg-7.0.2
+               -Ithird_party/ffmpeg
+               -DLIBLLM_EXPORTS
+               -O2
                src/libllm/read_audio_ffmpeg.cc
-               -Lthird_party/ffmpeg-7.0.2/libavformat
-               -Lthird_party/ffmpeg-7.0.2/libavcodec
-               -Lthird_party/ffmpeg-7.0.2/libavfilter
-               -Lthird_party/ffmpeg-7.0.2/libavutil
-               -Lthird_party/ffmpeg-7.0.2/libswresample
+               -Lthird_party/ffmpeg/libavformat
+               -Lthird_party/ffmpeg/libavcodec
+               -Lthird_party/ffmpeg/libavfilter
+               -Lthird_party/ffmpeg/libavutil
+               -Lthird_party/ffmpeg/libswresample
                -lavformat
                -lavcodec
                -lavfilter
@@ -42,7 +51,10 @@ jobs:
                -static
       shell: bash
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: cmake -B ${{github.workspace}}/build
+                 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+                 -DWITH_CUDA=ON
+                 -DWITH_CUTLASS=ON
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
     - name: Test

@@ -112,6 +112,7 @@ if (WITH_CUDA)
 
     if (WITH_CUTLASS)
         set(libllm_SOURCES ${libllm_SOURCES} "cuda/gemm_cutlass.cu")
+        set(libllm_INCDIR ${libllm_INCDIR} "../../third_party/cutlass/include")
     endif(WITH_CUTLASS)
 
     set(llmplugincublas_SOURCES
@@ -161,10 +162,10 @@ if (WITH_CUDA)
     target_include_directories(llmplugincublas_static PRIVATE ${libllm_INCDIR})
 endif()
 
-if (ENABLE_FFMPEG_PLUGIN)
+if (WITH_FFMPEG)
     add_library(llmpluginffmpeg_static OBJECT "read_audio_ffmpeg.cc")
     target_compile_options(llmpluginffmpeg_static PRIVATE "-DLIBLLM_EXPORTS")
-    target_include_directories(llmpluginffmpeg_static PRIVATE  ${libllm_INCDIR} "../../third_party/ffmpeg-7.0.2/")
+    target_include_directories(llmpluginffmpeg_static PRIVATE  ${libllm_INCDIR} "../../third_party/ffmpeg/")
 endif()
 
 add_library(libllm_static OBJECT ${libllm_SOURCES})
@@ -175,4 +176,3 @@ target_include_directories(libllm_static PRIVATE ${libllm_INCDIR})
 
 add_library(libllm_test OBJECT ${libllm_test_SOURCES})
 target_include_directories(libllm_test PRIVATE ${libllm_INCDIR})
-

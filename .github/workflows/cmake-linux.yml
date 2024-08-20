@@ -29,11 +29,14 @@ jobs:
     - uses: actions/checkout@v3   
     - name: Build ffmpeg
       run: cd third_party && bash install_ffmpeg.sh
+    - name: Install cutlass
+      run: cd third_party && bash install_cutlass.sh
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build 
                  -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
                  -DWITH_CUDA=ON
-                 -DENABLE_FFMPEG_PLUGIN=ON
+                 -DWITH_FFMPEG=ON
+                 -DWITH_CUTLASS=ON
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
     - name: Test
