@@ -66,9 +66,13 @@ jobs:
              artifacts/darwin-build/libllmplugincublas.dylib
              artifacts/darwin-build/libllmpluginffmpeg.dylib
              artifacts/darwin-build/libomp.dylib
+    - uses: actions/upload-artifact@v4
+      with:
+        name: darwin-package
+        path: release-darwin-arm64.tar.gz
     - name: create-release
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: |
-          ${{github.workspace}}/build/release-darwin-arm64.zip 
+          ${{github.workspace}}/build/release-darwin-arm64.tar.gz
