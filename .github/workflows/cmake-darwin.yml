@@ -25,7 +25,10 @@ jobs:
         brew install libomp
         ls $(brew --prefix)/opt/libomp
     - name: Build ffmpeg
-      run: cd third_party && bash install_ffmpeg.sh
+      run: |
+        cd third_party
+        bash install_ffmpeg.sh
+        rm ffmpeg/version
     - name: Configure CMake
       run: OpenMP_ROOT=$(brew --prefix)/opt/libomp cmake 
              -B ${{github.workspace}}/build
