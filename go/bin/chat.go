@@ -74,6 +74,8 @@ func chatMain(args []string) {
 	fmt.Println(gLocalizer.Get(MsgInputQuestionSys))
 
 	history := []skill.Message{}
+
+	// TODO: get system prompt for different models
 	systemPrompt := ""
 	for {
 		reader := bufio.NewReader(os.Stdin)

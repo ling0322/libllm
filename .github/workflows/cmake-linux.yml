@@ -47,9 +47,8 @@ jobs:
 
   release:
     permissions:
-      contents: write  # for softprops/action-gh-release to create a release
+      contents: write
     needs: [build]
-    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
     - name: download
@@ -57,13 +56,21 @@ jobs:
       with:
         path: artifacts
     - name: Create release package
-      run: cd artifacts/linux-build/ && zip release-linux-x64-cuda.zip 
+      run: ls -lh artifacts/linux-build/ &&
+           cd artifacts/linux-build/ &&
+           chmod +x llm &&
+           tar -cvzf release-linux-x64-cuda.tar.gz
              llm
              libllm.so
              libllmplugincublas.so
              libllmpluginffmpeg.so
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-package
+        path: artifacts/linux-build/release-linux-x64-cuda.tar.gz
     - name: create-release
       uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
       with:
         files: |
-          ${{github.workspace}}/build/release-linux-x64-cuda.zip 
+          artifacts/linux-build/release-linux-x64-cuda.tar.gz
