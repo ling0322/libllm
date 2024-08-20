@@ -37,7 +37,7 @@ jobs:
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
     - name: Copy dependencies
-      run: cp $(brew --prefix)/opt/libomp/lib/libomp.dylib ${{github.workspace}}\build
+      run: cp $(brew --prefix)/opt/libomp/lib/libomp.dylib ${{github.workspace}}/build/
     - run: install_name_tool
              -change "$(brew --prefix)/opt/libomp/lib/libomp.dylib" 
              '@loader_path/libomp.dylib'
@@ -63,7 +63,6 @@ jobs:
       run: tar -cvzf release-darwin-arm64.tar.gz
              artifacts/darwin-build/llm
              artifacts/darwin-build/libllm.dylib
-             artifacts/darwin-build/libllmplugincublas.dylib
              artifacts/darwin-build/libllmpluginffmpeg.dylib
              artifacts/darwin-build/libomp.dylib
     - uses: actions/upload-artifact@v4
