@@ -13,6 +13,7 @@ jobs:
   build_ffmpeg_plugin:
     runs-on: windows-latest
     steps:
+    - run: dir c:\windows\system32\vcomp140.dll
     - uses: Jimver/cuda-toolkit@v0.2.16
       id: cuda-toolkit
       with:
