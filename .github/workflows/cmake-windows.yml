@@ -80,7 +80,7 @@ jobs:
       with:
         path: artifacts
     - name: Create release package
-      run: cd artifacts/build/ && zip release-windows-x64-cuda.zip 
+      run: cd artifacts/windows-build/ && zip release-windows-x64-cuda.zip 
              llm.exe
              llm.dll
              llmplugincublas.dll
