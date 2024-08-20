@@ -17,14 +17,48 @@ jobs:
     - name: Install Go
       uses: actions/setup-go@v5.0.1
       with:
-        go-version: '>=1.17.0'
+        go-version: '1.22.5'
     - run: go version
     - uses: actions/checkout@v3
     - name: Install OpenMP
-      run: brew install libomp
+      run: |
+        brew install libomp
+        ls $(brew --prefix)/opt/libomp
+    - name: Build ffmpeg
+      run: cd third_party && bash install_ffmpeg.sh
     - name: Configure CMake
-      run: OpenMP_ROOT=$(brew --prefix)/opt/libomp cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: OpenMP_ROOT=$(brew --prefix)/opt/libomp cmake 
+             -B ${{github.workspace}}/build
+             -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+             -DWITH_FFMPEG=ON
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: darwin-build
+        path: ${{github.workspace}}/build
     - name: Test
       run: ctest --verbose -C ${{env.BUILD_TYPE}} --test-dir ${{github.workspace}}/build/src/libllm
+
+  release:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create a release
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+    - name: download
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    - name: Create release package
+      run: cd artifacts/darwin-build/ && zip release-darwin-arm64.zip 
+             llm
+             libllm.dylib
+             libllmplugincublas.dylib
+             libllmpluginffmpeg.dylib
+    - name: create-release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          ${{github.workspace}}/build/release-darwin-arm64.zip 
