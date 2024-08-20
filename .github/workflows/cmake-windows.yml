@@ -61,11 +61,6 @@ jobs:
     - uses: actions/upload-artifact@v4
       with:
         name: windows-build
-        path: |
-          llm.exe
-          unittest.exe
-          llm.dll
-          llmplugincublas.dll
-          llmpluginffmpeg.dll
+        path: ${{github.workspace}}/build
     - name: Test
       run: ${{github.workspace}}\build\${{env.BUILD_TYPE}}\unittest.exe
