@@ -183,6 +183,15 @@ Operators *getOperators(Device::Type deviceType) {
   return gOperatorsForDevice[deviceType];
 }
 
+bool isOperatorsAvailable(Device::Type deviceType) {
+  if (!gInitialized) throw lut::AbortedError("call isOperatorsAvailable() before initialization");
+  if (!gOperatorsForDevice[deviceType]) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
 void destroyOperators() {
   op::cpu::kernel::destroy();
   MP::destroy();

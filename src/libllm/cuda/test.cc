@@ -54,27 +54,37 @@ OperatorTester getOperatorTester() {
 }
 
 CATCH_TEST_CASE("test CUDA lookup", "[op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   OperatorTester tester = getOperatorTester();
   CATCH_REQUIRE(tester.testLookup());
   CATCH_REQUIRE(tester.testLookupQInt4());
 }
 
 CATCH_TEST_CASE("test CUDA unfold", "[op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   OperatorTester tester = getOperatorTester();
   CATCH_REQUIRE(tester.withTol(2e-3).testUnfold());
 }
 
 CATCH_TEST_CASE("test CUDA layerNorm", "[op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   OperatorTester tester = getOperatorTester();
   CATCH_REQUIRE(tester.withTol(5e-3).testLayerNorm({1, 1, 160}));
 }
 
 CATCH_TEST_CASE("test CUDA repetitionPenalty", "[op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   OperatorTester tester = getOperatorTester();
   CATCH_REQUIRE(tester.withTol(1e-3).testRepetitionPenalty());
 }
 
 CATCH_TEST_CASE("test CUDA matMul", "[op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   OperatorTester tester = getOperatorTester();
   CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({1, 1, 128}, {50, 128}, true));
   CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({5, 10, 50}, {50, 128}, false));
@@ -84,6 +94,8 @@ CATCH_TEST_CASE("test CUDA matMul", "[op][cuda]") {
 }
 
 CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   OperatorTester tester = OperatorTester()
                               .withOperators(getOperators(Device::kCuda))
                               .withDevice(Device::getCuda())
@@ -123,6 +135,8 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
 }
 
 CATCH_TEST_CASE("benchmark CUDA operators", "[op][cuda][benchmark]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   OperatorTester tester = OperatorTester()
                               .withOperators(getOperators(Device::kCuda))
                               .withDevice(Device::getCuda())
@@ -146,6 +160,8 @@ CATCH_TEST_CASE("benchmark CUDA operators", "[op][cuda][benchmark]") {
 }
 
 CATCH_TEST_CASE("test dequant", "[ly][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   Tensor a = F::rand({5, 256}, DType::kQInt4x32);
   Tensor xr = F::cast(a, DType::kFloat);
 
@@ -158,6 +174,8 @@ CATCH_TEST_CASE("test dequant", "[ly][op][cuda]") {
 }
 
 CATCH_TEST_CASE("test softmax (large)", "[ly][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   Tensor a = Tensor::create<float>(
       {1, 1, 4},
       {
@@ -178,6 +196,8 @@ CATCH_TEST_CASE("test softmax (large)", "[ly][op][cuda]") {
 }
 
 CATCH_TEST_CASE("test cat", "[ly][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   Tensor a = F::rand({2, 10, 16}, DType::kFloat);
   Tensor b = F::rand({2, 2, 16}, DType::kFloat);
   Tensor xr = F::cat(a, b, 1);
@@ -194,6 +214,8 @@ CATCH_TEST_CASE("test cat", "[ly][op][cuda]") {
 }
 
 CATCH_TEST_CASE("test attention", "[ly][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   Tensor q = F::rand({1, 2, 5, 16}, DType::kFloat);
   Tensor k = F::rand({1, 2, 5, 16}, DType::kFloat);
   Tensor v = F::rand({1, 2, 5, 16}, DType::kFloat);
@@ -216,6 +238,8 @@ CATCH_TEST_CASE("test attention", "[ly][op][cuda]") {
 }
 
 CATCH_TEST_CASE("benchmark gemv", "[ly][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   lut::Random r(0x55aa);
   Tensor Aq = F::rand({8000, 4096}, DType::kQInt4x32, Device::kCpu, &r);
   Tensor x = F::rand({4096, 1}, DType::kFloat, Device::kCpu, &r);
@@ -248,6 +272,8 @@ CATCH_TEST_CASE("benchmark gemv", "[ly][op][cuda]") {
 #ifdef LIBLLM_CUTLASS_ENABLED
 
 CATCH_TEST_CASE("test matmul gemm (cutlass)", "[ly][op][cuda][cutlass]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   std::shared_ptr<op::cuda::MatMul> mm = op::cuda::MatMul::createCutlass();
 
   Tensor a = F::rand({10, 20}, DType::kFloat);
@@ -268,6 +294,8 @@ CATCH_TEST_CASE("test matmul gemm (cutlass)", "[ly][op][cuda][cutlass]") {
 }
 
 CATCH_TEST_CASE("test matmul bmm (cutlass)", "[ly][op][cuda][cutlass]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   std::shared_ptr<op::cuda::MatMul> mm = op::cuda::MatMul::createCutlass();
 
   Tensor a = F::rand({5, 10, 5, 20}, DType::kFloat);
@@ -288,6 +316,8 @@ CATCH_TEST_CASE("test matmul bmm (cutlass)", "[ly][op][cuda][cutlass]") {
 }
 
 CATCH_TEST_CASE("benchmark cutlass hgemm", "[ly][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   std::shared_ptr<op::cuda::MatMul> mmCutlass = op::cuda::MatMul::createCutlass();
   std::shared_ptr<op::cuda::MatMul> mmCublas = op::cuda::MatMul::createCublas();
 

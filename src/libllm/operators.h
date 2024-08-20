@@ -73,6 +73,7 @@ class Operators {
 extern Operators *gOperatorsForDevice[Device::NumDeviceType];
 
 Operators *getOperators(Device::Type deviceType);
+bool isOperatorsAvailable(Device::Type deviceType);
 void initOperators();
 void destroyOperators();
 
