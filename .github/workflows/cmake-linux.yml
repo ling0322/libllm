@@ -20,7 +20,8 @@ jobs:
       id: cuda-toolkit
       with:
         cuda: '12.5.0'
-        linux-local-args: '["--toolkit"]'
+        method: 'network'
+        sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "visual_studio_integration"]'
     - uses: actions/setup-go@v5
       with:
         go-version: '1.22.5'
