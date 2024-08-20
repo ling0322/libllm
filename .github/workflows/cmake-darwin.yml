@@ -61,7 +61,8 @@ jobs:
         path: artifacts
     - name: Create release package
       run: ls -lh artifacts/darwin-build/ &&
-           cd artifacts/darwin-build/ && 
+           cd artifacts/darwin-build/ &&
+           chmod +x llm &&
            tar -cvzf release-darwin-arm64.tar.gz
                llm
                libllm.dylib
