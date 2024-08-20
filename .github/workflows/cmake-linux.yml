@@ -41,13 +41,28 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
     - name: Test
       run: ctest --verbose -C ${{env.BUILD_TYPE}} --test-dir ${{github.workspace}}/build/src/libllm
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-build
+        path: ${{github.workspace}}/build
+
+  release:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create a release
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+    - name: download
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
     - name: Create release package
-      run: cd ${{github.workspace}}/build/ && zip release-linux-x64-cuda.zip 
+      run: cd artifacts/linux-build/ && zip release-linux-x64-cuda.zip 
              llm
              libllm.so
              libllmplugincublas.so
              libllmpluginffmpeg.so
-    - name: Release
+    - name: create-release
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
