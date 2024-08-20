@@ -68,7 +68,13 @@ int getCudaDeviceAttribute(cudaDeviceAttr attr) {
 
 int getCudaDeviceCount() {
   int value;
-  LL_CHECK_CUDA_STATUS(cudaGetDeviceCount(&value));
+  try {
+    LL_CHECK_CUDA_STATUS(cudaGetDeviceCount(&value));
+  } catch (const lut::Error &e) {
+    LOG(INFO) << "unable to get cuda device count: " << e.what();
+    return 0;
+  }
+
   return value;
 }
 
