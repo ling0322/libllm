@@ -10,7 +10,7 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  build:
+  build_ffmpeg_plugin:
     runs-on: windows-latest
     steps:
     - name: Install Go
@@ -19,15 +19,15 @@ jobs:
         go-version: '1.22.5'
     - run: go version
     - uses: actions/checkout@v3
+    - name: Install wget
+      run: choco install wget --no-progress 
     - name: Build ffmpeg
-      run: |
-        cd third_party
-        choco install wget --no-progress 
-        bash install_ffmpeg.sh
+      run: cd third_party && bash install_ffmpeg.sh
     - name: Build ffmpeg plugin for Windows
-      run: dir && dir third_party && dir third_party\ffmpeg-7.0.2 && gcc -shared -o llmpluginffmpeg.dll 
+      run: gcc -shared -o llmpluginffmpeg.dll
                -Isrc
-               -Ithird_party\ffmpeg-7.0.2
+               -Ithird_party/ffmpeg-7.0.2
+               src/libllm/read_audio_ffmpeg.cc
                -Lthird_party/ffmpeg-7.0.2/libavformat
                -Lthird_party/ffmpeg-7.0.2/libavcodec
                -Lthird_party/ffmpeg-7.0.2/libavfilter
@@ -38,8 +38,9 @@ jobs:
                -lavfilter
                -lavutil
                -lswresample
+               -lbcrypt
                -static
-               src/libllm/read_audio_ffmpeg.cc
+      shell: bash
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
     - name: Build
