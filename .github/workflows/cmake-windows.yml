@@ -17,7 +17,8 @@ jobs:
       id: cuda-toolkit
       with:
         cuda: '12.5.0'
-        linux-local-args: '["--toolkit"]'
+        method: 'network'
+        sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "visual_studio_integration"]'
     - name: Install Go
       uses: actions/setup-go@v5.0.1
       with:
@@ -57,5 +58,14 @@ jobs:
                  -DWITH_CUTLASS=ON
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: |
+          llm.exe
+          unittest.exe
+          llm.dll
+          llmplugincublas.dll
+          llmpluginffmpeg.dll
     - name: Test
       run: ${{github.workspace}}\build\${{env.BUILD_TYPE}}\unittest.exe
