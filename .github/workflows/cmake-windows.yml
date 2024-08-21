@@ -18,8 +18,7 @@ jobs:
       id: cuda-toolkit
       with:
         cuda: '11.7.1'
-        method: 'network'
-        sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "visual_studio_integration"]'
+        linux-local-args: '["--toolkit"]'
     - name: Install Go
       uses: actions/setup-go@v5.0.1
       with:
