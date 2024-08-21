@@ -21,6 +21,7 @@
 
 #include "catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/fingerprint.h"
+#include "libllm/operators.h"
 #include "libllm/tensor.h"
 #include "libllm/test_helper.h"
 #include "lut/random.h"
@@ -117,15 +118,21 @@ CATCH_TEST_CASE("test Embedding", "[ly][nn][embedding]") {
 
 #ifdef LIBLLM_CUDA_ENABLED
 CATCH_TEST_CASE("test Linear", "[ly][nn][linear][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   LinearTester(Device::getCuda(), DType::kFloat).run();
   LinearTester(Device::getCuda(), DType::kQInt4x32).run();
 }
 
 CATCH_TEST_CASE("test RmsNorm", "[ly][nn][rms_norm][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   RmsNormTester(Device::getCuda(), DType::kFloat).run();
 }
 
 CATCH_TEST_CASE("test Embedding (cuda)", "[ly][nn][embedding][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
   EmbeddingTester(Device::getCuda(), DType::kFloat).run();
   EmbeddingTester(Device::getCuda(), DType::kQInt4x32).run();
 }

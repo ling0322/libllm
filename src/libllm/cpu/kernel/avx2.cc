@@ -65,11 +65,9 @@ namespace kernel {
 
 #if LIBLLM_KERNEL_MSVC
 inline float libllm_cvtsh_ss(uint16_t sh) {
-  __m128h shx8;
-  shx8.m128i_u16[0] = sh;
-
-  __m128 ssx8 = _mm_cvtph_ps(shx8);
-  return ssx8.m128_f32[0];
+  __m128i vh = _mm_set1_epi16(sh);
+  __m128 vs = _mm_cvtph_ps(vh);
+  return _mm_cvtss_f32(vs);
 }
 #endif
 

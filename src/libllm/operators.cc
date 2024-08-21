@@ -174,13 +174,22 @@ void initOperators() {
 }
 
 Operators *getOperators(Device::Type deviceType) {
-  if (!gInitialized) throw lut::AbortedError("call llyn operators before initialization");
+  if (!gInitialized) throw lut::AbortedError("call getOperators() before initialization");
   if (!gOperatorsForDevice[deviceType]) {
     std::string deviceName = Device(deviceType).getName();
     throw lut::NotImplementedError(lut::sprintf("%s operators not implemented", deviceName));
   }
 
   return gOperatorsForDevice[deviceType];
+}
+
+bool isOperatorsAvailable(Device::Type deviceType) {
+  if (!gInitialized) throw lut::AbortedError("call isOperatorsAvailable() before initialization");
+  if (!gOperatorsForDevice[deviceType]) {
+    return false;
+  } else {
+    return true;
+  }
 }
 
 void destroyOperators() {

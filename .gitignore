@@ -4,6 +4,8 @@ transformers
 /build
 /run
 /model
+/third_party/ffmpeg
+/third_party/cutlass
 
 __pycache__
 *.model

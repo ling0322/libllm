@@ -68,7 +68,12 @@ int getCudaDeviceAttribute(cudaDeviceAttr attr) {
 
 int getCudaDeviceCount() {
   int value;
-  LL_CHECK_CUDA_STATUS(cudaGetDeviceCount(&value));
+
+  cudaError_t status = cudaGetDeviceCount(&value);
+  if (status != cudaSuccess) {
+    return 0;
+  }
+
   return value;
 }
 

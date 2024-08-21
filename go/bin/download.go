@@ -82,6 +82,36 @@ func getModelCacheDir() string {
 	return cacheDir
 }
 
+func downloadFile(url, localPath, filename string) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	f, err := os.OpenFile(localPath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	bar := progressbar.DefaultBytes(
+		resp.ContentLength,
+		filename,
+	)
+	_, err = io.Copy(io.MultiWriter(f, bar), resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func downloadModel(name string) (modelPath string, err error) {
 	url, ok := modelUrls[name]
 	if !ok {
@@ -92,37 +122,16 @@ func downloadModel(name string) (modelPath string, err error) {
 	if !ok {
 		log.Fatal("invalid model name")
 	}
+
 	modelPath = path.Join(ModelCacheDir, filename)
-	slog.Info("download model", "url", url)
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
 	modelDir := path.Dir(modelPath)
 	err = os.MkdirAll(modelDir, os.ModePerm)
 	if err != nil {
 		return "", fmt.Errorf("unable to create model cache directory: %w", err)
 	}
 
-	f, err := os.OpenFile(modelPath+".download", os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	bar := progressbar.DefaultBytes(
-		resp.ContentLength,
-		filename,
-	)
-	_, err = io.Copy(io.MultiWriter(f, bar), resp.Body)
+	slog.Info("download model", "url", url)
+	err = downloadFile(url, modelPath+".download", filename)
 	if err != nil {
 		return
 	}

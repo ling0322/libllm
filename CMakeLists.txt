@@ -6,7 +6,7 @@ option(WITH_CUDA "CUDA compute support." OFF)
 option(WITH_MKL "MKL support (only for reference)." OFF)
 option(WITH_OPENMP "Build with OpenMP." ON)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
-option(ENABLE_FFMPEG_PLUGIN "build the ffmpeg read audio plugin." OFF)
+option(WITH_FFMPEG "build the ffmpeg read audio plugin." OFF)
 option(MKL_PREFIX "Prefix for MKL headers and libraries." "/opt/intel/mkl")
 
 find_package(OpenMP)
@@ -30,6 +30,15 @@ endif()
 
 if(WITH_CUTLASS)
     add_definitions("-DLIBLLM_CUTLASS_ENABLED")
+    include_directories(${CUTLASS_ROOT}/include)
+
+    set(CUTLASS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/cutlass")
+    if (NOT EXISTS ${CUTLASS_ROOT}/include/cutlass/blas3.h)
+        message(FATAL_ERROR 
+          "invalid CUTLASS_ROOT \"${CUTLASS_ROOT}\": unable to find file "
+          "${CUTLASS_ROOT}/include/cutlass/blas3.h, please "
+          "call install_cutlass.sh in third_party first.")
+    endif()
 endif()
 
 if(WITH_MKL)
@@ -44,15 +53,6 @@ if(WITH_MKL)
     endif()
 endif()
 
-if (DEFINED CUTLASS_ROOT)
-    include_directories(${CUTLASS_ROOT}/include)
-    if (NOT EXISTS ${CUTLASS_ROOT}/include/cutlass/blas3.h)
-        message(FATAL_ERROR 
-          "invalid CUTLASS_ROOT \"${CUTLASS_ROOT}\": unable to find file "
-          "${CUTLASS_ROOT}/include/cutlass/blas3.h, please "
-          "enusre CUTLASS_ROOT contains the cutlass \"include\" directory.")
-    endif()
-endif()
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -132,16 +132,16 @@ if (WITH_CUDA)
     add_library(llmplugincublas SHARED $<TARGET_OBJECTS:llmplugincublas_static>)
     target_include_directories(llmplugincublas PRIVATE ${libllm_INCDIR})
     target_link_libraries(llmplugincublas lut CUDA::cublas)
-    if(UNIX)
+    if(UNIX AND NOT APPLE)
         target_link_options(llmplugincublas PUBLIC "-Wl,--no-undefined")
-    endif(UNIX)
+    endif()
 endif()
 
-if (ENABLE_FFMPEG_PLUGIN)
+if (WITH_FFMPEG)
     add_library(llmpluginffmpeg SHARED $<TARGET_OBJECTS:llmpluginffmpeg_static>)
     target_include_directories(llmpluginffmpeg PRIVATE ${libllm_INCDIR})
 
-    set(ffmpeg_ROOT "third_party/ffmpeg-7.0.2")
+    set(ffmpeg_ROOT "third_party/ffmpeg")
     target_link_directories(llmpluginffmpeg PUBLIC
         "${ffmpeg_ROOT}/libavformat"
         "${ffmpeg_ROOT}/libavcodec"
@@ -150,9 +150,9 @@ if (ENABLE_FFMPEG_PLUGIN)
         "${ffmpeg_ROOT}/libswresample")
     target_link_libraries(
         llmpluginffmpeg avformat avcodec avfilter avutil swresample ${CMAKE_THREAD_LIBS_INIT}) 
-    if(UNIX)
+    if(UNIX AND NOT APPLE)
         target_link_options(llmpluginffmpeg PUBLIC "-Wl,--no-undefined")
-    endif(UNIX)
+    endif()
 endif()
 
 enable_testing()

@@ -2,14 +2,16 @@
 
 set -e
 
-if [ ! -d ffmpeg-7.0.2 ]; then
+if [ ! -d ffmpeg ]; then
   wget -nv https://www.ffmpeg.org/releases/ffmpeg-7.0.2.tar.gz
   tar xzf ffmpeg-7.0.2.tar.gz
 
   rm ffmpeg-7.0.2.tar.gz
+  mv ffmpeg-7.0.2 ffmpeg
 fi
 
-cd ffmpeg-7.0.2
+
+cd ffmpeg
 echo "configuring ffmpeg ..."
 ./configure \
     --disable-alsa \
