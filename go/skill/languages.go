@@ -22,7 +22,7 @@ package skill
 type Lang int
 
 const (
-	Unknown = Lang(iota)
+	UnknownLanguage = Lang(iota)
 	English
 	Chinese
 	Japanese
@@ -39,5 +39,18 @@ func ParseLang(name string) (Lang, error) {
 		return Japanese, nil
 	default:
 		return Lang(-1), ErrInvalidOrUnsupportedLanguageCode
+	}
+}
+
+func (l Lang) String() string {
+	switch l {
+	case English:
+		return "en"
+	case Japanese:
+		return "ja"
+	case Chinese:
+		return "zh"
+	default:
+		return "unknown"
 	}
 }

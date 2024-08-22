@@ -21,6 +21,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -33,12 +34,23 @@ import (
 type binArgs struct {
 	fs *flag.FlagSet
 
-	modelPath  string
+	models     modelList
 	device     string
 	inputFile  string
 	outputFile string
 	lang       string
 	targetLang string
+}
+
+type modelList []string
+
+func (l *modelList) String() string {
+	return fmt.Sprintf("%s", *l)
+}
+
+func (l *modelList) Set(value string) error {
+	*l = append(*l, value)
+	return nil
 }
 
 func newBinArgs(fs *flag.FlagSet) *binArgs {
@@ -67,33 +79,31 @@ func (a *binArgs) getDevice() llm.Device {
 }
 
 func (a *binArgs) addModelFlag() {
-	a.fs.StringVar(&a.modelPath, "m", "", "the libllm model, it could be model name or model file,"+
+	a.fs.Var(&a.models, "m", "the libllm model, it could be model name or model file,"+
 		" model files are with suffix \".llmpkg\". "+
 		"\nFor some specific tasks like transcription-translation, it could be a list of"+
 		" models, seperated by \",\".")
 }
 
 func (a *binArgs) getModel() string {
-	if a.modelPath == "" {
+	if len(a.models) == 0 {
 		slog.Error("model name (-m) is empty.")
 		a.fs.Usage()
 		os.Exit(1)
 	}
 
-	models := a.splitModels()
-	if len(models) != 1 {
+	if len(a.models) != 1 {
 		slog.Error("only 1 model (-m) is expected, please check if there is any unexpected comma" +
 			" \",\" in model arg (-m).")
 		a.fs.Usage()
 		os.Exit(1)
 	}
 
-	return models[0]
+	return a.models[0]
 }
 
-func (a *binArgs) splitModels() []string {
-	models := strings.Split(a.modelPath, ",")
-	for _, model := range models {
+func (a *binArgs) getModels() []string {
+	for _, model := range a.models {
 		if model == "" {
 			slog.Error("invalid model name (-m).")
 			a.fs.Usage()
@@ -101,21 +111,11 @@ func (a *binArgs) splitModels() []string {
 		}
 	}
 
-	return models
+	return a.models
 }
 
 func (a *binArgs) getNumModels() int {
-	return len(a.splitModels())
-}
-
-func (a *binArgs) getModelList() []string {
-	if a.modelPath == "" {
-		slog.Error("model name (-m) is empty.")
-		a.fs.Usage()
-		os.Exit(1)
-	}
-
-	return a.splitModels()
+	return len(a.models)
 }
 
 func (a *binArgs) addInputFlag() {
@@ -146,6 +146,10 @@ func (a *binArgs) getOutput() string {
 	return a.outputFile
 }
 
+func (a *binArgs) tryGetOutput() string {
+	return a.outputFile
+}
+
 func (a *binArgs) addLangFlag() {
 	a.fs.StringVar(&a.lang, "lang", "", "the language of input.")
 }
@@ -171,14 +175,12 @@ func (a *binArgs) addTargetLangFlag() {
 
 func (a *binArgs) getTargetLang() skill.Lang {
 	if a.targetLang == "" {
-		slog.Error("target language (-targetlang) is empty.")
-		a.fs.Usage()
-		os.Exit(1)
+		return skill.UnknownLanguage
 	}
 
 	lang, err := skill.ParseLang(a.targetLang)
 	if err != nil {
-		log.Fatal(err)
+		return skill.UnknownLanguage
 	}
 
 	return lang

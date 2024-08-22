@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/ling0322/libllm/go/llm"
 	"github.com/schollz/progressbar/v3"
@@ -26,6 +27,14 @@ var modelUrls = map[string]string{
 	"whisper:large-v3:q4": "https://huggingface.co/ling0322/whisper-libllm/resolve/main/whisper-large-v3-q4.llmpkg",
 	"qwen:7b:q4":          "https://huggingface.co/ling0322/qwen-libllm/resolve/main/qwen2-7b-instruct-q4.llmpkg",
 	"qwen:1.5b:q4":        "https://huggingface.co/ling0322/qwen-libllm/resolve/main/qwen2-1.5b-instruct-q4.llmpkg",
+}
+
+var modelMsUrls = map[string]string{
+	"index:chat:q4":       "https://modelscope.cn/models/ling0322/bilibili-index-libllm/resolve/master/bilibili-index-1.9b-chat-q4.llmpkg",
+	"index:character:q4":  "https://modelscope.cn/models/ling0322/bilibili-index-libllm/resolve/master/bilibili-index-1.9b-character-q4.llmpkg",
+	"whisper:large-v3:q4": "https://modelscope.cn/models/ling0322/whisper-libllm/resolve/master/whisper-large-v3-q4.llmpkg",
+	"qwen:7b:q4":          "https://modelscope.cn/models/ling0322/qwen2-libllm/resolve/master/qwen2-7b-instruct-q4.llmpkg",
+	"qwen:1.5b:q4":        "https://modelscope.cn/models/ling0322/qwen2-libllm/resolve/master/qwen2-1.5b-instruct-q4.llmpkg",
 }
 
 var modelFilenames = map[string]string{
@@ -112,8 +121,36 @@ func downloadFile(url, localPath, filename string) error {
 	return nil
 }
 
+func isInChina() bool {
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := client.Get("https://www.google.com")
+	if err != nil {
+		return true
+	}
+	defer resp.Body.Close()
+
+	return false
+}
+
 func downloadModel(name string) (modelPath string, err error) {
-	url, ok := modelUrls[name]
+	slog.Info("download model", "name", name)
+
+	name, err = resolveModelName(name)
+	if err != nil {
+		return
+	}
+
+	var url string
+	var ok bool
+	if isInChina() {
+		url, ok = modelMsUrls[name]
+	} else {
+		url, ok = modelUrls[name]
+	}
+
 	if !ok {
 		log.Fatal("invalid model name")
 	}
@@ -148,6 +185,11 @@ func downloadModel(name string) (modelPath string, err error) {
 // check if model exists in the cache directory. If exists, retuen the model path, otherwise,
 // return the error.
 func checkModelInCache(name string) (modelPath string, err error) {
+	name, err = resolveModelName(name)
+	if err != nil {
+		return
+	}
+
 	filename, ok := modelFilenames[name]
 	if !ok {
 		return "", ErrInvalidModelName
@@ -163,11 +205,6 @@ func checkModelInCache(name string) (modelPath string, err error) {
 }
 
 func getOrDownloadModel(name string) (modelPath string, err error) {
-	name, err = resolveModelName(name)
-	if err != nil {
-		return
-	}
-
 	modelPath, err = checkModelInCache(name)
 	if err == nil {
 		return
