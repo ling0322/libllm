@@ -33,8 +33,8 @@ var modelMsUrls = map[string]string{
 	"index:chat:q4":       "https://modelscope.cn/models/ling0322/bilibili-index-libllm/resolve/master/bilibili-index-1.9b-chat-q4.llmpkg",
 	"index:character:q4":  "https://modelscope.cn/models/ling0322/bilibili-index-libllm/resolve/master/bilibili-index-1.9b-character-q4.llmpkg",
 	"whisper:large-v3:q4": "https://modelscope.cn/models/ling0322/whisper-libllm/resolve/master/whisper-large-v3-q4.llmpkg",
-	"qwen:7b:q4":          "https://huggingface.co/ling0322/qwen-libllm/resolve/main/qwen2-7b-instruct-q4.llmpkg",
-	"qwen:1.5b:q4":        "https://huggingface.co/ling0322/qwen-libllm/resolve/main/qwen2-1.5b-instruct-q4.llmpkg",
+	"qwen:7b:q4":          "https://modelscope.cn/models/ling0322/qwen2-libllm/resolve/master/qwen2-7b-instruct-q4.llmpkg",
+	"qwen:1.5b:q4":        "https://modelscope.cn/models/ling0322/qwen2-libllm/resolve/master/qwen2-1.5b-instruct-q4.llmpkg",
 }
 
 var modelFilenames = map[string]string{

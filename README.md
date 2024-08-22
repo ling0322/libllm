@@ -10,13 +10,13 @@ Welcome to libLLM, an open-source project designed for efficient inference of la
 
 | Model       | Download       |  llm Command  |
 |-------------|----------------|---------------|
-| Index-1.9B-Character (Role-playing) | [🤗[HF](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-character-q4.llmpkg)] | llm chat -m index:character |
-| Index-1.9B-Chat | [🤗[HF](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-chat-q4.llmpkg)] | llm chat -m index |
-| Qwen2-1.5B-Instruct | [🤗[HF](https://huggingface.co/ling0322/qwen-libllm/blob/main/qwen2-1.5b-instruct-q4.llmpkg)] | llm chat -m qwen:1.5b |
-| Qwen2-7B-Instruct | [🤗[HF](https://huggingface.co/ling0322/qwen-libllm/blob/main/qwen2-7b-instruct-q4.llmpkg)] | llm chat -m qwen:7b |
-| Whisper-large-v3 | [🤗[HF](https://huggingface.co/ling0322/whisper-libllm/resolve/main/whisper-large-v3-q4.llmpkg)] |  llm transcribe -m whisper |
+| Index-1.9B-Character (Role-playing) | [🤗[HF](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-character-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/bilibili-index-libllm/file/view/master?fileName=bilibili-index-1.9b-character-q4.llmpkg&status=2)] | llm chat -m index:character |
+| Index-1.9B-Chat | [🤗[HF](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-chat-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/bilibili-index-libllm/file/view/master?fileName=bilibili-index-1.9b-chat-q4.llmpkg&status=2)] | llm chat -m index |
+| Qwen2-1.5B-Instruct | [🤗[HF](https://huggingface.co/ling0322/qwen-libllm/blob/main/qwen2-1.5b-instruct-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/qwen2-libllm/file/view/master?fileName=qwen2-1.5b-instruct-q4.llmpkg&status=2)] | llm chat -m qwen:1.5b |
+| Qwen2-7B-Instruct | [🤗[HF](https://huggingface.co/ling0322/qwen-libllm/blob/main/qwen2-7b-instruct-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/qwen2-libllm/file/view/master?fileName=qwen2-7b-instruct-q4.llmpkg&status=2)] | llm chat -m qwen:7b |
+| Whisper-large-v3 | [🤗[HF](https://huggingface.co/ling0322/whisper-libllm/resolve/main/whisper-large-v3-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/whisper-libllm/file/view/master?fileName=whisper-large-v3-q4.llmpkg&status=2)] |  llm transcribe -m whisper |
 
-`HF` = HuggingFace
+`HF` = HuggingFace, `MS` = ModelScope
 
 ## Recent updates
 
