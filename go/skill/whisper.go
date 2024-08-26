@@ -22,6 +22,7 @@ package skill
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math"
 	"regexp"
@@ -33,7 +34,7 @@ import (
 
 var regexpLangToken = regexp.MustCompile(`^<\|([a-z][a-z][a-z]?)\|>$`)
 var ErrInvalidWhisperSequence = errors.New("invalid sequence for Whisper model")
-var ErrFilenameIsEmpty = errors.New("input filename is empty")
+var ErrStreamIsEmpty = errors.New("input stream is nil")
 var ErrWhisperModelIsNil = errors.New("whisper model is nil")
 var ErrNoMoreResults = errors.New("no more results")
 var ErrAudioEndOfStream = errors.New("audio end of stream")
@@ -41,26 +42,17 @@ var ErrAudioEndOfStream = errors.New("audio end of stream")
 const SampleRate = 16000
 const BytesPerSample = 2
 
-const (
-	whisperStateAudio = iota
-	whisperStateStartOfTranscription
-	whisperStateLanguage
-	whisperStateTranscribe
-	whisperStateBeginTime
-	whisperStateText
-	whisperStateEndTime
-)
-
 // the transcriber with whisper model. implements the interface Transcriber.
 type WhisperTranscriber struct {
 	// the whisper model.
 	WhisperModel llm.Model
 
 	// the reader for input file.
-	InputFile string
+	stream *WaveStream
 
-	// current state in whisper sequence decoding.
-	state int
+	streamOffset time.Duration
+
+	chunk WaveChunk
 
 	// if any errors occured.
 	err error
@@ -73,21 +65,19 @@ type WhisperTranscriber struct {
 
 	// the predicted language.
 	predictedLanguage string
-
-	// the wave bytes for decoding. The format is 16khz 16bit mono-channel PCM without headfer.
-	wavePayload []byte
-
-	// offset of the current segment in wavePayload.
-	waveOffset time.Duration
 }
 
 // create a new instance of WhisperTranscriber from whisper model and stream of input file.
-func NewWhisperTranscriber(whisperModel llm.Model, inputFile string) *WhisperTranscriber {
+func NewWhisperTranscriber(whisperModel llm.Model, inputFile string) (*WhisperTranscriber, error) {
+	stream, err := NewWaveStream(inputFile)
+	if err != nil {
+		return nil, err
+	}
+
 	return &WhisperTranscriber{
 		WhisperModel: whisperModel,
-		InputFile:    inputFile,
-		state:        whisperStateAudio,
-	}
+		stream:       stream,
+	}, nil
 }
 
 // parse a whisper timestamp token like <|3.22|>. On success. return the (parsed-time, true). On
@@ -138,7 +128,7 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 	if !ok {
 		return TranscriptionResult{}, fmt.Errorf("%w: not a time token", ErrInvalidWhisperSequence)
 	}
-	result.Begin = w.waveOffset + beginOffset
+	result.Begin = w.stream.Offset() + beginOffset
 
 	transcriptionDone := false
 	for w.comp.Next() {
@@ -147,7 +137,7 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 		slog.Debug("comp.next()", "token", token, "piece", piece)
 		offset, isTimestampToken := w.parseTimestampToken(token)
 		if isTimestampToken {
-			result.End = w.waveOffset + offset
+			result.End = w.stream.Offset() + offset
 			transcriptionDone = true
 			break
 		}
@@ -177,20 +167,28 @@ func (w *WhisperTranscriber) parseLanguageToken(token string) (lang string, ok b
 // prefill audio and prompt when in the begining of decoding or last audio segment finished. If no
 // transcriotion result or <|nospeech|> got, return ErrNoMoreResults.
 func (w *WhisperTranscriber) prefillNextAudioSegment() error {
-	nsPerSample := 1000000000 / SampleRate
-	sampleOffset := int(w.waveOffset.Nanoseconds() / int64(nsPerSample))
-	byteOffset := sampleOffset * 2
-	if len(w.wavePayload)-byteOffset < SampleRate/10 {
-		// ignore the last segment that less than 0.1s.
+	if w.chunk.eof {
+		// if the current chunk is already the last one.
 		return ErrAudioEndOfStream
 	}
-	slog.Info("prefill segment", "offset", w.waveOffset, "byteOffset", byteOffset)
 
-	nBytes := min(len(w.wavePayload)-byteOffset, 30*SampleRate*2)
-	audio := w.wavePayload[byteOffset : byteOffset+nBytes]
+	err := w.stream.Seek(w.streamOffset)
+	if errors.Is(err, io.EOF) {
+		return ErrAudioEndOfStream
+	} else if err != nil {
+		return err
+	}
+
+	slog.Info("transcribe segment", "offset", w.stream.Offset())
+	w.chunk, err = w.stream.ReadChunk(30 * time.Second)
+	if errors.Is(err, io.EOF) {
+		return ErrAudioEndOfStream
+	} else if err != nil {
+		return err
+	}
 
 	prompt := llm.NewPrompt()
-	prompt.AppendAudio(audio, llm.Pcm16kHz16BitMono)
+	prompt.AppendAudio(w.chunk.data, llm.Pcm16kHz16BitMono)
 	prompt.AppendControlToken("<|startoftranscript|>")
 
 	compConfig := llm.NewCompletionConfig()
@@ -243,9 +241,6 @@ func (w *WhisperTranscriber) disposeCompAndSetToNil() {
 
 // implements interface Transcriber.
 func (w *WhisperTranscriber) Transcribe() bool {
-	if w.wavePayload == nil {
-		w.wavePayload, w.err = ReadAudioFromMediaFile(w.InputFile)
-	}
 	if w.err != nil {
 		return false
 	}
@@ -255,8 +250,8 @@ func (w *WhisperTranscriber) Transcribe() bool {
 		return false
 	}
 
-	if w.InputFile == "" {
-		w.err = ErrFilenameIsEmpty
+	if w.stream == nil {
+		w.err = ErrStreamIsEmpty
 		return false
 	}
 
@@ -265,32 +260,30 @@ func (w *WhisperTranscriber) Transcribe() bool {
 		beginOfSegment := false
 		if w.comp == nil {
 			w.err = w.prefillNextAudioSegment()
+			if errors.Is(w.err, ErrNoMoreResults) {
+				w.disposeCompAndSetToNil()
+				w.streamOffset += 30 * time.Second
+				continue
+			} else if errors.Is(w.err, ErrAudioEndOfStream) {
+				w.disposeCompAndSetToNil()
+				w.err = nil
+				return false
+			} else if w.err != nil {
+				return false
+			}
 			beginOfSegment = true
-		}
-
-		if errors.Is(w.err, ErrNoMoreResults) {
-			w.disposeCompAndSetToNil()
-			w.err = nil
-			w.waveOffset += 30 * time.Second
-			continue
-		} else if errors.Is(w.err, ErrAudioEndOfStream) {
-			w.disposeCompAndSetToNil()
-			w.err = nil
-			return false
-		} else if w.err != nil {
-			return false
 		}
 
 		result, err := w.decodeTranscription()
 		if errors.Is(err, ErrNoMoreResults) && beginOfSegment {
 			// if no result for the whole audio segment, move forward to the next 30s segment.
 			w.disposeCompAndSetToNil()
-			w.waveOffset += 30 * time.Second
+			w.streamOffset += 30 * time.Second
 			continue
 		} else if errors.Is(err, ErrNoMoreResults) && !beginOfSegment {
 			// move the wave offset to the end of last completed transcription.
 			w.disposeCompAndSetToNil()
-			w.waveOffset = w.result.End
+			w.streamOffset = w.result.End
 			continue
 		} else if err != nil {
 			w.err = err
@@ -321,5 +314,5 @@ func (w *WhisperTranscriber) Dispose() {
 
 // implements interface Transcriber.
 func (w *WhisperTranscriber) Offset() time.Duration {
-	return w.waveOffset
+	return w.stream.Offset()
 }

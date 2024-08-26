@@ -39,11 +39,13 @@
 extern "C" {
 #endif  // __cplusplus
 
-LLMAPI char *llm_ffmpeg_plugin_get_err();
-LLMAPI int32_t llm_ffmpeg_plugin_read_16khz_mono_pcm_from_media_file(
-    const char *filename,
-    char **output_buffer,
-    int32_t *output_size);
+typedef struct llm_ffmpeg_audio_reader_t llm_ffmpeg_audio_reader_t;
+
+LLMAPI const char *llm_ffmpeg_get_err();
+
+llm_ffmpeg_audio_reader_t *llm_ffmpeg_audio_open(const char *filename);
+void llm_ffmpeg_audio_close(llm_ffmpeg_audio_reader_t *reader);
+int32_t llm_ffmpeg_audio_read(llm_ffmpeg_audio_reader_t *reader, char *buf, int32_t buf_size);
 
 #ifdef __cplusplus
 }  // extern "C"

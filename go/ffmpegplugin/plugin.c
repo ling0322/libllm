@@ -41,12 +41,10 @@ typedef void *LLM_HMODULE;
 typedef HMODULE LLM_HMODULE;
 #endif
 
-void *(*p_llm_ffmpeg_plugin_load_library)(const char *library_path) = NULL;
-char *(*p_llm_ffmpeg_plugin_get_err)() = NULL;
-int32_t (*p_llm_ffmpeg_plugin_read_16khz_mono_pcm_from_media_file)(
-    const char *filename,
-    char **output_buffer,
-    int32_t *output_size) = NULL;
+char *(*p_llm_ffmpeg_get_err)() = NULL;
+void *(*p_llm_ffmpeg_audio_open)(const char *filename);
+void (*p_llm_ffmpeg_audio_close)(void *reader);
+int32_t (*p_llm_ffmpeg_audio_read)(void *reader, char *buf, int32_t buf_size);
 
 // load the libllm shared library.
 void *llm_ffmpeg_plugin_load_library(const char *libraryPath) {
@@ -74,16 +72,20 @@ void *llm_ffmpeg_plugin_load_library(const char *libraryPath) {
 int llm_ffmpeg_plugin_load_symbols(void *pDll) {
   LLM_HMODULE hDll = (LLM_HMODULE)pDll;
 
-  LOAD_SYMBOL(hDll, llm_ffmpeg_plugin_get_err);
-  LOAD_SYMBOL(hDll, llm_ffmpeg_plugin_read_16khz_mono_pcm_from_media_file);
+  LOAD_SYMBOL(hDll, llm_ffmpeg_get_err);
+  LOAD_SYMBOL(hDll, llm_ffmpeg_audio_open);
+  LOAD_SYMBOL(hDll, llm_ffmpeg_audio_close);
+  LOAD_SYMBOL(hDll, llm_ffmpeg_audio_read);
 
   return 0;
 }
 
 // load the libllm shared library.
-void llm_ffmpeg_plugin_destroy_librray(void *handle) {
-  p_llm_ffmpeg_plugin_get_err = NULL;
-  p_llm_ffmpeg_plugin_read_16khz_mono_pcm_from_media_file = NULL;
+void llm_ffmpeg_plugin_destroy_library(void *handle) {
+  p_llm_ffmpeg_get_err = NULL;
+  p_llm_ffmpeg_audio_open = NULL;
+  p_llm_ffmpeg_audio_close = NULL;
+  p_llm_ffmpeg_audio_read = NULL;
 
   // first try to load the dll from same folder as current module.
 #if defined(LUT_PLATFORM_APPLE) || defined(LUT_PLATFORM_LINUX)
@@ -100,16 +102,18 @@ void llm_ffmpeg_plugin_destroy_librray(void *handle) {
 #endif
 }
 
-char *llm_ffmpeg_plugin_get_err() {
-  return p_llm_ffmpeg_plugin_get_err();
+void *llm_ffmpeg_audio_open(const char *filename) {
+  return p_llm_ffmpeg_audio_open(filename);
 }
 
-int32_t llm_ffmpeg_plugin_read_16khz_mono_pcm_from_media_file(
-    const char *filename,
-    char **output_buffer,
-    int32_t *output_size) {
-  return p_llm_ffmpeg_plugin_read_16khz_mono_pcm_from_media_file(
-      filename,
-      output_buffer,
-      output_size);
+void llm_ffmpeg_audio_close(void *reader) {
+  return p_llm_ffmpeg_audio_close(reader);
+}
+
+int32_t llm_ffmpeg_audio_read(void *reader, char *buf, int32_t buf_size) {
+  return p_llm_ffmpeg_audio_read(reader, buf, buf_size);
+}
+
+const char *llm_ffmpeg_get_err() {
+  return p_llm_ffmpeg_get_err();
 }
