@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <memory>
 
 #ifdef __cplusplus
 extern "C" {
