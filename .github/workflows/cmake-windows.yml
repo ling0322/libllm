@@ -33,7 +33,9 @@ jobs:
     - name: Install cutlass
       run: cd third_party && bash install_cutlass.sh
     - name: Build ffmpeg plugin for Windows
-      run: gcc -shared -o llmpluginffmpeg.dll
+      run: g++ -shared -o llmpluginffmpeg.dll
+               -fno-exceptions
+               -fno-rtti
                -Isrc
                -Ithird_party/ffmpeg
                -DLIBLLM_EXPORTS
