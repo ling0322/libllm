@@ -124,6 +124,7 @@ class WhisperGreedyGenerator : public BaseGenerator {
   ~WhisperGreedyGenerator() = default;
 
   void setPrompt(const Prompt &prompt) override;
+  void setLanguage(const std::string &langCode);
 
  protected:
   int searchToken(const Tensor &logits) override;
@@ -131,6 +132,9 @@ class WhisperGreedyGenerator : public BaseGenerator {
  private:
   float _temperature;
   int _noSpeechToken;
+  int _targetLangToken;
+  int _beginLangToken;
+  int _endLangToken;
   std::vector<int> _history;
   std::shared_ptr<LogitsProcessor> _whisperLogitsProcessor;
 

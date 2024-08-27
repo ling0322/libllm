@@ -65,6 +65,9 @@ type WhisperTranscriber struct {
 
 	// the predicted language.
 	predictedLanguage string
+
+	// the specified whisper language. Empty means let whisper to predict.
+	language string
 }
 
 // create a new instance of WhisperTranscriber from whisper model and stream of input file.
@@ -78,6 +81,10 @@ func NewWhisperTranscriber(whisperModel llm.Model, inputFile string) (*WhisperTr
 		WhisperModel: whisperModel,
 		stream:       stream,
 	}, nil
+}
+
+func (w *WhisperTranscriber) SetLanguage(langCode string) {
+	w.language = langCode
 }
 
 // parse a whisper timestamp token like <|3.22|>. On success. return the (parsed-time, true). On
@@ -194,6 +201,9 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 	compConfig := llm.NewCompletionConfig()
 	compConfig.SetTopK(1)
 	compConfig.SetConfig("generator.type", "whisper")
+	if w.language != "" {
+		compConfig.SetConfig("whisper.language", w.language)
+	}
 	comp, err := w.WhisperModel.Complete(compConfig, prompt)
 	if err != nil {
 		return err

@@ -183,6 +183,7 @@ func transcribeMain(args []string) {
 	ba.addModelFlag()
 	ba.addInputFlag()
 	ba.addOutputFlag()
+	ba.addLangFlag()
 	ba.addTargetLangFlag()
 	_ = fs.Parse(args)
 
@@ -209,6 +210,10 @@ func transcribeMain(args []string) {
 	transcriber, err := skill.NewWhisperTranscriber(model, inputFile)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if ba.getRawLang() != "" {
+		transcriber.SetLanguage(ba.getRawLang())
 	}
 
 	transcriptions := []skill.TranscriptionResult{}

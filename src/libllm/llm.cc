@@ -19,6 +19,7 @@
 #include "lut/error.h"
 #include "lut/ini_config.h"
 #include "lut/log.h"
+#include "lut/strings.h"
 #include "lut/zip_file.h"
 
 using libllm::Context;
@@ -31,6 +32,7 @@ using libllm::Tokenizer;
 using lut::IniConfig;
 
 constexpr char LlmConfigKey_GeneratorType[] = "generator.type";
+constexpr char LlmConfigKey_WhisperLang[] = "whisper.language";
 constexpr char LlmConfigValue_Sampler[] = "sampler";
 constexpr char LlmConfigValue_Whisper[] = "whisper";
 
@@ -373,9 +375,12 @@ llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
       config.topP = comp->top_p;
 
       int generatorType = Generator::Sampling;
+      std::string whisperLang;
       for (const auto &kv : comp->kvConfig) {
         if (kv.first == LlmConfigKey_GeneratorType) {
           generatorType = parseGeneratorType(kv.second);
+        } else if (kv.first == LlmConfigKey_WhisperLang) {
+          whisperLang = lut::trim(kv.second);
         } else {
           throw lut::AbortedError("invalid configuration key: " + kv.first);
         }
@@ -384,7 +389,11 @@ llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
       if (generatorType == Generator::Sampling) {
         comp->generator = SamplingGenerator::newGenerator(config, model);
       } else if (generatorType == Generator::Whisper) {
-        comp->generator = WhisperGreedyGenerator::newGenerator(config, model);
+        auto whisperGenerator = WhisperGreedyGenerator::newGenerator(config, model);
+        if (!whisperLang.empty()) {
+          whisperGenerator->setLanguage(whisperLang);
+        }
+        comp->generator = whisperGenerator;
       } else {
         NOT_IMPL();
       }
@@ -398,7 +407,6 @@ llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
     } else {
       return LLM_FALSE;
     }
-
   } catch (const lut::Error &e) {
     if (comp) comp->error = e;
     return LLM_FALSE;

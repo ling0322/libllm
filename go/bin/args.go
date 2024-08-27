@@ -169,6 +169,10 @@ func (a *binArgs) getLang() skill.Lang {
 	return lang
 }
 
+func (a *binArgs) getRawLang() string {
+	return a.lang
+}
+
 func (a *binArgs) addTargetLangFlag() {
 	a.fs.StringVar(&a.targetLang, "targetlang", "", "the target language.")
 }
@@ -180,6 +184,7 @@ func (a *binArgs) getTargetLang() skill.Lang {
 
 	lang, err := skill.ParseLang(a.targetLang)
 	if err != nil {
+		slog.Error("unsupported target language (-targetlang).")
 		return skill.UnknownLanguage
 	}
 
