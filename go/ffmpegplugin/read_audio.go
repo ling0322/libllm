@@ -26,6 +26,8 @@ package ffmpegplugin
 import "C"
 import (
 	"errors"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -38,6 +40,10 @@ var gInit atomic.Bool
 var gDll unsafe.Pointer
 
 var Init = sync.OnceValue[error](initIntrnal)
+
+type Reader struct {
+	handle unsafe.Pointer
+}
 
 func initIntrnal() error {
 	// load the shared library.
@@ -74,7 +80,9 @@ func initIntrnal() error {
 	return nil
 }
 
-func Read16KHzMonoPcmFromMediaFile(filename string) (pcmdata []byte, err error) {
+func NewReader(filename string) (*Reader, error) {
+	Init()
+
 	if !gInit.Load() {
 		return nil, errors.New("ffmpeg plugin not initialized")
 	}
@@ -82,15 +90,46 @@ func Read16KHzMonoPcmFromMediaFile(filename string) (pcmdata []byte, err error) 
 	cName := C.CString(filename)
 	defer C.free(unsafe.Pointer(cName))
 
-	var outputPtr *C.char
-	outputLen := C.int(0)
-	ret := C.llm_ffmpeg_plugin_read_16khz_mono_pcm_from_media_file(cName, &outputPtr, &outputLen)
-	if ret < 0 {
-		err = errors.New(C.GoString(C.llm_ffmpeg_plugin_get_err()))
-		return
+	handle := C.llm_ffmpeg_audio_open(cName)
+	if handle == nil {
+		return nil, errors.New(C.GoString(C.llm_ffmpeg_get_err()))
 	}
 
-	pcmdata = make([]byte, int(outputLen))
-	C.memcpy(unsafe.Pointer(&pcmdata[0]), unsafe.Pointer(outputPtr), C.size_t(outputLen))
-	return
+	reader := &Reader{
+		unsafe.Pointer(handle),
+	}
+	runtime.SetFinalizer(reader, func(r *Reader) {
+		if r.handle != nil {
+			slog.Warn("ffmpegplugin.Reader is not closed")
+			r.Close()
+		}
+	})
+	return reader, nil
+}
+
+func (r *Reader) Read(b []byte) (n int, err error) {
+	if r.handle == nil {
+		return 0, errors.New("llm_ffmpeg_audio_reader_t handle is empty")
+	}
+
+	buf := (*C.char)(unsafe.Pointer(&b[0]))
+	bufsize := C.int32_t(len(b))
+
+	nb := C.llm_ffmpeg_audio_read(r.handle, buf, bufsize)
+	if nb == 0 {
+		return 0, io.EOF
+	} else if nb < 0 {
+		return 0, errors.New(C.GoString(C.llm_ffmpeg_get_err()))
+	} else {
+		return int(nb), nil
+	}
+}
+
+func (r *Reader) Close() error {
+	if r.handle != nil {
+		C.llm_ffmpeg_audio_close(r.handle)
+		r.handle = nil
+	}
+
+	return nil
 }

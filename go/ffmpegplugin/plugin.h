@@ -21,11 +21,13 @@
 
 #include <stdint.h>
 
+typedef struct llm_ffmpeg_audio_reader_t llm_ffmpeg_audio_reader_t;
+
 void *llm_ffmpeg_plugin_load_library(const char *library_path);
 int llm_ffmpeg_plugin_load_symbols(void *handle);
-void llm_ffmpeg_plugin_destroy_librray(void *handle);
-char *llm_ffmpeg_plugin_get_err();
-int32_t llm_ffmpeg_plugin_read_16khz_mono_pcm_from_media_file(
-    const char *filename,
-    char **output_buffer,
-    int32_t *output_size);
+void llm_ffmpeg_plugin_destroy_library(void *handle);
+
+const char *llm_ffmpeg_get_err();
+void *llm_ffmpeg_audio_open(const char *filename);
+void llm_ffmpeg_audio_close(void *reader);
+int32_t llm_ffmpeg_audio_read(void *reader, char *buf, int32_t buf_size);

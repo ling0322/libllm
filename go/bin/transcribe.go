@@ -206,7 +206,11 @@ func transcribeMain(args []string) {
 	slog.Info(fmt.Sprintf("output file is %s", outputFile))
 
 	d0 := time.Now()
-	transcriber := skill.NewWhisperTranscriber(model, inputFile)
+	transcriber, err := skill.NewWhisperTranscriber(model, inputFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	transcriptions := []skill.TranscriptionResult{}
 	for transcriber.Transcribe() {
 		r := transcriber.Result()

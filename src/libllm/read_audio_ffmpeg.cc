@@ -19,6 +19,10 @@
 
 #include "libllm/read_audio_ffmpeg.h"
 
+#include <algorithm>
+#include <deque>
+#include <memory>
+
 #ifdef __cplusplus
 extern "C" {
 #endif  // __cplusplus
@@ -33,57 +37,111 @@ extern "C" {
 
 thread_local char errmsg[256];
 
-char *llm_ffmpeg_plugin_get_err() {
-  errmsg[sizeof(errmsg) - 1] = '\0';
-  return errmsg;
+struct llm_ffmpeg_audio_reader_t {
+  AVFrame *frame;
+  AVFormatContext *formatCtx;
+  AVCodecContext *codecCtx;
+  SwrContext *swrCtx;
+  int audioStreamIndex;
+  uint8_t *resampleBuffer;
+  int resampleBufferSize;
+  int resampleLineSize;
+  bool eof;
+
+  std::deque<char> buffer;
+
+  llm_ffmpeg_audio_reader_t();
+  ~llm_ffmpeg_audio_reader_t();
+  void ensureResampleBuffer(int nSamples);
+};
+
+llm_ffmpeg_audio_reader_t::llm_ffmpeg_audio_reader_t()
+    : frame(nullptr),
+      formatCtx(nullptr),
+      codecCtx(nullptr),
+      swrCtx(nullptr),
+      audioStreamIndex(-1),
+      resampleBuffer(nullptr),
+      resampleBufferSize(0),
+      resampleLineSize(0),
+      eof(true) {
 }
 
-int32_t llm_ffmpeg_plugin_read_16khz_mono_pcm_from_media_file(
-    const char *filename,
-    char **output_buffer,
-    int32_t *output_size) {
-  AVFormatContext *format_ctx = nullptr;
-  AVCodecContext *codec_ctx = nullptr;
-  AVStream *audio_stream = nullptr;
-  const AVCodec *codec = nullptr;
-  struct SwrContext *swr_ctx = nullptr;
-  AVPacket packet;
-  AVFrame *frame = nullptr;
+llm_ffmpeg_audio_reader_t::~llm_ffmpeg_audio_reader_t() {
+  if (frame) av_frame_free(&frame);
+  if (codecCtx) avcodec_free_context(&codecCtx);
+  if (formatCtx) avformat_close_input(&formatCtx);
+  if (swrCtx) swr_free(&swrCtx);
+  if (resampleBuffer) av_free(resampleBuffer);
 
-  int audio_stream_index = -1;
-  int ret;
+  formatCtx = nullptr;
+  codecCtx = nullptr;
+  swrCtx = nullptr;
+  audioStreamIndex = -1;
+  resampleBuffer = nullptr;
+  resampleBufferSize = 0;
+  resampleLineSize = 0;
+  eof = true;
+}
 
-  if ((ret = avformat_open_input(&format_ctx, filename, nullptr, nullptr)) < 0) {
+void llm_ffmpeg_audio_reader_t::ensureResampleBuffer(int nSamples) {
+  if (resampleBufferSize >= nSamples) {
+    return;
+  }
+
+  if (resampleBuffer) av_free(resampleBuffer);
+  int ret = av_samples_alloc(&resampleBuffer, &resampleLineSize, 1, nSamples, AV_SAMPLE_FMT_S16, 0);
+  if (ret < 0) {
+    fprintf(stderr, "failed to alloc samples, retcode=%d\n", ret);
+    abort();
+  }
+
+  resampleBufferSize = nSamples;
+}
+
+llm_ffmpeg_audio_reader_t *llm_ffmpeg_audio_open(const char *filename) {
+  std::unique_ptr<llm_ffmpeg_audio_reader_t> reader = std::make_unique<llm_ffmpeg_audio_reader_t>();
+
+  int ret = avformat_open_input(&reader->formatCtx, filename, nullptr, nullptr);
+  if (ret < 0) {
     snprintf(errmsg, sizeof(errmsg), "Could not open input file \"%s\"", filename);
-    return ret;
+    return nullptr;
   }
 
   // find stream info
-  if ((ret = avformat_find_stream_info(format_ctx, nullptr)) < 0) {
+  ret = avformat_find_stream_info(reader->formatCtx, nullptr);
+  if (ret < 0) {
     snprintf(errmsg, sizeof(errmsg), "Could not find stream information");
-    return ret;
+    return nullptr;
   }
 
   // find the audio stream
-  audio_stream_index = av_find_best_stream(format_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &codec, 0);
-  if (audio_stream_index < 0) {
+  const AVCodec *codec = nullptr;
+  reader->audioStreamIndex = av_find_best_stream(
+      reader->formatCtx,
+      AVMEDIA_TYPE_AUDIO,
+      -1,
+      -1,
+      &codec,
+      0);
+  if (reader->audioStreamIndex < 0) {
     snprintf(errmsg, sizeof(errmsg), "Could not find audio stream in input file");
-    return audio_stream_index;
+    return nullptr;
   }
-  audio_stream = format_ctx->streams[audio_stream_index];
+  AVStream *audioStream = reader->formatCtx->streams[reader->audioStreamIndex];
 
   // get the codec context
-  codec_ctx = avcodec_alloc_context3(codec);
-  if (!codec_ctx) {
+  reader->codecCtx = avcodec_alloc_context3(codec);
+  if (!reader->codecCtx) {
     snprintf(errmsg, sizeof(errmsg), "Could not allocate codec context");
-    return AVERROR(ENOMEM);
+    return nullptr;
   }
-  avcodec_parameters_to_context(codec_ctx, audio_stream->codecpar);
+  avcodec_parameters_to_context(reader->codecCtx, audioStream->codecpar);
 
   // open the codec
-  if ((ret = avcodec_open2(codec_ctx, codec, nullptr)) < 0) {
+  if ((ret = avcodec_open2(reader->codecCtx, codec, nullptr)) < 0) {
     snprintf(errmsg, sizeof(errmsg), "Could not open codec");
-    return ret;
+    return nullptr;
   }
 
   // initialize resampler
@@ -91,81 +149,100 @@ int32_t llm_ffmpeg_plugin_read_16khz_mono_pcm_from_media_file(
   av_channel_layout_default(&ch_layout_output, 1);
 
   ret = swr_alloc_set_opts2(
-      &swr_ctx,
-      &ch_layout_output,       // Output channel layout
-      AV_SAMPLE_FMT_S16,       // Output sample format
-      16000,                   // Output sample rate
-      &codec_ctx->ch_layout,   // Input channel layout
-      codec_ctx->sample_fmt,   // Input sample format
-      codec_ctx->sample_rate,  // Input sample rate
+      &reader->swrCtx,
+      &ch_layout_output,              // Output channel layout
+      AV_SAMPLE_FMT_S16,              // Output sample format
+      16000,                          // Output sample rate
+      &reader->codecCtx->ch_layout,   // Input channel layout
+      reader->codecCtx->sample_fmt,   // Input sample format
+      reader->codecCtx->sample_rate,  // Input sample rate
       0,
       nullptr);
-  if (ret < 0 || swr_init(swr_ctx) < 0) {
+  if (ret < 0) {
     snprintf(errmsg, sizeof(errmsg), "Could not allocate resample context");
-    return AVERROR(ENOMEM);
+    return nullptr;
+  }
+
+  ret = swr_init(reader->swrCtx);
+  if (ret < 0) {
+    snprintf(errmsg, sizeof(errmsg), "Could not initialize resample context");
+    return nullptr;
   }
 
   // allocate memory for decoding
-  frame = av_frame_alloc();
-  if (!frame) {
+  reader->frame = av_frame_alloc();
+  if (!reader->frame) {
     snprintf(errmsg, sizeof(errmsg), "Could not allocate audio frame");
-    return AVERROR(ENOMEM);
+    return nullptr;
   }
 
-  // Prepare output buffer
-  *output_buffer = nullptr;
-  *output_size = 0;
+  reader->eof = false;
+  return reader.release();
+}
 
-  // Read and decode audio frames
-  while (av_read_frame(format_ctx, &packet) >= 0) {
-    if (packet.stream_index == audio_stream_index) {
-      if (avcodec_send_packet(codec_ctx, &packet) == 0) {
-        while (avcodec_receive_frame(codec_ctx, frame) == 0) {
-          uint8_t *out_buf;
-          int out_linesize;
-          int out_samples = av_rescale_rnd(
-              swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
+void llm_ffmpeg_audio_close(llm_ffmpeg_audio_reader_t *reader) {
+  delete reader;
+}
+
+int32_t llm_ffmpeg_audio_read(llm_ffmpeg_audio_reader_t *reader, char *buf, int32_t buf_size) {
+  while ((!reader->eof) && buf_size > reader->buffer.size()) {
+    AVPacket packet;
+    int ret = av_read_frame(reader->formatCtx, &packet);
+    if (ret < 0) {
+      reader->eof = true;
+      break;
+    }
+
+    if (packet.stream_index == reader->audioStreamIndex) {
+      if (avcodec_send_packet(reader->codecCtx, &packet) == 0) {
+        while (avcodec_receive_frame(reader->codecCtx, reader->frame) == 0) {
+          int outSamples = av_rescale_rnd(
+              swr_get_delay(reader->swrCtx, reader->codecCtx->sample_rate) +
+                  reader->frame->nb_samples,
               16000,
-              codec_ctx->sample_rate,
+              reader->codecCtx->sample_rate,
               AV_ROUND_UP);
 
           // Allocate memory for resampled data
-          av_samples_alloc(&out_buf, &out_linesize, 1, out_samples, AV_SAMPLE_FMT_S16, 0);
+          reader->ensureResampleBuffer(outSamples);
 
           // Resample the data
-          int resampled_data = swr_convert(
-              swr_ctx,
-              &out_buf,
-              out_samples,
-              (const uint8_t **)frame->data,
-              frame->nb_samples);
+          int ret = swr_convert(
+              reader->swrCtx,
+              &reader->resampleBuffer,
+              outSamples,
+              (const uint8_t **)reader->frame->data,
+              reader->frame->nb_samples);
+          if (ret < 0) {
+            snprintf(errmsg, sizeof(errmsg), "Could not convert samples");
+            return ret;
+          }
 
           // Calculate the size of the resampled data
-          int data_size = av_samples_get_buffer_size(
-              &out_linesize,
+          int destBufferSize = av_samples_get_buffer_size(
+              &reader->resampleLineSize,
               1,
-              resampled_data,
+              ret,
               AV_SAMPLE_FMT_S16,
               1);
 
           // Reallocate output buffer to append new data
-          *output_buffer = (char *)realloc(*output_buffer, *output_size + data_size);
-          memcpy(*output_buffer + *output_size, out_buf, data_size);
-          *output_size += data_size;
-
-          // Free the allocated buffer for resampled data
-          av_free(out_buf);
+          reader->buffer.insert(
+              reader->buffer.end(),
+              reader->resampleBuffer,
+              reader->resampleBuffer + destBufferSize);
         }
       }
-      av_packet_unref(&packet);
     }
   }
 
-_read_pcm_from_media_file_clean_up:
-  av_frame_free(&frame);
-  avcodec_free_context(&codec_ctx);
-  avformat_close_input(&format_ctx);
-  swr_free(&swr_ctx);
+  int nBytesToCopy = std::min(static_cast<int>(reader->buffer.size()), buf_size);
+  std::copy(reader->buffer.begin(), reader->buffer.begin() + nBytesToCopy, buf);
+  reader->buffer.erase(reader->buffer.begin(), reader->buffer.begin() + nBytesToCopy);
 
-  return ret;
+  return nBytesToCopy;
+}
+
+const char *llm_ffmpeg_get_err() {
+  return errmsg;
 }
