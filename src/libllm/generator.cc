@@ -215,7 +215,8 @@ WhisperGreedyGenerator::WhisperGreedyGenerator(
     std::shared_ptr<ModelForGeneration> model)
     : BaseGenerator(model),
       _temperature(config.temperature),
-      _noSpeechToken(-1) {
+      _noSpeechToken(-1),
+      _targetLangToken(-1) {
 }
 
 std::shared_ptr<WhisperGreedyGenerator> WhisperGreedyGenerator::newGenerator(
@@ -230,8 +231,15 @@ std::shared_ptr<WhisperGreedyGenerator> WhisperGreedyGenerator::newGenerator(
   generator->_whisperLogitsProcessor = whisper::WhisperLogitsProcessor::newProcessor(
       model->getVocab());
   generator->_noSpeechToken = model->getVocab()->findControlToken("<|nospeech|>");
+  generator->_beginLangToken = model->getVocab()->findControlToken("<|en|>");
+  generator->_endLangToken = model->getVocab()->findControlToken("<|su|>");
 
   return generator;
+}
+
+void WhisperGreedyGenerator::setLanguage(const std::string &langCode) {
+  std::string tokenName = "<|" + langCode + "|>";
+  _targetLangToken = _model->getVocab()->findControlToken(tokenName);
 }
 
 void WhisperGreedyGenerator::setPrompt(const Prompt &prompt) {
@@ -275,6 +283,10 @@ int WhisperGreedyGenerator::searchToken(const Tensor &logits) {
   int tokenId = static_cast<int>(best - data);
   if (tokenId == _noSpeechToken) {
     LOG(INFO) << "<|nospeech|> prob=" << data[tokenId];
+  }
+
+  if (_targetLangToken >= 0 && tokenId >= _beginLangToken && tokenId <= _endLangToken) {
+    tokenId = _targetLangToken;
   }
 
   _whisperLogitsProcessor->notifyToken(tokenId);
