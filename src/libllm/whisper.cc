@@ -727,15 +727,16 @@ void WhisperLogitsProcessor::processLogits(Tensor logits) {
   if (lastWasTimestamp) {
     _lastTimeTokenIdx = static_cast<int>(_history.size());
     if (penultimateWasTimestamp) {
-      // do not mask the <|30.00|> timestamp tag
-      F::fill(logits.slice(-1, {_beginTimeToken, _endTimeToken}), -Inf);
+      F::fill(logits.slice(-1, {_beginTimeToken, _endTimeToken + 1}), -Inf);
     } else {
       F::fill(logits.slice(-1, {0, _eotToken + 1}), -Inf);
     }
   }
 
   if (_lastTimeToken > _beginTimeToken) {
-    F::fill(logits.slice(-1, {_beginTimeToken, _lastTimeToken + 1}), -Inf);
+    // do not mask the <|30.00|> timestamp tag
+    int endToken = std::min(_lastTimeToken + 1, _endTimeToken);
+    F::fill(logits.slice(-1, {_beginTimeToken, endToken}), -Inf);
   }
 
   Tensor probs = F::softmax(logits);

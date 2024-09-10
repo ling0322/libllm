@@ -20,6 +20,8 @@
 package skill
 
 import (
+	"bytes"
+	"compress/zlib"
 	"errors"
 	"fmt"
 	"io"
@@ -27,6 +29,7 @@ import (
 	"math"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ling0322/libllm/go/llm"
@@ -68,6 +71,9 @@ type WhisperTranscriber struct {
 
 	// the specified whisper language. Empty means let whisper to predict.
 	language string
+
+	// the transcription history.
+	history []string
 }
 
 // create a new instance of WhisperTranscriber from whisper model and stream of input file.
@@ -136,6 +142,10 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 		return TranscriptionResult{}, fmt.Errorf("%w: not a time token", ErrInvalidWhisperSequence)
 	}
 	result.Begin = w.stream.Offset() + beginOffset
+	if w.chunk.Duration()-beginOffset < 200*time.Millisecond {
+		slog.Info("return ErrNoMoreResults", "begin", result.Begin, "audio_len", w.chunk.end)
+		return TranscriptionResult{}, ErrNoMoreResults
+	}
 
 	transcriptionDone := false
 	for w.comp.Next() {
@@ -158,6 +168,7 @@ func (w *WhisperTranscriber) decodeTranscription() (TranscriptionResult, error) 
 		return TranscriptionResult{}, ErrNoMoreResults
 	}
 
+	result.End = min(result.End, w.chunk.end)
 	return result, nil
 }
 
@@ -189,6 +200,9 @@ func (w *WhisperTranscriber) prefillNextAudioSegment() error {
 	slog.Info("transcribe segment", "offset", w.stream.Offset())
 	w.chunk, err = w.stream.ReadChunk(30 * time.Second)
 	if errors.Is(err, io.EOF) {
+		return ErrAudioEndOfStream
+	} else if w.chunk.Duration() < 500*time.Millisecond {
+		slog.Info("w.chunk.Duration() < 500*time.Millisecond")
 		return ErrAudioEndOfStream
 	} else if err != nil {
 		return err
@@ -271,10 +285,12 @@ func (w *WhisperTranscriber) Transcribe() bool {
 		if w.comp == nil {
 			w.err = w.prefillNextAudioSegment()
 			if errors.Is(w.err, ErrNoMoreResults) {
+				slog.Info("segment end", "reason", "ErrNoMoreResultsPrefill")
 				w.disposeCompAndSetToNil()
 				w.streamOffset += 30 * time.Second
 				continue
 			} else if errors.Is(w.err, ErrAudioEndOfStream) {
+				slog.Info("segment end", "reason", "ErrAudioEndOfStream")
 				w.disposeCompAndSetToNil()
 				w.err = nil
 				return false
@@ -282,16 +298,19 @@ func (w *WhisperTranscriber) Transcribe() bool {
 				return false
 			}
 			beginOfSegment = true
+			w.resetRepetitionChecker()
 		}
 
 		result, err := w.decodeTranscription()
 		if errors.Is(err, ErrNoMoreResults) && beginOfSegment {
 			// if no result for the whole audio segment, move forward to the next 30s segment.
+			slog.Info("segment end", "reason", "ErrNoMoreResults")
 			w.disposeCompAndSetToNil()
 			w.streamOffset += 30 * time.Second
 			continue
 		} else if errors.Is(err, ErrNoMoreResults) && !beginOfSegment {
 			// move the wave offset to the end of last completed transcription.
+			slog.Info("segment end", "reason", "ErrNoMoreResults")
 			w.disposeCompAndSetToNil()
 			w.streamOffset = w.result.End
 			continue
@@ -300,8 +319,44 @@ func (w *WhisperTranscriber) Transcribe() bool {
 			return false
 		}
 
+		if w.checkRepetition(result) {
+			// once repetition happened, stop the current decoding process.
+			slog.Info("segment end", "reason", "RepetitionDetected")
+			w.disposeCompAndSetToNil()
+			w.streamOffset = w.result.End
+			continue
+		}
+
 		w.result = result
 		return true
+	}
+}
+
+func (w *WhisperTranscriber) resetRepetitionChecker() {
+	w.history = []string{}
+}
+
+func (w *WhisperTranscriber) checkRepetition(r TranscriptionResult) bool {
+	w.history = append(w.history, r.Text)
+	if len(w.history) > 200 {
+		w.history = w.history[1:]
+	}
+
+	text := strings.Join(w.history, " ")
+
+	// compress text
+	var b bytes.Buffer
+
+	writer := zlib.NewWriter(&b)
+	writer.Write([]byte(text))
+	writer.Close()
+
+	compressionRatio := float32(len(text)) * 1.0 / float32(len(b.Bytes()))
+	if compressionRatio > 2.4 {
+		slog.Info("check repetition", "compression_ratio", compressionRatio)
+		return true
+	} else {
+		return false
 	}
 }
 
