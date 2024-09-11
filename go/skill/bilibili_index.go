@@ -33,6 +33,7 @@ func (l *BilibiliIndex) Build(history []Message) (llm.Prompt, error) {
 	if len(history) > 0 && history[0].Role == "system" {
 		prompt.AppendControlToken("<unk>")
 		prompt.AppendText(history[0].Content)
+		history = history[1:]
 	}
 
 	for _, message := range history {

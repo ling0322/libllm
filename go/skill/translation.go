@@ -63,7 +63,7 @@ func NewTranslator(model llm.Model) (Translator, error) {
 	}
 }
 
-var sysPromptIndexTranslation = "翻译%s到%s，不要换行，回复请以\"翻译结果：\"开头。"
+var sysPromptIndexTranslation = "翻译%s到%s，不能有换行符，回复请以\"翻译结果：\"开头。"
 
 var translationExamples = []map[Lang]string{
 	{
@@ -110,7 +110,7 @@ func (l *chatTranslator) getLangString(lang Lang) (name string, err error) {
 	case Chinese:
 		return "中文", nil
 	case English:
-		return "英文", nil
+		return "英语", nil
 	case Japanese:
 		return "日语", nil
 	default:

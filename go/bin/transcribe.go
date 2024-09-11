@@ -104,29 +104,6 @@ func saveTranscription(transcriptions []TxResult, filename string) error {
 	return nil
 }
 
-func translateTranscription(txs []TxResult, config translationConfig, filename string) error {
-	tt, err := newTranscripotionTranslator(
-		config.modelName,
-		config.device,
-		config.srcLang,
-		config.tgtLang)
-	if err != nil {
-		return err
-	}
-
-	txs, err = tt.translate(txs)
-	if err != nil {
-		return err
-	}
-
-	err = saveTranscription(txs, filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return nil
-}
-
 func getOutputFile(ba *binArgs) string {
 	outputFile := ba.tryGetOutput()
 	if outputFile != "" {
@@ -239,6 +216,15 @@ func transcribeMain(args []string) {
 
 	srcLang := getTranscriptionLang(transcriptions)
 	if srcLang != skill.UnknownLanguage && tgtLang != skill.UnknownLanguage && srcLang != tgtLang {
+		// save transcription (without translation)
+		fileExt := filepath.Ext(outputFile)
+		fileBaseName := outputFile[:len(outputFile)-len(fileExt)]
+		outputTxFile := fmt.Sprintf("%s.%s%s", fileBaseName, srcLang.String(), fileExt)
+		err = saveTranscription(transcriptions, outputTxFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		// translation
 		config := translationConfig{
 			srcLang,
@@ -246,7 +232,7 @@ func transcribeMain(args []string) {
 			getTranslationModel(ba),
 			device,
 		}
-		err := translateTranscription(transcriptions, config, outputFile)
+		err := TranslateSubtitle(config, outputTxFile, outputFile)
 		if err != nil {
 			log.Fatal(err)
 		}
