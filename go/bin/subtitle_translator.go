@@ -21,9 +21,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
 	"strings"
 
+	"github.com/asticode/go-astisub"
 	"github.com/ling0322/libllm/go/llm"
 	"github.com/ling0322/libllm/go/skill"
 )
@@ -82,7 +84,7 @@ func (t *transcriptionTranslator) translateOneWithRetry(text string) (translatio
 func (t *transcriptionTranslator) translateOne(text string) (translationResult, error) {
 	tr, err := t.translateOneWithRetry(text)
 	if err != nil {
-		return translationResult{}, nil
+		return translationResult{}, err
 	}
 
 	if tr.tgtText == "" {
@@ -137,4 +139,57 @@ func newTranscripotionTranslator(
 		srcLang:    srcLang,
 		tgtLang:    tgtLang,
 	}, nil
+}
+
+// read a subtitle file to
+func ReadSubtitleFile(filename string) ([]TxResult, error) {
+	subtitles, err := astisub.OpenFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	txs := []TxResult{}
+	for _, item := range subtitles.Items {
+		lines := []string{}
+		for _, line := range item.Lines {
+			lines = append(lines, line.String())
+		}
+		tx := TxResult{
+			Begin: item.StartAt,
+			End:   item.EndAt,
+			Text:  strings.Join(lines, " "),
+		}
+
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
+}
+
+func TranslateSubtitle(config translationConfig, inputFile, outputFile string) error {
+	tt, err := newTranscripotionTranslator(
+		config.modelName,
+		config.device,
+		config.srcLang,
+		config.tgtLang)
+	if err != nil {
+		return err
+	}
+
+	txs, err := ReadSubtitleFile(inputFile)
+	if err != nil {
+		return err
+	}
+
+	txs, err = tt.translate(txs)
+	if err != nil {
+		return err
+	}
+
+	err = saveTranscription(txs, outputFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return nil
 }

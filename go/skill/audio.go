@@ -53,6 +53,14 @@ func NewWaveStream(filename string) (*WaveStream, error) {
 	}, nil
 }
 
+func (w *WaveChunk) Duration() time.Duration {
+	return w.end - w.begin
+}
+
+func bytesToDuration(numBytes int) time.Duration {
+	return time.Duration(int64(numBytes) * int64(time.Second) / 2 / 16000)
+}
+
 func durationToBytes(dur time.Duration) int {
 	nsPerSample := 1000000000 / SampleRate
 	nSamples := int(dur.Nanoseconds() / int64(nsPerSample))
@@ -104,6 +112,7 @@ func (s *WaveStream) ReadChunk(length time.Duration) (WaveChunk, error) {
 	eof := false
 	if errors.Is(err, io.EOF) {
 		eof = true
+		length = bytesToDuration(len(s.buffer))
 		if len(s.buffer) == 0 {
 			return WaveChunk{}, io.EOF
 		}

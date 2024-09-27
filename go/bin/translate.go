@@ -27,6 +27,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -86,24 +87,7 @@ func translate(translator skill.Translator, req skill.TranslationRequest, onToke
 	}, nil
 }
 
-func translationMain(args []string) {
-	fs := flag.NewFlagSet("", flag.ExitOnError)
-	fs.Usage = func() {
-		printTranslateUsage(fs)
-	}
-
-	ba := newBinArgs(fs)
-	ba.addModelFlag()
-	ba.addDeviceFlag()
-	ba.addLangFlag()
-	ba.addTargetLangFlag()
-	_ = fs.Parse(args)
-
-	if fs.NArg() != 0 {
-		fs.Usage()
-		os.Exit(1)
-	}
-
+func interactiveTranslation(ba *binArgs) {
 	modelName := ba.getModel()
 	model, err := createModelAutoDownload(modelName, ba.getDevice())
 	if err != nil {
@@ -148,5 +132,58 @@ func translationMain(args []string) {
 			result.processingTime.Seconds(),
 			result.processingTime.Seconds()*1000/float64(result.numTokens),
 		)
+	}
+}
+
+func isSubtitleFile(filename string) bool {
+	if filepath.Ext(filename) == ".srt" {
+		return true
+	} else {
+		return false
+	}
+}
+
+func translateSubtitleFile(ba *binArgs) {
+	// translation
+	config := translationConfig{
+		ba.getLang(),
+		ba.getTargetLang(),
+		getTranslationModel(ba),
+		ba.getDevice(),
+	}
+	err := TranslateSubtitle(config, ba.getInput(), ba.getOutput())
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func translationMain(args []string) {
+	fs := flag.NewFlagSet("", flag.ExitOnError)
+	fs.Usage = func() {
+		printTranslateUsage(fs)
+	}
+
+	ba := newBinArgs(fs)
+	ba.addModelFlag()
+	ba.addDeviceFlag()
+	ba.addLangFlag()
+	ba.addTargetLangFlag()
+	ba.addInputFlag()
+	ba.addOutputFlag()
+	_ = fs.Parse(args)
+
+	if fs.NArg() != 0 {
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	if ba.tryGetInput() != "" {
+		if isSubtitleFile(ba.getInput()) {
+			translateSubtitleFile(ba)
+		} else {
+			log.Fatal("file not supported.")
+		}
+	} else {
+		interactiveTranslation(ba)
 	}
 }

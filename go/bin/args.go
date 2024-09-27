@@ -132,6 +132,10 @@ func (a *binArgs) getInput() string {
 	return a.inputFile
 }
 
+func (a *binArgs) tryGetInput() string {
+	return a.inputFile
+}
+
 func (a *binArgs) addOutputFlag() {
 	a.fs.StringVar(&a.outputFile, "o", "", "the output file.")
 }
