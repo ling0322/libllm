@@ -19,7 +19,11 @@
 
 package skill
 
-import "github.com/ling0322/libllm/go/llm"
+import (
+	"errors"
+
+	"github.com/ling0322/libllm/go/llm"
+)
 
 type Llama struct {
 }
@@ -27,7 +31,7 @@ type Llama struct {
 func (l *Llama) Build(history []Message) (llm.Prompt, error) {
 	prompt := llm.NewPrompt()
 	prompt.AppendControlToken("<|begin_of_text|>")
-	for _, message := range history {
+	for _, message := range history[:len(history)-1] {
 		prompt.AppendControlToken("<|start_header_id|>")
 		prompt.AppendText(message.Role)
 		prompt.AppendControlToken("<|end_header_id|>")
@@ -35,9 +39,25 @@ func (l *Llama) Build(history []Message) (llm.Prompt, error) {
 		prompt.AppendControlToken("<|eot_id|>")
 	}
 
-	prompt.AppendControlToken("<|start_header_id|>")
-	prompt.AppendText("assistant")
-	prompt.AppendControlToken("<|end_header_id|>")
-	prompt.AppendText("\n\n")
+	lastMessage := history[len(history)-1]
+	if lastMessage.Role == "user" {
+		prompt.AppendControlToken("<|start_header_id|>")
+		prompt.AppendText(lastMessage.Role)
+		prompt.AppendControlToken("<|end_header_id|>")
+		prompt.AppendText("\n\n" + lastMessage.Content)
+		prompt.AppendControlToken("<|eot_id|>")
+		prompt.AppendControlToken("<|start_header_id|>")
+		prompt.AppendText("assistant")
+		prompt.AppendControlToken("<|end_header_id|>")
+		prompt.AppendText("\n\n")
+	} else if lastMessage.Role == "assistant" {
+		prompt.AppendControlToken("<|start_header_id|>")
+		prompt.AppendText(lastMessage.Role)
+		prompt.AppendControlToken("<|end_header_id|>")
+		prompt.AppendText("\n\n" + lastMessage.Content)
+	} else {
+		return nil, errors.New("last message should be either user or assistant")
+	}
+
 	return prompt, nil
 }
