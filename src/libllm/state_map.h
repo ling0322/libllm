@@ -24,7 +24,7 @@
 #include <utility>
 
 #include "libllm/tensor.h"
-#include "lut/reader.h"
+#include "lutil/reader.h"
 
 namespace libllm {
 

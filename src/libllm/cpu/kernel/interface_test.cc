@@ -24,9 +24,9 @@
 #include "catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/kernel/test_common.h"
 #include "libllm/cpu/kernel/util.h"
-#include "lut/half.h"
-#include "lut/log.h"
-#include "lut/random.h"
+#include "lutil/half.h"
+#include "lutil/log.h"
+#include "lutil/random.h"
 
 namespace libllm {
 namespace op {

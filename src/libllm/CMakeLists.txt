@@ -117,7 +117,7 @@ if (WITH_CUDA)
 
     set(llmplugincublas_SOURCES
         "cuda/gemm_cublas.cc"
-        "../lut/internal/log.cc")
+        "../lutil/internal/log.cc")
 endif()
 
 # CPU specific code

@@ -24,7 +24,7 @@
 #include "libllm/cpu/kernel/interface.h"
 #include "libllm/cpu/tensor.h"
 #include "libllm/mp.h"
-#include "lut/strings.h"
+#include "lutil/strings.h"
 
 namespace libllm {
 namespace op {

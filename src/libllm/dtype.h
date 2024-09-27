@@ -24,7 +24,7 @@
 #include <string>
 #include <type_traits>
 
-#include "lut/attributes.h"
+#include "lutil/attributes.h"
 
 namespace libllm {
 

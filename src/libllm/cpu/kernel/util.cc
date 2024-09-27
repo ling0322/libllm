@@ -24,8 +24,8 @@
 #include <algorithm>
 
 #include "libllm/cpu/kernel/abstract.h"
-#include "lut/half.h"
-#include "lut/platform.h"
+#include "lutil/half.h"
+#include "lutil/platform.h"
 
 #ifdef LUT_ARCH_AARCH64
 #include <arm_neon.h>

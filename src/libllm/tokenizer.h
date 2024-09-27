@@ -20,8 +20,8 @@
 #pragma once
 
 #include "libllm/vocab.h"
-#include "lut/ini_config.h"
-#include "lut/zip_file.h"
+#include "lutil/ini_config.h"
+#include "lutil/zip_file.h"
 
 namespace libllm {
 

@@ -22,8 +22,8 @@
 #include "libllm/bpe_config.h"
 #include "libllm/bpe_encoder.h"
 #include "libllm/bpe_model.h"
-#include "lut/error.h"
-#include "lut/strings.h"
+#include "lutil/error.h"
+#include "lutil/strings.h"
 
 namespace libllm {
 

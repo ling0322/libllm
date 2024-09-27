@@ -27,8 +27,8 @@
 
 #include "libllm/cuda/cuda_tensor_data.h"
 #include "libllm/tensor.h"
-#include "lut/error.h"
-#include "lut/strings.h"
+#include "lutil/error.h"
+#include "lutil/strings.h"
 
 namespace libllm {
 namespace op {

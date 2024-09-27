@@ -27,9 +27,9 @@
 #include "libllm/cpu/kernel/interface.h"
 #include "libllm/cuda/cuda_operators.h"
 #include "libllm/mp.h"
-#include "lut/error.h"
-#include "lut/strings.h"
-#include "lut/thread_pool.h"
+#include "lutil/error.h"
+#include "lutil/strings.h"
+#include "lutil/thread_pool.h"
 
 namespace libllm {
 

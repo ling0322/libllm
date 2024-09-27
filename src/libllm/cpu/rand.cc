@@ -28,9 +28,9 @@
 #include "libllm/cpu/tensor.h"
 #include "libllm/mp.h"
 #include "libllm/tensor.h"
-#include "lut/half.h"
-#include "lut/random.h"
-#include "lut/time.h"
+#include "lutil/half.h"
+#include "lutil/random.h"
+#include "lutil/time.h"
 
 namespace libllm {
 namespace op {

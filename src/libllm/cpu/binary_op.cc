@@ -24,7 +24,7 @@
 #include "libllm/cpu/tensor.h"
 #include "libllm/mp.h"
 #include "libllm/tensor.h"
-#include "lut/attributes.h"
+#include "lutil/attributes.h"
 
 namespace libllm {
 namespace op {

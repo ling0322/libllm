@@ -19,7 +19,7 @@
 
 #include "libllm/bpe_encoder.h"
 
-#include "lut/strings.h"
+#include "lutil/strings.h"
 
 namespace libllm {
 

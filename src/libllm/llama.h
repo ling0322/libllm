@@ -25,8 +25,8 @@
 #include "libllm/functional.h"
 #include "libllm/model_for_generation.h"
 #include "libllm/module.h"
-#include "lut/error.h"
-#include "lut/ini_config.h"
+#include "lutil/error.h"
+#include "lutil/ini_config.h"
 
 namespace libllm {
 namespace llama {

@@ -21,7 +21,7 @@
 
 #include <functional>
 
-#include "lut/range.h"
+#include "lutil/range.h"
 
 namespace libllm {
 

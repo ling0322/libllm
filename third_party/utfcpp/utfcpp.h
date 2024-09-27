@@ -30,7 +30,7 @@ DEALINGS IN THE SOFTWARE.
 #include <iterator>
 #include <string>
 
-#include "lut/error.h"
+#include "lutil/error.h"
 
 namespace lut {
 namespace utf8 {

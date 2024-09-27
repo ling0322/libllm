@@ -27,9 +27,9 @@
 
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/util.h"
-#include "lut/attributes.h"
-#include "lut/half.h"
-#include "lut/log.h"
+#include "lutil/attributes.h"
+#include "lutil/half.h"
+#include "lutil/log.h"
 
 namespace libllm {
 namespace op {

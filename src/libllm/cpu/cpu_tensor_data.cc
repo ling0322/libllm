@@ -21,9 +21,9 @@
 
 #include "libllm/device.h"
 #include "libllm/dtype.h"
-#include "lut/error.h"
-#include "lut/platform.h"
-#include "lut/span.h"
+#include "lutil/error.h"
+#include "lutil/platform.h"
+#include "lutil/span.h"
 
 namespace libllm {
 namespace op {

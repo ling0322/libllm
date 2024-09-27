@@ -24,8 +24,8 @@
 
 #include "libllm/bpe_config.h"
 #include "libllm/bpe_model.h"
-#include "lut/noncopyable.h"
-#include "lut/pool.h"
+#include "lutil/noncopyable.h"
+#include "lutil/pool.h"
 
 namespace libllm {
 

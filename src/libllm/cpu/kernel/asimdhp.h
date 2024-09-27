@@ -22,7 +22,7 @@
 #include <stdint.h>
 
 #include "libllm/cpu/kernel/abstract.h"
-#include "lut/log.h"
+#include "lutil/log.h"
 
 namespace libllm {
 namespace op {

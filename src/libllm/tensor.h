@@ -26,9 +26,9 @@
 
 #include "libllm/device.h"
 #include "libllm/dtype.h"
-#include "lut/fixed_array.h"
-#include "lut/reader.h"
-#include "lut/span.h"
+#include "lutil/fixed_array.h"
+#include "lutil/reader.h"
+#include "lutil/span.h"
 
 namespace libllm {
 

@@ -21,8 +21,8 @@
 
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/mp.h"
-#include "lut/log.h"
-#include "lut/time.h"
+#include "lutil/log.h"
+#include "lutil/time.h"
 
 namespace libllm {
 namespace op {

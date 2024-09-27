@@ -20,7 +20,7 @@
 #pragma once
 
 #include "libllm/tensor.h"
-#include "lut/random.h"
+#include "lutil/random.h"
 
 namespace libllm {
 namespace op {
