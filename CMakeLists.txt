@@ -86,7 +86,7 @@ endif()
 
 add_subdirectory("src")
 
-set(libllm_LIBADD lut ${CMAKE_DL_LIBS})
+set(libllm_LIBADD lutil ${CMAKE_DL_LIBS})
 
 if(WITH_OPENMP)
     set(libllm_LIBADD ${libllm_LIBADD} OpenMP::OpenMP_CXX)
@@ -102,7 +102,7 @@ endif()
 set(unittest_LIBADD
     libllm_static
     libllm_test
-    lut_test
+    lutil_test
     ${libllm_LIBADD}
     catch2)
 if (WITH_MKL)
@@ -131,7 +131,7 @@ target_link_libraries(benchmark ${benchmark_LIBADD})
 if (WITH_CUDA)
     add_library(llmplugincublas SHARED $<TARGET_OBJECTS:llmplugincublas_static>)
     target_include_directories(llmplugincublas PRIVATE ${libllm_INCDIR})
-    target_link_libraries(llmplugincublas lut CUDA::cublas)
+    target_link_libraries(llmplugincublas lutil CUDA::cublas)
     if(UNIX AND NOT APPLE)
         target_link_options(llmplugincublas PUBLIC "-Wl,--no-undefined")
     endif()

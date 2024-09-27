@@ -28,7 +28,7 @@
 #include "libllm/cuda/gemm_cutlass.h"
 #include "libllm/cuda/matvec.h"
 #include "libllm/dtype.h"
-#include "lut/strings.h"
+#include "lutil/strings.h"
 
 namespace libllm {
 namespace op {

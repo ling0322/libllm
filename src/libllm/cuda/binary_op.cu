@@ -23,7 +23,7 @@
 #include "libllm/cuda/binary_op.h"
 #include "libllm/cuda/common.h"
 #include "libllm/tensor.h"
-#include "lut/span.h"
+#include "lutil/span.h"
 
 namespace libllm {
 namespace op {

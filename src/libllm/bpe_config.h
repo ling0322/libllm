@@ -22,7 +22,7 @@
 #include <memory>
 #include <string>
 
-#include "lut/ini_config.h"
+#include "lutil/ini_config.h"
 
 namespace libllm {
 

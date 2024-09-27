@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 
-#include "lut/attributes.h"
+#include "lutil/attributes.h"
 
 namespace libllm {
 namespace op {

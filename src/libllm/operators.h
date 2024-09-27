@@ -23,8 +23,8 @@
 
 #include "libllm/device.h"
 #include "libllm/tensor.h"
-#include "lut/random.h"
-#include "lut/thread_pool.h"
+#include "lutil/random.h"
+#include "lutil/thread_pool.h"
 
 namespace libllm {
 

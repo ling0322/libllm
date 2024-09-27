@@ -28,9 +28,9 @@
 #include "libllm/cpu/kernel/avx512.h"
 #include "libllm/cpu/kernel/fallback.h"
 #include "libllm/cpu/kernel/util.h"
-#include "lut/half.h"
-#include "lut/log.h"
-#include "lut/random.h"
+#include "lutil/half.h"
+#include "lutil/log.h"
+#include "lutil/random.h"
 
 namespace libllm {
 namespace op {

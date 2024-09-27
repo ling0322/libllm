@@ -30,7 +30,7 @@
 #include "libllm/cpu/lookup.h"
 #include "libllm/cpu/tensor.h"
 #include "libllm/tensor.h"
-#include "lut/half.h"
+#include "lutil/half.h"
 
 namespace libllm {
 namespace op {

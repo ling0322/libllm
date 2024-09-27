@@ -23,7 +23,7 @@
 
 #include "libllm/model_for_generation.h"
 #include "libllm/module.h"
-#include "lut/ini_config.h"
+#include "lutil/ini_config.h"
 
 namespace libllm {
 namespace whisper {

@@ -23,10 +23,10 @@
 #include "libllm/llama.h"
 #include "libllm/qwen.h"
 #include "libllm/whisper.h"
-#include "lut/error.h"
-#include "lut/path.h"
-#include "lut/strings.h"
-#include "lut/zip_file.h"
+#include "lutil/error.h"
+#include "lutil/path.h"
+#include "lutil/strings.h"
+#include "lutil/zip_file.h"
 
 namespace libllm {
 

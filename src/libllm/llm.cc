@@ -16,11 +16,11 @@
 #include "libllm/operators.h"
 #include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
-#include "lut/error.h"
-#include "lut/ini_config.h"
-#include "lut/log.h"
-#include "lut/strings.h"
-#include "lut/zip_file.h"
+#include "lutil/error.h"
+#include "lutil/ini_config.h"
+#include "lutil/log.h"
+#include "lutil/strings.h"
+#include "lutil/zip_file.h"
 
 using libllm::Context;
 using libllm::GenerationConfig;

@@ -24,9 +24,9 @@
 #include "libllm/device.h"
 #include "libllm/functional.h"
 #include "libllm/operators.h"
-#include "lut/attributes.h"
-#include "lut/strings.h"
-#include "lut/time.h"
+#include "lutil/attributes.h"
+#include "lutil/strings.h"
+#include "lutil/time.h"
 
 #define CONCAT2(l, r) l##r
 #define CONCAT(l, r) CONCAT2(l, r)

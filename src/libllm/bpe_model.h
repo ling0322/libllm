@@ -22,7 +22,7 @@
 #include <unordered_map>
 
 #include "libllm/vocab.h"
-#include "lut/reader.h"
+#include "lutil/reader.h"
 
 namespace libllm {
 

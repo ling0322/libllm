@@ -22,7 +22,7 @@
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/kernel/interface.h"
 #include "libllm/tensor.h"
-#include "lut/span.h"
+#include "lutil/span.h"
 
 namespace libllm {
 namespace op {

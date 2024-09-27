@@ -23,7 +23,7 @@
 #include "libllm/cpu/fingerprint.h"
 #include "libllm/functional.h"
 #include "libllm/wave.h"
-#include "lut/base64.h"
+#include "lutil/base64.h"
 
 namespace libllm {
 namespace op {

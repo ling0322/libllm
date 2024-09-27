@@ -25,7 +25,7 @@
 
 #include "libllm/model_for_generation.h"
 #include "libllm/prompt.h"
-#include "lut/random.h"
+#include "lutil/random.h"
 
 namespace libllm {
 

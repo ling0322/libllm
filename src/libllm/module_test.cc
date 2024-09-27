@@ -24,8 +24,8 @@
 #include "libllm/operators.h"
 #include "libllm/tensor.h"
 #include "libllm/test_helper.h"
-#include "lut/random.h"
-#include "lut/span.h"
+#include "lutil/random.h"
+#include "lutil/span.h"
 
 namespace libllm {
 

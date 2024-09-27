@@ -20,7 +20,7 @@
 #include "libllm/wave.h"
 
 #include "libllm/functional.h"
-#include "lut/error.h"
+#include "lutil/error.h"
 
 namespace libllm {
 

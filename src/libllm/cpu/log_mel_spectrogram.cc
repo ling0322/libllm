@@ -28,7 +28,7 @@
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/tensor.h"
 #include "libllm/mp.h"
-#include "lut/thread_pool.h"
+#include "lutil/thread_pool.h"
 #include "pocketfft/pocketfft_hdronly.h"
 
 namespace libllm {

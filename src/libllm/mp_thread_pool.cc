@@ -24,9 +24,9 @@
 #include <thread>
 
 #include "libllm/mp.h"
-#include "lut/log.h"
-#include "lut/range.h"
-#include "lut/thread_pool.h"
+#include "lutil/log.h"
+#include "lutil/range.h"
+#include "lutil/thread_pool.h"
 
 namespace libllm {
 

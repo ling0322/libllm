@@ -26,7 +26,7 @@
 #include "libllm/cuda/common.h"
 #include "libllm/cuda/gemm_cutlass.h"
 #include "libllm/dtype.h"
-#include "lut/error.h"
+#include "lutil/error.h"
 
 namespace libllm {
 namespace op {

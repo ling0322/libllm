@@ -25,7 +25,7 @@
 #include "libllm/cuda/common.h"
 #include "libllm/cuda/gemm.h"
 #include "libllm/tensor.h"
-#include "lut/shared_library.h"
+#include "lutil/shared_library.h"
 
 namespace libllm {
 namespace op {

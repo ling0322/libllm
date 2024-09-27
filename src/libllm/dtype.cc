@@ -19,8 +19,8 @@
 
 #include "libllm/dtype.h"
 
-#include "lut/log.h"
-#include "lut/strings.h"
+#include "lutil/log.h"
+#include "lutil/strings.h"
 
 #ifdef LIBLLM_CUDA_ENABLED
 #include <cuda_fp16.h>

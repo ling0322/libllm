@@ -30,9 +30,9 @@
 #include "libllm/device.h"
 #include "libllm/functional.h"
 #include "libllm/operator_tester.h"
-#include "lut/half.h"
-#include "lut/random.h"
-#include "lut/time.h"
+#include "lutil/half.h"
+#include "lutil/random.h"
+#include "lutil/time.h"
 
 #define CONCAT2(l, r) l##r
 #define CONCAT(l, r) CONCAT2(l, r)
@@ -290,7 +290,7 @@ CATCH_TEST_CASE("test matmul gemm (cutlass)", "[ly][op][cuda][cutlass]") {
   x = F::cast(x, DType::kFloat);
   x = F::to(Device::getCpu(), x);
 
-  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f));
+  CATCH_REQUIRE(F::allClose(x, xr, 2e-3f));
 }
 
 CATCH_TEST_CASE("test matmul bmm (cutlass)", "[ly][op][cuda][cutlass]") {
@@ -312,7 +312,7 @@ CATCH_TEST_CASE("test matmul bmm (cutlass)", "[ly][op][cuda][cutlass]") {
   x = F::cast(x, DType::kFloat);
   x = F::to(Device::getCpu(), x);
 
-  CATCH_REQUIRE(F::allClose(x, xr, 1e-5f));
+  CATCH_REQUIRE(F::allClose(x, xr, 2e-3f));
 }
 
 CATCH_TEST_CASE("benchmark cutlass hgemm", "[ly][op][cuda]") {

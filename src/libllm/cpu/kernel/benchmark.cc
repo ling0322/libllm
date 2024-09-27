@@ -29,10 +29,10 @@
 #include "libllm/cpu/kernel/abstract.h"
 #include "libllm/cpu/kernel/gemm.h"
 #include "libllm/cpu/kernel/interface.h"
-#include "lut/attributes.h"
-#include "lut/log.h"
-#include "lut/strings.h"
-#include "lut/time.h"
+#include "lutil/attributes.h"
+#include "lutil/log.h"
+#include "lutil/strings.h"
+#include "lutil/time.h"
 
 namespace libllm {
 namespace op {

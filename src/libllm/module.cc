@@ -22,8 +22,8 @@
 #include <math.h>
 
 #include "libllm/functional.h"
-#include "lut/error.h"
-#include "lut/strings.h"
+#include "lutil/error.h"
+#include "lutil/strings.h"
 
 namespace libllm {
 

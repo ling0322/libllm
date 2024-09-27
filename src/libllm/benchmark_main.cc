@@ -28,10 +28,10 @@
 #include "libllm/llm.h"
 #include "libllm/model_for_generation.h"
 #include "libllm/operators.h"
-#include "lut/error.h"
-#include "lut/flags.h"
-#include "lut/random.h"
-#include "lut/time.h"
+#include "lutil/error.h"
+#include "lutil/flags.h"
+#include "lutil/random.h"
+#include "lutil/time.h"
 
 constexpr int MagicNumber = 0x55aa;
 constexpr double MaxWait = 10;

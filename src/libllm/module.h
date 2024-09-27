@@ -24,7 +24,7 @@
 #include "libllm/context.h"
 #include "libllm/state_map.h"
 #include "libllm/tensor.h"
-#include "lut/random.h"
+#include "lutil/random.h"
 #include "tensor.h"
 
 namespace libllm {

@@ -28,9 +28,9 @@
 #include "libllm/cuda/subtensor.h"
 #include "libllm/dtype.h"
 #include "libllm/tensor.h"
-#include "lut/c_ptr.h"
-#include "lut/error.h"
-#include "lut/strings.h"
+#include "lutil/c_ptr.h"
+#include "lutil/error.h"
+#include "lutil/strings.h"
 
 #define LL_CHECK_CONTIGUOUS(x)                                           \
   {                                                                      \
