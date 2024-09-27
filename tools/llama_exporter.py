@@ -52,8 +52,11 @@ class LlamaExporter(ModelExporter):
         self._export_mlp(ctx.with_subname("mlp"), model_block.mlp)
 
     def _export_rope(self, ctx: Context, rope_embd):
-        cos_cached = torch.squeeze(rope_embd.cos_cached)
-        sin_cached = torch.squeeze(rope_embd.sin_cached)
+        original_max_seq_len = rope_embd.original_max_seq_len
+        position_ids = torch.arange(original_max_seq_len).unsqueeze(0)
+        x = torch.ones(1)
+
+        cos_cached, sin_cached = rope_embd(x, position_ids)
 
         rope = torch.stack((cos_cached, sin_cached))
         self._write(ctx.with_quant(Quant.NONE), rope)
@@ -79,7 +82,8 @@ class LlamaExporter(ModelExporter):
         config = configparser.ConfigParser()
         config["llama"] = {}
 
-        assert llama_config.rope_scaling is None
+        print("llama_config.rope_scaling =", llama_config.rope_scaling)
+
         assert llama_config.pretraining_tp == 1
         assert llama_config.hidden_act == "silu"
         
@@ -137,7 +141,7 @@ def run_llama_chat(huggingface_name):
     response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
     print(response)
 
-MODEL_NAME = "meta-llama/Meta-Llama-3.1-8B"
+MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct"
 MODEL_BIN = "model.bin"
 MODEL_INI = "model.ini"
 TOKENIZER_BIN = "tokenizer.bin"
@@ -171,7 +175,7 @@ if __name__ == '__main__':
             libllm_tokenizer = read_spm_model(args.huggingface_name)
 
         with package.open(MODEL_BIN, "w", force_zip64=True) as fp:
-            config = LlamaExporter.export(model, fp, args.quantization)
+            config = LlamaExporter.export(model, fp, args.quant)
 
         if args.llama_version == 3:
             config["llama"]["bot_token_id"] = str(tokenizer.bos_token_id)
