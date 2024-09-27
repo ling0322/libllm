@@ -27,6 +27,8 @@ var modelUrls = map[string]string{
 	"whisper:large-v3:q4": "https://huggingface.co/ling0322/whisper-libllm/resolve/main/whisper-large-v3-q4.llmpkg",
 	"qwen:7b:q4":          "https://huggingface.co/ling0322/qwen-libllm/resolve/main/qwen2-7b-instruct-q4.llmpkg",
 	"qwen:1.5b:q4":        "https://huggingface.co/ling0322/qwen-libllm/resolve/main/qwen2-1.5b-instruct-q4.llmpkg",
+	"llama3.2:1b:q4":      "https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-1b-instruct-q4.llmpkg",
+	"llama3.2:3b:q4":      "https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-3b-instruct-q4.llmpkg",
 }
 
 var modelMsUrls = map[string]string{
@@ -35,6 +37,8 @@ var modelMsUrls = map[string]string{
 	"whisper:large-v3:q4": "https://modelscope.cn/models/ling0322/whisper-libllm/resolve/master/whisper-large-v3-q4.llmpkg",
 	"qwen:7b:q4":          "https://modelscope.cn/models/ling0322/qwen2-libllm/resolve/master/qwen2-7b-instruct-q4.llmpkg",
 	"qwen:1.5b:q4":        "https://modelscope.cn/models/ling0322/qwen2-libllm/resolve/master/qwen2-1.5b-instruct-q4.llmpkg",
+	"llama3.2:1b:q4":      "https://modelscope.cn/models/ling0322/llama3.2-libllm/resolve/master/llama3.2-1b-instruct-q4.llmpkg",
+	"llama3.2:3b:q4":      "https://modelscope.cn/models/ling0322/llama3.2-libllm/resolve/master/llama3.2-3b-instruct-q4.llmpkg",
 }
 
 var modelFilenames = map[string]string{
@@ -43,6 +47,8 @@ var modelFilenames = map[string]string{
 	"whisper:large-v3:q4": "whisper-large-v3-q4.llmpkg",
 	"qwen:7b:q4":          "qwen2-7b-instruct-q4.llmpkg",
 	"qwen:1.5b:q4":        "qwen2-1.5b-instruct-q4.llmpkg",
+	"llama3.2:3b:q4":      "llama3.2-3b-instruct-q4.llmpkg",
+	"llama3.2:1b:q4":      "llama3.2-1b-instruct-q4.llmpkg",
 }
 
 var defaultModelNames = map[string]string{
@@ -59,6 +65,11 @@ var defaultModelNames = map[string]string{
 	"qwen:7b:q4":          "qwen:7b:q4",
 	"qwen:1.5b":           "qwen:1.5b:q4",
 	"qwen:1.5b:q4":        "qwen:1.5b:q4",
+	"llama3.2":            "llama3.2:3b:q4",
+	"llama3.2:3b":         "llama3.2:3b:q4",
+	"llama3.2:3b:q4":      "llama3.2:3b:q4",
+	"llama3.2:1b":         "llama3.2:1b:q4",
+	"llama3.2:1b:q4":      "llama3.2:1b:q4",
 }
 
 func resolveModelName(name string) (resolvedName string, err error) {

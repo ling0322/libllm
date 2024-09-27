@@ -14,13 +14,24 @@ Welcome to libLLM, an open-source project designed for efficient inference of la
 | Index-1.9B-Chat | [🤗[HF](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-chat-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/bilibili-index-libllm/file/view/master?fileName=bilibili-index-1.9b-chat-q4.llmpkg&status=2)] | llm chat -m index |
 | Qwen2-1.5B-Instruct | [🤗[HF](https://huggingface.co/ling0322/qwen-libllm/blob/main/qwen2-1.5b-instruct-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/qwen2-libllm/file/view/master?fileName=qwen2-1.5b-instruct-q4.llmpkg&status=2)] | llm chat -m qwen:1.5b |
 | Qwen2-7B-Instruct | [🤗[HF](https://huggingface.co/ling0322/qwen-libllm/blob/main/qwen2-7b-instruct-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/qwen2-libllm/file/view/master?fileName=qwen2-7b-instruct-q4.llmpkg&status=2)] | llm chat -m qwen:7b |
+| Llama3.2-1B-Instruct | [🤗[HF](https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-1b-instruct-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/whisper-libllm/file/view/master?fileName=whisper-large-v3-q4.llmpkg&status=2)] | llm chat -m llama3.2:1b |
+| Llama3.2-3B-Instruct | [🤗[HF](https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-3b-instruct-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/whisper-libllm/file/view/master?fileName=whisper-large-v3-q4.llmpkg&status=2)] | llm chat -m llama3.2 |
 | Whisper-large-v3 | [🤗[HF](https://huggingface.co/ling0322/whisper-libllm/resolve/main/whisper-large-v3-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/whisper-libllm/file/view/master?fileName=whisper-large-v3-q4.llmpkg&status=2)] |  llm transcribe -m whisper |
 
 `HF` = HuggingFace, `MS` = ModelScope
 
+## Kernel support matrix
+
+| OS       |  Platform | CUDA       |  avx2  |  avx512 | asimdhp |
+|----------|-----------|------------|--------|---------|---------|
+| Linux    | x64       | ✅         | ✅     | ✅       |         |
+| Windows  | x64       | ✅         | ✅     | ✅       |         |
+| macOS    | arm64     |            |        |         | ✅      |
+
 ## Recent updates
 
-- [2024-08-12] Support whisper models.
+- [2024-09-28] Support Llama3.2 models.
+- [2024-08-12] Support Whisper models.
 - [2024-08-02] Support the translation command in llm.
 - [2024-07-30] Support model downloading from huggingface. For example, `llm chat -model index-character` will automatically download the `index-character` model from 🤗[Huggingface](https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/blob/main/bilibili-index-1.9b-chat-q4.llmpkg).
 
@@ -32,19 +43,41 @@ To run and chat with Bilibili-Index-1.9B-Character:
 $ llm chat -m index-character
 ```
 
-## Key features:
+It will automatically download the `Bilibili-Index-1.9B-Character` from Huggingface or ModelScope (in China), and start the chat CLI in llm.
 
-- Optimized for everyday devices: libLLM has been optimized to run smoothly on common personal computers, ensuring the powerful capabilities of large language models are accessible to a wider range of users.
-- C++ code: Written in standard C++14, it is simple and efficient.
-- No external dependencies: The core functionality does not require third-party dependencies (BLAS, SentencePiece, etc.), and the necessary GEMM kernels are implemented internally (avx2, avx512).
-- CUDA support: Supports accelerated inference using CUDA.
+## 开始
 
-## 特点
+与`Bilibili-Index-1.9B-Character`模型聊天：
 
-- 为日常设备进行优化：libLLM经过优化，可在常见的个人电脑上平稳运行，确保大型语言模型的强大功能面向更广泛的用户。
-- C++代码：采用标准C++14编写，简单高效。
-- 无外部依赖：核心功能无需第三方依赖（BLAS、SentencePiece等），所需的GEMM内核均在内部实现(avx2、avx512)。
-- 支持CUDA：支持使用CUDA加速推理。
+```bash
+$ llm chat -m index-character
+```
+
+`llm`会自动从Huggingface或者ModelScope（如果是中国IP）下载模型`Bilibili-Index-1.9B-Character`, 并且开始与它对话。
+
+## llm command line
+
+```bash
+$ src/libllm/llm chat -m index-character
+INFO 2024-07-30T12:02:28Z interface.cc:67] ISA support: AVX2=1 F16C=1 AVX512F=1
+INFO 2024-07-30T12:02:28Z interface.cc:71] Use Avx512 backend.
+INFO 2024-07-30T12:02:30Z matmul.cc:43] Use GEMM from cuBLAS.
+INFO 2024-07-30T12:02:30Z cuda_operators.cc:51] cuda numDevices = 2
+INFO 2024-07-30T12:02:30Z cuda_operators.cc:52] cuda:0 maxThreadsPerMultiProcessor = 2048
+INFO 2024-07-30T12:02:30Z cuda_operators.cc:54] cuda:0 multiProcessorCount = 20
+INFO 2024-07-30T12:02:30Z thread_pool.cc:73] ThreadPool started. numThreads=20
+INFO 2024-07-30T12:02:30Z llm.cc:204] read model package: /home/xiaoych/.libllm/models/bilibili-index-1.9b-character-q4.llmpkg
+INFO 2024-07-30T12:02:30Z model_for_generation.cc:43] model_type = index
+INFO 2024-07-30T12:02:30Z model_for_generation.cc:44] device = cuda
+INFO 2024-07-30T12:02:31Z state_map.cc:66] 220 tensors read.
+Please input your question.
+    Type ':new' to start a new session (clean history).
+    Type ':sys <system_prompt>' to set the system prompt and start a new session .
+> hi
+您好！我是Index，请问有什么我可以帮助您的吗？
+(12 tokens, time=0.76s, 63.47ms per token)
+> 
+```
 
 ## Build
 
@@ -79,30 +112,6 @@ Recommand versions are:
 $ mkdir build && cd build
 $ cmake -DWITH_CUDA=ON [-DCUDAToolkit_ROOT=<CUDA-DIR>] ..
 $ make -j
-```
-
-## Run libllm command line
-
-```bash
-$ src/libllm/llm chat -m index-character
-INFO 2024-07-30T12:02:28Z interface.cc:67] ISA support: AVX2=1 F16C=1 AVX512F=1
-INFO 2024-07-30T12:02:28Z interface.cc:71] Use Avx512 backend.
-INFO 2024-07-30T12:02:30Z matmul.cc:43] Use GEMM from cuBLAS.
-INFO 2024-07-30T12:02:30Z cuda_operators.cc:51] cuda numDevices = 2
-INFO 2024-07-30T12:02:30Z cuda_operators.cc:52] cuda:0 maxThreadsPerMultiProcessor = 2048
-INFO 2024-07-30T12:02:30Z cuda_operators.cc:54] cuda:0 multiProcessorCount = 20
-INFO 2024-07-30T12:02:30Z thread_pool.cc:73] ThreadPool started. numThreads=20
-INFO 2024-07-30T12:02:30Z llm.cc:204] read model package: /home/xiaoych/.libllm/models/bilibili-index-1.9b-character-q4.llmpkg
-INFO 2024-07-30T12:02:30Z model_for_generation.cc:43] model_type = index
-INFO 2024-07-30T12:02:30Z model_for_generation.cc:44] device = cuda
-INFO 2024-07-30T12:02:31Z state_map.cc:66] 220 tensors read.
-Please input your question.
-    Type ':new' to start a new session (clean history).
-    Type ':sys <system_prompt>' to set the system prompt and start a new session .
-> hi
-您好！我是Index，请问有什么我可以帮助您的吗？
-(12 tokens, time=0.76s, 63.47ms per token)
-> 
 ```
 
 ## API Examples
