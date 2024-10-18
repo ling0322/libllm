@@ -22,8 +22,6 @@
 #include <functional>
 #include <memory>
 
-#include "lutil/range.h"
-
 namespace lut {
 
 class ThreadPool {

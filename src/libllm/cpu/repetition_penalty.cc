@@ -37,33 +37,31 @@ void repetitionPenalty2DKernel(Tensor logits, Tensor history, float weight) {
   TensorList<const LongType, 1> vH = TensorList<const LongType, 1>::fromTensor(history);
   CHECK(vA.getLength() == vH.getLength());
 
-  MP::parallelFor({vA.getLength()}, [&vA, &vH, weight](MP::Partition partition) {
-    for (int j : partition.getRange()) {
-      TensorAccessor<T, 1> a = vA.getTensor(j);
-      TensorAccessor<const LongType, 1> h = vH.getTensor(j);
+  MP::parallelFor(vA.getLength(), [&vA, &vH, weight](MP::Context ctx) {
+    TensorAccessor<T, 1> a = vA.getTensor(ctx.getBlockIdx());
+    TensorAccessor<const LongType, 1> h = vH.getTensor(ctx.getBlockIdx());
 
-      // gather. Avoid the same logit penalizing twice.
-      std::vector<T> scores(h.getShape(0));
-      for (int i = 0; i < h.getShape(0); ++i) {
-        LongType logitsIdx = h[i];
-        CHECK(logitsIdx < a.getShape(0));
+    // gather. Avoid the same logit penalizing twice.
+    std::vector<T> scores(h.getShape(0));
+    for (int i = 0; i < h.getShape(0); ++i) {
+      LongType logitsIdx = h[i];
+      CHECK(logitsIdx < a.getShape(0));
 
-        T v = a[logitsIdx];
-        if (v > 0) {
-          v /= weight;
-        } else if (v < 0) {
-          v *= weight;
-        }
+      T v = a[logitsIdx];
+      if (v > 0) {
+        v /= weight;
+      } else if (v < 0) {
+        v *= weight;
+      }
 
-        scores[i] = v;
-      };
+      scores[i] = v;
+    };
 
-      // scatter
-      for (int i = 0; i < h.getShape(0); ++i) {
-        LongType logitsIdx = h[i];
-        a[logitsIdx] = scores[i];
-      };
-    }
+    // scatter
+    for (int i = 0; i < h.getShape(0); ++i) {
+      LongType logitsIdx = h[i];
+      a[logitsIdx] = scores[i];
+    };
   });
 }
 

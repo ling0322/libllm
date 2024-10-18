@@ -44,15 +44,23 @@ Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, f
     generator->fill(tensorData, min, max);
   } else {
     // if no generator specified, we could go parallel.
-    MP::parallelFor(
-        {static_cast<int>(tensorData.size())},
-        [&tensorData, min, max](MP::Partition partition) {
-          lut::Random random(time(nullptr) + partition.getPartitionIdx());
-          for (int i : partition.getRange()) {
-            float nextR = random.nextFloat();
-            tensorData[i] = min + (max - min) * nextR;
-          }
-        });
+    std::vector<lut::Random> rs;
+    lut::Random rseed;
+    for (int i = 0; i < MP::getMaxThreads(); ++i) {
+      rs.emplace_back(rseed.nextInt());
+    }
+
+    int blockSize = 1024;
+    int nb = static_cast<int>((tensorData.size() + blockSize - 1) / blockSize);
+    MP::parallelFor(nb, [&tensorData, &rs, min, max, blockSize](MP::Context ctx) {
+      int64_t b = ctx.getBlockIdx();
+      int64_t begin = b * blockSize;
+      int64_t end = std::min(b * blockSize + blockSize, static_cast<int64_t>(tensorData.size()));
+      for (int i = begin; i < end; ++i) {
+        float nextR = rs[ctx.getAttachedThreadIdx()].nextFloat();
+        tensorData[i] = min + (max - min) * nextR;
+      }
+    });
   }
 
   return x;

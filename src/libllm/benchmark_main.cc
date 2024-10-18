@@ -153,7 +153,7 @@ void benchmarkLlama(std::shared_ptr<llama::LlamaModel> model, int ctxLength, DTy
 
   float tokenPerSec = benchmarkPromptForward(&r, model, 32000, ctxLength);
   printf(
-      "llama2_7B   %-8s %-8s prompt@len:%-5d   %-7.1f\n",
+      "llama2_7B   %-8s %-8s prefill@len:%-5d  %-7.1f\n",
       model->getCtx().getDevice().getName().c_str(),
       weightType.toString().c_str(),
       ctxLength,
@@ -161,7 +161,7 @@ void benchmarkLlama(std::shared_ptr<llama::LlamaModel> model, int ctxLength, DTy
 
   tokenPerSec = benchmarkTokenGeneration(&r, model, 32000, ctxLength);
   printf(
-      "llama2_7B   %-8s %-8s tokengen@ctx:%-5d %-7.1f\n",
+      "llama2_7B   %-8s %-8s decode@ctx:%-5d   %-7.1f\n",
       model->getCtx().getDevice().getName().c_str(),
       weightType.toString().c_str(),
       ctxLength,

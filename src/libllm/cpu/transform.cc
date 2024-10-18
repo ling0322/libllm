@@ -37,14 +37,12 @@ Tensor transformKernel(const Tensor &A, float alpha, float beta) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
-  MP::parallelFor({vA.getLength()}, [&vA, &vC, alpha, beta](MP::Partition partition) {
-    for (int j : partition.getRange()) {
-      TensorAccessor<const T, 1> a = vA.getTensor(j);
-      TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor(vA.getLength(), [&vA, &vC, alpha, beta](MP::Context ctx) {
+    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
+    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
 
-      for (int i = 0; i < a.getShape(0); ++i) {
-        c[i] = a[i] * static_cast<T>(alpha) + static_cast<T>(beta);
-      }
+    for (int i = 0; i < a.getShape(0); ++i) {
+      c[i] = a[i] * static_cast<T>(alpha) + static_cast<T>(beta);
     }
   });
 

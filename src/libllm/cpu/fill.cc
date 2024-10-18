@@ -32,13 +32,11 @@ namespace cpu {
 template<typename T>
 void fillKernel(Tensor A, float value) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(A);
-  MP::parallelFor({vC.getLength()}, [&vC, value](MP::Partition partition) {
-    for (int j : partition.getRange()) {
-      TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor(vC.getLength(), [&vC, value](MP::Context ctx) {
+    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
 
-      for (int i = 0; i < c.getShape(0); ++i) {
-        c[i] = value;
-      }
+    for (int i = 0; i < c.getShape(0); ++i) {
+      c[i] = value;
     }
   });
 }

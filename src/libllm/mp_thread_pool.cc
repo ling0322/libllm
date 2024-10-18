@@ -49,14 +49,16 @@ int MP::getMaxThreads() {
   return gThreadPoolMP->getNumThreads();
 }
 
-void MP::parallelFor(lut::Range range, int numThreads, std::function<void(Partition)> closure) {
+void MP::parallelFor2(int numBlocks, std::function<void(Context)> closure) {
   CHECK(gThreadPoolMP) << "call MP::parallelFor() before MP::init()";
-  int n = numThreads > 0 ? numThreads : gThreadPoolMP->getNumThreads();
+  int n = gThreadPoolMP->getNumThreads();
 
   std::atomic<int> numDone{0};
   for (int i = 0; i < n; ++i) {
-    gThreadPoolMP->apply([range, closure, i, n, &numDone]() {
-      closure(Partition(splitRange(range, i, n), i, n, lut::ThreadPool::getThreadId()));
+    gThreadPoolMP->apply([numBlocks, closure, i, n, &numDone]() {
+      for (int j = i; j < numBlocks; j += n) {
+        closure(Context(j, numBlocks, lut::ThreadPool::getThreadId()));
+      }
       numDone.fetch_add(1);
     });
   }
@@ -64,10 +66,6 @@ void MP::parallelFor(lut::Range range, int numThreads, std::function<void(Partit
   while (numDone.load() < n) {
     std::this_thread::yield();
   }
-}
-
-void MP::parallelFor(lut::Range range, std::function<void(Partition)> closure) {
-  return parallelFor(range, -1, closure);
 }
 
 }  // namespace libllm

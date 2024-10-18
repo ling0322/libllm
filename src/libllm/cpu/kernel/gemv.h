@@ -45,14 +45,12 @@ void gemvContigousN(const GemvArgs<ElementA, ElementB, ElementC> &args) {
           m * args.lda);
     }
   } else if (MODE == Mode::OMP) {
-    MP::parallelFor({args.M}, [args](MP::Partition partition) {
-      for (int m : partition.getRange()) {
-        args.y[m] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
-            args.N,
-            args.x,
-            args.A,
-            m * args.lda);
-      }
+    MP::parallelFor(args.M, [args](MP::Context ctx) {
+      args.y[ctx.getBlockIdx()] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
+          args.N,
+          args.x,
+          args.A,
+          ctx.getBlockIdx() * args.lda);
     });
   } else {
     NOT_IMPL();
@@ -61,10 +59,7 @@ void gemvContigousN(const GemvArgs<ElementA, ElementB, ElementC> &args) {
 
 template<typename ElementA, typename ElementB, typename ElementC, CpuMathBackend TYPE, Mode MODE>
 void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
-  int mp = (args.M + GEMVMinRowsPerThread - 1) / GEMVMinRowsPerThread;
-  int numThreads = std::min(mp, MP::getMaxThreads());
-
-  if (MODE == Mode::SingleThread || numThreads <= 1) {
+  if (MODE == Mode::SingleThread) {
     lut::c_ptr<float> y = alignedAlloc<float>(args.N);
     memset(y.get(), 0, args.N * sizeof(float));
 
@@ -77,20 +72,19 @@ void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
   } else if (MODE == Mode::OMP) {
     // initialize numThreads y buffers.
     // TODO: sfill
-    lut::c_ptr<float> ys = alignedAlloc<float>(args.N * numThreads);
-    memset(ys.get(), 0, args.N * numThreads * sizeof(float));
+    lut::c_ptr<float> ys = alignedAlloc<float>(args.N * MP::getMaxThreads());
+    memset(ys.get(), 0, args.N * MP::getMaxThreads() * sizeof(float));
 
     // compute axpy.
-    MP::parallelFor({args.M}, numThreads, [args, &ys](MP::Partition partition) {
-      for (int m : partition.getRange()) {
-        float *py = ys.get() + partition.getPartitionIdx() * args.N;
-        axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.lda, py);
-      }
+    MP::parallelFor(args.M, [args, &ys](MP::Context ctx) {
+      int m = ctx.getBlockIdx();
+      float *py = ys.get() + ctx.getAttachedThreadIdx() * args.N;
+      axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.lda, py);
     });
 
     // accumulate ys.
     // TODO: vAdd.
-    for (int p = 0; p < numThreads; ++p) {
+    for (int p = 0; p < MP::getMaxThreads(); ++p) {
       float *py = ys.get() + p * args.N;
       for (int i = 0; i < args.N; ++i) {
         args.y[i] += py[i];

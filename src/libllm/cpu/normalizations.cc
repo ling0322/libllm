@@ -44,25 +44,23 @@ Tensor rmsNormKernel(const Tensor &tensor, const Tensor &weight, float eps) {
 
   TensorAccessor<const T, 1> w = weight;
 
-  MP::parallelFor({vA.getLength()}, [&vA, &vC, w, eps](MP::Partition partition) {
-    for (int j : partition.getRange()) {
-      TensorAccessor<const T, 1> a = vA.getTensor(j);
-      TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor(vA.getLength(), [&vA, &vC, w, eps](MP::Context ctx) {
+    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
+    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
 
-      double sum = 0.0;
-      for (int i = 0; i < a.getShape(0); ++i) {
-        double va = a[i];
-        sum += va * va;
-      }
-      double mean = sum / a.getShape(0);
-      double rms = std::sqrt(mean + eps);
+    float sum = 0.0;
+    for (int i = 0; i < a.getShape(0); ++i) {
+      float va = a[i];
+      sum += va * va;
+    }
+    float mean = sum / a.getShape(0);
+    float rms = std::sqrt(mean + eps);
 
-      // compute rms-norm
-      for (int i = 0; i < a.getShape(0); ++i) {
-        double va = a[i];
-        double vw = w[i];
-        c[i] = static_cast<T>(a[i] * w[i] / rms);
-      }
+    // compute rms-norm
+    for (int i = 0; i < a.getShape(0); ++i) {
+      float va = a[i];
+      float vw = w[i];
+      c[i] = static_cast<T>(a[i] * w[i] / rms);
     }
   });
 
@@ -83,31 +81,29 @@ Tensor layerNormKernel(const Tensor &tensor, const Tensor &weight, const Tensor 
   TensorAccessor<const T, 1> w = weight;
   TensorAccessor<const T, 1> b = bias;
 
-  MP::parallelFor({vA.getLength()}, [&vA, &vC, w, b, eps](MP::Partition partition) {
-    for (int j : partition.getRange()) {
-      TensorAccessor<const T, 1> a = vA.getTensor(j);
-      TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor(vA.getLength(), [&vA, &vC, w, b, eps](MP::Context ctx) {
+    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
+    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
 
-      double sum = 0.0f;
-      for (int i = 0; i < a.getShape(0); ++i) {
-        sum += a[i];
-      }
-      double mean = sum / a.getShape(0);
+    double sum = 0.0f;
+    for (int i = 0; i < a.getShape(0); ++i) {
+      sum += a[i];
+    }
+    double mean = sum / a.getShape(0);
 
-      // var (unbiased)
-      sum = 0.0;
-      for (int i = 0; i < a.getShape(0); ++i) {
-        double d = a[i] - mean;
-        sum += d * d;
-      }
-      double var = sum / a.getShape(0);
-      double sd = sqrt(var + eps);
+    // var (unbiased)
+    sum = 0.0;
+    for (int i = 0; i < a.getShape(0); ++i) {
+      double d = a[i] - mean;
+      sum += d * d;
+    }
+    double var = sum / a.getShape(0);
+    double sd = sqrt(var + eps);
 
-      // compute layer-norm
-      for (int i = 0; i < a.getShape(0); ++i) {
-        float elem = static_cast<float>((a[i] - mean) / sd);
-        c[i] = elem * w[i] + b[i];
-      }
+    // compute layer-norm
+    for (int i = 0; i < a.getShape(0); ++i) {
+      float elem = static_cast<float>((a[i] - mean) / sd);
+      c[i] = elem * w[i] + b[i];
     }
   });
 

@@ -28,7 +28,6 @@
 #include <thread>
 
 #include "lutil/log.h"
-#include "lutil/range.h"
 #include "lutil/thread_pool.h"
 
 namespace libllm {
@@ -44,17 +43,11 @@ int MP::getMaxThreads() {
   return omp_get_max_threads();
 }
 
-void MP::parallelFor(lut::Range range, int numThreads, std::function<void(Partition)> closure) {
-  int n = numThreads > 0 ? numThreads : getMaxThreads();
-
-#pragma omp parallel for num_threads(n)
-  for (int i = 0; i < n; ++i) {
-    closure(Partition(splitRange(range, i, n), i, n, omp_get_thread_num()));
+void MP::parallelFor(int numBlocks, std::function<void(Context)> closure) {
+#pragma omp parallel for num_threads(getMaxThreads()) schedule(dynamic, 1)
+  for (int i = 0; i < numBlocks; ++i) {
+    closure(Context(i, numBlocks, omp_get_thread_num()));
   }
-}
-
-void MP::parallelFor(lut::Range range, std::function<void(Partition)> closure) {
-  return parallelFor(range, -1, closure);
 }
 
 }  // namespace libllm

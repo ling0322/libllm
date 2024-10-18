@@ -45,20 +45,18 @@ Tensor binaryOpKernel(const Tensor &A, const Tensor &B, BinaryOp op) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vB.getLength() && vC.getLength() == vB.getLength());
 
-  MP::parallelFor({vA.getLength()}, [&vA, &vB, &vC, op](MP::Partition partition) {
-    for (int j : partition.getRange()) {
-      TensorAccessor<const T, 1> a = vA.getTensor(j);
-      TensorAccessor<const T, 1> b = vB.getTensor(j);
-      TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor(vA.getLength(), [&vA, &vB, &vC, op](MP::Context ctx) {
+    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
+    TensorAccessor<const T, 1> b = vB.getTensor(ctx.getBlockIdx());
+    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
 
-      for (int i = 0; i < a.getShape(0); ++i) {
-        if (op == BinaryOp::ADD) {
-          c[i] = a[i] + b[i];
-        } else if (op == BinaryOp::MUL) {
-          c[i] = a[i] * b[i];
-        } else {
-          NOT_IMPL();
-        }
+    for (int i = 0; i < a.getShape(0); ++i) {
+      if (op == BinaryOp::ADD) {
+        c[i] = a[i] + b[i];
+      } else if (op == BinaryOp::MUL) {
+        c[i] = a[i] * b[i];
+      } else {
+        NOT_IMPL();
       }
     }
   });
