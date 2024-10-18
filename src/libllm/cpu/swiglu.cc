@@ -40,18 +40,17 @@ Tensor swigluKernel(const Tensor &A) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
-  MP::parallelFor({vA.getLength()}, [&vA, &vC](MP::Partition partition) {
-    for (int j : partition.getRange()) {
-      TensorAccessor<const T, 1> a = vA.getTensor(j);
-      TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor(vA.getLength(), [&vA, &vC](MP::Context ctx) {
+    int j = ctx.getBlockIdx();
+    TensorAccessor<const T, 1> a = vA.getTensor(j);
+    TensorAccessor<T, 1> c = vC.getTensor(j);
 
-      int n = c.getShape(0);
-      for (int i = 0; i < n; ++i) {
-        T x = a[i];
-        x *= 1.0f / (1 + expf(-x));
-        x *= a[i + n];
-        c[i] = x;
-      }
+    int n = c.getShape(0);
+    for (int i = 0; i < n; ++i) {
+      T x = a[i];
+      x *= 1.0f / (1 + expf(-x));
+      x *= a[i + n];
+      c[i] = x;
     }
   });
 

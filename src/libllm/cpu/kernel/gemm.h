@@ -131,25 +131,26 @@ class Gemm {
     int lastNr = C.numCols % NR;
     int lastMr = C.numRows % MR;
 
-    auto closure = [this, &A, &B, &C, mp, np, lastNr, lastMr](MP::Partition partition) {
-      for (int i : partition.getRange()) {
-        for (int j = 0; j < mp; ++j) {
-          int nr = (i != np - 1 || lastNr == 0) ? NR : lastNr;
-          int mr = (j != mp - 1 || lastMr == 0) ? MR : lastMr;
+    auto closure = [this, &A, &B, &C, mp, np, lastNr, lastMr](MP::Context ctx) {
+      int i = ctx.getBlockIdx();
+      for (int j = 0; j < mp; ++j) {
+        int nr = (i != np - 1 || lastNr == 0) ? NR : lastNr;
+        int mr = (j != mp - 1 || lastMr == 0) ? MR : lastMr;
 
-          Block<T> Aj = A.block(j);
-          Block<T> Bi = B.block(i);
-          Block<T> Cji = C.slice(j * MR, i * NR, mr, nr);
+        Block<T> Aj = A.block(j);
+        Block<T> Bi = B.block(i);
+        Block<T> Cji = C.slice(j * MR, i * NR, mr, nr);
 
-          microKernel(Aj, Bi, Cji);
-        }
+        microKernel(Aj, Bi, Cji);
       }
     };
 
     if (MODE == Mode::OMP) {
-      MP::parallelFor({np}, closure);
+      MP::parallelFor(np, closure);
     } else {
-      closure(MP::Partition(lut::Range(np)));
+      for (int i = 0; i < np; ++i) {
+        closure(MP::Context(i, np, 0));
+      }
     }
   }
 

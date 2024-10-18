@@ -74,24 +74,22 @@ Tensor reduceKernel(Tensor A) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
-  MP::parallelFor({vA.getLength()}, [&vA, &vC](MP::Partition partition) {
-    for (int j : partition.getRange()) {
-      TensorAccessor<const T, 1> a = vA.getTensor(j);
-      TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor(vA.getLength(), [&vA, &vC](MP::Context ctx) {
+    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
+    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
 
-      float accumulator = getReduceInitial<T, REDUCE_TYPE>();
-      for (int i = 0; i < a.getShape(0); i++) {
-        if (REDUCE_TYPE == ReduceType::SUM) {
-          accumulator += a[i];
-        } else if (REDUCE_TYPE == ReduceType::MAX) {
-          if (a[i] > accumulator) accumulator = a[i];
-        } else {
-          NOT_IMPL();
-        }
+    float accumulator = getReduceInitial<T, REDUCE_TYPE>();
+    for (int i = 0; i < a.getShape(0); i++) {
+      if (REDUCE_TYPE == ReduceType::SUM) {
+        accumulator += a[i];
+      } else if (REDUCE_TYPE == ReduceType::MAX) {
+        if (a[i] > accumulator) accumulator = a[i];
+      } else {
+        NOT_IMPL();
       }
-
-      c[0] = accumulator;
     }
+
+    c[0] = accumulator;
   });
 
   return C;

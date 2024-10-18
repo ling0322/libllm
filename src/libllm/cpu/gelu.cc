@@ -40,17 +40,15 @@ Tensor geluKernel(const Tensor &A) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
-  MP::parallelFor({vA.getLength()}, [&vA, &vC](MP::Partition partition) {
-    for (int j : partition.getRange()) {
-      TensorAccessor<const T, 1> a = vA.getTensor(j);
-      TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor(vA.getLength(), [&vA, &vC](MP::Context ctx) {
+    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
+    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
 
-      int n = c.getShape(0);
-      for (int i = 0; i < n; ++i) {
-        float x = a[i];
-        x = x * 0.5f * (1.0f + erf(x / Sqrt2));
-        c[i] = T(x);
-      }
+    int n = c.getShape(0);
+    for (int i = 0; i < n; ++i) {
+      float x = a[i];
+      x = x * 0.5f * (1.0f + erf(x / Sqrt2));
+      c[i] = T(x);
     }
   });
 

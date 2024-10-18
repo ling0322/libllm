@@ -21,14 +21,13 @@
 
 #include <functional>
 
-#include "lutil/range.h"
-
 namespace libllm {
 
 // wrapper for OpenMP or other implementations
 class MP {
  public:
   class Partition;
+  class Context;
 
   static void init();
   static void destroy();
@@ -36,37 +35,34 @@ class MP {
 
   /// @brief split range into N parts and apply each part in the closure. N is the number of
   /// workers in the thread pool.
-  /// @param range the range.
+  /// @param numBlocks number of blocks.
   /// @param closure the closure. Since we need to invoke the closure multiple times, we use it
   /// by value here.
-  /// @param numThreads number of threads to use. -1 means using all threads in the pool.
-  static void parallelFor(lut::Range range, int numThreads, std::function<void(Partition)> closure);
-  static void parallelFor(lut::Range range, std::function<void(Partition)> closure);
-
- private:
-  /// @brief Split the range into N parts, and returns the i-th part.
-  /// @param range the range to split.
-  /// @param chunkIdx the i-th part to get.
-  /// @param numChunks number of parts to split (the N).
-  /// @return i-th part of the range after split.
-  static lut::Range splitRange(lut::Range range, int chunkIdx, int numChunks);
+  static void parallelFor(int numBlocks, std::function<void(Context)> closure);
 };
 
 /// @brief Store a partition info for a parallelFor function call.
-class MP::Partition {
+class MP::Context {
  public:
-  Partition(lut::Range range);
-  Partition(lut::Range range, int partitionIdx, int numPartitions, int attachedThreadIdx);
+  Context(int blockIdx, int numBlocks, int attachedThreadIdx)
+      : _blockIdx(blockIdx),
+        _numBlocks(numBlocks),
+        _attachedThreadIdx(attachedThreadIdx) {
+  }
 
-  lut::Range getRange() const;
-  int getPartitionIdx() const;
-  int getNumPartitions() const;
-  int getAttachedThreadIdx() const;
+  int getBlockIdx() const {
+    return _blockIdx;
+  }
+  int getNumBlocks() const {
+    return _numBlocks;
+  }
+  int getAttachedThreadIdx() const {
+    return _attachedThreadIdx;
+  }
 
  private:
-  lut::Range _range;
-  int _partitionIdx;
-  int _numPartitions;
+  int _blockIdx;
+  int _numBlocks;
   int _attachedThreadIdx;
 };
 

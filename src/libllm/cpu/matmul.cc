@@ -210,22 +210,21 @@ Tensor bmm(const Tensor &A, const Tensor &B) {
   const T *const *mBp = mB.getDataPtrList().data();
   T *const *mCp = mC.getDataPtrList().data();
 
-  MP::parallelFor({mA.getLength()}, [mAp, mBp, mCp, gemmArgs](MP::Partition partition) {
-    for (int i : partition.getRange()) {
-      callGemm<T>(
-          gemmArgs.transA,
-          gemmArgs.transB,
-          gemmArgs.M,
-          gemmArgs.N,
-          gemmArgs.K,
-          mAp[i],
-          gemmArgs.lda,
-          mBp[i],
-          gemmArgs.ldb,
-          mCp[i],
-          gemmArgs.ldc,
-          kernel::Mode::SingleThread);
-    }
+  MP::parallelFor(mA.getLength(), [mAp, mBp, mCp, gemmArgs](MP::Context ctx) {
+    int i = ctx.getBlockIdx();
+    callGemm<T>(
+        gemmArgs.transA,
+        gemmArgs.transB,
+        gemmArgs.M,
+        gemmArgs.N,
+        gemmArgs.K,
+        mAp[i],
+        gemmArgs.lda,
+        mBp[i],
+        gemmArgs.ldb,
+        mCp[i],
+        gemmArgs.ldc,
+        kernel::Mode::SingleThread);
   });
 
   return C;

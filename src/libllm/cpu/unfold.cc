@@ -40,24 +40,22 @@ void unfold1DKernel(const Tensor &src, Tensor &dest, int kernelSize, int stride)
     TensorAccessor<T, 2> vC = mC.getTensor(i);
     CHECK(vA.getShape(0) / stride == vC.getShape(0));
 
-    MP::parallelFor({vC.getShape(0)}, [&vA, &vC, kernelSize, stride](MP::Partition partition) {
+    MP::parallelFor(vC.getShape(0), [&vA, &vC, kernelSize, stride](MP::Context ctx) {
+      int j = ctx.getBlockIdx();
       int kernekIdxBegin = -(kernelSize / 2);
       int kernekIdxEnd = (kernelSize - 1) / 2;
+      int numChannels = vA.getShape(1);
+      int numInFrames = vA.getShape(0);
 
-      for (int j : partition.getRange()) {
-        int numChannels = vA.getShape(1);
-        int numInFrames = vA.getShape(0);
-
-        for (int d = 0; d < numChannels; ++d) {
-          for (int k = kernekIdxBegin; k <= kernekIdxEnd; ++k) {
-            int srcIdx = j * stride + k;
-            int offset = k - kernekIdxBegin;
-            if (srcIdx < 0 || srcIdx >= numInFrames) {
-              // padding.
-              vC[j][d * kernelSize + offset] = 0.0f;
-            } else {
-              vC[j][d * kernelSize + offset] = vA[srcIdx][d];
-            }
+      for (int d = 0; d < numChannels; ++d) {
+        for (int k = kernekIdxBegin; k <= kernekIdxEnd; ++k) {
+          int srcIdx = j * stride + k;
+          int offset = k - kernekIdxBegin;
+          if (srcIdx < 0 || srcIdx >= numInFrames) {
+            // padding.
+            vC[j][d * kernelSize + offset] = 0.0f;
+          } else {
+            vC[j][d * kernelSize + offset] = vA[srcIdx][d];
           }
         }
       }

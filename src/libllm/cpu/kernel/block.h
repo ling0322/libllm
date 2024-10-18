@@ -63,18 +63,19 @@ PackedBlock<T> Pack(Block<T> src, Block<T> buf, int pack_size) {
   PackedBlock<T> tgt{buf.data, pack_size, kc, numBlock};
   CHECK(pack_size * numBlock * kc <= buf.numCols * buf.numRows);
 
-  auto closure = [src, tgt, pack_size](MP::Partition partition) {
-    for (int b : partition.getRange()) {
-      Block<T> srcBlock = src.sliceCol(b * pack_size, pack_size);
-      Block<T> tgtBlock = tgt.block(b);
-      srcBlock.copyTo(tgtBlock);
-    }
+  auto closure = [src, tgt, pack_size](MP::Context ctx) {
+    int b = ctx.getBlockIdx();
+    Block<T> srcBlock = src.sliceCol(b * pack_size, pack_size);
+    Block<T> tgtBlock = tgt.block(b);
+    srcBlock.copyTo(tgtBlock);
   };
 
   if (MODE == Mode::OMP) {
-    MP::parallelFor({numBlock}, closure);
+    MP::parallelFor(numBlock, closure);
   } else {
-    closure(MP::Partition(lut::Range(numBlock)));
+    for (int i = 0; i < numBlock; ++i) {
+      closure(MP::Context(i, numBlock, 0));
+    }
   }
 
   int nc = src.numCols % pack_size;

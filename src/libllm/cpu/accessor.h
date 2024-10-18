@@ -123,23 +123,50 @@ class TensorList {
     return _shape[d].shape;
   }
   int getLength() const {
-    return static_cast<int>(_pointerList.size());
+    if (_basePtr) {
+      return _size;
+    } else {
+      return static_cast<int>(_pointerList.size());
+    }
   }
-  lut::Span<T *const> getDataPtrList() const {
+  lut::Span<T *const> getDataPtrList() {
+    if (_basePtr && _pointerList.empty()) {
+      for (int i = 0; i < _size; ++i) {
+        _pointerList.push_back(_basePtr + i * _stride);
+      }
+    }
     return lut::makeConstSpan(_pointerList);
   }
 
   TensorAccessor<T, DIM> getTensor(int index) const {
-    return TensorAccessor<T, DIM>(_shape, _pointerList[index]);
+    if (_basePtr) {
+      return TensorAccessor<T, DIM>(_shape, _basePtr + index * _stride);
+    } else {
+      return TensorAccessor<T, DIM>(_shape, _pointerList[index]);
+    }
   }
 
  private:
   const TensorShape::Elem *_shape;
   std::vector<T *> _pointerList;
 
+  int64_t _stride;
+  int _size;
+  T *_basePtr;
+
   TensorList(const TensorShape::Elem *shape, std::vector<T *> &&pointerList)
       : _shape(shape),
-        _pointerList(std::move(pointerList)) {
+        _pointerList(std::move(pointerList)),
+        _stride(0),
+        _size(0),
+        _basePtr(nullptr) {
+  }
+
+  TensorList(const TensorShape::Elem *shape, T *data, int size, int stride)
+      : _shape(shape),
+        _basePtr(data),
+        _size(size),
+        _stride(stride) {
   }
 };
 
@@ -175,7 +202,21 @@ TensorList<T, DIM> TensorList<T, DIM>::fromTensor(const Tensor &src) {
   getDataPointerList<T, DIM>(src.getData<T>(), shape, pointerList);
 
   const TensorShape::Elem *tensorShape = shape.data() + (shape.size() - DIM);
-  return TensorList<T, DIM>(tensorShape, std::move(pointerList));
+  if (src.isContiguous()) {
+    int numTensor = 1;
+    for (int i = 0; i < src.getDim() - DIM; ++i) {
+      numTensor *= src.getShape(i);
+    }
+
+    int stride = 1;
+    for (int i = 0; i < DIM; ++i) {
+      stride *= tensorShape[i].shape;
+    }
+
+    return TensorList<T, DIM>(tensorShape, src.getData<T>(), numTensor, stride);
+  } else {
+    return TensorList<T, DIM>(tensorShape, std::move(pointerList));
+  }
 }
 
 template<typename T, int DIM>
@@ -185,7 +226,21 @@ TensorList<T, DIM> TensorList<T, DIM>::fromTensor(Tensor &src) {
   getDataPointerList<T, DIM>(src.getData<T>(), shape, pointerList);
 
   const TensorShape::Elem *tensorShape = shape.data() + (shape.size() - DIM);
-  return TensorList<T, DIM>(tensorShape, std::move(pointerList));
+  if (src.isContiguous()) {
+    int numTensor = 1;
+    for (int i = 0; i < src.getDim() - DIM; ++i) {
+      numTensor *= src.getShape(i);
+    }
+
+    int stride = 1;
+    for (int i = 0; i < DIM; ++i) {
+      stride *= tensorShape[i].shape;
+    }
+
+    return TensorList<T, DIM>(tensorShape, src.getData<T>(), numTensor, stride);
+  } else {
+    return TensorList<T, DIM>(tensorShape, std::move(pointerList));
+  }
 }
 
 }  // namespace cpu

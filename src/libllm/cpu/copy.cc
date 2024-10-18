@@ -34,13 +34,11 @@ void copyKernel(const Tensor &src, Tensor &dest) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(dest);
   CHECK(vA.getLength() == vC.getLength());
 
-  MP::parallelFor({vA.getLength()}, [&vA, &vC](MP::Partition partition) {
-    for (int j : partition.getRange()) {
-      TensorAccessor<const T, 1> a = vA.getTensor(j);
-      TensorAccessor<T, 1> c = vC.getTensor(j);
+  MP::parallelFor(vA.getLength(), [&vA, &vC](MP::Context ctx) {
+    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
+    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
 
-      copyVector(c, a);
-    }
+    copyVector(c, a);
   });
 }
 
