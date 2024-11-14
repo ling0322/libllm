@@ -19,10 +19,13 @@
 
 #pragma once
 
+#include <deque>
 #include <memory>
 
 #include "libllm/tensor.h"
+#include "libllm/wave_stream.h"
 #include "lutil/span.h"
+#include "lutil/time.h"
 
 namespace libllm {
 
@@ -31,10 +34,40 @@ enum class WaveFormat {
   Unknown,
 };
 
-// interface for Tokenizer.
+struct WaveChunk {
+  lut::Duration begin;
+  lut::Duration end;
+  bool eof;
+  Tensor data;
+};
+
+/// @brief Wrap the WaveStream into a file-like Wave object. It supports 2 operations seek() and
+/// read(). seek() only supports moving backward up to 1min.
 class Wave {
  public:
-  static Tensor read(lut::Span<const Byte> data, WaveFormat format);
+  Wave();
+  Wave(std::shared_ptr<WaveStream> wave_stream);
+
+  /// @brief convert S16LE format audio date to tensor (samples).
+  static Tensor toTensor(lut::Span<const Byte> data);
+
+  Tensor read(lut::Duration length);
+  void seek(lut::Duration offset);
+  lut::Duration tell() const;
+  bool eof();
+
+ private:
+  int64_t _maxHistoryInBytes;
+  std::deque<Byte> _historyBuffer;
+  std::deque<Byte> _readBuffer;
+  std::shared_ptr<WaveStream> _waveStream;
+  lut::Duration _readOffset;
+
+  int64_t durationToNumBytes(lut::Duration dur) const;
+  lut::Duration numBytesToDuration(int64_t numBytes) const;
+
+  void updateHistoryBuffer(lut::Span<const Byte> data);
+  int64_t readFromBuffer(lut::Span<Byte> data);
 };
 
 }  // namespace libllm

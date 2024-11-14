@@ -388,12 +388,6 @@ llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
 
       if (generatorType == Generator::Sampling) {
         comp->generator = SamplingGenerator::newGenerator(config, model);
-      } else if (generatorType == Generator::Whisper) {
-        auto whisperGenerator = WhisperGreedyGenerator::newGenerator(config, model);
-        if (!whisperLang.empty()) {
-          whisperGenerator->setLanguage(whisperLang);
-        }
-        comp->generator = whisperGenerator;
       } else {
         NOT_IMPL();
       }

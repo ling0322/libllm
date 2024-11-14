@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,35 +17,41 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "lutil/time.h"
+#include <string>
 
-#include <stdint.h>
+#include "../../third_party/nlohmann/json.hpp"
+#include "libllm/llm.h"
+#include "lutil/log.h"
 
-#include <chrono>
+using json = nlohmann::json;
 
-#include "lutil/strings.h"
+thread_local std::string gJsonString;
+thread_local std::string gJsonErrorMessage;
 
-namespace lut {
+struct llm_json_t {
+  json jsonObject;
+};
 
-double now() {
-  auto t = std::chrono::high_resolution_clock::now().time_since_epoch();
-  int64_t ns = t / std::chrono::nanoseconds(1);
-  return ns / 1000000000.0;
+llm_json_t *llm_json_parse(const char *json_string) {
+  json jsonObject = json::parse(json_string);
+
+  llm_json_t *llmJson = new llm_json_t();
+  llmJson->jsonObject = std::move(jsonObject);
+
+  return llmJson;
 }
 
-std::string Duration::toString() const {
-  int64_t ns = _nanoseconds;
-  int64_t hours = ns / Hour;
-  ns %= Hour;
+const char *llm_json_dump(llm_json_t *json) {
+  CHECK(json) << "json is nullptr";
 
-  int64_t minutes = ns / Minute;
-  ns %= Minute;
-
-  int64_t seconds = ns / Second;
-  ns %= Second;
-
-  int64_t ms = ns / Millisecond;
-  return lut::sprintf("%02d:%02d:%02d.%03d", hours, minutes, seconds, ms);
+  gJsonString = json->jsonObject.dump();
+  return gJsonString.c_str();
 }
 
-}  // namespace lut
+void llm_json_delete(llm_json_t *json) {
+  delete json;
+}
+
+const char *llm_json_get_last_error_message() {
+  return gJsonErrorMessage.c_str();
+}

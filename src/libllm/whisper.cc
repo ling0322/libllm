@@ -659,112 +659,15 @@ int DecoderModel::getOutputDim() const {
 }
 
 // -----------------------------------------------------------------------------------------------+
-// class WhisperLogitsProcessor                                                                   |
+// class WhisperModel                                                                             |
 // -----------------------------------------------------------------------------------------------+
 
-WhisperLogitsProcessor::WhisperLogitsProcessor()
-    : _lastTimeToken(-1),
-      _beginTimeToken(-1),
-      _endTimeToken(-1),
-      _eotToken(-1),
-      _transcribeToken(-1),
-      _translateToken(-1),
-      _noTimestampToken(-1),
-      _langEnToken(-1),
-      _langSuToken(-1),
-      _lastTimeTokenIdx(0) {
-}
-
-std::shared_ptr<WhisperLogitsProcessor> WhisperLogitsProcessor::newProcessor(const Vocab *vocab) {
-  std::shared_ptr<WhisperLogitsProcessor> processor{new WhisperLogitsProcessor()};
-  processor->_lastTimeToken = -1;
-  processor->_beginTimeToken = vocab->findControlToken("<|0.00|>");
-  processor->_endTimeToken = vocab->findControlToken("<|30.00|>");
-  processor->_eotToken = vocab->findControlToken("<|endoftext|>");
-  processor->_transcribeToken = vocab->findControlToken("<|transcribe|>");
-  processor->_translateToken = vocab->findControlToken("<|translate|>");
-  processor->_noTimestampToken = vocab->findControlToken("<|notimestamps|>");
-  processor->_langEnToken = vocab->findControlToken("<|en|>");
-  processor->_langSuToken = vocab->findControlToken("<|su|>");
-
-  return processor;
-}
-
-void WhisperLogitsProcessor::notifyToken(int tokenId) {
-  _history.push_back(tokenId);
-  if (tokenId >= _beginTimeToken && tokenId <= _endTimeToken) {
-    _lastTimeToken = tokenId;
-  }
-}
-
-void WhisperLogitsProcessor::processLogits(Tensor logits) {
-  bool lastWasLang = _history.size() >= 1 && _history.back() >= _langEnToken &&
-                     _history.back() <= _langSuToken;
-  bool lastWasTimestamp = _history.size() >= 1 && _history.back() >= _beginTimeToken;
-  bool lastWasTranscribe = _history.size() >= 1 && _history.back() == _transcribeToken;
-  bool penultimateWasTimestamp = _history.size() < 2 ||
-                                 _history[_history.size() - 2] >= _beginTimeToken ||
-                                 _history[_history.size() - 2] == _transcribeToken ||
-                                 _history[_history.size() - 2] == _translateToken;
-
-  constexpr int MaxHistory = 5;
-  if (!_history.empty()) {
-    Tensor history = Tensor::create<LongType>(
-        {std::min<int>(_history.size(), MaxHistory)},
-        lut::makeConstSpan(_history).subspan(std::max<LongType>(_history.size() - MaxHistory, 0)));
-    history = F::to(logits.getDevice(), history);
-    F::repetitionPenalty(logits, history, 1.5);
-  }
-
-  if (lastWasTranscribe) {
-    F::fill(logits.slice(-1, {_noTimestampToken, _noTimestampToken + 1}), -Inf);
-  }
-
-  if (lastWasLang) {
-    F::fill(logits.slice(-1, {_translateToken, _translateToken + 1}), -Inf);
-  }
-
-  if (lastWasTimestamp) {
-    _lastTimeTokenIdx = static_cast<int>(_history.size());
-    if (penultimateWasTimestamp) {
-      F::fill(logits.slice(-1, {_beginTimeToken, _endTimeToken + 1}), -Inf);
-    } else {
-      F::fill(logits.slice(-1, {0, _eotToken + 1}), -Inf);
-    }
-  }
-
-  if (_lastTimeToken > _beginTimeToken) {
-    // do not mask the <|30.00|> timestamp tag
-    int endToken = std::min(_lastTimeToken + 1, _endTimeToken);
-    F::fill(logits.slice(-1, {_beginTimeToken, endToken}), -Inf);
-  }
-
-  Tensor probs = F::softmax(logits);
-  Tensor maxText = F::max(probs.slice(-1, {0, _eotToken + 1}));
-  Tensor sumTimestamp = F::sum(probs.slice(-1, {_beginTimeToken, _endTimeToken + 1}));
-
-  maxText = F::cast(F::to(Device::getCpu(), maxText), DType::kFloat);
-  sumTimestamp = F::cast(F::to(Device::getCpu(), sumTimestamp), DType::kFloat);
-
-  float maxTextVal = *maxText.getData<float>();
-  float sumTimestampVal = *sumTimestamp.getData<float>();
-  if (sumTimestampVal >= maxTextVal || _history.size() - _lastTimeTokenIdx > 70) {
-    F::fill(logits.slice(-1, {0, _eotToken}), -Inf);
-  }
-}
-
-// -----------------------------------------------------------------------------------------------+
-// class WhisperModelForGeneration                                                                |
-// -----------------------------------------------------------------------------------------------+
-
-WhisperModelForGeneration::WhisperModelForGeneration()
+WhisperModel::WhisperModel()
     : _eotId(0) {
 }
 
-std::shared_ptr<WhisperModelForGeneration> WhisperModelForGeneration::fromPackage(
-    const Context &ctx,
-    lut::ZipFile *package) {
-  std::shared_ptr<lut::Reader> reader = package->open(ModelConfig);
+std::shared_ptr<WhisperModel> WhisperModel::fromPackage(const Context &ctx, lut::ZipFile *package) {
+  std::shared_ptr<lut::Reader> reader = package->open(ModelForGeneration::ModelConfig);
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(reader.get());
 
   std::string modelFile = ini->getSection(ModelSection).getString(ModelFileField);
@@ -772,7 +675,7 @@ std::shared_ptr<WhisperModelForGeneration> WhisperModelForGeneration::fromPackag
 
   const lut::IniSection &llamaIni = ini->getSection(modelType);
 
-  std::shared_ptr<WhisperModelForGeneration> model{new WhisperModelForGeneration()};
+  std::shared_ptr<WhisperModel> model{new WhisperModel()};
   WhisperConfig llamaConfig = WhisperConfig::loadConfig(llamaIni);
 
   StateMap stateMap;
@@ -787,42 +690,16 @@ std::shared_ptr<WhisperModelForGeneration> WhisperModelForGeneration::fromPackag
   model->_decoder->initParameters(stateMap);
   model->_eotId = llamaIni.getInt("eot_token_id");
   model->_modelName = modelType;
-
-  model->initTokenizer(package);
+  model->_tokenizer = Tokenizer::fromPackage(package);
   return model;
 }
 
-Tensor WhisperModelForGeneration::buildDecoderInput(lut::Span<const PromptBlock> prompt) const {
-  std::vector<LongType> inputData{};
-  for (const PromptBlock &block : prompt) {
-    if (block.blockType == PromptBlock::ControlToken || block.blockType == PromptBlock::Text) {
-      encodePromptBlock(block, inputData);
-    } else {
-      throw lut::AbortedError("in whisper prompt, only one audio input is supported");
-    }
-  }
-
-  int len = inputData.size();
-  Tensor inputs = Tensor::create<LongType>({1, len}, inputData);
-  inputs = F::to(_decoder->getCtx().getDevice(), inputs);
-  return inputs;
+void WhisperModel::prefillAudio(StateMap &past, Tensor wave) const {
+  Tensor x = _encoder->forward(wave);
+  _decoderInit->forward(past, x);
 }
 
-Tensor WhisperModelForGeneration::prefill(StateMap &past, const Prompt &prompt) const {
-  if (prompt.empty()) throw lut::AbortedError("prompt is empty");
-
-  const PromptBlock &audioBlock = prompt.getBlocks()[0];
-  if (audioBlock.blockType != PromptBlock::Wave) {
-    throw lut::AbortedError("in whisper model, the first element in prompt should be the audio");
-  }
-  if (prompt.getBlocks().size() <= 1) throw lut::AbortedError("decoder prompt is empty");
-
-  Tensor wave = Wave::read(audioBlock.data, audioBlock.waveFormat);
-  Tensor encoderHidden = _encoder->forward(wave);
-
-  _decoderInit->forward(past, encoderHidden);
-
-  Tensor inputs = buildDecoderInput(prompt.getBlocks().subspan(1));
+Tensor WhisperModel::prefillPrompt(StateMap &past, Tensor inputs) const {
   Tensor x = _decoder->forward(past, inputs);
 
   x = x.slice(1, {-1, None});
@@ -830,7 +707,7 @@ Tensor WhisperModelForGeneration::prefill(StateMap &past, const Prompt &prompt) 
   return x;
 }
 
-Tensor WhisperModelForGeneration::decode(StateMap &past, LongType inputToken) const {
+Tensor WhisperModel::decode(StateMap &past, LongType inputToken) const {
   std::array<LongType, 1> inputData{inputToken};
   Tensor inputs = Tensor::create<LongType>({1, 1}, inputData);
   inputs = F::to(getDevice(), inputs);
@@ -840,20 +717,24 @@ Tensor WhisperModelForGeneration::decode(StateMap &past, LongType inputToken) co
   return x;
 }
 
-bool WhisperModelForGeneration::isStopToken(int tokenId) const {
+bool WhisperModel::isStopToken(int tokenId) const {
   return tokenId == _eotId;
 }
 
-const char *WhisperModelForGeneration::getName() const {
+const char *WhisperModel::getName() const {
   return _modelName.c_str();
 }
 
-Device WhisperModelForGeneration::getDevice() const {
+Device WhisperModel::getDevice() const {
   return _decoder->getCtx().getDevice();
 }
 
-int WhisperModelForGeneration::getOutputDim() const {
+int WhisperModel::getOutputDim() const {
   return _decoder->getOutputDim();
+}
+
+const Vocab *WhisperModel::getVocab() const {
+  return _tokenizer->getVocab();
 }
 
 }  // namespace whisper

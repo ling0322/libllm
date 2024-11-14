@@ -47,8 +47,6 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
   std::shared_ptr<ModelForGeneration> model;
   if (modelType == "llama") {
     model = llama::LlamaModelForGeneration::fromPackage(ctx, package);
-  } else if (modelType == "whisper") {
-    model = whisper::WhisperModelForGeneration::fromPackage(ctx, package);
   } else if (modelType == "index") {
     model = llama::LlamaModelForGeneration::fromPackage(ctx, package);
   } else if (modelType == "qwen") {

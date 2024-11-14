@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,35 +17,48 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "lutil/time.h"
+#pragma once
 
-#include <stdint.h>
+#include <memory>
 
-#include <chrono>
+#include "libllm/read_audio_ffmpeg.h"
+#include "libllm/tensor.h"
+#include "lutil/c_ptr.h"
+#include "lutil/shared_library.h"
+#include "lutil/span.h"
 
-#include "lutil/strings.h"
+namespace libllm {
 
-namespace lut {
+class WaveStream {
+ public:
+  virtual ~WaveStream() = default;
 
-double now() {
-  auto t = std::chrono::high_resolution_clock::now().time_since_epoch();
-  int64_t ns = t / std::chrono::nanoseconds(1);
-  return ns / 1000000000.0;
-}
+  /// @brief read buffer.size() bytes into buffer. Returns the actual bytes read. On EOF, returns 0.
+  /// On other errors, throw an exception.
+  /// @param buffer the dest buffer.
+  /// @return bytes read.
+  virtual int read(lut::Span<Byte> buffer) = 0;
 
-std::string Duration::toString() const {
-  int64_t ns = _nanoseconds;
-  int64_t hours = ns / Hour;
-  ns %= Hour;
+  virtual bool eof() const = 0;
+  virtual int getSampleRate() const = 0;
+  virtual int getBytesPerSample() const = 0;
+};
 
-  int64_t minutes = ns / Minute;
-  ns %= Minute;
+class FFmpegWaveStream : public WaveStream {
+ public:
+  std::shared_ptr<FFmpegWaveStream> open(const std::string &filename);
+  ~FFmpegWaveStream();
 
-  int64_t seconds = ns / Second;
-  ns %= Second;
+  int read(lut::Span<Byte> buffer) override;
+  int getSampleRate() const override;
+  int getBytesPerSample() const override;
+  bool eof() const override;
 
-  int64_t ms = ns / Millisecond;
-  return lut::sprintf("%02d:%02d:%02d.%03d", hours, minutes, seconds, ms);
-}
+ private:
+  lut::c_ptr<llm_ffmpeg_audio_reader_t> _reader;
+  bool _eof;
 
-}  // namespace lut
+  FFmpegWaveStream();
+};
+
+}  // namespace libllm

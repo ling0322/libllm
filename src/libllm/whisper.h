@@ -226,57 +226,30 @@ class DecoderModel : public Module {
   int getCtxLength(const StateMap &past) const;
 };
 
-class WhisperLogitsProcessor : public LogitsProcessor {
+class WhisperModel {
  public:
-  static std::shared_ptr<WhisperLogitsProcessor> newProcessor(const Vocab *vocab);
+  static std::shared_ptr<WhisperModel> fromPackage(const Context &ctx, lut::ZipFile *package);
 
-  void notifyToken(int tokenId) override;
-  void processLogits(Tensor logits) override;
+  void prefillAudio(StateMap &past, Tensor wave) const;
+  Tensor prefillPrompt(StateMap &past, Tensor inputs) const;
+  Tensor decode(StateMap &past, LongType inputToken) const;
 
- private:
-  static constexpr float Inf = std::numeric_limits<float>::infinity();
-
-  std::vector<LongType> _history;
-
-  int _lastTimeToken;
-  int _beginTimeToken;
-  int _endTimeToken;
-  int _eotToken;
-  int _transcribeToken;
-  int _translateToken;
-  int _noTimestampToken;
-  int _langEnToken;
-  int _langSuToken;
-
-  int _lastTimeTokenIdx;
-
-  WhisperLogitsProcessor();
-};
-
-class WhisperModelForGeneration : public ModelForGeneration {
- public:
-  static std::shared_ptr<WhisperModelForGeneration> fromPackage(
-      const Context &ctx,
-      lut::ZipFile *package);
-
-  Tensor prefill(StateMap &past, const Prompt &prompt) const override;
-  Tensor decode(StateMap &past, LongType inputToken) const override;
-
-  bool isStopToken(int tokenId) const override;
-  const char *getName() const override;
-  Device getDevice() const override;
-  int getOutputDim() const override;
+  bool isStopToken(int tokenId) const;
+  const char *getName() const;
+  Device getDevice() const;
+  int getOutputDim() const;
+  const Vocab *getVocab() const;
 
  protected:
   std::shared_ptr<EncoderModel> _encoder;
   std::shared_ptr<DecoderInitModel> _decoderInit;
   std::shared_ptr<DecoderModel> _decoder;
+  std::shared_ptr<Tokenizer> _tokenizer;
   std::string _modelName;
   int _eotId;
 
-  WhisperModelForGeneration();
+  WhisperModel();
   void init(const Context &ctx, const lut::IniConfig &config);
-  Tensor buildDecoderInput(lut::Span<const PromptBlock> prompt) const;
 };
 
 }  // namespace whisper
