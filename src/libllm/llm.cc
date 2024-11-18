@@ -8,6 +8,7 @@
 #include <mutex>
 #include <unordered_map>
 
+#include "../../third_party/nlohmann/json.hpp"
 #include "libllm/context.h"
 #include "libllm/dtype.h"
 #include "libllm/functional.h"
@@ -16,6 +17,8 @@
 #include "libllm/operators.h"
 #include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
+#include "libllm/whisper.h"
+#include "libllm/whisper_decoder.h"
 #include "lutil/error.h"
 #include "lutil/ini_config.h"
 #include "lutil/log.h"
@@ -29,7 +32,14 @@ using libllm::LongType;
 using libllm::ModelForGeneration;
 using libllm::Prompt;
 using libllm::Tokenizer;
+using libllm::whisper::RecognitionResult;
+using libllm::whisper::WhisperDecoder;
+using libllm::whisper::WhisperModel;
 using lut::IniConfig;
+using json = nlohmann::json;
+
+thread_local std::string gJsonString;
+thread_local std::string gJsonErrorMessage;
 
 constexpr char LlmConfigKey_GeneratorType[] = "generator.type";
 constexpr char LlmConfigKey_WhisperLang[] = "whisper.language";
@@ -64,6 +74,18 @@ struct llmPrompt_t {
   std::shared_ptr<Prompt> prompt;
 };
 
+struct llm_json_impl_t {
+  json jsonObject;
+};
+
+struct llm_asr_model_impl_t {
+  std::shared_ptr<WhisperModel> model;
+};
+
+struct llm_asr_recognizer_impl_t {
+  std::shared_ptr<WhisperDecoder> decoder;
+};
+
 namespace libllm {
 namespace api {
 
@@ -71,15 +93,18 @@ thread_local int gErrorCode = static_cast<int>(lut::ErrorCode::OK);
 thread_local char gErrorMessage[512] = "";
 static std::atomic<bool> gInitialized{false};
 
-void setErrorCodeAndMessage(const lut::Error &e) {
-  gErrorCode = static_cast<int>(e.getCode());
-
-  std::string what = e.what();
+void llmSetErrorMessage(const std::string &message) {
+  std::string what = message;
   if (what.size() >= sizeof(gErrorMessage)) {
     what.erase(what.begin() + sizeof(gErrorMessage) - 4, what.end());
     what += "...";
   }
   snprintf(gErrorMessage, sizeof(gErrorMessage), "%s", what.c_str());
+}
+
+void setErrorCodeAndMessage(const lut::Error &e) {
+  gErrorCode = static_cast<int>(e.getCode());
+  llmSetErrorMessage(e.what());
 }
 
 llmStatus_t runAndCatch(std::function<void()> &&f) {
@@ -126,6 +151,42 @@ int parseGeneratorType(const std::string &name) {
     return Generator::Whisper;
   } else {
     throw lut::AbortedError("invalid generator type: " + name);
+  }
+}
+
+int32_t llmErrorSetInvalidArg(const std::string &argName) {
+  llmSetErrorMessage("invalid argument: " + argName);
+  return LLM_ERROR_INVALID_ARG;
+}
+
+int32_t llmErrorSetAborted(const std::string &what) {
+  llmSetErrorMessage(what);
+  return LLM_ERROR_ABORTED;
+}
+
+int32_t llmErrorSetInsufficientBuffer() {
+  llmSetErrorMessage("Insufficient buffer size.");
+  return LLM_ERROR_INSUFFICIENT_BUFFER;
+}
+
+int32_t llmErrorSetEOF() {
+  llmSetErrorMessage("End of file.");
+  return LLM_ERROR_EOF;
+}
+
+libllm::Device parseDevice(const std::string &device) {
+  if (device == "cpu") {
+    return libllm::Device::getCpu();
+  } else if (device == "cuda") {
+    return libllm::Device::getCuda();
+  } else if (device == "auto") {
+    if (Device::isCudaAvailable()) {
+      return Device::getCuda();
+    } else {
+      return Device::getCpu();
+    }
+  } else {
+    throw lut::AbortedError("invalid device: " + device);
   }
 }
 
@@ -444,4 +505,161 @@ const char *llmCompletion_GetToken(llmCompletion_t *comp) {
         return comp->chunkText.c_str();
       },
       nullptr);
+}
+
+int32_t llm_json_init(llm_json_t *j) {
+  llm_json_impl_t *llmJson = new llm_json_impl_t();
+  *j = llmJson;
+
+  return 0;
+}
+
+int32_t llm_json_destroy(llm_json_t *j) {
+  delete *j;
+  *j = nullptr;
+
+  return 0;
+}
+
+int32_t llm_json_parse(llm_json_t *j, const char *json_str) {
+  if (!j) return llmErrorSetInvalidArg("j");
+  if (!json_str) return llmErrorSetInvalidArg("json_str");
+
+  try {
+    (*j)->jsonObject = json::parse(json_str);
+  } catch (lut::Error &e) {
+    return llmErrorSetAborted(e.what());
+  }
+
+  return 0;
+}
+
+int32_t llm_json_dump(llm_json_t *j, char *buf, int64_t buf_size) {
+  if (!j) return llmErrorSetInvalidArg("j");
+  if (!buf) return llmErrorSetInvalidArg("buf");
+  if (buf_size <= 0) return llmErrorSetInvalidArg("buf_size");
+
+  std::string jsonStr = (*j)->jsonObject.dump();
+  if (jsonStr.size() >= buf_size) {
+    return llmErrorSetInsufficientBuffer();
+  }
+
+  snprintf(buf, buf_size, "%s", jsonStr.c_str());
+  return 0;
+}
+
+int32_t llm_asr_model_init(llm_asr_model_t *m) {
+  *m = new llm_asr_model_impl_t();
+  return 0;
+}
+
+int32_t llm_asr_model_load(llm_asr_model_t *m, llm_json_t *options) {
+  if (!m) return llmErrorSetInvalidArg("m");
+  if (!options) return llmErrorSetInvalidArg("options");
+
+  try {
+    libllm::Device device;
+    std::shared_ptr<lut::ZipFile> package;
+    json object = (*options)->jsonObject;
+    for (auto &[key, value] : object.items()) {
+      if (key == "filename") {
+        package = lut::ZipFile::fromFile(value);
+      } else if (key == "device") {
+        device = parseDevice(value);
+      } else {
+        return llmErrorSetAborted("invalid key in options: " + key);
+      }
+    }
+
+    if (!package) return llmErrorSetAborted("options.filename undefined");
+    if (device.getType() == libllm::Device::kUnknown) {
+      return llmErrorSetAborted("options.device undefined");
+    }
+
+    Context ctx = Context().withName("whisper");
+    ctx.setDevice(device);
+    ctx.setFloatDType(F::getDefaultFloatType(device));
+    std::shared_ptr<WhisperModel> whisperModel = WhisperModel::fromPackage(ctx, package.get());
+
+    (*m)->model = whisperModel;
+  } catch (std::exception &e) {
+    return llmErrorSetAborted(e.what());
+  }
+
+  return 0;
+}
+
+int32_t llm_asr_model_destroy(llm_asr_model_t *m) {
+  delete *m;
+  *m = nullptr;
+
+  return 0;
+}
+
+int32_t llm_asr_recognizer_init(llm_asr_recognizer_t *r) {
+  *r = new llm_asr_recognizer_impl_t();
+  return 0;
+}
+
+int32_t llm_asr_recognizer_destroy(llm_asr_recognizer_t *r) {
+  delete *r;
+  *r = nullptr;
+
+  return 0;
+}
+
+int32_t llm_asr_recognize_media_file(
+    llm_asr_recognizer_t *r,
+    llm_asr_model_t *model,
+    llm_json_t *options) {
+  if (!r) return llmErrorSetInvalidArg("r");
+  if ((!model) || !(*model)->model) return llmErrorSetInvalidArg("model");
+  if (!options) return llmErrorSetInvalidArg("options");
+
+  try {
+    std::string mediaFile;
+    json object = (*options)->jsonObject;
+    for (auto &[key, value] : object.items()) {
+      if (key == "media_file") {
+        mediaFile = value;
+      } else {
+        throw lut::AbortedError("invalid key in options: " + key);
+      }
+    }
+
+    std::shared_ptr<WaveStream> stream = FFmpegWaveStream::open(mediaFile);
+    std::shared_ptr<WhisperModel> whisperModel = (*model)->model;
+    std::shared_ptr<Wave> wave = std::make_shared<Wave>(stream);
+    std::shared_ptr<WhisperDecoder> decoder = WhisperDecoder::create(whisperModel, wave);
+
+    (*r)->decoder = decoder;
+  } catch (std::exception &e) {
+    return llmErrorSetAborted(e.what());
+  }
+
+  return 0;
+}
+
+int32_t llm_asr_recognizer_get_next_result(llm_asr_recognizer_t *r, llm_json_t *result) {
+  if ((!r) || !(*r)->decoder) return llmErrorSetInvalidArg("r");
+  if (!result) return llmErrorSetInvalidArg("result");
+
+  try {
+    std::optional<RecognitionResult> recoResult = (*r)->decoder->nextResult();
+    if (recoResult) {
+      json resultJson;
+      resultJson["text"] = recoResult->text;
+      resultJson["language"] = recoResult->language;
+      resultJson["begin"] = recoResult->begin.totalNanoseconds() / 1000000;
+      resultJson["end"] = recoResult->end.totalNanoseconds() / 1000000;
+
+      (*result)->jsonObject = resultJson;
+    } else {
+      return llmErrorSetEOF();
+    }
+  } catch (std::exception &e) {
+    return llmErrorSetAborted(e.what());
+  }
+
+  return 0;
 }

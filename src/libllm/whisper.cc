@@ -662,8 +662,7 @@ int DecoderModel::getOutputDim() const {
 // class WhisperModel                                                                             |
 // -----------------------------------------------------------------------------------------------+
 
-WhisperModel::WhisperModel()
-    : _eotId(0) {
+WhisperModel::WhisperModel() {
 }
 
 std::shared_ptr<WhisperModel> WhisperModel::fromPackage(const Context &ctx, lut::ZipFile *package) {
@@ -688,7 +687,6 @@ std::shared_ptr<WhisperModel> WhisperModel::fromPackage(const Context &ctx, lut:
   model->_encoder->initParameters(stateMap);
   model->_decoderInit->initParameters(stateMap);
   model->_decoder->initParameters(stateMap);
-  model->_eotId = llamaIni.getInt("eot_token_id");
   model->_modelName = modelType;
   model->_tokenizer = Tokenizer::fromPackage(package);
   return model;
@@ -715,10 +713,6 @@ Tensor WhisperModel::decode(StateMap &past, LongType inputToken) const {
   Tensor x = _decoder->forward(past, inputs);
   x = _decoder->forwardLmHead(x);
   return x;
-}
-
-bool WhisperModel::isStopToken(int tokenId) const {
-  return tokenId == _eotId;
 }
 
 const char *WhisperModel::getName() const {

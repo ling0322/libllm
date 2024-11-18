@@ -78,6 +78,25 @@ llmStatus_t (*p_llmCompletion_GetError)(llmCompletion_t *comp);
 const char *(*p_llmCompletion_GetText)(llmCompletion_t *comp);
 const char *(*p_llmCompletion_GetToken)(llmCompletion_t *comp);
 
+// json
+int32_t (*p_llm_json_init)(llm_json_t *j);
+int32_t (*p_llm_json_destroy)(llm_json_t *j);
+int32_t (*p_llm_json_parse)(llm_json_t *j, const char *json_str);
+int32_t (*p_llm_json_dump)(llm_json_t *j, char *buf, int64_t buf_size);
+
+// asr
+
+int32_t (*p_llm_asr_model_init)(llm_asr_model_t *m);
+int32_t (*p_llm_asr_model_load)(llm_asr_model_t *m, llm_json_t *options);
+int32_t (*p_llm_asr_model_destroy)(llm_asr_model_t *m);
+int32_t (*p_llm_asr_recognizer_init)(llm_asr_recognizer_t *r);
+int32_t (*p_llm_asr_recognizer_destroy)(llm_asr_recognizer_t *r);
+int32_t (*p_llm_asr_recognizer_get_next_result)(llm_asr_recognizer_t *r, llm_json_t *result);
+int32_t (*p_llm_asr_recognize_media_file)(
+    llm_asr_recognizer_t *r,
+    llm_asr_model_t *model,
+    llm_json_t *options);
+
 // load the libllm shared library.
 void *llmLoadLibrary(const char *libraryPath) {
   // first try to load the dll from same folder as current module.
@@ -129,6 +148,17 @@ llmStatus_t llmLoadSymbols(void *pDll) {
   LOAD_SYMBOL(hDll, llmCompletion_GetError);
   LOAD_SYMBOL(hDll, llmCompletion_GetText);
   LOAD_SYMBOL(hDll, llmCompletion_GetToken);
+  LOAD_SYMBOL(hDll, llm_json_init);
+  LOAD_SYMBOL(hDll, llm_json_destroy);
+  LOAD_SYMBOL(hDll, llm_json_parse);
+  LOAD_SYMBOL(hDll, llm_json_dump);
+  LOAD_SYMBOL(hDll, llm_asr_model_init);
+  LOAD_SYMBOL(hDll, llm_asr_model_load);
+  LOAD_SYMBOL(hDll, llm_asr_model_destroy);
+  LOAD_SYMBOL(hDll, llm_asr_recognizer_init);
+  LOAD_SYMBOL(hDll, llm_asr_recognizer_destroy);
+  LOAD_SYMBOL(hDll, llm_asr_recognizer_get_next_result);
+  LOAD_SYMBOL(hDll, llm_asr_recognize_media_file);
 
   return LLM_OK;
 }
@@ -160,6 +190,17 @@ llmStatus_t llmDestroyLibrary(void *handle) {
   p_llmCompletion_GetError = NULL;
   p_llmCompletion_GetText = NULL;
   p_llmCompletion_GetToken = NULL;
+  p_llm_json_init = NULL;
+  p_llm_json_destroy = NULL;
+  p_llm_json_parse = NULL;
+  p_llm_json_dump = NULL;
+  p_llm_asr_model_init = NULL;
+  p_llm_asr_model_load = NULL;
+  p_llm_asr_model_destroy = NULL;
+  p_llm_asr_recognizer_init = NULL;
+  p_llm_asr_recognizer_destroy = NULL;
+  p_llm_asr_recognizer_get_next_result = NULL;
+  p_llm_asr_recognize_media_file = NULL;
 
   // first try to load the dll from same folder as current module.
 #if defined(LUT_PLATFORM_APPLE) || defined(LUT_PLATFORM_LINUX)
@@ -280,6 +321,53 @@ const char *llmCompletion_GetText(llmCompletion_t *comp) {
   return p_llmCompletion_GetText(comp);
 }
 
+int32_t llm_json_init(llm_json_t *j) {
+  return p_llm_json_init(j);
+}
+
+int32_t llm_json_destroy(llm_json_t *j) {
+  return p_llm_json_destroy(j);
+}
+
+int32_t llm_json_parse(llm_json_t *j, const char *json_str) {
+  return p_llm_json_parse(j, json_str);
+}
+
+int32_t llm_json_dump(llm_json_t *j, char *buf, int64_t buf_size) {
+  return p_llm_json_dump(j, buf, buf_size);
+}
+
 const char *llmCompletion_GetToken(llmCompletion_t *comp) {
   return p_llmCompletion_GetToken(comp);
+}
+
+int32_t llm_asr_model_init(llm_asr_model_t *m) {
+  return p_llm_asr_model_init(m);
+}
+
+int32_t llm_asr_model_load(llm_asr_model_t *m, llm_json_t *options) {
+  return p_llm_asr_model_load(m, options);
+}
+
+int32_t llm_asr_model_destroy(llm_asr_model_t *m) {
+  return p_llm_asr_model_destroy(m);
+}
+
+int32_t llm_asr_recognizer_init(llm_asr_recognizer_t *r) {
+  return p_llm_asr_recognizer_init(r);
+}
+
+int32_t llm_asr_recognizer_destroy(llm_asr_recognizer_t *r) {
+  return p_llm_asr_recognizer_destroy(r);
+}
+
+int32_t llm_asr_recognizer_get_next_result(llm_asr_recognizer_t *r, llm_json_t *result) {
+  return p_llm_asr_recognizer_get_next_result(r, result);
+}
+
+int32_t llm_asr_recognize_media_file(
+    llm_asr_recognizer_t *r,
+    llm_asr_model_t *model,
+    llm_json_t *options) {
+  return p_llm_asr_recognize_media_file(r, model, options);
 }

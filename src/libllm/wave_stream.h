@@ -46,7 +46,7 @@ class WaveStream {
 
 class FFmpegWaveStream : public WaveStream {
  public:
-  std::shared_ptr<FFmpegWaveStream> open(const std::string &filename);
+  static std::shared_ptr<FFmpegWaveStream> open(const std::string &filename);
   ~FFmpegWaveStream();
 
   int read(lut::Span<Byte> buffer) override;

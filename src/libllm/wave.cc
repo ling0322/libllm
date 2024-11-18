@@ -25,12 +25,16 @@
 namespace libllm {
 
 Wave::Wave()
-    : _maxHistoryInBytes(0) {
+    : _bufferOffset(0),
+      _readOffset(0),
+      _eof(false) {
 }
 
 Wave::Wave(std::shared_ptr<WaveStream> waveStream)
-    : _maxHistoryInBytes(60 * waveStream->getBytesPerSample() * waveStream->getSampleRate()),
-      _waveStream(waveStream) {
+    : _waveStream(waveStream),
+      _bufferOffset(0),
+      _readOffset(0),
+      _eof(false) {
 }
 
 Tensor Wave::toTensor(lut::Span<const Byte> data) {
@@ -48,65 +52,51 @@ Tensor Wave::toTensor(lut::Span<const Byte> data) {
   return Tensor::create({numSamples}, lut::makeConstSpan(wave));
 }
 
-void Wave::updateHistoryBuffer(lut::Span<const Byte> data) {
-  _historyBuffer.insert(_historyBuffer.end(), data.begin(), data.end());
-  if (_historyBuffer.size() > _maxHistoryInBytes) {
-    int64_t nbToErase = _historyBuffer.size() - _maxHistoryInBytes;
-    _historyBuffer.erase(_historyBuffer.begin(), _historyBuffer.begin() + nbToErase);
-  }
-}
-
-int64_t Wave::readFromBuffer(lut::Span<Byte> data) {
-  auto endIt = _readBuffer.size() > data.size() ? _readBuffer.begin() + data.size()
-                                                : _readBuffer.end();
-
-  std::copy(_readBuffer.begin(), endIt, data.begin());
-  _readBuffer.erase(_readBuffer.begin(), endIt);
-
-  return endIt - _readBuffer.begin();
+void Wave::readBlock() {
+  std::vector<Byte> data(BlockSize);
+  int64_t nb = _waveStream->read(lut::makeSpan(data));
+  _buffer.insert(_buffer.end(), data.begin(), data.begin() + nb);
 }
 
 Tensor Wave::read(lut::Duration duration) {
-  int64_t nbTotalSize = durationToNumBytes(duration);
-  std::vector<Byte> data(nbTotalSize);
-
-  // read from buffer.
-  int64_t nbRead = 0;
-  if (!_readBuffer.empty()) {
-    nbRead = readFromBuffer(lut::makeSpan(data));
-  }
-
-  int64_t nbToRead = nbTotalSize - nbRead;
-  CHECK(nbToRead >= 0);
-
-  // read from stream.
-  if (nbToRead) {
-    nbRead += _waveStream->read(lut::makeSpan(data).subspan(nbRead));
-    _readOffset += numBytesToDuration(nbRead);
-  }
-
-  lut::Span<const Byte> readData = lut::makeConstSpan(data).subspan(0, nbRead);
-  updateHistoryBuffer(readData);
-
   CHECK(_waveStream->getBytesPerSample() == 2);
-  return toTensor(readData);
+
+  int64_t nbTotalSize = durationToNumBytes(duration);
+  while (_readOffset + nbTotalSize >= _bufferOffset + _buffer.size() && !_waveStream->eof()) {
+    readBlock();
+  }
+
+  std::vector<Byte> data;
+  CHECK(_readOffset >= _bufferOffset && _readOffset < _bufferOffset + _buffer.size());
+  auto it = _buffer.begin() + (_readOffset - _bufferOffset);
+  data.insert(data.end(), it, std::min(it + nbTotalSize, _buffer.end()));
+  if (data.size() < nbTotalSize) {
+    _eof = true;
+  }
+
+  _readOffset += data.size();
+  pruneBuffer();
+
+  if (!data.empty()) {
+    return toTensor(data);
+  } else {
+    return Tensor();
+  }
+}
+
+void Wave::pruneBuffer() {
+  CHECK(_readOffset >= _bufferOffset);
+  if (_readOffset - _bufferOffset > BlockSize + MaxHistoryInBytes) {
+    CHECK(_buffer.size() > BlockSize);
+    _buffer.erase(_buffer.begin(), _buffer.begin() + BlockSize);
+    _bufferOffset += BlockSize;
+  }
 }
 
 void Wave::seek(lut::Duration offset) {
-  CHECK(offset <= _readOffset);
-  CHECK(_readBuffer.empty()) << "unable to call seek() twice.";
-
-  int64_t nbToBackward = durationToNumBytes(_readOffset - offset);
-  CHECK(nbToBackward <= _historyBuffer.size());
-
-  if (nbToBackward) {
-    _readBuffer.insert(
-        _readBuffer.begin(),
-        _historyBuffer.end() - nbToBackward,
-        _historyBuffer.end());
-
-    _historyBuffer.erase(_historyBuffer.end() - nbToBackward, _historyBuffer.end());
-  }
+  int64_t offsetInBytes = durationToNumBytes(offset);
+  CHECK(offsetInBytes <= _readOffset && offsetInBytes >= _bufferOffset);
+  _readOffset = offsetInBytes;
 }
 
 int64_t Wave::durationToNumBytes(lut::Duration dur) const {
@@ -120,12 +110,11 @@ lut::Duration Wave::numBytesToDuration(int64_t numBytes) const {
 }
 
 bool Wave::eof() {
-  return _waveStream->eof();
+  return _eof;
 }
 
 lut::Duration Wave::tell() const {
-  lut::Duration bufDur = numBytesToDuration(_readBuffer.size());
-  return _readOffset - bufDur;
+  return numBytesToDuration(_readOffset);
 }
 
 }  // namespace libllm

@@ -27,7 +27,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/asticode/go-astisub"
 	"github.com/ling0322/libllm/go/llm"
@@ -167,7 +166,7 @@ func transcribeMain(args []string) {
 	var tgtLang skill.Lang
 	modelFile := getTranscriotionModel(ba)
 	tgtLang = ba.getTargetLang()
-	device := ba.getDevice()
+	device := ba.getRawDevice()
 	inputFile := ba.getInput()
 	outputFile := getOutputFile(ba)
 
@@ -176,21 +175,16 @@ func transcribeMain(args []string) {
 		os.Exit(1)
 	}
 
-	model, err := createModelAutoDownload(modelFile, device)
+	model, err := createASRModelAutoDownload(modelFile, device)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	slog.Info(fmt.Sprintf("output file is %s", outputFile))
 
-	d0 := time.Now()
-	transcriber, err := skill.NewWhisperTranscriber(model, inputFile)
+	transcriber, err := skill.NewASRTranscriber(model, inputFile)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	if ba.getRawLang() != "" {
-		transcriber.SetLanguage(ba.getRawLang())
 	}
 
 	transcriptions := []skill.TranscriptionResult{}
@@ -204,15 +198,7 @@ func transcribeMain(args []string) {
 		log.Fatal(err)
 	}
 
-	processingTime := time.Since(d0)
-	slog.Info(
-		fmt.Sprintf("processed %s audio in %s, rtf=%.3f",
-			transcriber.Offset(),
-			processingTime.Round(time.Millisecond),
-			processingTime.Seconds()/transcriber.Offset().Seconds()))
-
 	transcriber.Dispose()
-	model.Dispose()
 
 	srcLang := getTranscriptionLang(transcriptions)
 	if srcLang != skill.UnknownLanguage && tgtLang != skill.UnknownLanguage && srcLang != tgtLang {
@@ -230,7 +216,7 @@ func transcribeMain(args []string) {
 			srcLang,
 			tgtLang,
 			getTranslationModel(ba),
-			device,
+			ba.getDevice(),
 		}
 		err := TranslateSubtitle(config, outputTxFile, outputFile)
 		if err != nil {

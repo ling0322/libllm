@@ -41,7 +41,6 @@ set(libllm_SOURCES
     "functional.cc"
     "generator.cc"
     "llama.cc"
-    "llm_json.cc"
     "llm.cc"
     "model_for_generation.cc"
     "module.cc"

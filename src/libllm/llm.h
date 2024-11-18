@@ -48,6 +48,11 @@ extern "C" {
 #define LLM_FALSE 0
 #define LLM_OK 0
 
+#define LLM_ERROR_INVALID_ARG 0x0100
+#define LLM_ERROR_INSUFFICIENT_BUFFER 0x0101
+#define LLM_ERROR_ABORTED 0x0102
+#define LLM_ERROR_EOF 0x0103
+
 typedef int32_t llmStatus_t;
 typedef struct llmModel_t llmModel_t;
 typedef struct llmChunk_t llmChunk_t;
@@ -105,58 +110,33 @@ LLMAPI const char *llmCompletion_GetText(llmCompletion_t *comp);
 /// @return name of the token.
 LLMAPI const char *llmCompletion_GetToken(llmCompletion_t *comp);
 
-// Basic json functions
-typedef struct llm_json_t llm_json_t;
+// JSON
 
-LLMAPI llm_json_t *llm_json_parse(const char *json_string);
+typedef struct llm_json_impl_t *llm_json_t;
 
-/// @brief dump the json to string. The returned string pointer is vaild until another
-/// llm_json_dump() call.
-/// @param json the json to json.
-/// @return string of the json.
-LLMAPI const char *llm_json_dump(llm_json_t *json);
-
-LLMAPI void llm_json_delete(llm_json_t *json);
-LLMAPI const char *llm_json_get_last_error_message();
+LLMAPI int32_t llm_json_init(llm_json_t *j);
+LLMAPI int32_t llm_json_destroy(llm_json_t *j);
+LLMAPI int32_t llm_json_parse(llm_json_t *j, const char *json_str);
+LLMAPI int32_t llm_json_dump(llm_json_t *j, char *buf, int64_t buf_size);
 
 // ASR
 
-typedef struct llm_asr_recognizer_t llm_asr_recognizer_t;
+typedef struct llm_asr_recognizer_impl_t *llm_asr_recognizer_t;
+typedef struct llm_asr_model_impl_t *llm_asr_model_t;
 
-/// @brief Recognize a media file.
-/// @param model the model for ASR.
-/// @param options json object of options
-///    {
-///      "media_file": "<media_file>", // REQUIRED
-///    }
-/// @return an instance of llm_asr_recognizer_t.
-LLMAPI llm_asr_recognizer_t *llm_asr_recognize_media_file(llmModel_t *model, llm_json_t *options);
+LLMAPI int32_t llm_asr_model_init(llm_asr_model_t *m);
+LLMAPI int32_t llm_asr_model_load(llm_asr_model_t *m, llm_json_t *options);
+LLMAPI int32_t llm_asr_model_destroy(llm_asr_model_t *m);
 
-/// @brief Delete an instance of llm_asr_recognizer_t.
-/// @param r the llm_asr_recognizer_t to delete.
-LLMAPI void llm_asr_recognizer_delete(llm_asr_recognizer_t *r);
+LLMAPI int32_t llm_asr_recognizer_init(llm_asr_recognizer_t *r);
+LLMAPI int32_t llm_asr_recognizer_destroy(llm_asr_recognizer_t *r);
+LLMAPI int32_t llm_asr_recognizer_get_next_result(llm_asr_recognizer_t *r, llm_json_t *result);
 
-/// @brief Get next recognition event. If no more events, returns a NULL pointer.
-/// @param r the llm_asr_recognizer_t.
-/// @return the next recognition event in json. Common events:
-/// recognition_result:
-/// {
-///   "event_type": "recognition_result",
-///   "content": {
-///      "text": "<text>",
-///      “begin": <begin_offset_in_ms>,
-///      "end": <end_offset_in_ms>,
-//       "language": "<language_of_the_text>",
-///   }
-/// }
-/// error:
-/// {
-///   "event_type": "error",
-///   "content": {
-///      "reason": "<error_reason>",
-///   }
-/// }
-LLMAPI llm_json_t *llm_asr_recognizer_get_next_event(llm_asr_recognizer_t *r);
+LLMAPI
+int32_t llm_asr_recognize_media_file(
+    llm_asr_recognizer_t *r,
+    llm_asr_model_t *model,
+    llm_json_t *options);
 
 #ifdef __cplusplus
 }  // extern "C"

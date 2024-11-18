@@ -83,6 +83,7 @@ class WhisperChunkGreedySearchDecoder {
 
   Tensor applySoftmax(Tensor logits);
   void inferLang();
+  void setTranscribeMode();
 
   /// @brief decode one token from input audio.
   /// @return the next token.

@@ -78,6 +78,10 @@ func (a *binArgs) getDevice() llm.Device {
 	return device
 }
 
+func (a *binArgs) getRawDevice() string {
+	return a.device
+}
+
 func (a *binArgs) addModelFlag() {
 	a.fs.Var(&a.models, "m", "the libllm model, it could be model name or model file,"+
 		" model files are with suffix \".llmpkg\". "+

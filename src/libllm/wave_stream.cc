@@ -99,7 +99,9 @@ int FFmpegWaveStream::read(lut::Span<Byte> buffer) {
       _reader.get(),
       reinterpret_cast<char *>(buffer.data()),
       buffer.size());
-  if (nb == 0) {
+  if (nb < 0) {
+    throw lut::AbortedError(p_llm_ffmpeg_get_err());
+  } else if (nb < buffer.size()) {
     _eof = true;
   }
 

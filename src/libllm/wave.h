@@ -34,17 +34,13 @@ enum class WaveFormat {
   Unknown,
 };
 
-struct WaveChunk {
-  lut::Duration begin;
-  lut::Duration end;
-  bool eof;
-  Tensor data;
-};
-
 /// @brief Wrap the WaveStream into a file-like Wave object. It supports 2 operations seek() and
 /// read(). seek() only supports moving backward up to 1min.
 class Wave {
  public:
+  static constexpr int MaxHistoryInBytes = 60 * 16000 * 2;
+  static constexpr int BlockSize = 5 * MaxHistoryInBytes;
+
   Wave();
   Wave(std::shared_ptr<WaveStream> wave_stream);
 
@@ -57,17 +53,17 @@ class Wave {
   bool eof();
 
  private:
-  int64_t _maxHistoryInBytes;
-  std::deque<Byte> _historyBuffer;
-  std::deque<Byte> _readBuffer;
+  int64_t _bufferOffset;
+  int64_t _readOffset;
+  bool _eof;
+  std::deque<Byte> _buffer;
   std::shared_ptr<WaveStream> _waveStream;
-  lut::Duration _readOffset;
 
   int64_t durationToNumBytes(lut::Duration dur) const;
   lut::Duration numBytesToDuration(int64_t numBytes) const;
 
-  void updateHistoryBuffer(lut::Span<const Byte> data);
-  int64_t readFromBuffer(lut::Span<Byte> data);
+  void readBlock();
+  void pruneBuffer();
 };
 
 }  // namespace libllm

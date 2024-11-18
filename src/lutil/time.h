@@ -63,7 +63,7 @@ class Duration {
   }
 
   constexpr Duration &operator+=(Duration rhs) {
-    _nanoseconds = rhs._nanoseconds;
+    _nanoseconds += rhs._nanoseconds;
     return *this;
   }
 

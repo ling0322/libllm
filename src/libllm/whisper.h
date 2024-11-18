@@ -234,7 +234,6 @@ class WhisperModel {
   Tensor prefillPrompt(StateMap &past, Tensor inputs) const;
   Tensor decode(StateMap &past, LongType inputToken) const;
 
-  bool isStopToken(int tokenId) const;
   const char *getName() const;
   Device getDevice() const;
   int getOutputDim() const;
@@ -246,7 +245,6 @@ class WhisperModel {
   std::shared_ptr<DecoderModel> _decoder;
   std::shared_ptr<Tokenizer> _tokenizer;
   std::string _modelName;
-  int _eotId;
 
   WhisperModel();
   void init(const Context &ctx, const lut::IniConfig &config);

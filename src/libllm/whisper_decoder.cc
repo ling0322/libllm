@@ -58,7 +58,7 @@ std::shared_ptr<WhisperChunkGreedySearchDecoder> WhisperChunkGreedySearchDecoder
   decoder->_noSpeechToken = vocab->findControlToken("<|nospeech|>");
   decoder->_langTokenEn = vocab->findControlToken("<|en|>");
   decoder->_langTokenSu = vocab->findControlToken("<|su|>");
-  decoder->_timestamp0000 = vocab->findControlToken("<|00.00|>");
+  decoder->_timestamp0000 = vocab->findControlToken("<|0.00|>");
   decoder->_timestamp3000 = vocab->findControlToken("<|30.00|>");
   decoder->_eotToken = vocab->findControlToken("<|endoftext|>");
   decoder->_transcribeToken = vocab->findControlToken("<|transcribe|>");
@@ -111,6 +111,14 @@ void WhisperChunkGreedySearchDecoder::inferLang() {
         probData + _langTokenSu + 1);
     _targetLangToken = pMaxLangProb - probData;
   }
+
+  _model->decode(_kvCache, _targetLangToken);
+  updateHistory(_targetLangToken);
+}
+
+void WhisperChunkGreedySearchDecoder::setTranscribeMode() {
+  _model->decode(_kvCache, _transcribeToken);
+  updateHistory(_transcribeToken);
 }
 
 void WhisperChunkGreedySearchDecoder::processLogits(Tensor logits) {
@@ -177,6 +185,7 @@ int WhisperChunkGreedySearchDecoder::decodeToken() {
   const float *pMaxProb = std::max_element(pProb, pProb + probCpu.getShape(0));
   int nextToken = static_cast<int>(pMaxProb - pProb);
 
+  updateHistory(nextToken);
   return nextToken;
 }
 
@@ -218,54 +227,62 @@ std::vector<RecognitionResult> WhisperChunkGreedySearchDecoder::decode(Tensor wa
 
   // prepare prompt.
   inferLang();
-  _model->decode(_kvCache, _targetLangToken);
-  _model->decode(_kvCache, _transcribeToken);
-  updateHistory(_targetLangToken);
-  updateHistory(_transcribeToken);
+  setTranscribeMode();
 
   // generate tokens.
-  std::vector<int> tokens;
-  int tokenId = decodeToken();
-  updateHistory(tokenId);
-  while (!_model->isStopToken(tokenId)) {
-    tokens.push_back(tokenId);
-    tokenId = decodeToken();
-    updateHistory(tokenId);
-  }
-
-  // convert tokens to result.
   std::vector<RecognitionResult> results;
+  bool lastResultHasEndTimestamp = true;
+  for (;;) {
+    int token = decodeToken();
+    if (token == _eotToken) {
+      break;
+    }
 
-  enum { STATE_BEGIN, STATE_TEXT };
-  int state = STATE_BEGIN;
-  std::string text;
-  for (int token : tokens) {
-    if (state == STATE_BEGIN) {
-      results.emplace_back();
-      results.back().begin = parseTimestampToken(token);
-      results.back().language = parseLangToken(_targetLangToken);
-      state = STATE_TEXT;
-    } else if (state == STATE_TEXT && isTimestampToken(token)) {
-      results.back().end = parseTimestampToken(token);
-      results.back().text = text;
-      text = "";
-      state = STATE_BEGIN;
-    } else if (state == STATE_TEXT) {
+    lut::Duration begin = parseTimestampToken(token);
+    std::string text;
+    token = decodeToken();
+    while (!_model->getVocab()->isControlToken(token)) {
       text += _model->getVocab()->getTokenPiece(token);
+      token = decodeToken();
+    }
+
+    lut::Duration end;
+    if (token == _eotToken) {
+      end = _audioLength;
+      lastResultHasEndTimestamp = false;
     } else {
-      CHECK(false);
+      end = parseTimestampToken(token);
+    }
+
+    RecognitionResult result;
+    result.begin = begin;
+    result.end = std::min(end, _audioLength);
+    result.text = text;
+    result.language = parseLangToken(_targetLangToken);
+    results.emplace_back(result);
+
+    if (token == _eotToken) {
+      break;
+    }
+
+    if (_audioLength - end <= lut::Duration::milliseconds(100)) {
+      break;
+    }
+
+    // check repetition
+    if (results.size() >= 3) {
+      std::string_view text0 = results[results.size() - 1].text;
+      std::string_view text1 = results[results.size() - 2].text;
+      std::string_view text2 = results[results.size() - 3].text;
+      if (text0 == text1 && text0 == text2) {
+        break;
+      }
     }
   }
 
-  // handle partial results
-  if (state == STATE_TEXT) {
-    if (results.size() == 1) {
-      // if there is only one result for the chunk, we should keep it.
-      results.back().end = _audioLength;
-      results.back().text = text;
-    } else {
-      results.pop_back();
-    }
+  // remove last result if it did not have end timestamp
+  if (results.size() > 1 && !lastResultHasEndTimestamp) {
+    results.pop_back();
   }
 
   return results;
@@ -294,8 +311,9 @@ std::shared_ptr<WhisperDecoder> WhisperDecoder::create(
 std::optional<RecognitionResult> WhisperDecoder::nextResult() {
   while (_results.empty() && !_wave->eof()) {
     lut::Duration offset = _wave->tell();
+    LOG(INFO) << "offset=" << offset.toString();
     Tensor waveChunk = _wave->read(lut::Duration::seconds(30));
-    if (waveChunk.getShape(0) <= 1600) {
+    if (waveChunk.empty() || waveChunk.getShape(0) <= 1600) {
       // we ignore the chunks less than 0.1s (1600 samples)
       break;
     }
