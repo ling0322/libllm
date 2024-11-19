@@ -184,6 +184,9 @@ int WhisperChunkGreedySearchDecoder::decodeToken() {
 
   const float *pMaxProb = std::max_element(pProb, pProb + probCpu.getShape(0));
   int nextToken = static_cast<int>(pMaxProb - pProb);
+  if (isTimestampToken(nextToken) && nextToken != _timestamp0000) {
+    --nextToken;
+  }
 
   updateHistory(nextToken);
   return nextToken;
@@ -260,6 +263,7 @@ std::vector<RecognitionResult> WhisperChunkGreedySearchDecoder::decode(Tensor wa
     result.text = text;
     result.language = parseLangToken(_targetLangToken);
     results.emplace_back(result);
+    LOG(DEBUG) << result.begin.toString() << " - " << result.end.toString() << " : " << result.text;
 
     if (token == _eotToken) {
       break;

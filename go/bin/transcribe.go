@@ -33,8 +33,6 @@ import (
 	"github.com/ling0322/libllm/go/skill"
 )
 
-type TxResult = skill.TranscriptionResult
-
 type translationConfig struct {
 	srcLang   skill.Lang
 	tgtLang   skill.Lang
@@ -50,9 +48,9 @@ func printTranscribeUsage(fs *flag.FlagSet) {
 	fmt.Fprintln(os.Stderr, "")
 }
 
-func TranscriptionToSubtitle(transcriptions []TxResult) *astisub.Subtitles {
+func TranscriptionToSubtitle(results []llm.RecognitionResult) *astisub.Subtitles {
 	s := astisub.NewSubtitles()
-	for index, t := range transcriptions {
+	for index, t := range results {
 		s.Items = append(s.Items, &astisub.Item{
 			Index:   index,
 			EndAt:   t.End,
@@ -64,13 +62,13 @@ func TranscriptionToSubtitle(transcriptions []TxResult) *astisub.Subtitles {
 	return s
 }
 
-func getTranscriptionLang(transcriptions []TxResult) skill.Lang {
-	if len(transcriptions) == 0 {
+func getTranscriptionLang(results []llm.RecognitionResult) skill.Lang {
+	if len(results) == 0 {
 		return skill.UnknownLanguage
 	}
 
 	langCount := map[string]int{}
-	for _, tx := range transcriptions {
+	for _, tx := range results {
 		langCount[tx.Language] += 1
 	}
 
@@ -92,7 +90,7 @@ func getTranscriptionLang(transcriptions []TxResult) skill.Lang {
 	}
 }
 
-func saveTranscription(transcriptions []TxResult, filename string) error {
+func saveTranscription(transcriptions []llm.RecognitionResult, filename string) error {
 	slog.Info(fmt.Sprintf("save transcription to %s", filename))
 	subtitle := TranscriptionToSubtitle(transcriptions)
 	err := subtitle.Write(filename)
@@ -182,23 +180,24 @@ func transcribeMain(args []string) {
 
 	slog.Info(fmt.Sprintf("output file is %s", outputFile))
 
-	transcriber, err := skill.NewASRTranscriber(model, inputFile)
+	recognition, err := model.Recognize(inputFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	transcriptions := []skill.TranscriptionResult{}
-	for transcriber.Transcribe() {
-		r := transcriber.Result()
+	transcriptions := []llm.RecognitionResult{}
+	for recognition.Next() {
+		r := recognition.Result()
 		transcriptions = append(transcriptions, r)
 		slog.Info(r.String())
 	}
 
-	if err = transcriber.Err(); err != nil {
+	if err = recognition.Err(); err != nil {
 		log.Fatal(err)
 	}
 
-	transcriber.Dispose()
+	recognition.Dispose()
+	model.Dispose()
 
 	srcLang := getTranscriptionLang(transcriptions)
 	if srcLang != skill.UnknownLanguage && tgtLang != skill.UnknownLanguage && srcLang != tgtLang {

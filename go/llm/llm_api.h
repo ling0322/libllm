@@ -94,20 +94,20 @@ int32_t llm_json_dump(llm_json_t *j, char *buf, int64_t buf_size);
 
 // ASR
 
-typedef struct llm_asr_recognizer_impl_t *llm_asr_recognizer_t;
+typedef struct llm_asr_recognition_impl_t *llm_asr_recognition_t;
 typedef struct llm_asr_model_impl_t *llm_asr_model_t;
 
 int32_t llm_asr_model_init(llm_asr_model_t *m);
 int32_t llm_asr_model_load(llm_asr_model_t *m, llm_json_t *options);
 int32_t llm_asr_model_destroy(llm_asr_model_t *m);
 
-int32_t llm_asr_recognizer_init(llm_asr_recognizer_t *r);
-int32_t llm_asr_recognizer_destroy(llm_asr_recognizer_t *r);
-int32_t llm_asr_recognizer_get_next_result(llm_asr_recognizer_t *r, llm_json_t *result);
+int32_t llm_asr_recognition_init(llm_asr_recognition_t *r);
+int32_t llm_asr_recognition_destroy(llm_asr_recognition_t *r);
+int32_t llm_asr_recognition_get_next_result(llm_asr_recognition_t *r, llm_json_t *result);
 
 int32_t llm_asr_recognize_media_file(
-    llm_asr_recognizer_t *r,
     llm_asr_model_t *model,
-    llm_json_t *options);
+    llm_json_t *options,
+    llm_asr_recognition_t *recognition);
 
 #endif  // LIBLLM_LLM_API_

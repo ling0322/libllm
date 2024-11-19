@@ -26,6 +26,7 @@ import "C"
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"runtime"
 	"time"
 	"unsafe"
@@ -51,7 +52,7 @@ type llmRecognitionResultJson struct {
 }
 
 type Recognition struct {
-	recognition C.llm_asr_recognizer_t
+	recognition C.llm_asr_recognition_t
 	err         error
 	result      RecognitionResult
 	json        *llmJson
@@ -64,9 +65,9 @@ type llmJson struct {
 func newRecognition() *Recognition {
 	r := &Recognition{}
 	r.json = newJson()
-	C.llm_asr_recognizer_init(&r.recognition)
+	C.llm_asr_recognition_init(&r.recognition)
 	runtime.SetFinalizer(r, func(r *Recognition) {
-		C.llm_asr_recognizer_destroy(&r.recognition)
+		C.llm_asr_recognition_destroy(&r.recognition)
 	})
 
 	return r
@@ -147,7 +148,7 @@ func (m *ASRModel) Recognize(filename string) (*Recognition, error) {
 		"media_file": filename,
 	})
 
-	status := C.llm_asr_recognize_media_file(&r.recognition, &m.model, &json.json)
+	status := C.llm_asr_recognize_media_file(&m.model, &json.json, &r.recognition)
 	if status != 0 {
 		return nil, errors.New(C.GoString(C.llmGetLastErrorMessage()))
 	}
@@ -155,16 +156,26 @@ func (m *ASRModel) Recognize(filename string) (*Recognition, error) {
 	return r, nil
 }
 
+func (m *ASRModel) Dispose() {
+	C.llm_asr_model_destroy(&m.model)
+	runtime.SetFinalizer(m, nil)
+}
+
 func (r *Recognition) Err() error {
 	return r.err
 }
 
-func (r *Recognition) Result() *RecognitionResult {
-	return &r.result
+func (r *Recognition) Result() RecognitionResult {
+	return r.result
+}
+
+func (r *Recognition) Dispose() {
+	C.llm_asr_recognition_destroy(&r.recognition)
+	runtime.SetFinalizer(r, nil)
 }
 
 func (r *Recognition) Next() bool {
-	status := C.llm_asr_recognizer_get_next_result(&r.recognition, &r.json.json)
+	status := C.llm_asr_recognition_get_next_result(&r.recognition, &r.json.json)
 	if status == C.cLLM_ERROR_EOF {
 		return false
 	} else if status != 0 {
@@ -184,4 +195,8 @@ func (r *Recognition) Next() bool {
 	r.result.End = time.Duration(rawReco.EndMs * int64(time.Millisecond))
 
 	return true
+}
+
+func (r *RecognitionResult) String() string {
+	return fmt.Sprintf("%8s - %8s: %s", r.Begin.String(), r.End.String(), r.Text)
 }

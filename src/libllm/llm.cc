@@ -82,7 +82,7 @@ struct llm_asr_model_impl_t {
   std::shared_ptr<WhisperModel> model;
 };
 
-struct llm_asr_recognizer_impl_t {
+struct llm_asr_recognition_impl_t {
   std::shared_ptr<WhisperDecoder> decoder;
 };
 
@@ -596,12 +596,12 @@ int32_t llm_asr_model_destroy(llm_asr_model_t *m) {
   return 0;
 }
 
-int32_t llm_asr_recognizer_init(llm_asr_recognizer_t *r) {
-  *r = new llm_asr_recognizer_impl_t();
+int32_t llm_asr_recognition_init(llm_asr_recognition_t *r) {
+  *r = new llm_asr_recognition_impl_t();
   return 0;
 }
 
-int32_t llm_asr_recognizer_destroy(llm_asr_recognizer_t *r) {
+int32_t llm_asr_recognition_destroy(llm_asr_recognition_t *r) {
   delete *r;
   *r = nullptr;
 
@@ -609,10 +609,10 @@ int32_t llm_asr_recognizer_destroy(llm_asr_recognizer_t *r) {
 }
 
 int32_t llm_asr_recognize_media_file(
-    llm_asr_recognizer_t *r,
     llm_asr_model_t *model,
-    llm_json_t *options) {
-  if (!r) return llmErrorSetInvalidArg("r");
+    llm_json_t *options,
+    llm_asr_recognition_t *recognition) {
+  if (!recognition) return llmErrorSetInvalidArg("r");
   if ((!model) || !(*model)->model) return llmErrorSetInvalidArg("model");
   if (!options) return llmErrorSetInvalidArg("options");
 
@@ -632,7 +632,7 @@ int32_t llm_asr_recognize_media_file(
     std::shared_ptr<Wave> wave = std::make_shared<Wave>(stream);
     std::shared_ptr<WhisperDecoder> decoder = WhisperDecoder::create(whisperModel, wave);
 
-    (*r)->decoder = decoder;
+    (*recognition)->decoder = decoder;
   } catch (std::exception &e) {
     return llmErrorSetAborted(e.what());
   }
@@ -640,7 +640,7 @@ int32_t llm_asr_recognize_media_file(
   return 0;
 }
 
-int32_t llm_asr_recognizer_get_next_result(llm_asr_recognizer_t *r, llm_json_t *result) {
+int32_t llm_asr_recognition_get_next_result(llm_asr_recognition_t *r, llm_json_t *result) {
   if ((!r) || !(*r)->decoder) return llmErrorSetInvalidArg("r");
   if (!result) return llmErrorSetInvalidArg("result");
 

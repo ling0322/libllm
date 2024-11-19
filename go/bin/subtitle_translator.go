@@ -105,8 +105,8 @@ func (t *transcriptionTranslator) translateOne(text string) (translationResult, 
 }
 
 func (t *transcriptionTranslator) translate(
-	transcriptions []skill.TranscriptionResult) ([]skill.TranscriptionResult, error) {
-	translatedTrxn := []skill.TranscriptionResult{}
+	transcriptions []llm.RecognitionResult) ([]llm.RecognitionResult, error) {
+	translatedTrxn := []llm.RecognitionResult{}
 	for _, transcription := range transcriptions {
 		tr, err := t.translateOne(transcription.Text)
 		if err != nil {
@@ -142,19 +142,19 @@ func newTranscripotionTranslator(
 }
 
 // read a subtitle file to
-func ReadSubtitleFile(filename string) ([]TxResult, error) {
+func ReadSubtitleFile(filename string) ([]llm.RecognitionResult, error) {
 	subtitles, err := astisub.OpenFile(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	txs := []TxResult{}
+	txs := []llm.RecognitionResult{}
 	for _, item := range subtitles.Items {
 		lines := []string{}
 		for _, line := range item.Lines {
 			lines = append(lines, line.String())
 		}
-		tx := TxResult{
+		tx := llm.RecognitionResult{
 			Begin: item.StartAt,
 			End:   item.EndAt,
 			Text:  strings.Join(lines, " "),
