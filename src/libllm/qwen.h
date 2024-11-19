@@ -43,6 +43,7 @@ class QwenModelForGeneration : public llama::LlamaModelForGeneration {
 
   // override LlamaModelForGeneration
   bool isStopToken(int tokenId) const override;
+  Prompt buildPrompt(lut::Span<const Message> history) const override;
 
  private:
   int _imStartId;

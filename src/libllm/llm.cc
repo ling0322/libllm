@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <unordered_map>
 
 #include "../../third_party/nlohmann/json.hpp"
@@ -38,6 +39,8 @@ using libllm::whisper::WhisperModel;
 using lut::IniConfig;
 using json = nlohmann::json;
 
+std::once_flag gLlmInitOnce;
+
 thread_local std::string gJsonString;
 thread_local std::string gJsonErrorMessage;
 
@@ -46,32 +49,14 @@ constexpr char LlmConfigKey_WhisperLang[] = "whisper.language";
 constexpr char LlmConfigValue_Sampler[] = "sampler";
 constexpr char LlmConfigValue_Whisper[] = "whisper";
 
-struct llmModel_t {
-  Context ctx;
-  std::shared_ptr<ModelForGeneration> model_for_generation;
+struct llm_model_impl_t {
+  std::shared_ptr<ModelForGeneration> model;
   std::shared_ptr<Tokenizer> tokenizer;
-  std::string configFile;
-  int device;
 };
 
-struct llmCompletion_t {
-  int top_k;
-  float top_p;
-  float temperature;
-  std::shared_ptr<Prompt> prompt;
+struct llm_completion_impl_t {
   std::weak_ptr<ModelForGeneration> model_for_generation;
   std::shared_ptr<Generator> generator;
-  lut::Error error;
-  std::string chunkText;
-  std::unordered_map<std::string, std::string> kvConfig;
-};
-
-struct llmChunk_t {
-  std::string text;
-};
-
-struct llmPrompt_t {
-  std::shared_ptr<Prompt> prompt;
 };
 
 struct llm_json_impl_t {
@@ -102,56 +87,65 @@ void llmSetErrorMessage(const std::string &message) {
   snprintf(gErrorMessage, sizeof(gErrorMessage), "%s", what.c_str());
 }
 
-void setErrorCodeAndMessage(const lut::Error &e) {
-  gErrorCode = static_cast<int>(e.getCode());
-  llmSetErrorMessage(e.what());
+void checkJsonKeys(
+    const json &json,
+    std::initializer_list<std::pair<std::string_view, bool>> schema) {
+  std::set<std::string_view> keys;
+  for (auto &[key, value] : json.items()) {
+    keys.emplace(key);
+  }
+
+  for (const auto &entry : schema) {
+    std::string_view key = entry.first;
+    bool required = entry.second;
+
+    auto it = keys.find(key);
+    if (required && it == keys.end()) {
+      throw lut::AbortedError(lut::sprintf("json: required key \"%s\" not found", key));
+    }
+
+    if (it != keys.end()) keys.erase(it);
+  }
+
+  if (!keys.empty()) {
+    throw lut::AbortedError(lut::sprintf("json: unexpected key \"%s\"", *keys.begin()));
+  }
 }
 
-llmStatus_t runAndCatch(std::function<void()> &&f) {
-  try {
-    f();
-    return LLM_OK;
-  } catch (const lut::Error &e) {
-    setErrorCodeAndMessage(e);
-    return static_cast<llmStatus_t>(e.getCode());
+Prompt buildPromptFromJson(const ModelForGeneration *model, const json &kwargsJson) {
+  const json &messageJsons = kwargsJson["messages"];
+  std::vector<Message> messages;
+  for (const json &messageJson : messageJsons) {
+    Message message;
+    message.role = messageJson["role"];
+    message.content = messageJson["content"];
+
+    messages.emplace_back(message);
+    if (messageJson.size() != 2) {
+      throw lut::AbortedError("invalid json for message");
+    }
   }
+
+  return model->buildPrompt(messages);
 }
 
 template<typename T>
-T runAndCatch(std::function<T()> &&c, T default_value) {
-  try {
-    return c();
-  } catch (const lut::Error &e) {
-    setErrorCodeAndMessage(e);
-    return default_value;
+T getValueFromJson(const json &j, std::string_view key, T defaultVal) {
+  T val = defaultVal;
+  if (kwargsJson.contains(key)) {
+    val = kwargsJson[key];
   }
+
+  return val;
 }
 
-Device getDeviceFromApi(int apiDevice) {
-  switch (apiDevice) {
-    case LLM_DEVICE_CPU:
-      return Device::getCpu();
-    case LLM_DEVICE_CUDA:
-      return Device::getCuda();
-    case LLM_DEVICE_AUTO:
-      if (Device::isCudaAvailable()) {
-        return Device::getCuda();
-      } else {
-        return Device::getCpu();
-      }
-    default:
-      throw lut::InvalidArgError("invalid device type");
-  }
-}
+GenerationConfig parseGenerationConfig(const json &kwargsJson) {
+  GenerationConfig config;
+  config.temperature = getValueFromJson<float>(kwargsJson, "temperature", 1.0);
+  config.topK = getValueFromJson<int>(kwargsJson, "top_k", 50);
+  config.topP = getValueFromJson<float>(kwargsJson, "top_p", 0.8);
 
-int parseGeneratorType(const std::string &name) {
-  if (name == LlmConfigValue_Sampler) {
-    return Generator::Sampling;
-  } else if (name == LlmConfigValue_Whisper) {
-    return Generator::Whisper;
-  } else {
-    throw lut::AbortedError("invalid generator type: " + name);
-  }
+  return config;
 }
 
 int32_t llmErrorSetInvalidArg(const std::string &argName) {
@@ -198,313 +192,137 @@ libllm::Device parseDevice(const std::string &device) {
 using namespace libllm;
 using namespace libllm::api;
 
-llmStatus_t llmInit(int32_t apiVersion) {
-  if (!gInitialized.exchange(true)) {
+void llm_init() {
+  std::call_once(gLlmInitOnce, []() {
     try {
-      if (apiVersion != LLM_API_VERSION) throw lut::InvalidArgError("api version mismatch.");
       lut::setLogLevel(lut::LogSeverity::kINFO);
       libllm::initOperators();
-
-      return LLM_OK;
     } catch (const lut::Error &e) {
-      gInitialized = false;
-      setErrorCodeAndMessage(e);
-      return static_cast<llmStatus_t>(e.getCode());
-      ;
+      LOG(ERROR) << "initialize libllm failed: " << e.what();
     }
-  }
-
-  return LLM_OK;
+  });
 }
 
-llmStatus_t llmDestroy() {
-  if (gInitialized.exchange(false)) {
-    libllm::destroyOperators();
-  }
-
-  return LLM_OK;
-}
-
-const char *llmGetLastErrorMessage() {
+const char *llm_get_last_error_message() {
   return gErrorMessage;
 }
 
-llmModel_t *llmModel_New() {
-  llmModel_t *model = new llmModel_t();
-  model->device = LLM_DEVICE_AUTO;
-  return model;
+int32_t llm_model_init(llm_model_t *m) {
+  *m = new llm_model_impl_t();
+  return 0;
 }
 
-llmStatus_t llmModel_Delete(llmModel_t *model) {
-  delete model;
-  return LLM_OK;
+int32_t llm_model_destroy(llm_model_t *m) {
+  if (!m) return llmErrorSetInvalidArg("m");
+
+  delete *m;
+  *m = nullptr;
+  return 0;
 }
 
-llmStatus_t llmModel_SetFile(llmModel_t *model, const char *filename) {
-  return runAndCatch([model, filename]() {
-    if (!model) throw lut::InvalidArgError("model");
-    if (!filename) throw lut::InvalidArgError("filename");
-
-    model->configFile = filename;
-    return LLM_OK;
-  });
-}
-
-llmStatus_t llmModel_SetDevice(llmModel_t *model, int32_t device) {
-  return runAndCatch([model, device]() {
-    if (!model) throw lut::InvalidArgError("model");
-
-    model->device = device;
-    return LLM_OK;
-  });
-}
-
-llmStatus_t llmModel_Load(llmModel_t *model) {
-  return runAndCatch([model]() {
-    if (!model) throw lut::InvalidArgError("model");
-    if (model->configFile.empty()) throw lut::InvalidArgError("model file not set.");
-
-    LOG(INFO) << "read model package: " << model->configFile;
-    std::shared_ptr<lut::ZipFile> package = lut::ZipFile::fromFile(model->configFile);
-
-    model->ctx.setDevice(getDeviceFromApi(model->device));
-    model->ctx.setFloatDType(F::getDefaultFloatType(model->ctx.getDevice()));
-    model->tokenizer = Tokenizer::fromPackage(package.get());
-    model->model_for_generation = ModelForGeneration::fromPackage(model->ctx, package.get());
-
-    return LLM_OK;
-  });
-}
-
-const char *llmModel_GetName(llmModel_t *model) {
-  return runAndCatch<const char *>(
-      [model]() {
-        if (!model) throw lut::InvalidArgError("m");
-        if (!model->model_for_generation) throw lut::InvalidArgError("model");
-
-        return model->model_for_generation->getName();
-      },
-      nullptr);
-}
-
-llmPrompt_t *llmPrompt_New() {
-  return runAndCatch<llmPrompt_t *>(
-      []() {
-        llmPrompt_t *prompt = new llmPrompt_t();
-        prompt->prompt = std::make_shared<Prompt>();
-        return prompt;
-      },
-      nullptr);
-}
-
-llmStatus_t llmPrompt_Delete(llmPrompt_t *prompt) {
-  delete prompt;
-  return LLM_OK;
-}
-
-llmStatus_t llmPrompt_AppendText(llmPrompt_t *prompt, const char *text) {
-  return runAndCatch([prompt, text]() {
-    if (!prompt) throw lut::InvalidArgError("prompt");
-    if (!text) throw lut::InvalidArgError("text");
-
-    prompt->prompt->appendText(text);
-    return LLM_OK;
-  });
-}
-
-llmStatus_t llmPrompt_AppendControlToken(llmPrompt_t *prompt, const char *name) {
-  return runAndCatch([prompt, name]() {
-    if (!prompt) throw lut::InvalidArgError("prompt");
-    if (!name) throw lut::InvalidArgError("name");
-
-    prompt->prompt->appendControlToken(name);
-    return LLM_OK;
-  });
-}
-
-llmStatus_t llmPrompt_AppendAudio(
-    llmPrompt_t *prompt,
-    const llmByte_t *audio,
-    int64_t size,
-    int32_t format) {
-  return runAndCatch([prompt, audio, size, format]() {
-    if (!prompt) throw lut::InvalidArgError("prompt");
-    if (!audio) throw lut::InvalidArgError("audio");
-    if (size <= 0 || size > 1024 * 1024 * 1024)
-      throw lut::AbortedError("invalid size, [1, 1G) expected");
-    if (format != LLM_WAVE_FORMAT_PCM16KHZ16BITMONO) throw lut::AbortedError("invalid format");
-
-    prompt->prompt->appendWave(
-        lut::Span<const Byte>(reinterpret_cast<const Byte *>(audio), size),
-        WaveFormat::Wave16kHz16bitMonoPCM);
-    return LLM_OK;
-  });
-}
-
-llmCompletion_t *llmCompletion_New(llmModel_t *model) {
-  return runAndCatch<llmCompletion_t *>(
-      [model]() {
-        if (!model) throw lut::InvalidArgError("model");
-        if (!model->model_for_generation) throw lut::InvalidArgError("model not initialized");
-
-        std::unique_ptr<llmCompletion_t> comp = std::make_unique<llmCompletion_t>();
-        comp->model_for_generation = model->model_for_generation;
-        comp->temperature = 1.0f;
-        comp->top_k = 50;
-        comp->top_p = 0.8f;
-
-        return comp.release();
-      },
-      nullptr);
-}
-
-llmStatus_t llmCompletion_Delete(llmCompletion_t *comp) {
-  delete comp;
-  return LLM_OK;
-}
-
-llmStatus_t llmCompletion_SetConfig(llmCompletion_t *comp, const char *key, const char *value) {
-  return runAndCatch([comp, key, value]() {
-    if (!comp) throw lut::InvalidArgError("comp");
-    if (!key) throw lut::InvalidArgError("key");
-    if (!value) throw lut::InvalidArgError("value");
-
-    comp->kvConfig[key] = value;
-    return LLM_OK;
-  });
-}
-
-llmStatus_t llmCompletion_SetPrompt(llmCompletion_t *comp, llmPrompt_t *prompt) {
-  return runAndCatch([comp, prompt]() {
-    if (!comp) throw lut::InvalidArgError("comp");
-    if (!prompt) throw lut::InvalidArgError("prompt");
-    if (comp->generator) throw lut::InvalidArgError("completion already started");
-    if (prompt->prompt->empty()) throw lut::InvalidArgError("prompt is empty");
-
-    comp->prompt = prompt->prompt;
-    return LLM_OK;
-  });
-}
-
-llmStatus_t llmCompletion_SetTopP(llmCompletion_t *comp, float topP) {
-  return runAndCatch([comp, topP]() {
-    if (!comp) throw lut::InvalidArgError("comp");
-    if (comp->generator) throw lut::InvalidArgError("completion already started");
-
-    comp->top_p = topP;
-    return LLM_OK;
-  });
-}
-
-llmStatus_t llmCompletion_SetTopK(llmCompletion_t *comp, int32_t topK) {
-  return runAndCatch([comp, topK]() {
-    if (!comp) throw lut::InvalidArgError("comp");
-    if (comp->generator) throw lut::InvalidArgError("completion already started");
-
-    comp->top_k = topK;
-    return LLM_OK;
-  });
-}
-
-llmStatus_t llmCompletion_SetTemperature(llmCompletion_t *comp, float temperature) {
-  return runAndCatch([comp, temperature]() {
-    if (!comp) throw lut::InvalidArgError("comp");
-    if (comp->generator) throw lut::InvalidArgError("completion already started");
-
-    comp->temperature = temperature;
-    return LLM_OK;
-  });
-}
-
-llmBool_t llmCompletion_Next(llmCompletion_t *comp) {
+int32_t llm_model_load(llm_model_t *m, llm_json_t *kwargs) {
   try {
-    if (!comp) throw lut::InvalidArgError("comp");
-    if (comp->prompt->empty()) throw lut::InvalidArgError("prompt is empty");
-
-    if (comp->error.getCode() != lut::ErrorCode::OK) {
-      return LLM_FALSE;
-    }
-
-    if (!comp->generator) {
-      // prefill
-      std::shared_ptr<ModelForGeneration> model = comp->model_for_generation.lock();
-      if (!model) throw lut::InvalidArgError("model had been destroyed");
-
-      GenerationConfig config;
-      config.temperature = comp->temperature;
-      config.topK = comp->top_k;
-      config.topP = comp->top_p;
-
-      int generatorType = Generator::Sampling;
-      std::string whisperLang;
-      for (const auto &kv : comp->kvConfig) {
-        if (kv.first == LlmConfigKey_GeneratorType) {
-          generatorType = parseGeneratorType(kv.second);
-        } else if (kv.first == LlmConfigKey_WhisperLang) {
-          whisperLang = lut::trim(kv.second);
-        } else {
-          throw lut::AbortedError("invalid configuration key: " + kv.first);
-        }
-      }
-
-      if (generatorType == Generator::Sampling) {
-        comp->generator = SamplingGenerator::newGenerator(config, model);
+    libllm::Device device;
+    std::shared_ptr<lut::ZipFile> package;
+    json object = (*kwargs)->jsonObject;
+    for (auto &[key, value] : object.items()) {
+      if (key == "filename") {
+        package = lut::ZipFile::fromFile(value);
+      } else if (key == "device") {
+        device = parseDevice(value);
       } else {
-        NOT_IMPL();
+        return llmErrorSetAborted("invalid key in options: " + key);
       }
-
-      comp->generator->setPrompt(*comp->prompt);
     }
 
-    bool ok = comp->generator->generate();
-    if (ok) {
-      return LLM_TRUE;
-    } else {
-      return LLM_FALSE;
+    if (!package) return llmErrorSetAborted("options.filename undefined");
+    if (device.getType() == libllm::Device::kUnknown) {
+      return llmErrorSetAborted("options.device undefined");
     }
-  } catch (const lut::Error &e) {
-    if (comp) comp->error = e;
-    return LLM_FALSE;
-  }
-}
 
-llmStatus_t llmCompletion_GetError(llmCompletion_t *comp) {
-  if (!comp) {
-    lut::Error err = lut::InvalidArgError("comp");
-    setErrorCodeAndMessage(err);
-    return static_cast<llmStatus_t>(err.getCode());
+    Context ctx;
+    ctx.setDevice(device);
+    ctx.setFloatDType(F::getDefaultFloatType(device));
+    std::shared_ptr<ModelForGeneration> model = ModelForGeneration::fromPackage(ctx, package.get());
+
+    (*m)->model = model;
+  } catch (std::exception &e) {
+    return llmErrorSetAborted(e.what());
   }
 
-  if (comp->error.getCode() == lut::ErrorCode::OK) {
-    return LLM_OK;
-  } else {
-    setErrorCodeAndMessage(comp->error);
-    return static_cast<llmStatus_t>(comp->error.getCode());
+  return 0;
+}
+
+int32_t llm_model_get_info(llm_model_t *m, llm_json_t *info) {
+  if (!m) return llmErrorSetInvalidArg("m");
+  if (!info) return llmErrorSetInvalidArg("info");
+
+  try {
+    json infoJson;
+    infoJson["name"] = (*m)->model->getName();
+    (*info)->jsonObject = infoJson;
+  } catch (std::exception &e) {
+    return llmErrorSetAborted(e.what());
   }
+
+  return 0;
 }
 
-const char *llmCompletion_GetText(llmCompletion_t *comp) {
-  return runAndCatch<const char *>(
-      [comp]() {
-        if (!comp) throw lut::InvalidArgError("comp");
-        if (!comp->generator) throw lut::InvalidArgError("completion not started");
-
-        comp->chunkText = comp->generator->getToken();
-        return comp->chunkText.c_str();
-      },
-      nullptr);
+int32_t llm_completion_init(llm_completion_t *c) {
+  *c = new llm_completion_impl_t();
+  return 0;
 }
 
-const char *llmCompletion_GetToken(llmCompletion_t *comp) {
-  return runAndCatch<const char *>(
-      [comp]() {
-        if (!comp) throw lut::InvalidArgError("comp");
-        if (!comp->generator) throw lut::InvalidArgError("completion not started");
+int32_t llm_completion_destroy(llm_completion_t *c) {
+  if (!c) return llmErrorSetInvalidArg("c");
+  delete *c;
+  *c = nullptr;
 
-        comp->chunkText = comp->generator->getTokenName();
-        return comp->chunkText.c_str();
-      },
-      nullptr);
+  return 0;
+}
+
+int32_t llm_model_complete(llm_model_t *m, llm_json_t *kwargs, llm_completion_t *comp) {
+  if (!m) return llmErrorSetInvalidArg("m");
+  if (!kwargs) return llmErrorSetInvalidArg("kwargs");
+  if (!comp) return llmErrorSetInvalidArg("comp");
+
+  try {
+    const json &kwargsJson = (*kwargs)->jsonObject;
+    checkJsonKeys(
+        kwargsJson,
+        {{"temperature", false}, {"top_k", false}, {"top_p", false}, {"messages", true}});
+
+    GenerationConfig config = parseGenerationConfig(kwargsJson);
+    (*comp)->generator = SamplingGenerator::newGenerator(config, (*m)->model);
+    (*comp)->model_for_generation = (*m)->model;
+
+    Prompt prompt = buildPromptFromJson((*m)->model.get(), kwargsJson);
+    (*comp)->generator->setPrompt(prompt);
+  } catch (std::exception &e) {
+    return llmErrorSetAborted(e.what());
+  }
+
+  return 0;
+}
+
+int32_t llm_completion_get_next_chunk(llm_completion_t *c, llm_json_t *chunk) {
+  if (!c) return llmErrorSetInvalidArg("c");
+  if (!chunk) return llmErrorSetInvalidArg("chunk");
+
+  try {
+    bool ok = (*c)->generator->generate();
+    if (!ok) {
+      return llmErrorSetEOF();
+    }
+
+    json chunkJson;
+    chunkJson["text"] = (*c)->generator->getToken();
+    (*chunk)->jsonObject = chunkJson;
+  } catch (std::exception &e) {
+    return llmErrorSetAborted(e.what());
+  }
+
+  return 0;
 }
 
 int32_t llm_json_init(llm_json_t *j) {
@@ -558,23 +376,11 @@ int32_t llm_asr_model_load(llm_asr_model_t *m, llm_json_t *options) {
   if (!options) return llmErrorSetInvalidArg("options");
 
   try {
-    libllm::Device device;
-    std::shared_ptr<lut::ZipFile> package;
     json object = (*options)->jsonObject;
-    for (auto &[key, value] : object.items()) {
-      if (key == "filename") {
-        package = lut::ZipFile::fromFile(value);
-      } else if (key == "device") {
-        device = parseDevice(value);
-      } else {
-        return llmErrorSetAborted("invalid key in options: " + key);
-      }
-    }
+    checkJsonKeys(object, {{"filename", true}, {"device", true}});
 
-    if (!package) return llmErrorSetAborted("options.filename undefined");
-    if (device.getType() == libllm::Device::kUnknown) {
-      return llmErrorSetAborted("options.device undefined");
-    }
+    std::shared_ptr<lut::ZipFile> package = lut::ZipFile::fromFile(object["filename"]);
+    libllm::Device device = parseDevice(object["device"]);
 
     Context ctx = Context().withName("whisper");
     ctx.setDevice(device);

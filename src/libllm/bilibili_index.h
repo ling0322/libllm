@@ -19,49 +19,33 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <memory>
 
-#include <string>
-#include <vector>
-
-#include "libllm/dtype.h"
-#include "libllm/wave.h"
+#include "libllm/llama.h"
+#include "libllm/model_for_generation.h"
+#include "lutil/ini_config.h"
 
 namespace libllm {
+namespace index {
 
-struct PromptBlock {
-  enum Type {
-    Text,
-    ControlToken,
-    Wave,
-    Unknown,
-  };
-
-  std::string text;
-  std::vector<Byte> data;
-  WaveFormat waveFormat;
-  Type blockType;
-
-  PromptBlock();
-  static std::string typeToString(Type blockType);
-};
-
-struct Message {
-  std::string role;
-  std::string content;
-};
-
-class Prompt {
+/// @brief The Bilibili index model. Model structure of index is the same as llama, the only
+/// difference is the prompt.
+class IndexModelForGeneration : public llama::LlamaModelForGeneration {
  public:
-  void appendText(const std::string &text);
-  void appendControlToken(const std::string &controlToken);
+  static std::shared_ptr<IndexModelForGeneration> fromPackage(
+      const Context &ctx,
+      lut::ZipFile *package);
 
-  bool empty() const;
+  // noncopyable
+  IndexModelForGeneration(IndexModelForGeneration &) = delete;
+  IndexModelForGeneration &operator=(IndexModelForGeneration &) = delete;
 
-  lut::Span<const PromptBlock> getBlocks() const;
+  // override LlamaModelForGeneration
+  Prompt buildPrompt(lut::Span<const Message> history) const override;
 
  private:
-  std::vector<PromptBlock> _blocks;
+  IndexModelForGeneration() = default;
 };
 
+}  // namespace index
 }  // namespace libllm

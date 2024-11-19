@@ -149,6 +149,7 @@ class LlamaModelForGeneration : public ModelForGeneration {
   const char *getName() const override;
   Device getDevice() const override;
   int getOutputDim() const override;
+  Prompt buildPrompt(lut::Span<const Message> history) const override;
 
  protected:
   std::shared_ptr<LlamaModel> _model;

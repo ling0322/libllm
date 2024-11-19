@@ -17,17 +17,12 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/qwen.h"
+#include "libllm/bilibili_index.h"
 
 namespace libllm {
 namespace qwen {
 
-QwenModelForGeneration::QwenModelForGeneration()
-    : _imStartId(-1),
-      _imEndId(-1) {
-}
-
-std::shared_ptr<QwenModelForGeneration> QwenModelForGeneration::fromPackage(
+std::shared_ptr<IndexModelForGeneration> IndexModelForGeneration::fromPackage(
     const Context &ctx,
     lut::ZipFile *package) {
   std::shared_ptr<lut::Reader> reader = package->open(ModelConfig);
@@ -35,60 +30,44 @@ std::shared_ptr<QwenModelForGeneration> QwenModelForGeneration::fromPackage(
 
   std::string modelFile = ini->getSection(ModelSection).getString(ModelFileField);
   std::string modelType = ini->getSection(ModelSection).getString(ModelTypeField);
-  CHECK(modelType == "qwen");
+  CHECK(modelType == "index");
 
-  const lut::IniSection &qwenIni = ini->getSection(modelType);
+  const lut::IniSection &indexIni = ini->getSection(modelType);
 
-  std::shared_ptr<QwenModelForGeneration> model{new QwenModelForGeneration()};
-  llama::LlamaConfig llamaConfig = llama::LlamaConfig::loadConfig(qwenIni);
+  std::shared_ptr<IndexModelForGeneration> model{new IndexModelForGeneration()};
+  llama::LlamaConfig llamaConfig = llama::LlamaConfig::loadConfig(indexIni);
 
   StateMap stateMap;
   stateMap.read(package->open(modelFile).get());
 
   model->_model = llama::LlamaModel::create(ctx, llamaConfig);
   model->_model->initParameters(stateMap);
-  model->_imStartId = qwenIni.getInt("im_start_token_id");
-  model->_imEndId = qwenIni.getInt("im_end_token_id");
   model->_modelName = modelType;
 
   model->initTokenizer(package);
   return model;
 }
 
-bool QwenModelForGeneration::isStopToken(int tokenId) const {
-  if (llama::LlamaModelForGeneration::isStopToken(tokenId) || tokenId == _imEndId ||
-      tokenId == _imStartId) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-Prompt QwenModelForGeneration::buildPrompt(lut::Span<const Message> history) const {
+Prompt IndexModelForGeneration::buildPrompt(lut::Span<const Message> history) const {
   CHECK(!history.empty()) << "history is empty";
 
   Prompt prompt;
-  for (const Message &message : history.subspan(0, history.size() - 1)) {
-    prompt.appendControlToken("<|im_start|>");
-    prompt.appendText(message.role + "\n" + message.content);
-    prompt.appendControlToken("<|im_end|>");
-    prompt.appendText("\n");
+  if (history.front().role == "system") {
+    prompt.appendControlToken("<unk>");
+    prompt.appendText(history.front().content);
+    history = history.subspan(1);
   }
 
-  const Message &message = history.back();
-  if (message.role == "user") {
-    prompt.appendControlToken("<|im_start|>");
-    prompt.appendText(message.role + "\n" + message.content);
-    prompt.appendControlToken("<|im_end|>");
-    prompt.appendText("\n");
-    prompt.appendControlToken("<|im_start|>");
-    prompt.appendText("assistant\n");
-  } else if (message.role == "assistant") {
-    prompt.appendControlToken("<|im_start|>");
-    prompt.appendText(message.role + "\n" + message.content);
-  } else {
-    throw lut::AbortedError(
-        "invalid messages: role of last message should be either user or assistant");
+  for (const Message &message : history) {
+    if (message.role == "user") {
+      prompt.appendControlToken("<|reserved_0|>");
+      prompt.appendText(message.content);
+      prompt.appendControlToken("<|reserved_1|>");
+    } else if (message.role == "assistant") {
+      prompt.appendText(message.content);
+    } else {
+      throw lut::AbortedError("unexpected role");
+    }
   }
 
   return prompt;
