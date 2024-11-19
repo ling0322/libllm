@@ -22,6 +22,8 @@ package skill
 import (
 	"fmt"
 	"time"
+
+	"github.com/ling0322/libllm/go/llm"
 )
 
 type TranscriptionResult struct {
@@ -35,8 +37,11 @@ type Transcriber interface {
 	Transcribe() bool
 	Result() TranscriptionResult
 	Err() error
-	Offset() time.Duration
 	Dispose()
+}
+
+type llmTranscriber struct {
+	recognition *llm.Recognition
 }
 
 func (r *TranscriptionResult) String() string {
@@ -45,4 +50,38 @@ func (r *TranscriptionResult) String() string {
 
 func (r *TranscriptionResult) Duration() time.Duration {
 	return r.End - r.Begin
+}
+
+func (t *llmTranscriber) Transcribe() bool {
+	return t.recognition.Next()
+}
+
+func (t *llmTranscriber) Result() TranscriptionResult {
+	recoResult := t.recognition.Result()
+	result := TranscriptionResult{}
+	result.Text = recoResult.Text
+	result.Language = recoResult.Language
+	result.Begin = recoResult.Begin
+	result.End = recoResult.End
+
+	return result
+}
+
+func (t *llmTranscriber) Err() error {
+	return t.recognition.Err()
+}
+
+func (t *llmTranscriber) Dispose() {
+	t.recognition = nil
+}
+
+func NewASRTranscriber(model *llm.ASRModel, inputFile string) (Transcriber, error) {
+	r, err := model.Recognize(inputFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return &llmTranscriber{
+		recognition: r,
+	}, nil
 }

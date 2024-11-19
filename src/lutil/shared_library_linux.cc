@@ -22,11 +22,18 @@
 #include <functional>
 #include <memory>
 
+#include "lutil/attributes.h"
 #include "lutil/error.h"
 #include "lutil/log.h"
 #include "lutil/path.h"
 #include "lutil/shared_library.h"
 #include "lutil/strings.h"
+
+#ifdef LUT_PLATFORM_APPLE
+#define DYLIB_EXT ".dylib"
+#else
+#define DYLIB_EXT ".so"
+#endif
 
 namespace lut {
 
@@ -55,7 +62,7 @@ SharedLibrary::Impl::~Impl() {
 
 std::unique_ptr<SharedLibrary::Impl> SharedLibrary::Impl::open(const std::string &name) {
   std::unique_ptr<Impl> impl{new Impl()};
-  Path filename = std::string("lib") + std::string(name) + ".so";
+  Path filename = std::string("lib") + std::string(name) + DYLIB_EXT;
 
   // first try to load the dll from same folder as current module
   Path modulePath = Path::currentModulePath();

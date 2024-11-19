@@ -116,29 +116,4 @@ class SamplingGenerator : public BaseGenerator {
   SamplingGenerator(const GenerationConfig &config, std::shared_ptr<ModelForGeneration> model);
 };
 
-class WhisperGreedyGenerator : public BaseGenerator {
- public:
-  static std::shared_ptr<WhisperGreedyGenerator> newGenerator(
-      const GenerationConfig &config,
-      std::shared_ptr<ModelForGeneration> model);
-  ~WhisperGreedyGenerator() = default;
-
-  void setPrompt(const Prompt &prompt) override;
-  void setLanguage(const std::string &langCode);
-
- protected:
-  int searchToken(const Tensor &logits) override;
-
- private:
-  float _temperature;
-  int _noSpeechToken;
-  int _targetLangToken;
-  int _beginLangToken;
-  int _endLangToken;
-  std::vector<int> _history;
-  std::shared_ptr<LogitsProcessor> _whisperLogitsProcessor;
-
-  WhisperGreedyGenerator(const GenerationConfig &config, std::shared_ptr<ModelForGeneration> model);
-};
-
 }  // namespace libllm

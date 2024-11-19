@@ -141,7 +141,7 @@ CATCH_TEST_CASE("test logMelSpectrogram", "[op][cpu][logmelspectrogram]") {
   lut::Span<const Byte> pcmSpan(pcmData);
   pcmSpan = pcmSpan.subspan(44);  // 44: pcm header size.
 
-  Tensor wave = Wave::read(pcmSpan, WaveFormat::Wave16kHz16bitMonoPCM);
+  Tensor wave = Wave::toTensor(pcmSpan);
   Tensor features = logMelSpectrogram(wave);
 
   CATCH_REQUIRE(F::allClose(

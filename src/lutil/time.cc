@@ -23,12 +23,29 @@
 
 #include <chrono>
 
+#include "lutil/strings.h"
+
 namespace lut {
 
 double now() {
   auto t = std::chrono::high_resolution_clock::now().time_since_epoch();
   int64_t ns = t / std::chrono::nanoseconds(1);
   return ns / 1000000000.0;
+}
+
+std::string Duration::toString() const {
+  int64_t ns = _nanoseconds;
+  int64_t hours = ns / Hour;
+  ns %= Hour;
+
+  int64_t minutes = ns / Minute;
+  ns %= Minute;
+
+  int64_t seconds = ns / Second;
+  ns %= Second;
+
+  int64_t ms = ns / Millisecond;
+  return lut::sprintf("%02d:%02d:%02d.%03d", hours, minutes, seconds, ms);
 }
 
 }  // namespace lut

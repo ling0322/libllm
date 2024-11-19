@@ -224,26 +224,41 @@ func getOrDownloadModel(name string) (modelPath string, err error) {
 	return downloadModel(name)
 }
 
-func createModelAutoDownload(nameOrPath string, device llm.Device) (llm.Model, error) {
-	var modelPath string
-	var err error
-
+func autoDownloadModel(nameOrPath string) (filename string, err error) {
 	if filepath.Ext(nameOrPath) == ".llmpkg" {
-		modelPath = nameOrPath
+		filename = nameOrPath
 	} else {
-		modelPath, err = getOrDownloadModel(nameOrPath)
+		filename, err = getOrDownloadModel(nameOrPath)
 	}
 
+	if err != nil {
+		return
+	}
+
+	_, err = os.Stat(filename)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func createModelAutoDownload(nameOrPath string, device llm.Device) (llm.Model, error) {
+	modelPath, err := autoDownloadModel(nameOrPath)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = os.Stat(modelPath)
+	return llm.NewModel(modelPath, device)
+}
+
+func createASRModelAutoDownload(nameOrPath, device string) (*llm.ASRModel, error) {
+	modelPath, err := autoDownloadModel(nameOrPath)
 	if err != nil {
-		return nil, fmt.Errorf("model not exist: %s", modelPath)
+		return nil, err
 	}
 
-	return llm.NewModel(modelPath, device)
+	return llm.NewASRModel(modelPath, device)
 }
 
 func printDownloadUsage(fs *flag.FlagSet) {

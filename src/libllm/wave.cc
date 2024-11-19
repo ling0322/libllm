@@ -24,23 +24,97 @@
 
 namespace libllm {
 
-Tensor Wave::read(lut::Span<const Byte> data, WaveFormat format) {
-  if (format == WaveFormat::Wave16kHz16bitMonoPCM) {
-    int numSamples = static_cast<int>(data.size() / 2);
-    if (data.size() % 2 != 0) {
-      throw lut::AbortedError("Wave::read: invalid size of data");
-    }
+Wave::Wave()
+    : _bufferOffset(0),
+      _readOffset(0),
+      _eof(false) {
+}
 
-    std::vector<float> wave(numSamples);
-    const int16_t *phData = reinterpret_cast<const int16_t *>(data.data());
-    for (int i = 0; i < numSamples; ++i) {
-      wave[i] = static_cast<float>(phData[i]) / 32768.0f;
-    }
+Wave::Wave(std::shared_ptr<WaveStream> waveStream)
+    : _waveStream(waveStream),
+      _bufferOffset(0),
+      _readOffset(0),
+      _eof(false) {
+}
 
-    return Tensor::create({numSamples}, lut::makeConstSpan(wave));
-  } else {
-    NOT_IMPL();
+Tensor Wave::toTensor(lut::Span<const Byte> data) {
+  int numSamples = static_cast<int>(data.size() / 2);
+  if (data.size() % 2 != 0) {
+    throw lut::AbortedError("Wave: invalid size of data");
   }
+
+  std::vector<float> wave(numSamples);
+  const int16_t *phData = reinterpret_cast<const int16_t *>(data.data());
+  for (int i = 0; i < numSamples; ++i) {
+    wave[i] = static_cast<float>(phData[i]) / 32768.0f;
+  }
+
+  return Tensor::create({numSamples}, lut::makeConstSpan(wave));
+}
+
+void Wave::readBlock() {
+  std::vector<Byte> data(BlockSize);
+  int64_t nb = _waveStream->read(lut::makeSpan(data));
+  _buffer.insert(_buffer.end(), data.begin(), data.begin() + nb);
+}
+
+Tensor Wave::read(lut::Duration duration) {
+  CHECK(_waveStream->getBytesPerSample() == 2);
+
+  int64_t nbTotalSize = durationToNumBytes(duration);
+  while (_readOffset + nbTotalSize >= _bufferOffset + _buffer.size() && !_waveStream->eof()) {
+    readBlock();
+  }
+
+  std::vector<Byte> data;
+  CHECK(_readOffset >= _bufferOffset && _readOffset < _bufferOffset + _buffer.size());
+  auto it = _buffer.begin() + (_readOffset - _bufferOffset);
+  data.insert(data.end(), it, std::min(it + nbTotalSize, _buffer.end()));
+  if (data.size() < nbTotalSize) {
+    _eof = true;
+  }
+
+  _readOffset += data.size();
+  pruneBuffer();
+
+  if (!data.empty()) {
+    return toTensor(data);
+  } else {
+    return Tensor();
+  }
+}
+
+void Wave::pruneBuffer() {
+  CHECK(_readOffset >= _bufferOffset);
+  if (_readOffset - _bufferOffset > BlockSize + MaxHistoryInBytes) {
+    CHECK(_buffer.size() > BlockSize);
+    _buffer.erase(_buffer.begin(), _buffer.begin() + BlockSize);
+    _bufferOffset += BlockSize;
+  }
+}
+
+void Wave::seek(lut::Duration offset) {
+  int64_t offsetInBytes = durationToNumBytes(offset);
+  CHECK(offsetInBytes <= _readOffset && offsetInBytes >= _bufferOffset);
+  _readOffset = offsetInBytes;
+}
+
+int64_t Wave::durationToNumBytes(lut::Duration dur) const {
+  int64_t nSamples = dur.totalNanoseconds() * _waveStream->getSampleRate() / 1000000000;
+  return nSamples * _waveStream->getBytesPerSample();
+}
+
+lut::Duration Wave::numBytesToDuration(int64_t numBytes) const {
+  int64_t numBytesPerSecond = _waveStream->getSampleRate() * _waveStream->getBytesPerSample();
+  return lut::Duration::nanoseconds(numBytes * 1000000000 / numBytesPerSecond);
+}
+
+bool Wave::eof() {
+  return _eof;
+}
+
+lut::Duration Wave::tell() const {
+  return numBytesToDuration(_readOffset);
 }
 
 }  // namespace libllm

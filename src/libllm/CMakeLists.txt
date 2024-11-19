@@ -52,7 +52,9 @@ set(libllm_SOURCES
     "tensor.cc"
     "tokenizer.cc"
     "wave.cc"
+    "wave_stream.cc"
     "whisper.cc"
+    "whisper_decoder.cc"
     "../../third_party/ruapu/ruapu.cc")
 
 set(libllm_test_SOURCES
