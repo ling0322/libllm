@@ -41,10 +41,8 @@ if(UNIX AND NOT APPLE)
 endif()
 
 add_library(lutil STATIC ${lutil_SOURCES})
-target_compile_features(lutil PRIVATE cxx_std_17)
 set_target_properties(lutil PROPERTIES CXX_VISIBILITY_PRESET hidden)
 target_include_directories(lutil PRIVATE "..")
 
 add_library(lutil_test OBJECT ${lut_test_SOURCES})
 target_include_directories(lutil_test PRIVATE "..")
-target_compile_features(lutil_test PRIVATE cxx_std_17)

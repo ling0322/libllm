@@ -53,6 +53,8 @@ if(WITH_MKL)
     endif()
 endif()
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 #add_compile_options(-fsanitize=address)
@@ -117,24 +119,20 @@ set(benchmark_LIBADD
     ${libllm_LIBADD})
 
 add_library(catch2 STATIC  "../third_party/catch2/catch_amalgamated.cpp")
-target_compile_features(catch2 PRIVATE cxx_std_17)
 
 add_executable(unittest "src/libllm/test_main.cc")
 target_include_directories(unittest PRIVATE "src")
-target_compile_features(unittest PRIVATE cxx_std_17)
 
 target_link_libraries(unittest ${unittest_LIBADD})
 
 add_executable(benchmark "src/libllm/benchmark_main.cc")
 target_include_directories(benchmark PRIVATE "src")
 target_link_libraries(benchmark ${benchmark_LIBADD})
-target_compile_features(benchmark PRIVATE cxx_std_17)
 
 if (WITH_CUDA)
     add_library(llmplugincublas SHARED $<TARGET_OBJECTS:llmplugincublas_static>)
     target_include_directories(llmplugincublas PRIVATE ${libllm_INCDIR})
     target_link_libraries(llmplugincublas lutil CUDA::cublas)
-    target_compile_features(llmplugincublas PRIVATE cxx_std_17)
     if(UNIX AND NOT APPLE)
         target_link_options(llmplugincublas PUBLIC "-Wl,--no-undefined")
     endif()
@@ -151,7 +149,6 @@ if (WITH_FFMPEG)
         "${ffmpeg_ROOT}/libavfilter"
         "${ffmpeg_ROOT}/libavutil"
         "${ffmpeg_ROOT}/libswresample")
-    target_compile_features(llmpluginffmpeg PRIVATE cxx_std_17)
     target_link_libraries(
         llmpluginffmpeg avformat avcodec avfilter avutil swresample ${CMAKE_THREAD_LIBS_INIT}) 
     if(UNIX AND NOT APPLE)

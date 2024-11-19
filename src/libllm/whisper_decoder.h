@@ -20,6 +20,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 
 #include "libllm/generator.h"
 #include "libllm/wave.h"
