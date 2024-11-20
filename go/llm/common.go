@@ -21,7 +21,6 @@ package llm
 
 // #include <stdlib.h>
 // #include "llm.h"
-// const int cLLM_ERROR_EOF = LLM_ERROR_EOF;
 import "C"
 import (
 	"errors"
@@ -32,7 +31,7 @@ import (
 	"unsafe"
 )
 
-const LLM_ERROR_EOF = C.cLLM_ERROR_EOF
+const LLM_ERROR_EOF = 0x0103
 
 var gInit atomic.Bool
 var gDll unsafe.Pointer
