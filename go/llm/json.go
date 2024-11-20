@@ -17,24 +17,59 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package skill
+package llm
 
+// #include <stdlib.h>
+// #include "llm.h"
+import "C"
 import (
-	"github.com/ling0322/libllm/go/llm"
+	"encoding/json"
+	"errors"
+	"runtime"
+	"unsafe"
 )
 
-type promptBuilder interface {
-	Build(history []Message) (llm.Prompt, error)
+type llmJson struct {
+	json C.llm_json_t
 }
 
-func newPromptBuilder(modelName string) (promptBuilder, error) {
-	if modelName == "llama" {
-		return &Llama{}, nil
-	} else if modelName == "index" {
-		return &BilibiliIndex{}, nil
-	} else if modelName == "qwen" {
-		return &Qwen{}, nil
-	} else {
-		return nil, ErrInvalidModelForChat
+func newJson() *llmJson {
+	j := new(llmJson)
+	C.llm_json_init(&j.json)
+	runtime.SetFinalizer(j, func(j *llmJson) {
+		C.llm_json_destroy(&j.json)
+	})
+
+	return j
+}
+
+func (j *llmJson) marshal(v any) error {
+	jsonBytes, err := json.Marshal(v)
+	if err != nil {
+		return err
 	}
+
+	cJsonStr := C.CString(string(jsonBytes))
+	defer C.free(unsafe.Pointer(cJsonStr))
+
+	status := C.llm_json_parse(&j.json, cJsonStr)
+	if status != 0 {
+		return errors.New(C.GoString(C.llm_get_last_error_message()))
+	}
+
+	return nil
+}
+
+func (j *llmJson) unmarshal(v any) error {
+	bufSize := 2048
+	buf := C.malloc(C.size_t(bufSize))
+	defer C.free(buf)
+
+	status := C.llm_json_dump(&j.json, (*C.char)(buf), C.int64_t(bufSize))
+	if status != 0 {
+		return errors.New(C.GoString(C.llm_get_last_error_message()))
+	}
+
+	jsonStr := C.GoString((*C.char)(buf))
+	return json.Unmarshal([]byte(jsonStr), v)
 }

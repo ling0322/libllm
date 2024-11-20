@@ -1,13 +1,13 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2024 Xiaoyang Chen
+// Copyright (c) 2023 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-//
+// 
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,51 +17,26 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package skill
+#pragma once
 
-import (
-	"github.com/ling0322/libllm/go/llm"
-)
+namespace lut {
 
-type Message struct {
-	Role    string
-	Content string
-}
+struct nullopt_t {
+  nullopt_t() = default;
+};
+constexpr nullopt_t nullopt{};
 
-type Chat struct {
-	model         llm.Model
-	promptBuilder promptBuilder
-	compConfig    llm.CompletionConfig
-}
+template<typename T>
+class optional {
+ public:
+  typedef T value_type;
 
-func NewChat(model llm.Model) (*Chat, error) {
-	modelName := model.GetName()
-	promptBuilder, err := newPromptBuilder(modelName)
-	if err != nil {
-		return nil, err
-	}
+  constexpr optional() noexcept = default;
+  constexpr optional(nullopt_t) noexcept {}
 
-	return &Chat{
-		model:         model,
-		promptBuilder: promptBuilder,
-		compConfig:    llm.NewCompletionConfig(),
-	}, nil
-}
+ private:
+  bool _hasValue;
+  typename std::aligned_storage<sizeof(T), alignof(T)>::type _storage;
+};
 
-func (c *Chat) SetTemperature(temperature float32) {
-	c.compConfig.SetTemperature(temperature)
-}
-
-func (c *Chat) Chat(history []Message) (llm.Completion, error) {
-	prompt, err := c.promptBuilder.Build(history)
-	if err != nil {
-		return nil, err
-	}
-
-	comp, err := c.model.Complete(c.compConfig, prompt)
-	if err != nil {
-		return nil, err
-	}
-
-	return comp, nil
-}
+} // namespace lut

@@ -30,7 +30,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ling0322/libllm/go/skill"
+	"github.com/ling0322/libllm/go/llm"
 )
 
 func printChatUsage(fs *flag.FlagSet) {
@@ -64,16 +64,11 @@ func chatMain(args []string) {
 		log.Fatal(err)
 	}
 
-	llmChat, err := skill.NewChat(model)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	fmt.Println(gLocalizer.Get(MsgInputQuestion))
 	fmt.Println(gLocalizer.Get(MsgInputQuestionNew))
 	fmt.Println(gLocalizer.Get(MsgInputQuestionSys))
 
-	history := []skill.Message{}
+	history := []llm.Message{}
 
 	// TODO: get system prompt for different models
 	systemPrompt := ""
@@ -91,22 +86,22 @@ func chatMain(args []string) {
 		question = strings.TrimSpace(question)
 		if len(question) > 5 && strings.ToLower(question)[0:5] == ":sys " {
 			systemPrompt = strings.TrimSpace(question[5:])
-			history = []skill.Message{}
+			history = []llm.Message{}
 			continue
 		} else if strings.ToLower(question) == ":new" {
 			fmt.Println(gLocalizer.Get(MsgNewSession))
-			history = []skill.Message{}
+			history = []llm.Message{}
 			continue
 		} else if question == "" {
 			continue
 		}
 
 		if len(history) == 0 && systemPrompt != "" {
-			history = append(history, skill.Message{Role: "system", Content: systemPrompt})
+			history = append(history, llm.Message{Role: "system", Content: systemPrompt})
 		}
 
-		history = append(history, skill.Message{Role: "user", Content: question})
-		comp, err := llmChat.Chat(history)
+		history = append(history, llm.Message{Role: "user", Content: question})
+		comp, err := model.Complete(history, llm.DefaultCompletionConfig())
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -115,15 +110,15 @@ func chatMain(args []string) {
 		answer := ""
 		numToken := 0
 		for comp.Next() {
-			fmt.Print(comp.Text())
-			answer += comp.Text()
+			fmt.Print(comp.Chunk().Text)
+			answer += comp.Chunk().Text
 			numToken++
 		}
-		if err := comp.Error(); err != nil {
+		if err := comp.Err(); err != nil {
 			log.Fatal(err)
 		}
 
-		history = append(history, skill.Message{Role: "assistant", Content: answer})
+		history = append(history, llm.Message{Role: "assistant", Content: answer})
 		fmt.Println()
 
 		dur := time.Since(t0)

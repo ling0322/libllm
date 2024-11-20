@@ -132,8 +132,8 @@ Prompt buildPromptFromJson(const ModelForGeneration *model, const json &kwargsJs
 template<typename T>
 T getValueFromJson(const json &j, std::string_view key, T defaultVal) {
   T val = defaultVal;
-  if (kwargsJson.contains(key)) {
-    val = kwargsJson[key];
+  if (j.contains(key)) {
+    val = j[key];
   }
 
   return val;

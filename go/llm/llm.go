@@ -22,100 +22,119 @@ package llm
 // #cgo linux LDFLAGS: -ldl
 // #cgo darwin LDFLAGS: -ldl
 // #include <stdlib.h>
-// #include "llm_api.h"
+// #include "llm.h"
 import "C"
 import (
 	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
 	"runtime"
-	"sync/atomic"
-	"unsafe"
 )
 
-type Device int32
-type AudioFormat int32
-
-const (
-	Cpu               = Device(0x0000)
-	Cuda              = Device(0x0100)
-	Auto              = Device(0x1f00)
-	Pcm16kHz16BitMono = AudioFormat(0x0001)
-)
-
-var gInit atomic.Bool
-var gDll unsafe.Pointer
-
-// Initialize the libllm.
-func initLlm() error {
-	if !gInit.Swap(true) {
-		// load the shared library.
-		binPath, err := os.Executable()
-		if err != nil {
-			gInit.Store(false)
-			return err
-		}
-
-		var libname string
-		if runtime.GOOS == "windows" {
-			libname = "llm.dll"
-		} else if runtime.GOOS == "linux" {
-			libname = "libllm.so"
-		} else if runtime.GOOS == "darwin" {
-			libname = "libllm.dylib"
-		}
-
-		binDir := filepath.Dir(binPath)
-		dllPath := C.CString(filepath.Join(binDir, libname))
-		defer C.free(unsafe.Pointer(dllPath))
-
-		gDll = C.llmLoadLibrary(dllPath)
-		if gDll == nil {
-			dllPath := C.CString("libllm.so")
-			defer C.free(unsafe.Pointer(dllPath))
-
-			gDll = C.llmLoadLibrary(dllPath)
-		}
-
-		if gDll == nil {
-			gInit.Store(false)
-			return errors.New("failed to load the libllm dynamic library")
-		}
-
-		// initialize the symbols.
-		status := C.llmLoadSymbols(gDll)
-		if status != C.LLM_OK {
-			gInit.Store(false)
-			return errors.New("failed to load libllm api symbols")
-		}
-
-		// initialize libllm inference engine.
-		status = C.llmInit(C.LLM_API_VERSION)
-		if status != C.LLM_OK {
-			gInit.Store(false)
-			return errors.New(C.GoString(C.llmGetLastErrorMessage()))
-		}
-	}
-
-	return nil
+type Model struct {
+	model C.llm_model_t
 }
 
-// Release all the resources allocated in libllm library.
-func Release() {
-	if gInit.Swap(false) {
-		status := C.llmDestroy()
-		if status != C.LLM_OK {
-			fmt.Fprintf(
-				os.Stderr,
-				"failed to destroy libllm: %s\n",
-				C.GoString(C.llmGetLastErrorMessage()))
-		}
+type Message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
 
-		// release the dynamic library itself.
-		status = C.llmDestroyLibrary(gDll)
-		if status != C.LLM_OK {
-			fmt.Fprintf(os.Stderr, "failed to close dynamic library of libllm\n")
-		}
+type CompletionConfig struct {
+	Temperature float32
+	TopK        int
+	TopP        float32
+}
+
+type Completion struct {
+	comp  C.llm_completion_t
+	json  *llmJson
+	err   error
+	chunk Chunk
+}
+
+type Chunk struct {
+	Text string `json:"text"`
+}
+
+func NewModel(filename, device string) (*Model, error) {
+	err := initLlm()
+	if err != nil {
+		return nil, err
 	}
+
+	json := newJson()
+	json.marshal(map[string]any{
+		"filename": filename,
+		"device":   device,
+	})
+
+	m := new(Model)
+	C.llm_model_init(&m.model)
+	runtime.SetFinalizer(m, func(m *Model) {
+		C.llm_model_destroy(&m.model)
+	})
+
+	status := C.llm_model_load(&m.model, &json.json)
+	if status != 0 {
+		return nil, errors.New(C.GoString(C.llm_get_last_error_message()))
+	}
+
+	return m, nil
+}
+
+func DefaultCompletionConfig() CompletionConfig {
+	config := CompletionConfig{}
+	config.Temperature = 1.0
+	config.TopK = 50
+	config.TopP = 0.8
+
+	return config
+}
+
+func (m *Model) Complete(history []Message, config CompletionConfig) (*Completion, error) {
+	if config.Temperature <= 0 || config.TopK <= 0 || config.TopP <= 0 {
+		return nil, errors.New("invalid completion config")
+	}
+
+	json := newJson()
+	json.marshal(map[string]any{
+		"temperature": config.Temperature,
+		"top_k":       config.TopK,
+		"top_p":       config.TopP,
+		"messages":    history,
+	})
+
+	comp := new(Completion)
+	comp.json = newJson()
+	C.llm_completion_init(&comp.comp)
+	runtime.SetFinalizer(comp, func(c *Completion) {
+		C.llm_completion_destroy(&c.comp)
+	})
+
+	status := C.llm_model_complete(&m.model, &json.json, &comp.comp)
+	if status != 0 {
+		return nil, errors.New(C.GoString(C.llm_get_last_error_message()))
+	}
+
+	return comp, nil
+}
+
+func (c *Completion) Err() error {
+	return c.err
+}
+
+func (c *Completion) Chunk() Chunk {
+	return c.chunk
+}
+
+func (c *Completion) Next() bool {
+	status := C.llm_completion_get_next_chunk(&c.comp, &c.json.json)
+	if status == LLM_ERROR_EOF {
+		return false
+	} else if status != 0 {
+		c.err = errors.New(C.GoString(C.llm_get_last_error_message()))
+		return false
+	}
+
+	c.err = c.json.unmarshal(&c.chunk)
+	return c.err == nil
 }

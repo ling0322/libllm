@@ -35,35 +35,20 @@ type TranslationRequest struct {
 	Temperature       float32
 }
 
-type Translator interface {
-	Translate(request TranslationRequest) (llm.Completion, error)
-
-	// return true if the translator supports the source and target language pairs.
-	IsSupport(source, target Lang) bool
-}
-
 // translator implemented by a chat model
-type chatTranslator struct {
-	model llm.Model
+type Translator struct {
+	model *llm.Model
 }
 
-func NewTranslator(model llm.Model) (Translator, error) {
+func NewTranslator(model *llm.Model) (*Translator, error) {
 	if model == nil {
 		return nil, ErrModelIsNil
 	}
 
-	modelName := model.GetName()
-	switch modelName {
-	case "index":
-		return &chatTranslator{model}, nil
-	case "qwen":
-		return &chatTranslator{model}, nil
-	default:
-		return nil, ErrInvalidModelForTranslation
-	}
+	return &Translator{model}, nil
 }
 
-var sysPromptIndexTranslation = "翻译%s到%s，不能有换行符，回复请以\"翻译结果：\"开头。"
+var sysPromptIndexTranslation = "Translate from %s to %s. The result should begin with TRANSLATION:"
 
 var translationExamples = []map[Lang]string{
 	{
@@ -83,7 +68,7 @@ var translationExamples = []map[Lang]string{
 	},
 }
 
-func (l *chatTranslator) IsSupport(source, target Lang) bool {
+func (l *Translator) IsSupport(source, target Lang) bool {
 	var sourceOk, targetOk bool
 
 	switch source {
@@ -105,20 +90,20 @@ func (l *chatTranslator) IsSupport(source, target Lang) bool {
 	return sourceOk && targetOk
 }
 
-func (l *chatTranslator) getLangString(lang Lang) (name string, err error) {
+func (l *Translator) getLangString(lang Lang) (name string, err error) {
 	switch lang {
 	case Chinese:
-		return "中文", nil
+		return "Chinese", nil
 	case English:
-		return "英语", nil
+		return "English", nil
 	case Japanese:
-		return "日语", nil
+		return "Japanese", nil
 	default:
 		return "", ErrUnexpectedLanguage
 	}
 }
 
-func (l *chatTranslator) getSysPrompt(source, target Lang) (prompt string, err error) {
+func (l *Translator) getSysPrompt(source, target Lang) (prompt string, err error) {
 	srcLang, err := l.getLangString(source)
 	if err != nil {
 		return
@@ -132,12 +117,7 @@ func (l *chatTranslator) getSysPrompt(source, target Lang) (prompt string, err e
 	return fmt.Sprintf(sysPromptIndexTranslation, srcLang, tgtLang), nil
 }
 
-func (l *chatTranslator) Translate(request TranslationRequest) (llm.Completion, error) {
-	chat, err := NewChat(l.model)
-	if err != nil {
-		return nil, err
-	}
-
+func (l *Translator) Translate(request TranslationRequest) (*llm.Completion, error) {
 	sysPrompt, err := l.getSysPrompt(request.SourceLang, request.TargetLang)
 	if err != nil {
 		return nil, err
@@ -151,15 +131,11 @@ func (l *chatTranslator) Translate(request TranslationRequest) (llm.Completion, 
 		leftCtxTgt = request.LeftContextTarget
 	}
 
-	messages := []Message{
-		{"system", sysPrompt},
-		{"user", leftCtxSrc + request.Text},
-		{"assistant", "翻译结果：" + leftCtxTgt},
+	messages := []llm.Message{
+		{Role: "system", Content: sysPrompt},
+		{Role: "user", Content: leftCtxSrc + request.Text},
+		{Role: "assistant", Content: "TRANSLATION: " + leftCtxTgt},
 	}
 
-	if request.Temperature > 0 {
-		chat.SetTemperature(request.Temperature)
-	}
-
-	return chat.Chat(messages)
+	return l.model.Complete(messages, llm.DefaultCompletionConfig())
 }

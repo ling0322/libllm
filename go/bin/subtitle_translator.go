@@ -33,7 +33,7 @@ import (
 type transcriptionTranslator struct {
 	historySrc []string
 	historyTgt []string
-	translator skill.Translator
+	translator *skill.Translator
 	srcLang    skill.Lang
 	tgtLang    skill.Lang
 }
@@ -53,7 +53,6 @@ func (t *transcriptionTranslator) translateOneInternal(
 	if err != nil {
 		return translationResult{}, err
 	}
-	slog.Info(fmt.Sprintf("translate \"%s\" to \"%s\"", text, tr.tgtText))
 	return tr, nil
 }
 
@@ -113,16 +112,21 @@ func (t *transcriptionTranslator) translate(
 			return nil, err
 		}
 
-		transcription.Text = tr.tgtText
+		translated := tr.tgtText
+		translated = strings.TrimSpace(translated)
+		translated = strings.Replace(translated, "\n", " ", -1)
+		slog.Info(fmt.Sprintf("translate \"%s\" to \"%s\"", tr.srcText, translated))
+
+		transcription.Text = translated
 		translatedTrxn = append(translatedTrxn, transcription)
 	}
 
 	return translatedTrxn, nil
 }
 
-func newTranscripotionTranslator(
+func newTranscriptionTranslator(
 	translationModel string,
-	device llm.Device,
+	device string,
 	srcLang, tgtLang skill.Lang) (*transcriptionTranslator, error) {
 	model, err := createModelAutoDownload(translationModel, device)
 	if err != nil {
@@ -167,7 +171,7 @@ func ReadSubtitleFile(filename string) ([]llm.RecognitionResult, error) {
 }
 
 func TranslateSubtitle(config translationConfig, inputFile, outputFile string) error {
-	tt, err := newTranscripotionTranslator(
+	tt, err := newTranscriptionTranslator(
 		config.modelName,
 		config.device,
 		config.srcLang,

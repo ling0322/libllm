@@ -20,7 +20,7 @@
 #include "libllm/bilibili_index.h"
 
 namespace libllm {
-namespace qwen {
+namespace index {
 
 std::shared_ptr<IndexModelForGeneration> IndexModelForGeneration::fromPackage(
     const Context &ctx,
@@ -43,6 +43,7 @@ std::shared_ptr<IndexModelForGeneration> IndexModelForGeneration::fromPackage(
   model->_model = llama::LlamaModel::create(ctx, llamaConfig);
   model->_model->initParameters(stateMap);
   model->_modelName = modelType;
+  model->_eotId = indexIni.getInt("eot_token_id");
 
   model->initTokenizer(package);
   return model;
@@ -73,5 +74,5 @@ Prompt IndexModelForGeneration::buildPrompt(lut::Span<const Message> history) co
   return prompt;
 }
 
-}  // namespace qwen
+}  // namespace index
 }  // namespace libllm

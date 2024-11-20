@@ -243,7 +243,7 @@ func autoDownloadModel(nameOrPath string) (filename string, err error) {
 	return
 }
 
-func createModelAutoDownload(nameOrPath string, device llm.Device) (llm.Model, error) {
+func createModelAutoDownload(nameOrPath, device string) (*llm.Model, error) {
 	modelPath, err := autoDownloadModel(nameOrPath)
 	if err != nil {
 		return nil, err

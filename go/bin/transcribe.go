@@ -37,7 +37,7 @@ type translationConfig struct {
 	srcLang   skill.Lang
 	tgtLang   skill.Lang
 	modelName string
-	device    llm.Device
+	device    string
 }
 
 func printTranscribeUsage(fs *flag.FlagSet) {
@@ -164,7 +164,7 @@ func transcribeMain(args []string) {
 	var tgtLang skill.Lang
 	modelFile := getTranscriotionModel(ba)
 	tgtLang = ba.getTargetLang()
-	device := ba.getRawDevice()
+	device := ba.getDevice()
 	inputFile := ba.getInput()
 	outputFile := getOutputFile(ba)
 

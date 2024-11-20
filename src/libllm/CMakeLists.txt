@@ -32,6 +32,7 @@ set(libllm_SOURCES
     "cpu/transform.cc"
     "cpu/unfold.cc"
     "cpu/view.cc"
+    "bilibili_index.cc"
     "bpe_config.cc"
     "bpe_encoder.cc"
     "bpe_model.cc"
