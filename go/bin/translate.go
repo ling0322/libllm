@@ -49,7 +49,7 @@ type translationResult struct {
 	processingTime time.Duration
 }
 
-func translate(translator skill.Translator, req skill.TranslationRequest, onToken func(string)) (translationResult, error) {
+func translate(translator *skill.Translator, req skill.TranslationRequest, onToken func(string)) (translationResult, error) {
 	text := strings.TrimSpace(req.Text)
 	if text == "" {
 		return translationResult{
@@ -70,12 +70,12 @@ func translate(translator skill.Translator, req skill.TranslationRequest, onToke
 	numToken := 0
 	for comp.Next() {
 		if onToken != nil {
-			onToken(comp.Text())
+			onToken(comp.Chunk().Text)
 		}
-		answer += comp.Text()
+		answer += comp.Chunk().Text
 		numToken++
 	}
-	if err := comp.Error(); err != nil {
+	if err := comp.Err(); err != nil {
 		return translationResult{}, err
 	}
 

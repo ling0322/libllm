@@ -46,11 +46,15 @@ struct PromptBlock {
   static std::string typeToString(Type blockType);
 };
 
+struct Message {
+  std::string role;
+  std::string content;
+};
+
 class Prompt {
  public:
   void appendText(const std::string &text);
   void appendControlToken(const std::string &controlToken);
-  void appendWave(lut::Span<const Byte> payload, WaveFormat format);
 
   bool empty() const;
 

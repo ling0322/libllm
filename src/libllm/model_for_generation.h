@@ -83,6 +83,11 @@ class ModelForGeneration {
   /// @return the output dimension of the model.
   virtual int getOutputDim() const = 0;
 
+  /// @brief build prompt from history messages.
+  /// @param history the history.
+  /// @return the prompt.
+  virtual Prompt buildPrompt(lut::Span<const Message> history) const = 0;
+
   /// @brief Get the vocabulary (tokenId to token string) of the model.
   /// @return The vocabulary.
   const Vocab *getVocab() const;

@@ -57,15 +57,6 @@ void Prompt::appendControlToken(const std::string &controlToken) {
   _blocks.emplace_back(std::move(block));
 }
 
-void Prompt::appendWave(lut::Span<const Byte> payload, WaveFormat format) {
-  PromptBlock block;
-  block.data = std::vector<Byte>(payload.begin(), payload.end());
-  block.waveFormat = format;
-  block.blockType = PromptBlock::Wave;
-
-  _blocks.emplace_back(std::move(block));
-}
-
 bool Prompt::empty() const {
   return _blocks.empty();
 }

@@ -17,24 +17,35 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package skill
+#pragma once
 
-import (
-	"github.com/ling0322/libllm/go/llm"
-)
+#include <memory>
 
-type promptBuilder interface {
-	Build(history []Message) (llm.Prompt, error)
-}
+#include "libllm/llama.h"
+#include "libllm/model_for_generation.h"
+#include "lutil/ini_config.h"
 
-func newPromptBuilder(modelName string) (promptBuilder, error) {
-	if modelName == "llama" {
-		return &Llama{}, nil
-	} else if modelName == "index" {
-		return &BilibiliIndex{}, nil
-	} else if modelName == "qwen" {
-		return &Qwen{}, nil
-	} else {
-		return nil, ErrInvalidModelForChat
-	}
-}
+namespace libllm {
+namespace index {
+
+/// @brief The Bilibili index model. Model structure of index is the same as llama, the only
+/// difference is the prompt.
+class IndexModelForGeneration : public llama::LlamaModelForGeneration {
+ public:
+  static std::shared_ptr<IndexModelForGeneration> fromPackage(
+      const Context &ctx,
+      lut::ZipFile *package);
+
+  // noncopyable
+  IndexModelForGeneration(IndexModelForGeneration &) = delete;
+  IndexModelForGeneration &operator=(IndexModelForGeneration &) = delete;
+
+  // override LlamaModelForGeneration
+  Prompt buildPrompt(lut::Span<const Message> history) const override;
+
+ private:
+  IndexModelForGeneration() = default;
+};
+
+}  // namespace index
+}  // namespace libllm

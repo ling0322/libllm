@@ -17,45 +17,59 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package skill
+package llm
 
+// #include <stdlib.h>
+// #include "llm.h"
+import "C"
 import (
+	"encoding/json"
 	"errors"
-	"fmt"
-
-	"github.com/ling0322/libllm/go/llm"
+	"runtime"
+	"unsafe"
 )
 
-type Qwen struct {
+type llmJson struct {
+	json C.llm_json_t
 }
 
-func (l *Qwen) Build(history []Message) (llm.Prompt, error) {
-	if len(history) == 0 {
-		return nil, errors.New("history is empty")
+func newJson() *llmJson {
+	j := new(llmJson)
+	C.llm_json_init(&j.json)
+	runtime.SetFinalizer(j, func(j *llmJson) {
+		C.llm_json_destroy(&j.json)
+	})
+
+	return j
+}
+
+func (j *llmJson) marshal(v any) error {
+	jsonBytes, err := json.Marshal(v)
+	if err != nil {
+		return err
 	}
 
-	prompt := llm.NewPrompt()
-	for _, message := range history[:len(history)-1] {
-		prompt.AppendControlToken("<|im_start|>")
-		prompt.AppendText(fmt.Sprintf("%s\n%s", message.Role, message.Content))
-		prompt.AppendControlToken("<|im_end|>")
-		prompt.AppendText("\n")
+	cJsonStr := C.CString(string(jsonBytes))
+	defer C.free(unsafe.Pointer(cJsonStr))
+
+	status := C.llm_json_parse(&j.json, cJsonStr)
+	if status != 0 {
+		return errors.New(C.GoString(C.llm_get_last_error_message()))
 	}
 
-	lastMessage := history[len(history)-1]
-	if lastMessage.Role == "user" {
-		prompt.AppendControlToken("<|im_start|>")
-		prompt.AppendText(fmt.Sprintf("%s\n%s", lastMessage.Role, lastMessage.Content))
-		prompt.AppendControlToken("<|im_end|>")
-		prompt.AppendText("\n")
-		prompt.AppendControlToken("<|im_start|>")
-		prompt.AppendText("assistant\n")
-	} else if lastMessage.Role == "assistant" {
-		prompt.AppendControlToken("<|im_start|>")
-		prompt.AppendText(fmt.Sprintf("%s\n%s", lastMessage.Role, lastMessage.Content))
-	} else {
-		return nil, errors.New("last message should be either user or assistant")
+	return nil
+}
+
+func (j *llmJson) unmarshal(v any) error {
+	bufSize := 2048
+	buf := C.malloc(C.size_t(bufSize))
+	defer C.free(buf)
+
+	status := C.llm_json_dump(&j.json, (*C.char)(buf), C.int64_t(bufSize))
+	if status != 0 {
+		return errors.New(C.GoString(C.llm_get_last_error_message()))
 	}
 
-	return prompt, nil
+	jsonStr := C.GoString((*C.char)(buf))
+	return json.Unmarshal([]byte(jsonStr), v)
 }

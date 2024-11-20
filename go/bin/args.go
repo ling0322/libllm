@@ -27,7 +27,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ling0322/libllm/go/llm"
 	"github.com/ling0322/libllm/go/skill"
 )
 
@@ -63,23 +62,17 @@ func (a *binArgs) addDeviceFlag() {
 	a.fs.StringVar(&a.device, "device", "auto", "inference device, either cpu, cuda or auto")
 }
 
-func (a *binArgs) getDevice() llm.Device {
-	var device llm.Device
-	if strings.ToLower(a.device) == "cpu" {
-		device = llm.Cpu
-	} else if strings.ToLower(a.device) == "cuda" {
-		device = llm.Cuda
-	} else if strings.ToLower(a.device) == "auto" {
-		device = llm.Auto
+func (a *binArgs) getDevice() string {
+	device := strings.ToLower(a.device)
+	if device == "cpu" || device == "cuda" || device == "auto" {
+		return device
 	} else {
-		log.Fatalf("unexpected device %s", a.device)
+		slog.Error(`invalid device name: must be one of "cpu", "cuda" or "auto"`)
+		a.fs.Usage()
+		os.Exit(1)
 	}
 
 	return device
-}
-
-func (a *binArgs) getRawDevice() string {
-	return a.device
 }
 
 func (a *binArgs) addModelFlag() {

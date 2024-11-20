@@ -19,6 +19,7 @@
 
 #include "libllm/model_for_generation.h"
 
+#include "libllm/bilibili_index.h"
 #include "libllm/constants.h"
 #include "libllm/llama.h"
 #include "libllm/qwen.h"
@@ -48,7 +49,7 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
   if (modelType == "llama") {
     model = llama::LlamaModelForGeneration::fromPackage(ctx, package);
   } else if (modelType == "index") {
-    model = llama::LlamaModelForGeneration::fromPackage(ctx, package);
+    model = index::IndexModelForGeneration::fromPackage(ctx, package);
   } else if (modelType == "qwen") {
     model = qwen::QwenModelForGeneration::fromPackage(ctx, package);
   } else {

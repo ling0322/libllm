@@ -20,19 +20,16 @@
 package llm
 
 // #include <stdlib.h>
-// #include "llm_api.h"
-// const int cLLM_ERROR_EOF = LLM_ERROR_EOF;
+// #include "llm.h"
 import "C"
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"runtime"
 	"time"
-	"unsafe"
 )
 
-// A LLM.
+// A ASR model.
 type ASRModel struct {
 	model C.llm_asr_model_t
 }
@@ -58,12 +55,8 @@ type Recognition struct {
 	json        *llmJson
 }
 
-type llmJson struct {
-	json C.llm_json_t
-}
-
 func newRecognition() *Recognition {
-	r := &Recognition{}
+	r := new(Recognition)
 	r.json = newJson()
 	C.llm_asr_recognition_init(&r.recognition)
 	runtime.SetFinalizer(r, func(r *Recognition) {
@@ -71,47 +64,6 @@ func newRecognition() *Recognition {
 	})
 
 	return r
-}
-
-func newJson() *llmJson {
-	j := &llmJson{}
-	C.llm_json_init(&j.json)
-	runtime.SetFinalizer(j, func(j *llmJson) {
-		C.llm_json_destroy(&j.json)
-	})
-
-	return j
-}
-
-func (j *llmJson) marshal(v any) error {
-	jsonBytes, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	cJsonStr := C.CString(string(jsonBytes))
-	defer C.free(unsafe.Pointer(cJsonStr))
-
-	status := C.llm_json_parse(&j.json, cJsonStr)
-	if status != 0 {
-		return errors.New(C.GoString(C.llmGetLastErrorMessage()))
-	}
-
-	return nil
-}
-
-func (j *llmJson) unmarshal(v any) error {
-	bufSize := 2048
-	buf := C.malloc(C.size_t(bufSize))
-	defer C.free(buf)
-
-	status := C.llm_json_dump(&j.json, (*C.char)(buf), C.int64_t(bufSize))
-	if status != 0 {
-		return errors.New(C.GoString(C.llmGetLastErrorMessage()))
-	}
-
-	jsonStr := C.GoString((*C.char)(buf))
-	return json.Unmarshal([]byte(jsonStr), v)
 }
 
 func NewASRModel(filename, device string) (*ASRModel, error) {
@@ -126,7 +78,7 @@ func NewASRModel(filename, device string) (*ASRModel, error) {
 		"device":   device,
 	})
 
-	m := &ASRModel{}
+	m := new(ASRModel)
 	C.llm_asr_model_init(&m.model)
 	runtime.SetFinalizer(m, func(m *ASRModel) {
 		C.llm_asr_model_destroy(&m.model)
@@ -134,7 +86,7 @@ func NewASRModel(filename, device string) (*ASRModel, error) {
 
 	status := C.llm_asr_model_load(&m.model, &json.json)
 	if status != 0 {
-		return nil, errors.New(C.GoString(C.llmGetLastErrorMessage()))
+		return nil, errors.New(C.GoString(C.llm_get_last_error_message()))
 	}
 
 	return m, nil
@@ -150,7 +102,7 @@ func (m *ASRModel) Recognize(filename string) (*Recognition, error) {
 
 	status := C.llm_asr_recognize_media_file(&m.model, &json.json, &r.recognition)
 	if status != 0 {
-		return nil, errors.New(C.GoString(C.llmGetLastErrorMessage()))
+		return nil, errors.New(C.GoString(C.llm_get_last_error_message()))
 	}
 
 	return r, nil
@@ -176,10 +128,10 @@ func (r *Recognition) Dispose() {
 
 func (r *Recognition) Next() bool {
 	status := C.llm_asr_recognition_get_next_result(&r.recognition, &r.json.json)
-	if status == C.cLLM_ERROR_EOF {
+	if status == LLM_ERROR_EOF {
 		return false
 	} else if status != 0 {
-		r.err = errors.New(C.GoString(C.llmGetLastErrorMessage()))
+		r.err = errors.New(C.GoString(C.llm_get_last_error_message()))
 		return false
 	}
 

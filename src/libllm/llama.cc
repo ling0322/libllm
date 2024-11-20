@@ -484,5 +484,42 @@ int LlamaModelForGeneration::getOutputDim() const {
   return _model->getOutputDim();
 }
 
+Prompt LlamaModelForGeneration::buildPrompt(lut::Span<const Message> history) const {
+  CHECK(!history.empty()) << "history is empty";
+
+  Prompt prompt;
+  prompt.appendControlToken("<|begin_of_text|>");
+  for (const Message &message : history.subspan(0, history.size() - 1)) {
+    prompt.appendControlToken("<|start_header_id|>");
+    prompt.appendText(message.role);
+    prompt.appendControlToken("<|end_header_id|>");
+    prompt.appendText("\n\n" + message.content);
+    prompt.appendControlToken("<|eot_id|>");
+  }
+
+  const Message &message = history.back();
+  if (message.role == "user") {
+    prompt.appendControlToken("<|start_header_id|>");
+    prompt.appendText(message.role);
+    prompt.appendControlToken("<|end_header_id|>");
+    prompt.appendText("\n\n" + message.content);
+    prompt.appendControlToken("<|eot_id|>");
+    prompt.appendControlToken("<|start_header_id|>");
+    prompt.appendText("assistant");
+    prompt.appendControlToken("<|end_header_id|>");
+    prompt.appendText("\n\n");
+  } else if (message.role == "assistant") {
+    prompt.appendControlToken("<|start_header_id|>");
+    prompt.appendText(message.role);
+    prompt.appendControlToken("<|end_header_id|>");
+    prompt.appendText("\n\n" + message.content);
+  } else {
+    throw lut::AbortedError(
+        "invalid messages: role of last message should be either user or assistant");
+  }
+
+  return prompt;
+}
+
 }  // namespace llama
 }  // namespace libllm

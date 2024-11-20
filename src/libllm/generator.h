@@ -33,7 +33,6 @@ struct GenerationConfig {
   int topK;
   float topP;
   float temperature;
-  std::unordered_map<std::string, std::string> kvConfig;
 
   GenerationConfig();
 };
