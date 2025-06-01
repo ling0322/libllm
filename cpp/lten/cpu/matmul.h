@@ -19,18 +19,42 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "lten/tensor.h"
 
-namespace lut {
+namespace lten {
+namespace op {
+namespace cpu {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+struct GEMMArgs {
+  bool transA;
+  bool transB;
+  int M;
+  int N;
+  int K;
+  int lda;
+  int ldb;
+  int ldc;
+};
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+std::vector<int> getBmmOutputShape(const Tensor &A, const Tensor &B);
 
-}  // namespace lut
+// generate GEMMArgs from the input tensor A, B and output tensor C. dimensions of A could be
+// greater than 2 (for BMM). throw exception if shape mismatch.
+GEMMArgs generateGemmArgs(const Tensor &A, const Tensor &B, const Tensor &C);
+
+Tensor matmul(const Tensor &A, const Tensor &B);
+
+// q4
+Tensor matmulFp32Q4Fp32(const Tensor &A, const Tensor &B);
+Tensor gemmFp32Q4Fp32(const Tensor &A, const Tensor &B);
+Tensor bmmNx2Fp32Q4Fp32(const Tensor &A, const Tensor &B);
+
+/// @brief An implememntation of float32 matmul for aarch64
+/// @param A
+/// @param B
+/// @return
+Tensor matmulFp32Aarch64(const Tensor &A, const Tensor &B);
+
+}  // namespace cpu
+}  // namespace op
+}  // namespace lten

@@ -19,18 +19,17 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "lten/tensor.h"
 
-namespace lut {
+namespace lten {
+namespace op {
+namespace cuda {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+Tensor lookup2DHalf(const Tensor &embdTable, const Tensor &input);
+Tensor lookup2DQ4(const Tensor &embdTable, const Tensor &input);
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+Tensor lookup(const Tensor &embdTable, const Tensor &input);
 
-}  // namespace lut
+}  // namespace cuda
+}  // namespace op
+}  // namespace lten

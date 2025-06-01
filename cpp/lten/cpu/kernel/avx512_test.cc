@@ -17,20 +17,41 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include <math.h>
 
-#include <stdint.h>
+#include "catch2/catch_amalgamated.hpp"
+#include "lten/cpu/kernel/abstract.h"
+#include "lten/cpu/kernel/test_common.h"
+#include "lten/cpu/kernel/util.h"
+#include "lutil/half.h"
+#include "lutil/log.h"
+#include "lutil/random.h"
+#include "ruapu/ruapu.h"
 
-namespace lut {
+namespace lten {
+namespace op {
+namespace cpu {
+namespace kernel {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+CATCH_TEST_CASE("test sgemm6x16Avx2Kernel", "[cpu_kernel][kernel][avx512]") {
+  bool isaAvx512f = ruapu_supports("avx512f") > 0;
+  if (!isaAvx512f) {
+    CATCH_SKIP("skip sgemm6x16Avx2Kernel tesing since CPU not supported.");
+  }
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+  GemmMicroKernelTester<float, float, float, 12, 32, CpuMathBackend::AVX512> tester;
+  tester.test(1);
+  tester.test(8);
+  tester.test(17);
+  tester.test(64);
+  tester.test(100);
+  tester.test(256);
+  tester.test(500);
+  tester.test(2047);
+  tester.test(2048);
+}
 
-}  // namespace lut
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace lten

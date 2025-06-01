@@ -19,18 +19,39 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "lten/cpu/kernel/abstract.h"
+#include "lten/mp.h"
+#include "lutil/log.h"
 
-namespace lut {
+namespace lten {
+namespace op {
+namespace cpu {
+namespace kernel {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+template<typename ElementA, typename ElementC, CpuMathBackend TYPE, Mode MODE>
+void cvt(int64_t n, const ElementA *x, int64_t offsetX, ElementC *y, int64_t offsetY) {
+  int nb = (n + CvtMinElemPerThread - 1) / CvtMinElemPerThread;
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+  if (MODE == Mode::OMP && nb > 1) {
+    int nr = (n - 1) % CvtMinElemPerThread + 1;
+    int numThreads = std::min(nb, MP::getMaxThreads());
 
-}  // namespace lut
+    MP::parallelFor(nb, [nb, nr, x, offsetX, y, offsetY](MP::Context ctx) {
+      int i = ctx.getBlockIdx();
+      int ne = (i == nb - 1) ? nr : CvtMinElemPerThread;
+      cvtKernel<ElementA, ElementC, TYPE>(
+          ne,
+          x,
+          offsetX + i * CvtMinElemPerThread,
+          y,
+          offsetY + i * CvtMinElemPerThread);
+    });
+  } else {
+    cvtKernel<ElementA, ElementC, TYPE>(n, x, offsetX, y, offsetY);
+  }
+}
+
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace lten

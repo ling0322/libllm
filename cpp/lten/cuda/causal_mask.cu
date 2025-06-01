@@ -17,20 +17,39 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include <cuda_fp16.h>
+#include <math.h>
 
-#include <stdint.h>
+#include "lten/cuda/causal_mask.h"
+#include "lten/cuda/common.h"
 
-namespace lut {
+namespace lten {
+namespace op {
+namespace cuda {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+__global__ void causalMaskKernel(PackedSubtensor<half, 2> mask) {
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+  if (y < mask.getShape(0) && x < mask.getShape(1)) {
+    mask[y][x] = x > y ? -INFINITY : 0;
+  }
+}
 
-}  // namespace lut
+Tensor causalMask(int size) {
+  Tensor C = createCudaTensorHalf({size, size});
+
+  constexpr int blockSize = 256;
+  dim3 d;
+  d.y = C.getShape(0);
+  d.x = (C.getShape(1) + blockSize - 1) / blockSize;
+
+  causalMaskKernel<<<d, blockSize>>>(C);
+  cudaDeviceSynchronize();
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+  return C;
+}
+
+}  // namespace cuda
+}  // namespace op
+}  // namespace lten

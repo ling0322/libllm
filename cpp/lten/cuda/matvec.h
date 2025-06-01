@@ -19,18 +19,18 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cublas_v2.h>
 
-namespace lut {
+#include "lten/cuda/common.h"
+#include "lten/tensor.h"
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+namespace lten {
+namespace op {
+namespace cuda {
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+Tensor gemvHalf(const Tensor &A, const Tensor &x);
+Tensor gemvQ4(const Tensor &A, const Tensor &x);
 
-}  // namespace lut
+}  // namespace cuda
+}  // namespace op
+}  // namespace lten

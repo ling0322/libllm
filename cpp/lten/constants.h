@@ -19,18 +19,18 @@
 
 #pragma once
 
-#include <stdint.h>
+namespace lten {
 
-namespace lut {
+/// @brief model section in config file.
+constexpr char ModelSection[] = "model";
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+/// @brief llama section in config file.
+constexpr char Llama2Section[] = "llama2";
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+/// @brief model file field in config file.
+constexpr char ModelFileField[] = "model_file";
 
-}  // namespace lut
+/// @brief Model type field in libllm config file.
+constexpr char ModelTypeField[] = "type";
+
+}  // namespace lten

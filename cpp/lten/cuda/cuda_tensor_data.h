@@ -19,18 +19,45 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <initializer_list>
 
-namespace lut {
+#include "lten/device.h"
+#include "lten/tensor.h"
+#include "lutil/span.h"
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+namespace lten {
+namespace op {
+namespace cuda {
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+class CudaTensorData : public TensorData {
+ public:
+  static std::shared_ptr<TensorData> create(int64_t numel, DType dtype);
+  static std::shared_ptr<TensorData> create(lut::Span<const std::pair<int64_t, DType>> slots);
 
-}  // namespace lut
+  CudaTensorData();
+  ~CudaTensorData();
+
+  Device getDevice() const override;
+  int getNumSlot() const override;
+  const SlotBase *getSlot(int slot) const override;
+
+ private:
+  struct Slot : public SlotBase {
+    Byte *data;
+    int64_t numel;
+    DType dtype;
+
+    Slot();
+
+    int64_t getNumEl() const override;
+    DType getDType() const override;
+    Byte *getRawData() const override;
+  };
+
+  Slot _slots[TensorData::MaxSlot];
+  int _numSlot;
+};
+
+}  // namespace cuda
+}  // namespace op
+}  // namespace lten

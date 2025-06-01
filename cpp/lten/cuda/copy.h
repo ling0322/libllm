@@ -19,18 +19,20 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "lten/tensor.h"
 
-namespace lut {
+namespace lten {
+namespace op {
+namespace cuda {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+// copy operator has multiple implementations. If the sec and dest is contiguous, it will call
+// memcpy directly. If both src and dest are sub-4D tensor with float/half, it will call
+// op::cuda::transform. Otherwise, it will fallback here.
+void copy(const Tensor &src, Tensor &dest);
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+/// @brief Copy contiguous tensors by cudaMemcpy.
+void copyContig(const Tensor &src, Tensor &dest);
 
-}  // namespace lut
+}  // namespace cuda
+}  // namespace op
+}  // namespace lten

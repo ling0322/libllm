@@ -19,18 +19,14 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "lten/tensor.h"
 
-namespace lut {
+namespace lten {
+namespace op {
+namespace cpu {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+Tensor lookup(const Tensor &table, const Tensor &indices);
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
-
-}  // namespace lut
+}  // namespace cpu
+}  // namespace op
+}  // namespace lten

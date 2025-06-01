@@ -17,20 +17,14 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "lten/cpu/tensor.h"
 
-#include <stdint.h>
+namespace lten {
+namespace op {
+namespace cpu {
 
-namespace lut {
+Tensor logMelSpectrogram(Tensor inputs);
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
-
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
-
-}  // namespace lut
+}  // namespace cpu
+}  // namespace op
+}  // namespace lten

@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,20 +17,46 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "lten/cpu/print.h"
 
-#include <stdint.h>
+#include <cuda_fp16.h>
+#include <cuda_runtime.h>
+#include <inttypes.h>
 
-namespace lut {
+#include "lten/cpu/accessor.h"
+#include "lten/cpu/tensor_printer.h"
+#include "lten/cuda/common.h"
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+namespace lten {
+namespace op {
+namespace cuda {
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+struct CudaPrinterImpl {
+  template<typename T, int DIM>
+  using accessor_type = op::cpu::TensorAccessor<T, DIM>;
 
-}  // namespace lut
+  static void printValue(const half *pval) {
+    half hvalue;
+    LL_CHECK_CUDA_STATUS(cudaMemcpy(&hvalue, pval, sizeof(half), cudaMemcpyDeviceToHost));
+
+    float value = hvalue;
+    if (std::abs(value) > 100 || std::abs(value) < 0.01) {
+      printf("%.4e", value);
+    } else {
+      printf("%.4f", value);
+    }
+  }
+};
+
+void print(const Tensor &tensor) {
+  op::cpu::TensorPrinter<CudaPrinterImpl> printer;
+
+  if (tensor.getDType() == DType::kFloat16)
+    printer.print<half>(tensor);
+  else
+    NOT_IMPL();
+}
+
+}  // namespace cuda
+}  // namespace op
+}  // namespace lten

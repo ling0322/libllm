@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,20 +17,37 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+// MP implementation with OpenMP.
 
-#include <stdint.h>
+#include "lten/mp.h"
 
-namespace lut {
+#include <omp.h>
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+#include <atomic>
+#include <functional>
+#include <thread>
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+#include "lutil/log.h"
+#include "lutil/thread_pool.h"
 
-}  // namespace lut
+namespace lten {
+
+void MP::init() {
+  LOG(INFO) << "OMP max_threads = " << omp_get_max_threads();
+}
+
+void MP::destroy() {
+}
+
+int MP::getMaxThreads() {
+  return omp_get_max_threads();
+}
+
+void MP::parallelFor(int numBlocks, std::function<void(Context)> closure) {
+#pragma omp parallel for num_threads(getMaxThreads()) schedule(dynamic, 1)
+  for (int i = 0; i < numBlocks; ++i) {
+    closure(Context(i, numBlocks, omp_get_thread_num()));
+  }
+}
+
+}  // namespace lten

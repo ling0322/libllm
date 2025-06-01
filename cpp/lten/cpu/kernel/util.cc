@@ -17,20 +17,46 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "lten/cpu/kernel/util.h"
 
-#include <stdint.h>
+#include <math.h>
 
-namespace lut {
+#include <algorithm>
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+#include "lten/cpu/kernel/abstract.h"
+#include "lutil/half.h"
+#include "lutil/platform.h"
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+#ifdef LUT_ARCH_AARCH64
+#include <arm_neon.h>
+#endif
 
-}  // namespace lut
+namespace lten {
+namespace op {
+namespace cpu {
+namespace kernel {
+
+float cvt_h2s(Float16 vh) {
+#ifdef LUT_ARCH_AARCH64
+  float16x4_t a00 = vld1_dup_f16(&vh);
+  float32x4_t b00 = vcvt_f32_f16(a00);
+  return vgetq_lane_f32(b00, 0);
+#else
+  return lut::cvtsh_ss(vh.h);
+#endif
+}
+
+Float16 cvt_s2h(float vf) {
+#ifdef LUT_ARCH_AARCH64
+  float32x4_t a00 = vld1q_dup_f32(&vf);
+  float16x4_t b00 = vcvt_f16_f32(a00);
+  return vget_lane_f16(b00, 0);
+#else
+  return Float16{lut::cvtss_sh(vf)};
+#endif
+}
+
+}  // namespace kernel
+}  // namespace cpu
+}  // namespace op
+}  // namespace lten

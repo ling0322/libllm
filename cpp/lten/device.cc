@@ -17,20 +17,45 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "lten/device.h"
 
-#include <stdint.h>
+#include "lten/cuda/cuda_operators.h"
+#include "lutil/log.h"
 
-namespace lut {
+namespace lten {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+Device::Device()
+    : _type(Type::kUnknown) {
+}
+Device::Device(Type type)
+    : _type(type) {
+}
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+Device Device::getCpu() {
+  return Device(Type::kCpu);
+}
 
-}  // namespace lut
+Device Device::getCuda() {
+  return Device(Type::kCuda);
+}
+
+bool Device::isCudaAvailable() {
+#ifdef LIBLLM_CUDA_ENABLED
+  return op::cuda::CudaOperators::isAvailable();
+#else
+  return false;
+#endif
+}
+
+std::string Device::getName() const {
+  switch (_type) {
+    case kCpu:
+      return "cpu";
+    case kCuda:
+      return "cuda";
+    default:
+      NOT_IMPL();
+  }
+}
+
+}  // namespace lten

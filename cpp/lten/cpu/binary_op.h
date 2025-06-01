@@ -19,18 +19,17 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "lten/tensor.h"
 
-namespace lut {
+namespace lten {
+namespace op {
+namespace cpu {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+enum class BinaryOp { ADD, MUL };
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+// apply C <- BinaryOp(A, B)
+Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op);
 
-}  // namespace lut
+}  // namespace cpu
+}  // namespace op
+}  // namespace lten

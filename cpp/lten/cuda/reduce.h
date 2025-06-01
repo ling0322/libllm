@@ -19,18 +19,30 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "lten/tensor.h"
 
-namespace lut {
+namespace lten {
+namespace op {
+namespace cuda {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+enum class MapReduceType {
+  // Sum of exp(x). FP16_FP32 means the input type if fp16, intermediate and output type is fp32.
+  SUM_EXP_FP16_FP32,
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+  // Sum of x^2.
+  SUM_SQUARE_FP16_FP32,
 
-}  // namespace lut
+  // Sum of x.
+  SUM_FP16_FP32,
+
+  // Get maximun number in list.
+  MAX
+};
+
+Tensor reduce(Tensor A, MapReduceType reduceType);
+Tensor reduceHalfToSingle3D(Tensor A, MapReduceType reduceType);
+Tensor reduceHalf3D(Tensor A, MapReduceType reduceType);
+
+}  // namespace cuda
+}  // namespace op
+}  // namespace lten

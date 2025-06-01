@@ -19,18 +19,24 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "lten/tensor.h"
+#include "lutil/span.h"
 
-namespace lut {
+namespace lten {
+namespace op {
+namespace cpu {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+Tensor view(const Tensor &src, lut::Span<const int> view);
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+// infer the -1 dimension in view.
+std::vector<Tensor::ShapeType> getRealShape(int64_t numEl, lut::Span<const int> view);
 
-}  // namespace lut
+// infer the stride for new view, according to the original stride.
+std::vector<TensorShape::Elem> getViewShapeStride(const Tensor &src, lut::Span<const int> view);
+
+// merge contiguous dimensions in the shape of `src`.
+std::vector<TensorShape::Elem> mergeContigShape(const Tensor &src);
+
+}  // namespace cpu
+}  // namespace op
+}  // namespace lten

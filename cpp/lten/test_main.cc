@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2023-2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,20 +17,21 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "../../third_party/catch2/catch_amalgamated.hpp"
+#include "lten/cpu/kernel/interface.h"
+#include "lten/operators.h"
+#include "lutil/error.h"
+#include "lutil/log.h"
 
-#include <stdint.h>
+int main(int argc, char **argv) {
+  lten::initOperators();
 
-namespace lut {
+  // enable some slow kernels for reference.
+  lten::op::cpu::kernel::setAllowSlowKernel(true);
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+  int result = Catch::Session().run(argc, argv);
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+  lten::destroyOperators();
 
-}  // namespace lut
+  return result;
+}

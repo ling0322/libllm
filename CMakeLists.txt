@@ -84,7 +84,7 @@ if(HAVE_FP16)
     add_compile_definitions(LIBLLM_HAVE_FP16)
 endif()
 
-add_subdirectory("src")
+add_subdirectory("cpp")
 
 set(libllm_LIBADD lutil ${CMAKE_DL_LIBS})
 
@@ -114,20 +114,12 @@ if (WITH_MKL)
         iomp5)
 endif()
 
-set(benchmark_LIBADD
-    libllm_static
-    ${libllm_LIBADD})
-
 add_library(catch2 STATIC  "../third_party/catch2/catch_amalgamated.cpp")
 
-add_executable(unittest "src/libllm/test_main.cc")
-target_include_directories(unittest PRIVATE "src")
+add_executable(unittest "cpp/libllm/test_main.cc")
+target_include_directories(unittest PRIVATE "cpp")
 
 target_link_libraries(unittest ${unittest_LIBADD})
-
-add_executable(benchmark "src/libllm/benchmark_main.cc")
-target_include_directories(benchmark PRIVATE "src")
-target_link_libraries(benchmark ${benchmark_LIBADD})
 
 if (WITH_CUDA)
     add_library(llmplugincublas SHARED $<TARGET_OBJECTS:llmplugincublas_static>)
@@ -158,9 +150,3 @@ endif()
 
 enable_testing()
 add_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)
-
-add_custom_target(llm
-    ALL
-    DEPENDS libllm
-    COMMAND go build -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_SOURCE_DIR}/go/bin
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/go/bin)

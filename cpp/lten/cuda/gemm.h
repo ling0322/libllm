@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2024 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -19,18 +19,52 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cuda_fp16.h>
+#include <cuda_runtime.h>
 
-namespace lut {
+#include "lten/cuda/common.h"
+#include "lten/tensor.h"
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+namespace lten {
+namespace op {
+namespace cuda {
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+class Gemm {
+ public:
+  virtual ~Gemm() = default;
 
-}  // namespace lut
+  virtual lut::ErrorCode hgemm(
+      bool transA,
+      bool transB,
+      int m,
+      int n,
+      int k,
+      __half alpha,
+      const __half *A,
+      int lda,
+      const __half *B,
+      int ldb,
+      __half beta,
+      __half *C,
+      int ldc) = 0;
+
+  virtual lut::ErrorCode hgemmArray(
+      bool transA,
+      bool transB,
+      int m,
+      int n,
+      int k,
+      __half alpha,
+      const __half *const *arrayA,
+      int lda,
+      const __half *const *arrayB,
+      int ldb,
+      __half beta,
+      __half *const *arrayC,
+      int ldc,
+      int batchSize) = 0;
+};
+
+}  // namespace cuda
+}  // namespace op
+}  // namespace lten

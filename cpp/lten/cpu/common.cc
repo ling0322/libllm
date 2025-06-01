@@ -17,20 +17,39 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "lten/cpu/common.h"
 
-#include <stdint.h>
+namespace lten {
+namespace op {
+namespace cpu {
 
-namespace lut {
+Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> shape) {
+  CHECK(shape.size() >= input.getDim());
+  if (input.getDim() == shape.size()) return input;
+  int nBroadcastDim = static_cast<int>(shape.size()) - input.getDim();
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+  Tensor x = input;
+  std::vector<TensorShape::Elem> broadcastShape;
+  for (int i = 0; i < nBroadcastDim; ++i) {
+    TensorShape::Elem shapeElem;
+    shapeElem.stride = 0;
+    shapeElem.shape = shape[i];
+    broadcastShape.push_back(shapeElem);
+  }
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+  for (int i = 0; i < input.getDim(); ++i) {
+    TensorShape::Elem shapeElem;
+    shapeElem.stride = input.getStride(i);
+    shapeElem.shape = input.getShape(i);
+    broadcastShape.push_back(shapeElem);
+  }
 
-}  // namespace lut
+  return Tensor::create(
+      std::make_shared<TensorShape>(broadcastShape),
+      input.getDataShared_(),
+      input.getOffset_());
+}
+
+}  // namespace cpu
+}  // namespace op
+}  // namespace lten

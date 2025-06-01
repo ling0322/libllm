@@ -17,20 +17,45 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "lten/cpu/copy.h"
 
-#include <stdint.h>
+#include "lten/cpu/accessor.h"
+#include "lten/cpu/common.h"
+#include "lten/cpu/tensor.h"
+#include "lten/mp.h"
 
-namespace lut {
+namespace lten {
+namespace op {
+namespace cpu {
 
-/// @brief Convert from float to float16.
-/// @param v value in float32.
-/// @return value in float16.
-uint16_t cvtss_sh(float v);
+template<typename T>
+void copyKernel(const Tensor &src, Tensor &dest) {
+  TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(src);
+  TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(dest);
+  CHECK(vA.getLength() == vC.getLength());
 
-/// @brief Convert from float16 to float32.
-/// @param v value in float16.
-/// @return value in float32.
-float cvtsh_ss(uint16_t v);
+  MP::parallelFor(vA.getLength(), [&vA, &vC](MP::Context ctx) {
+    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
+    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
 
-}  // namespace lut
+    copyVector(c, a);
+  });
+}
+
+void copy(const Tensor &src, Tensor &dest) {
+  if (src.getDType() == DType::kFloat) {
+    copyKernel<float>(src, dest);
+  } else if (src.getDType() == DType::kFloat16) {
+#if LUT_CPU_ARCH == LUT_AARCH64
+    copyKernel<Float16>(src, dest);
+#else
+    NOT_IMPL();
+#endif
+  } else {
+    NOT_IMPL();
+  }
+}
+
+}  // namespace cpu
+}  // namespace op
+}  // namespace lten
