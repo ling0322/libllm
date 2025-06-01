@@ -34,7 +34,6 @@ void cvt(int64_t n, const ElementA *x, int64_t offsetX, ElementC *y, int64_t off
 
   if (MODE == Mode::OMP && nb > 1) {
     int nr = (n - 1) % CvtMinElemPerThread + 1;
-    int numThreads = std::min(nb, MP::getMaxThreads());
 
     MP::parallelFor(nb, [nb, nr, x, offsetX, y, offsetY](MP::Context ctx) {
       int i = ctx.getBlockIdx();

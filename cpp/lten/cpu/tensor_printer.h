@@ -73,9 +73,7 @@ class TensorPrinter {
   }
 
   template<typename T, int DIM>
-  typename std::enable_if<DIM == 1, void>::type printTensor(
-      accessor_type<const T, DIM> A,
-      int padSpace) {
+  typename std::enable_if<DIM == 1, void>::type printTensor(accessor_type<const T, DIM> A, int) {
     printf("[");
     for (int i = 0; i < A.getShape(0); ++i) {
       TPrinterImpl::printValue(&A[i]);

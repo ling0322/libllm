@@ -7,7 +7,7 @@ fn main() {
         .include("cpp")
         .include("third_party")
         .flag_if_supported("-std=c++17")
-        .flag_if_supported("-openmp");
+        .flag_if_supported("-fopenmp");
 
     let lten_files = [
         "cpp/lten/cpu/kernel/fallback.cc",
@@ -68,6 +68,7 @@ fn main() {
         .cpp(true)
         .include("third_party")
         .file("third_party/ruapu/ruapu.cc")
+        .flag_if_supported("-Wno-missing-field-initializers")
         .compile("ruapu");
 
     cc::Build::new()

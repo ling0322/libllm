@@ -63,11 +63,6 @@ void llmSetErrorMessage(const std::string &message) {
   snprintf(gErrorMessage, sizeof(gErrorMessage), "%s", what.c_str());
 }
 
-int32_t llmErrorSetInvalidArg(const std::string &argName) {
-  llmSetErrorMessage("invalid argument: " + argName);
-  return LTEN_ERR_INVALID_ARG;
-}
-
 lten::DType getDType(int32_t dtype) {
   switch (dtype) {
     case LTEN_DTYPE_FLOAT:

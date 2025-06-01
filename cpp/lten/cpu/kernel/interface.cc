@@ -173,9 +173,9 @@ void gemmHalf(
     int ldb,
     Float16 *C,
     int ldc,
-    Mode mode,
+    [[maybe_unused]] Mode mode,
     CpuMathBackend backendType) {
-  GemmArgs<Float16, Float16, Float16> args;
+  [[maybe_unused]] GemmArgs<Float16, Float16, Float16> args;
   args.transA = transA;
   args.transB = transB;
   args.M = M;
@@ -228,7 +228,7 @@ void quantFloatToQInt4(
     int offset,
     QInt4x32 *tgt,
     Mode mode,
-    CpuMathBackend backendType) {
+    CpuMathBackend) {
   if (mode == Mode::OMP) {
     cvt<float, QInt4x32, CpuMathBackend::FALLBACK, Mode::OMP>(n, data, offset, tgt, 0);
   } else if (mode == Mode::SingleThread) {
@@ -239,12 +239,12 @@ void quantFloatToQInt4(
 }
 
 void dequantQInt4ToHalf(
-    int n,
-    const QInt4x32 *data,
-    int offset,
-    Float16 *tgt,
-    Mode mode,
-    CpuMathBackend backendType) {
+    [[maybe_unused]] int n,
+    [[maybe_unused]] const QInt4x32 *data,
+    [[maybe_unused]] int offset,
+    [[maybe_unused]] Float16 *tgt,
+    [[maybe_unused]] Mode mode,
+    [[maybe_unused]] CpuMathBackend backendType) {
   backendType = getCpuMathBackend(backendType);
 
   if (false) {
@@ -320,9 +320,9 @@ void gemmHalfQInt4(
     const QInt4x32 *B,
     Float16 *C,
     int ldc,
-    Mode mode,
+    [[maybe_unused]] Mode mode,
     CpuMathBackend backendType) {
-  GemmArgs<Float16, QInt4x32, Float16> args;
+  [[maybe_unused]] GemmArgs<Float16, QInt4x32, Float16> args;
   args.transA = transA;
   args.transB = transB;
   args.M = M;

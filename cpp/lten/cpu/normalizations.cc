@@ -60,7 +60,7 @@ Tensor rmsNormKernel(const Tensor &tensor, const Tensor &weight, float eps) {
     for (int i = 0; i < a.getShape(0); ++i) {
       float va = a[i];
       float vw = w[i];
-      c[i] = static_cast<T>(a[i] * w[i] / rms);
+      c[i] = static_cast<T>(va * vw / rms);
     }
   });
 

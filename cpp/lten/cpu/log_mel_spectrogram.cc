@@ -183,7 +183,7 @@ std::vector<float> applyLogMelSpectrogramWindow(
 
   // apply window.
   std::vector<float> windowData(data.size());
-  for (int i = 0; i < data.size(); ++i) {
+  for (size_t i = 0; i < data.size(); ++i) {
     windowData[i] = data[i] * window[i];
   }
 
@@ -192,7 +192,7 @@ std::vector<float> applyLogMelSpectrogramWindow(
 
   // compute magnitudes.
   std::vector<float> magnitudes(fftResult.size());
-  for (int i = 0; i < fftResult.size(); ++i) {
+  for (size_t i = 0; i < fftResult.size(); ++i) {
     float v = std::abs(fftResult[i]);
     magnitudes[i] = v * v;
   }
@@ -201,7 +201,7 @@ std::vector<float> applyLogMelSpectrogramWindow(
   std::vector<float> melFbank = mel128FilterBank(magnitudes);
 
   // apply log10 to mel filter-bank.
-  for (int i = 0; i < melFbank.size(); ++i) {
+  for (size_t i = 0; i < melFbank.size(); ++i) {
     float v = std::max(1e-10f, melFbank[i]);
     melFbank[i] = log10f(v);
   }
@@ -235,9 +235,9 @@ Tensor logMelSpectrogram(Tensor inputs) {
   for (int i = 0; i < numFrames; ++i) {
     lut::Span<const float> windowSpan = paddedSpan.subspan(i * HopLength, NumFft);
     std::vector<float> feature = applyLogMelSpectrogramWindow(windowSpan, window);
-    CHECK(feature.size() == outputAccessor.getShape(1));
+    CHECK(static_cast<int>(feature.size()) == outputAccessor.getShape(1));
 
-    for (int j = 0; j < feature.size(); ++j) {
+    for (size_t j = 0; j < feature.size(); ++j) {
       outputAccessor[i][j] = feature[j];
     }
   }

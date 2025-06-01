@@ -43,7 +43,7 @@ Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const T> data)
   tensor._offset = 0;
 
   // fill data
-  CHECK(numel == data.size()) << "data size and shape mismatch";
+  CHECK(numel == static_cast<int64_t>(data.size())) << "data size and shape mismatch";
   std::copy(data.begin(), data.end(), tensor.getData<T>());
 
   return tensor;
@@ -224,7 +224,7 @@ Tensor Tensor::squeeze(int dim) const {
 }
 
 void Tensor::throwIfInvalidShape(lut::Span<const int> shape, const std::string &name) const {
-  if (shape.size() != getDim()) {
+  if (static_cast<int>(shape.size()) != getDim()) {
     throw lut::AbortedError(
         lut::sprintf(
             "%s: invalid shape. dim=%d expected, but %d got.",
@@ -483,7 +483,7 @@ void TensorShape::setShape(int dim, ShapeType shape) {
 }
 
 std::shared_ptr<TensorShape> TensorShape::expand(lut::Span<const int> shape) const {
-  CHECK(getDim() == shape.size());
+  CHECK(getDim() == static_cast<int>(shape.size()));
   std::shared_ptr<TensorShape> view = std::make_shared<TensorShape>(lut::makeConstSpan(_data));
   int dim = getDim();
   for (int d = 0; d < dim; ++d) {

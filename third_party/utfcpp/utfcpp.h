@@ -343,7 +343,6 @@ uint32_t next(octet_iterator& it, octet_iterator end) {
 template<typename u16bit_iterator, typename octet_iterator>
 void utf16to8(u16bit_iterator start, u16bit_iterator end, octet_iterator result) {
   u16bit_iterator it = start;
-  octet_iterator next_result = result;
   while (it != end) {
     uint32_t cp = utf8::internal::mask16(*it++);
     // Take care of surrogate pairs first
@@ -353,10 +352,11 @@ void utf16to8(u16bit_iterator start, u16bit_iterator end, octet_iterator result)
         if (utf8::internal::is_trail_surrogate(trail_surrogate)) {
           cp = (cp << 10) + trail_surrogate + internal::SURROGATE_OFFSET;
         } else {
-          throw AbortedError(lut::sprintf(
-              "invalid utf16 trail surrogate %d in position %d",
-              trail_surrogate,
-              it - start));
+          throw AbortedError(
+              lut::sprintf(
+                  "invalid utf16 trail surrogate %d in position %d",
+                  trail_surrogate,
+                  it - start));
         }
       } else {
         throw AbortedError(
@@ -372,7 +372,6 @@ void utf16to8(u16bit_iterator start, u16bit_iterator end, octet_iterator result)
 
 template<typename u16bit_iterator, typename octet_iterator>
 void utf8to16(octet_iterator start, octet_iterator end, u16bit_iterator result) {
-  uint32_t cp = 0;
   while (start < end) {
     uint32_t cp = utf8::next(start, end);
     if (cp > 0xffff) {  // make a surrogate pair

@@ -209,12 +209,11 @@ std::vector<std::string> splitUtf8(const std::string &s) {
   std::vector<std::string> utf8Chars;
 
   std::string::const_iterator begin = s.begin();
-  uint32_t cp = 0;
   char singleChar[] = " ";
   while (begin < s.end()) {
     std::string::const_iterator next = begin;
     try {
-      uint32_t cp = utf8::next(next, s.end());
+      utf8::next(next, s.end());
       utf8Chars.emplace_back(begin, next);
       begin = next;
     } catch (const AbortedError &) {

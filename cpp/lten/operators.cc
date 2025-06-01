@@ -33,107 +33,107 @@
 
 namespace lten {
 
-Tensor Operators::lookup(Tensor table, Tensor indices) {
+Tensor Operators::lookup(Tensor, Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::matmul(Tensor a, Tensor b) {
+Tensor Operators::matmul(Tensor, Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::mul(Tensor input, float other) {
+Tensor Operators::mul(Tensor, float) {
   NOT_IMPL();
 }
 
-Tensor Operators::mul(Tensor input, Tensor other) {
+Tensor Operators::mul(Tensor, Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::softmax(Tensor input) {
+Tensor Operators::softmax(Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::sum(Tensor input) {
+Tensor Operators::sum(Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::max(Tensor input) {
+Tensor Operators::max(Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::gelu(Tensor input) {
+Tensor Operators::gelu(Tensor) {
   NOT_IMPL();
 }
 
-void Operators::fill(Tensor input, float value) {
+void Operators::fill(Tensor, float) {
   NOT_IMPL();
 }
 
-Tensor Operators::add(Tensor a, Tensor b) {
+Tensor Operators::add(Tensor, Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::tensor(lut::Span<const int> shape, DType dtype) {
+Tensor Operators::tensor(lut::Span<const int>, DType) {
   NOT_IMPL();
 }
 
-Tensor Operators::tensorLike(Tensor input) {
+Tensor Operators::tensorLike(Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::zeros(lut::Span<const int> shape, DType dtype) {
+Tensor Operators::zeros(lut::Span<const int>, DType) {
   NOT_IMPL();
 }
 
-bool Operators::allClose(Tensor A, Tensor B, float rtol, float atol) {
+bool Operators::allClose(Tensor, Tensor, float, float) {
   NOT_IMPL();
 }
 
-void Operators::print(Tensor tensor) {
+void Operators::print(Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
+Tensor Operators::layerNorm(Tensor, Tensor, Tensor, float) {
   NOT_IMPL();
 }
 
-Tensor Operators::rmsNorm(Tensor input, Tensor weight, float eps) {
+Tensor Operators::rmsNorm(Tensor, Tensor, float) {
   NOT_IMPL();
 }
 
-Tensor Operators::causalMask(int max_len) {
+Tensor Operators::causalMask(int) {
   NOT_IMPL();
 }
 
-Tensor Operators::applyRotaryPosEmb(Tensor A, Tensor roPE) {
+Tensor Operators::applyRotaryPosEmb(Tensor, Tensor) {
   NOT_IMPL();
 }
 
-void Operators::copy(Tensor src, Tensor dest) {
+void Operators::copy(Tensor, Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::swiglu(Tensor A) {
+Tensor Operators::swiglu(Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::melFbank(Tensor A) {
+Tensor Operators::melFbank(Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::to(Device device, Tensor tensor) {
+Tensor Operators::to(Device, Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::unfold(Tensor input, int kernelSize, int stride) {
+Tensor Operators::unfold(Tensor, int, int) {
   NOT_IMPL();
 }
 
-void Operators::repetitionPenalty(Tensor logits, Tensor history, float weight) {
+void Operators::repetitionPenalty(Tensor, Tensor, float) {
   NOT_IMPL();
 }
 
-Tensor Operators::cast(Tensor tensor, DType dtype) {
+Tensor Operators::cast(Tensor, DType) {
   NOT_IMPL();
 }
 
@@ -141,16 +141,11 @@ DType Operators::getDefaultFloatType() {
   NOT_IMPL();
 }
 
-Tensor Operators::logMelSpectrogram(Tensor wave) {
+Tensor Operators::logMelSpectrogram(Tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::rand(
-    lut::Span<const int> shape,
-    DType dtype,
-    lut::Random *generator,
-    float min,
-    float max) {
+Tensor Operators::rand(lut::Span<const int>, DType, lut::Random *, float, float) {
   NOT_IMPL();
 }
 

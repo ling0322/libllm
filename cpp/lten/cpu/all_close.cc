@@ -54,7 +54,6 @@ template<typename T>
 float meanAbsKernel(Tensor A) {
   TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(A);
 
-  bool ok = true;
   double sum = 0.0;
   for (int j = 0; j < vA.getLength(); ++j) {
     TensorAccessor<const T, 1> a = vA.getTensor(j);
