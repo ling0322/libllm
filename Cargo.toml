@@ -1,0 +1,11 @@
+[package]
+name = "onmi"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = "1"
+thiserror = "2"
+
+[build-dependencies]
+cc = "1.0"

@@ -2,6 +2,7 @@
 transformers
 /data
 /build
+/target
 /run
 /model
 /third_party/ffmpeg
