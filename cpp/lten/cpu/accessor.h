@@ -164,9 +164,9 @@ class TensorList {
 
   TensorList(const TensorShape::Elem *shape, T *data, int size, int stride)
       : _shape(shape),
-        _basePtr(data),
+        _stride(stride),
         _size(size),
-        _stride(stride) {
+        _basePtr(data) {
   }
 };
 

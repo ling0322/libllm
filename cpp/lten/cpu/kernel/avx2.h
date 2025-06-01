@@ -91,11 +91,11 @@ inline void axpyKernel<float, float, float, CpuMathBackend::AVX2>(
 }
 template<>
 inline void axpyKernel<float, QInt4x32, float, CpuMathBackend::AVX2>(
-    int64_t n,
-    float a,
-    const QInt4x32 *x,
-    int64_t offsetX,
-    float *y) {
+    int64_t,
+    float,
+    const QInt4x32 *,
+    int64_t,
+    float *) {
   NOT_IMPL();
 }
 

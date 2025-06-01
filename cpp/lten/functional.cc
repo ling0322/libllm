@@ -199,9 +199,6 @@ Tensor unfold(Tensor input, int kernelSize, int stride) {
 }
 
 Tensor to(Device device, Tensor tensor) {
-  Device::Type src = tensor.getDevice().getType();
-  Device::Type tgt = device.getType();
-
   Device srcDevice = tensor.getDevice();
   if (srcDevice.getType() == device.getType()) return tensor;
 

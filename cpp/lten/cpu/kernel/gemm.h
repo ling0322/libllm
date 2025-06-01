@@ -190,7 +190,7 @@ void gemm(const GemmArgs<T, T, T> &args) {
         1});
   } else if (args.N == 1) {
     bool needPackC = args.ldc != 1;
-    if (args.ldc != 1) {
+    if (needPackC) {
       NOT_IMPL();
     } else {
       std::fill(args.C, args.C + args.M, 0.0f);

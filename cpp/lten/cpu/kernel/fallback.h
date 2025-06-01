@@ -175,11 +175,11 @@ inline void axpyKernel<Float16, Float16, float, CpuMathBackend::FALLBACK>(
 }
 template<>
 inline void axpyKernel<float, QInt4x32, float, CpuMathBackend::FALLBACK>(
-    int64_t n,
-    float a,
-    const QInt4x32 *x,
-    int64_t offsetX,
-    float *y) {
+    int64_t,
+    float,
+    const QInt4x32 *,
+    int64_t,
+    float *) {
   NOT_IMPL();
 }
 

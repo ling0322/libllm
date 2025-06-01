@@ -53,8 +53,6 @@ int64_t Reader::readNextBuffer() {
 }
 
 void Reader::readSpan(Span<int8_t> span) {
-  Span<int8_t>::iterator it = span.begin();
-
   int64_t bytesRead = readFromBuffer(span);
 
   while (bytesRead < static_cast<int64_t>(span.size())) {

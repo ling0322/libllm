@@ -24,8 +24,8 @@ namespace op {
 namespace cpu {
 
 Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> shape) {
-  CHECK(shape.size() >= input.getDim());
-  if (input.getDim() == shape.size()) return input;
+  CHECK(static_cast<int>(shape.size()) >= input.getDim());
+  if (input.getDim() == static_cast<int>(shape.size())) return input;
   int nBroadcastDim = static_cast<int>(shape.size()) - input.getDim();
 
   Tensor x = input;
