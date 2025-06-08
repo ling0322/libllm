@@ -277,6 +277,8 @@ LTensor *lten_expand(LTensor *tensor, int32_t dim, int64_t *shape) {
 LTensor *lten_slice(LTensor *tensor, int32_t dim, int64_t begin, int64_t end) {
   try {
     if (!tensor) throw lut::InvalidArgError("tensor");
+    if (begin == LTEN_RANGE_NONE) begin = 0;
+    if (end == LTEN_RANGE_NONE) end = lten::None;
 
     std::unique_ptr<LTensor> out = std::make_unique<LTensor>();
     out->tensorl = tensor->tensorl.slice(
@@ -345,23 +347,35 @@ int32_t lten_copy(LTensor *dest, LTensor *src) {
   }
 }
 
-int32_t lten_copy_memory(LTensor *tensor, void *buf, int64_t bufsiz) {
+int32_t lten_get_numel(LTensor *tensor, int64_t *numel) {
   try {
     if (!tensor) throw lut::InvalidArgError("tensor");
-    Tensor x = tensor->tensorl;
-    if (x.getDevice().getType() != Device::kCpu) {
-      throw lut::AbortedError("copy memory only supports CPU tensor");
-    }
-    if (x.getDataObject()->getSizeInBytes() != bufsiz) {
-      throw lut::AbortedError("tensor shape and bufsiz mismatch");
-    }
-
-    memcpy(x.getData<void>(), buf, bufsiz);
+    if (!numel) throw lut::InvalidArgError("numel");
+    *numel = tensor->tensorl.getNumEl();
 
     return 0;
   } catch (const lut::Error &e) {
     llmSetErrorMessage(e.what());
     return static_cast<int32_t>(e.getCode());
+  }
+}
+
+void *lten_get_data_ptr(LTensor *tensor) {
+  try {
+    if (!tensor) throw lut::InvalidArgError("tensor");
+    Tensor x = tensor->tensorl;
+    if (x.getDevice().getType() != Device::kCpu) {
+      throw lut::AbortedError("get data ptr supports CPU tensor");
+    }
+    if (!x.isContiguous()) {
+      throw lut::AbortedError("get data ptr only supports contiguous tensor");
+    }
+
+    return x.getData<void>();
+
+  } catch (const lut::Error &e) {
+    llmSetErrorMessage(e.what());
+    return nullptr;
   }
 }
 

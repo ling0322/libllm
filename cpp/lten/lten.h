@@ -41,6 +41,8 @@ typedef struct LTensor LTensor;
 #define LTEN_DTYPE_QINT4 5
 #define LTEN_DTYPE_INT8 6
 
+#define LTEN_RANGE_NONE -0x1000000000000000
+
 enum LynnOperator {
   LTEN_OP_ADD = 0,
   LTEN_OP_MUL = 1,
@@ -64,6 +66,8 @@ int32_t lten_get_dim(LTensor *tensor, int32_t *dim);
 int32_t lten_get_shape(LTensor *tensor, int32_t dim, int64_t *size);
 int32_t lten_get_dtype(LTensor *tensor, int32_t *dtype);
 int32_t lten_get_device(LTensor *tensor, int32_t *device);
+int32_t lten_get_numel(LTensor *tensor, int64_t *numel);
+void *lten_get_data_ptr(LTensor *tensor);
 LTensor *lten_view(LTensor *tensor, int32_t dim, int64_t *shape);
 LTensor *lten_expand(LTensor *tensor, int32_t dim, int64_t *shape);
 LTensor *lten_slice(LTensor *tensor, int32_t dim, int64_t begin, int64_t end);
@@ -73,7 +77,6 @@ LTensor *lten_to_device(LTensor *tensor, int32_t device);
 LTensor *lten_to_dtype(LTensor *tensor, int32_t dtype);
 
 int32_t lten_copy(LTensor *dest, LTensor *src);
-int32_t lten_copy_memory(LTensor *tensor, void *buf, int64_t bufsiz);
 int32_t lten_fill_float(LTensor *tensor, float value);
 int32_t lten_print(LTensor *tensor);
 
