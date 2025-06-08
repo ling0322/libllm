@@ -7,7 +7,13 @@ pub use tensor::Device;
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("tensor operator error")]
-    LynnError(String),
+    LtenError(String),
+
+    #[error("unsupported range type error")]
+    UnsupportedRangeError,
+
+    #[error("invalid dtype error")]
+    InvalidDTypeError,
 }
 
 type Result<T> = std::result::Result<T, Error>;

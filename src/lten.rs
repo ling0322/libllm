@@ -13,6 +13,8 @@ extern "C" {
     ) -> LTensorPtr;
     pub(crate) fn lten_get_dim(tensor: LTensorPtr, dim: *mut i32) -> i32;
     pub(crate) fn lten_get_shape(tensor: LTensorPtr, dim: i32, size: *mut i64) -> i32;
+    pub(crate) fn lten_get_numel(tensor: LTensorPtr, numel: *mut i64) -> i32;
+    pub(crate) fn lten_get_data_ptr(tensor: LTensorPtr) -> *mut c_void;
     pub(crate) fn lten_get_dtype(tensor: LTensorPtr, dtype: *mut i32) -> i32;
     pub(crate) fn lten_get_device(tensor: LTensorPtr, device: *mut i32) -> i32;
     pub(crate) fn lten_view(tensor: LTensorPtr, dim: i32, shape: *const i64) -> LTensorPtr;
@@ -22,7 +24,6 @@ extern "C" {
     pub(crate) fn lten_to_device(tensor: LTensorPtr, device: i32) -> LTensorPtr;
     pub(crate) fn lten_to_dtype(tensor: LTensorPtr, dtype: i32) -> LTensorPtr;
     pub(crate) fn lten_copy(dest: LTensorPtr, src: LTensorPtr) -> i32;
-    pub(crate) fn lten_copy_memory(tensor: LTensorPtr, buf: *mut c_void, bufsiz: i64) -> i32;
     pub(crate) fn lten_fill_float(tensor: LTensorPtr, value: f32) -> i32;
     pub(crate) fn lten_print(tensor: LTensorPtr) -> i32;
     pub(crate) fn lten_apply_operator(
@@ -34,38 +35,30 @@ extern "C" {
     ) -> LTensorPtr;
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum Operator {
-    Add = 0,
-    Mul = 1,
-    Rope = 2,
-    Softmax = 3,
-    Gelu = 4,
-    Swiglu = 5,
-    Contiguous = 6,
-    Sum = 7,
-    Max = 8,
-    Matmul = 9,
-    Lookup = 10,
-    ScalarMul = 11,
-}
+pub(crate) const OPERATOR_ADD: i32 = 0;
+pub(crate) const OPERATOR_MUL: i32 = 1;
+pub(crate) const OPERATOR_ROPE: i32 = 2;
+pub(crate) const OPERATOR_SOFTMAX: i32 = 3;
+pub(crate) const OPERATOR_GELU: i32 = 4;
+pub(crate) const OPERATOR_SWIGLU: i32 = 5;
+pub(crate) const OPERATOR_CONTIGUOUS: i32 = 6;
+pub(crate) const OPERATOR_SUM: i32 = 7;
+pub(crate) const OPERATOR_MAX: i32 = 8;
+pub(crate) const OPERATOR_MATMUL: i32 = 9;
+pub(crate) const OPERATOR_LOOKUP: i32 = 10;
+pub(crate) const OPERATOR_SCALAR_MUL: i32 = 11;
 
-#[repr(i32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum Device {
-    Cpu = 0x0000_0000,
-    Cuda = 0x0001_0000,
-}
+pub(crate) const DEVICE_CPU: i32 = 0x0000_0000;
+pub(crate) const DEVICE_CUDA: i32 = 0x0001_0000;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum Dtype {
-    Float = 1,
-    Int64 = 2,
-    Uint8 = 3,
-    Float16 = 4,
-    QInt4 = 5,
-    Int8 = 6,
-}
+pub(crate) const DTYPE_FLOAT: i32 = 1;
+pub(crate) const DTYPE_INT64: i32 = 2;
+pub(crate) const DTYPE_UINT8: i32 = 3;
+pub(crate) const DTYPE_FLOAT16: i32 = 4;
+pub(crate) const DTYPE_QINT4: i32 = 5;
+pub(crate) const DTYPE_INT8: i32 = 6;
+
+pub(crate) const RANGE_NONE: i64 = -0x1000000000000000;
 
 pub(crate) fn last_error_string() -> String {
     unsafe {
@@ -77,5 +70,5 @@ pub(crate) fn last_error_string() -> String {
 }
 
 pub(crate) fn last_error() -> crate::Error {
-    crate::Error::LynnError(last_error_string())
+    crate::Error::LtenError(last_error_string())
 }
