@@ -1,6 +1,8 @@
-use crate::{lten, Error, Result};
+use crate::{lten, operator::F, Error, Result};
 use std::any::TypeId;
 use std::fmt;
+use std::io::BufReader;
+use std::io::Read;
 use std::ops::{Bound, RangeBounds};
 use std::ptr;
 
@@ -29,6 +31,12 @@ impl From<(i64, i64, i64, i64)> for Shape {
         Shape {
             size: vec![t.0, t.1, t.2, t.3],
         }
+    }
+}
+
+impl From<&Vec<i64>> for Shape {
+    fn from(t: &Vec<i64>) -> Self {
+        Shape { size: t.clone() }
     }
 }
 
@@ -108,15 +116,27 @@ impl DType {
         }
     }
 
-    pub(crate) fn from_lten(dtype: i32) -> Self {
+    pub(crate) fn from_lten(dtype: i32) -> Result<Self> {
         match dtype {
-            lten::DTYPE_FLOAT => Self::Float,
-            lten::DTYPE_INT64 => Self::Int64,
-            lten::DTYPE_UINT8 => Self::UInt8,
-            lten::DTYPE_FLOAT16 => Self::Float16,
-            lten::DTYPE_QINT4 => Self::QInt4,
-            lten::DTYPE_INT8 => Self::Int8,
-            _ => panic!("unknown lten dtype: {}", dtype),
+            lten::DTYPE_FLOAT => Ok(Self::Float),
+            lten::DTYPE_INT64 => Ok(Self::Int64),
+            lten::DTYPE_UINT8 => Ok(Self::UInt8),
+            lten::DTYPE_FLOAT16 => Ok(Self::Float16),
+            lten::DTYPE_QINT4 => Ok(Self::QInt4),
+            lten::DTYPE_INT8 => Ok(Self::Int8),
+            _ => Err(Error::LtenError("invalid lten dtype value".to_string())),
+        }
+    }
+
+    pub fn num_bytes(&self, numel: usize) -> Result<usize> {
+        match self {
+            Self::Float => Ok(numel * 4),
+            Self::Int64 => Ok(numel * 8),
+            Self::UInt8 => Ok(numel),
+            Self::Float16 => Ok(numel * 2),
+            Self::QInt4 => Ok(numel / 2),
+            Self::Int8 => Ok(numel),
+            _ => Err(Error::LtenError("unknown dtype".to_string())),
         }
     }
 
@@ -134,7 +154,7 @@ impl DType {
 }
 
 pub struct Tensor {
-    tensorp: lten::LTensorPtr,
+    pub(crate) tensorp: lten::LTensorPtr,
 }
 
 impl Drop for Tensor {
@@ -172,13 +192,69 @@ impl Tensor {
     pub fn zeros<S: Into<Shape>>(shape: S, dtype: DType, device: Device) -> Result<Tensor> {
         let mut tensor = Self::new(shape, dtype, device)?;
         if dtype.is_float() {
-            tensor.fill_float(0.0)?;
+            tensor.fill(0.0)?;
             Ok(tensor)
         } else {
             Err(Error::LtenError(
                 "unsupported dtype for Tensor::zeros".to_string(),
             ))
         }
+    }
+
+    pub fn from_reader<R: Read>(r: &mut BufReader<R>) -> Result<Tensor> {
+        // opening tag
+        let mut s = String::new();
+        r.take(16).read_to_string(&mut s)?;
+        if s != "[tensor]        " {
+            return Err(Error::LtenError("invalid tensor data".to_string()));
+        }
+
+        let mut b = [0u8; 8];
+
+        // version
+        r.read_exact(&mut b)?;
+        let version = i64::from_le_bytes(b) as i32;
+        if version != 1 {
+            return Err(Error::LtenError("unsupported tensor".to_string()));
+        }
+
+        // shape
+        r.read_exact(&mut b)?;
+        let dim = i64::from_le_bytes(b);
+        let mut shape: Vec<i64> = Vec::new();
+        let mut shape_numel: i64 = 1;
+        for _ in 0..dim {
+            r.read_exact(&mut b)?;
+            let n = i64::from_le_bytes(b);
+            shape.push(n);
+            shape_numel *= n;
+        }
+
+        // dtype
+        r.read_exact(&mut b)?;
+        let dtypel = i64::from_le_bytes(b) as i32;
+        let dtype = DType::from_lten(dtypel)?;
+
+        // numel
+        r.read_exact(&mut b)?;
+        let numel = i64::from_le_bytes(b);
+        if numel != shape_numel {
+            return Err(Error::LtenError("shape and numel mismatch".to_string()));
+        }
+
+        // data
+        let tensor = Tensor::new(&shape, dtype, Device::Cpu)?;
+        let total_bytes = dtype.num_bytes(numel as usize)?;
+        let data = unsafe { std::slice::from_raw_parts_mut::<u8>(tensor.raw_data()?, total_bytes) };
+        r.read_exact(data)?;
+
+        // closing tag
+        r.take(16).read_to_string(&mut s)?;
+        if s != "[/tensor]       " {
+            return Err(Error::LtenError("invalid tensor data".to_string()));
+        }
+
+        Ok(tensor)
     }
 
     pub fn from_slice<S: Into<Shape>, T: 'static + Copy>(shape: S, data: &[T]) -> Result<Tensor> {
@@ -224,7 +300,7 @@ impl Tensor {
         if retcode != 0 {
             Err(lten::last_error())
         } else {
-            Ok(DType::from_lten(dtypel))
+            Ok(DType::from_lten(dtypel)?)
         }
     }
 
@@ -245,6 +321,15 @@ impl Tensor {
             Err(lten::last_error())
         } else {
             Ok(numel as usize)
+        }
+    }
+
+    pub fn transpose(&self, dim0: i64, dim1: i64) -> Result<Tensor> {
+        let tensorp = unsafe { lten::lten_transpose(self.tensorp, dim0 as i32, dim1 as i32) };
+        if tensorp.is_null() {
+            Err(lten::last_error())
+        } else {
+            Ok(Tensor { tensorp })
         }
     }
 
@@ -293,7 +378,7 @@ impl Tensor {
         if dtype != t_dtype {
             Err(Error::InvalidDTypeError)
         } else {
-            let p = unsafe { lten::lten_get_data_ptr(self.tensorp) as *mut T };
+            let p = self.raw_data::<T>()?;
             Ok(unsafe { std::slice::from_raw_parts::<'a, T>(p, self.numel()?) })
         }
     }
@@ -338,118 +423,61 @@ impl Tensor {
     }
 
     pub fn copy_from(&mut self, src: &Tensor) -> Result<()> {
-        let retcode = unsafe { lten::lten_copy(self.tensorp, src.tensorp) };
-        if retcode != 0 {
-            Err(lten::last_error())
-        } else {
-            Ok(())
-        }
+        F::copy(self, src)
     }
 
-    pub fn fill_float(&mut self, value: f32) -> Result<()> {
-        let retcode = unsafe { lten::lten_fill_float(self.tensorp, value) };
-        if retcode != 0 {
-            Err(lten::last_error())
-        } else {
-            Ok(())
-        }
+    pub fn fill(&mut self, value: f32) -> Result<()> {
+        F::fill(self, value)
     }
 
     pub fn print(&self) {
-        let retcode = unsafe { lten::lten_print(self.tensorp) };
-        if retcode != 0 {
-            eprintln!(
-                "an error occured when dropping a tensor: {}",
-                lten::last_error_string()
-            );
-        }
+        F::print(self);
     }
 
     pub fn to_device(&self, device: Device) -> Result<Tensor> {
-        let devicel = device.to_lten();
-        let tensorp = unsafe { lten::lten_to_device(self.tensorp, devicel) };
-        if tensorp.is_null() {
-            Err(lten::last_error())
-        } else {
-            Ok(Tensor { tensorp })
-        }
+        F::to(device, self)
     }
 
     pub fn to_dtype(&self, dtype: DType) -> Result<Tensor> {
-        let dtypel = dtype.to_lten();
-        let tensorp = unsafe { lten::lten_to_dtype(self.tensorp, dtypel) };
-        if tensorp.is_null() {
-            Err(lten::last_error())
-        } else {
-            Ok(Tensor { tensorp })
-        }
+        F::cast(self, dtype)
     }
 
     pub fn add(&self, rhs: &Tensor) -> Result<Tensor> {
-        self.apply_op(Some(rhs), 0, 0.0, lten::OPERATOR_ADD)
+        F::add(self, rhs)
     }
 
     pub fn mul(&self, rhs: &Tensor) -> Result<Tensor> {
-        self.apply_op(Some(rhs), 0, 0.0, lten::OPERATOR_MUL)
-    }
-
-    pub fn apply_rope(&self, rhs: &Tensor) -> Result<Tensor> {
-        self.apply_op(Some(rhs), 0, 0.0, lten::OPERATOR_ROPE)
-    }
-
-    pub fn softmax(&self) -> Result<Tensor> {
-        self.apply_op(None, 0, 0.0, lten::OPERATOR_SOFTMAX)
-    }
-
-    pub fn gelu(&self) -> Result<Tensor> {
-        self.apply_op(None, 0, 0.0, lten::OPERATOR_GELU)
-    }
-
-    pub fn swiglu(&self) -> Result<Tensor> {
-        self.apply_op(None, 0, 0.0, lten::OPERATOR_SWIGLU)
+        F::mul(self, rhs)
     }
 
     pub fn contiguous(&self) -> Result<Tensor> {
-        self.apply_op(None, 0, 0.0, lten::OPERATOR_CONTIGUOUS)
-    }
-
-    pub fn sum(&self, dim: i64) -> Result<Tensor> {
-        self.apply_op(None, dim, 0.0, lten::OPERATOR_SUM)
-    }
-
-    pub fn max(&self, dim: i64) -> Result<Tensor> {
-        self.apply_op(None, dim, 0.0, lten::OPERATOR_MAX)
-    }
-
-    pub fn matmul(&self, rhs: &Tensor) -> Result<Tensor> {
-        self.apply_op(Some(rhs), 0, 0.0, lten::OPERATOR_MATMUL)
-    }
-
-    pub fn lookup(&self, rhs: &Tensor) -> Result<Tensor> {
-        self.apply_op(Some(rhs), 0, 0.0, lten::OPERATOR_LOOKUP)
+        F::contiguous(self)
     }
 
     pub fn scalar_mul(&self, rhs: f32) -> Result<Tensor> {
-        self.apply_op(None, 0, rhs, lten::OPERATOR_SCALAR_MUL)
+        F::scalar_mul(self, rhs)
     }
 
-    fn apply_op(&self, targ1: Option<&Tensor>, iarg0: i64, farg0: f32, op: i32) -> Result<Tensor> {
-        let tensorp = unsafe {
-            lten::lten_apply_operator(
-                self.tensorp,
-                match targ1 {
-                    None => ptr::null_mut(),
-                    Some(t) => t.tensorp,
-                },
-                iarg0,
-                farg0,
-                op,
-            )
-        };
-        if tensorp.is_null() {
+    fn raw_data<'a, T: 'static>(&self) -> Result<*mut T>
+    where
+        Self: 'a,
+    {
+        let p = unsafe { lten::lten_get_data_ptr(self.tensorp) as *mut T };
+        if p.is_null() {
             Err(lten::last_error())
         } else {
-            Ok(Tensor { tensorp })
+            Ok(p)
         }
+    }
+}
+
+impl Clone for Tensor {
+    fn clone(&self) -> Self {
+        let tensorp = unsafe { lten::lten_clone(self.tensorp) };
+        if tensorp.is_null() {
+            panic!("failed to call lten_clone()");
+        }
+
+        Tensor { tensorp }
     }
 }

@@ -22,10 +22,6 @@
 #include "lutil/log.h"
 #include "lutil/strings.h"
 
-#ifdef LIBLLM_CUDA_ENABLED
-#include <cuda_fp16.h>
-#endif
-
 namespace lten {
 
 constexpr int16_t DType::kUnknown;
@@ -64,12 +60,6 @@ template<>
 DType DType::getTypeImpl<Int8>() {
   return DType::kInt8;
 }
-#ifdef LIBLLM_CUDA_ENABLED
-template<>
-DType DType::getTypeImpl<half>() {
-  return DType::kFloat16;
-}
-#endif
 
 int64_t DType::getTotalSize(int64_t numel) const {
   switch (_dtype) {

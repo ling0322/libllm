@@ -6,6 +6,7 @@ fn main() {
         .cpp(true)
         .include("cpp")
         .include("third_party")
+        .define("LIBLLM_CUDA_ENABLED", "1")
         .flag_if_supported("-std=c++17")
         .flag_if_supported("-fopenmp");
 
@@ -74,11 +75,53 @@ fn main() {
     cc::Build::new()
         .cpp(true)
         .include("cpp")
-        .include("third_party")
         .flag_if_supported("-std=c++17")
         .flag_if_supported("-mavx512f")
         .file("cpp/lten/cpu/kernel/avx512.cc")
         .compile("lten_avx512");
+
+    cc::Build::new()
+        .cuda(true)
+        .include("cpp")
+        .flag("-arch=sm_75")
+        .define("LIBLLM_CUTLASS_ENABLED", "1")
+        .files([
+            "cpp/lten/cuda/apply_rotary_pos_emb.cu",
+            "cpp/lten/cuda/binary_op.cu",
+            "cpp/lten/cuda/cast.cu",
+            "cpp/lten/cuda/causal_mask.cu",
+            "cpp/lten/cuda/common.cc",
+            "cpp/lten/cuda/copy.cu",
+            "cpp/lten/cuda/cuda_operators.cc",
+            "cpp/lten/cuda/cuda_tensor_data.cc",
+            "cpp/lten/cuda/dequant.cu",
+            "cpp/lten/cuda/dtype_half.cc",
+            "cpp/lten/cuda/fill.cu",
+            "cpp/lten/cuda/gelu.cu",
+            "cpp/lten/cuda/layer_norm.cu",
+            "cpp/lten/cuda/lookup.cu",
+            "cpp/lten/cuda/matmul.cc",
+            "cpp/lten/cuda/matvec.cu",
+            "cpp/lten/cuda/print.cc",
+            "cpp/lten/cuda/reduce.cu",
+            "cpp/lten/cuda/repetition_penalty.cu",
+            "cpp/lten/cuda/rms_norm.cu",
+            "cpp/lten/cuda/softmax.cu",
+            "cpp/lten/cuda/swiglu.cu",
+            "cpp/lten/cuda/to_device.cc",
+            "cpp/lten/cuda/transform.cu",
+            "cpp/lten/cuda/unfold.cu",
+        ])
+        .compile("lten_cuda");
+
+    cc::Build::new()
+        .cuda(true)
+        .include("cpp")
+        .include("third_party/cutlass/include")
+        .flag("-arch=sm_75")
+        .flag("-Xcompiler=-Wno-unused-parameter")
+        .files(["cpp/lten/cuda/gemm_cutlass.cu"])
+        .compile("lten_cutlass");
 
     let mut lut_build = cc::Build::new();
     lut_build
@@ -101,6 +144,7 @@ fn main() {
         "cpp/lutil/platform_linux.cc",
         "cpp/lutil/random.cc",
         "cpp/lutil/reader.cc",
+        "cpp/lutil/shared_library_linux.cc",
         "cpp/lutil/strings.cc",
         "cpp/lutil/time.cc",
         "cpp/lutil/thread_pool.cc",

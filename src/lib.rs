@@ -1,8 +1,12 @@
+mod layer;
 mod lten;
+mod operator;
 mod tensor;
 
+pub use operator::F;
 pub use tensor::DType;
 pub use tensor::Device;
+pub use tensor::Tensor;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -12,10 +16,14 @@ pub enum Error {
     #[error("unsupported range type error")]
     UnsupportedRangeError,
 
+    #[error("tensor not exist")]
+    TensorNotExistError,
+
     #[error("invalid dtype error")]
     InvalidDTypeError,
+
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
-type Result<T> = std::result::Result<T, Error>;
-
-pub use tensor::Tensor;
+pub type Result<T> = std::result::Result<T, Error>;

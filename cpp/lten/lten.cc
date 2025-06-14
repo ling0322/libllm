@@ -131,23 +131,24 @@ std::vector<int> getShape(int32_t dim, const int64_t *shape) {
   return lshape;
 }
 
-LtenOpType getLtenOpType(int32_t op) {
+int getLtenOpTensorOperandNum(int32_t op) {
   switch (op) {
+    case LTEN_OP_LAYER_NORM:
+      return 3;
     case LTEN_OP_ADD:
     case LTEN_OP_MUL:
     case LTEN_OP_ROPE:
     case LTEN_OP_MATMUL:
-      return LBinaryOp;
+    case LTEN_OP_RMS_NORM:
+      return 2;
+    case LTEN_OP_SUM:
+    case LTEN_OP_MAX:
     case LTEN_OP_SOFTMAX:
     case LTEN_OP_GELU:
     case LTEN_OP_SWIGLU:
     case LTEN_OP_CONTIGUOUS:
-      return LReduceOp;
-    case LTEN_OP_SUM:
-    case LTEN_OP_MAX:
-      return LReduceOp;
     case LTEN_OP_SCALAR_MUL:
-      return LBinaryScalarOp;
+      return 1;
     default:
       throw lut::InvalidArgError(lut::sprintf("unsupported binary operator: %d", op));
   }
@@ -250,6 +251,20 @@ LTensor *lten_view(LTensor *tensor, int32_t dim, int64_t *shape) {
     std::unique_ptr<LTensor> out = std::make_unique<LTensor>();
     std::vector<int> shapel = getShape(dim, shape);
     out->tensorl = tensor->tensorl.view(shapel);
+
+    return out.release();
+  } catch (const lut::Error &e) {
+    llmSetErrorMessage(e.what());
+    return nullptr;
+  }
+}
+
+LTensor *lten_transpose(LTensor *tensor, int32_t dim0, int32_t dim1) {
+  try {
+    if (!tensor) throw lut::InvalidArgError("tensor");
+
+    std::unique_ptr<LTensor> out = std::make_unique<LTensor>();
+    out->tensorl = tensor->tensorl.transpose(dim0, dim1);
 
     return out.release();
   } catch (const lut::Error &e) {
@@ -405,16 +420,36 @@ int32_t lten_print(LTensor *tensor) {
   }
 }
 
+LTensor *lten_clone(LTensor *tensor) {
+  try {
+    if (!tensor) throw lut::InvalidArgError("tensor");
+
+    std::unique_ptr<LTensor> out = std::make_unique<LTensor>();
+    out->tensorl = tensor->tensorl;
+
+    return out.release();
+  } catch (const lut::Error &e) {
+    llmSetErrorMessage(e.what());
+    return nullptr;
+  }
+}
+
 LTensor *lten_apply_operator(
     LTensor *targ0,
     LTensor *targ1,
+    LTensor *targ2,
+    LTensor *targ3,
     int64_t iarg0,
+    int64_t iarg1,
     float farg0,
+    float farg1,
     int32_t op) {
   try {
-    LtenOpType operatorType = getLtenOpType(op);
-    if (!targ0) throw lut::InvalidArgError("targ0");
-    if (operatorType == LBinaryOp && !targ1) throw lut::InvalidArgError("targ0");
+    int numOperands = getLtenOpTensorOperandNum(op);
+    if (numOperands >= 1 && !targ0) throw lut::InvalidArgError("targ0");
+    if (numOperands >= 2 && !targ1) throw lut::InvalidArgError("targ1");
+    if (numOperands >= 3 && !targ2) throw lut::InvalidArgError("targ2");
+    if (numOperands >= 4 && !targ3) throw lut::InvalidArgError("targ3");
 
     Tensor c;
     int iiarg0 = static_cast<int>(iarg0);
@@ -454,6 +489,12 @@ LTensor *lten_apply_operator(
         break;
       case LTEN_OP_SCALAR_MUL:
         c = F::mul(targ0->tensorl, farg0);
+        break;
+      case LTEN_OP_LAYER_NORM:
+        c = F::layerNorm(targ0->tensorl, targ1->tensorl, targ2->tensorl, farg0);
+        break;
+      case LTEN_OP_RMS_NORM:
+        c = F::rmsNorm(targ0->tensorl, targ1->tensorl, farg0);
         break;
       default:
         throw lut::InvalidArgError(lut::sprintf("unsupported binary operator: %d", op));

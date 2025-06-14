@@ -220,8 +220,6 @@ Tensor MatMul::bmmHalf(Tensor A, Tensor B) {
   LL_CHECK_CUDA_STATUS(cudaMemcpy(arrayB.get(), batchB.data(), nc, cudaMemcpyHostToDevice));
   LL_CHECK_CUDA_STATUS(cudaMemcpy(arrayC.get(), batchC.data(), nc, cudaMemcpyHostToDevice));
 
-  float alpha = 1.0;
-  float beta = 0.0;
   if (lut::ErrorCode::OK != _gemm->hgemmArray(
                                 gemmArgs.transA,
                                 gemmArgs.transB,
@@ -247,9 +245,6 @@ Tensor MatMul::bmmHalf(Tensor A, Tensor B) {
 Tensor MatMul::gemmHalf(Tensor A, Tensor B) {
   CHECK(A.getDim() == B.getDim() && A.getDim() == 2);
   Tensor C = createCudaTensorHalf({A.getShape(0), B.getShape(1)});
-
-  float alpha = 1.0;
-  float beta = 0.0;
 
   op::cpu::GEMMArgs gemmArgs = op::cpu::generateGemmArgs(A, B, C);
   if (lut::ErrorCode::OK != _gemm->hgemm(

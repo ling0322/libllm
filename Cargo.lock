@@ -8,11 +8,28 @@ version = "1.2.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0fc897dc1e865cc67c0e05a836d9d3f1df3cbe442aa4a9473b18e12624a4951"
 dependencies = [
+ "jobserver",
+ "libc",
  "shlex",
 ]
 
 [[package]]
-name = "omni"
+name = "jobserver"
+version = "0.1.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48d1dbcbbeb6a7fec7e059840aa538bd62aaccf972c7346c4d9d2059312853d0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "libc"
+version = "0.2.170"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "875b3680cb2f8f71bdcf9a30f38d48282f5d3c95cbf9b3fa57269bb5d5c06828"
+
+[[package]]
+name = "llm"
 version = "0.1.0"
 dependencies = [
  "cc",

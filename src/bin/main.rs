@@ -1,11 +1,13 @@
 // src/bin/hello.rs
-use onmi::Tensor;
+use llm::{Tensor, F};
 
-fn main() {
-    let x = Tensor::new((2, 3), onmi::DType::Float, onmi::Device::Cpu).unwrap();
-    let x = x.slice(0, 1..).unwrap();
+fn main() -> llm::Result<()> {
+    let x: &[f32] = &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let x = Tensor::from_slice((2, 3), x)?;
+    let x = x.to_device(llm::Device::Cuda)?;
+    let x = x.to_dtype(llm::DType::Float16)?;
+    let x = F::softmax(&x)?;
+
     x.print();
-
-    let d = x.data::<i64>().unwrap();
-    println!("{}", d[0])
+    Ok(())
 }

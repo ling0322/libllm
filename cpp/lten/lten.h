@@ -56,6 +56,8 @@ enum LynnOperator {
   LTEN_OP_MATMUL = 9,
   LTEN_OP_LOOKUP = 10,
   LTEN_OP_SCALAR_MUL = 11,
+  LTEN_OP_LAYER_NORM = 12,
+  LTEN_OP_RMS_NORM = 13
 };
 
 const char *lten_last_error_message();
@@ -69,8 +71,10 @@ int32_t lten_get_device(LTensor *tensor, int32_t *device);
 int32_t lten_get_numel(LTensor *tensor, int64_t *numel);
 void *lten_get_data_ptr(LTensor *tensor);
 LTensor *lten_view(LTensor *tensor, int32_t dim, int64_t *shape);
+LTensor *lten_transpose(LTensor *tensor, int32_t dim0, int32_t dim1);
 LTensor *lten_expand(LTensor *tensor, int32_t dim, int64_t *shape);
 LTensor *lten_slice(LTensor *tensor, int32_t dim, int64_t begin, int64_t end);
+LTensor *lten_clone(LTensor *tensor);
 LTensor *lten_index(LTensor *tensor, int64_t index);
 
 LTensor *lten_to_device(LTensor *tensor, int32_t device);
@@ -83,8 +87,12 @@ int32_t lten_print(LTensor *tensor);
 LTensor *lten_apply_operator(
     LTensor *targ0,
     LTensor *targ1,
+    LTensor *targ2,
+    LTensor *targ3,
     int64_t iarg0,
+    int64_t iarg1,
     float farg0,
+    float farg1,
     int32_t op);
 
 #ifdef __cplusplus

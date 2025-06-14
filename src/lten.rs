@@ -18,7 +18,9 @@ extern "C" {
     pub(crate) fn lten_get_dtype(tensor: LTensorPtr, dtype: *mut i32) -> i32;
     pub(crate) fn lten_get_device(tensor: LTensorPtr, device: *mut i32) -> i32;
     pub(crate) fn lten_view(tensor: LTensorPtr, dim: i32, shape: *const i64) -> LTensorPtr;
+    pub(crate) fn lten_transpose(tensor: LTensorPtr, dim0: i32, dim1: i32) -> LTensorPtr;
     pub(crate) fn lten_expand(tensor: LTensorPtr, dim: i32, shape: *const i64) -> LTensorPtr;
+    pub(crate) fn lten_clone(tensor: LTensorPtr) -> LTensorPtr;
     pub(crate) fn lten_slice(tensor: LTensorPtr, dim: i32, begin: i64, end: i64) -> LTensorPtr;
     pub(crate) fn lten_index(tensor: LTensorPtr, index: i64) -> LTensorPtr;
     pub(crate) fn lten_to_device(tensor: LTensorPtr, device: i32) -> LTensorPtr;
@@ -29,8 +31,12 @@ extern "C" {
     pub(crate) fn lten_apply_operator(
         targ0: LTensorPtr,
         targ1: LTensorPtr,
+        targ2: LTensorPtr,
+        targ3: LTensorPtr,
         iarg0: i64,
+        iarg1: i64,
         farg0: f32,
+        farg1: f32,
         op: i32,
     ) -> LTensorPtr;
 }
@@ -47,6 +53,8 @@ pub(crate) const OPERATOR_MAX: i32 = 8;
 pub(crate) const OPERATOR_MATMUL: i32 = 9;
 pub(crate) const OPERATOR_LOOKUP: i32 = 10;
 pub(crate) const OPERATOR_SCALAR_MUL: i32 = 11;
+pub(crate) const OPERATOR_LAYER_NORM: i32 = 12;
+pub(crate) const OPERATOR_RMS_NORM: i32 = 13;
 
 pub(crate) const DEVICE_CPU: i32 = 0x0000_0000;
 pub(crate) const DEVICE_CUDA: i32 = 0x0001_0000;

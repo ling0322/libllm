@@ -179,7 +179,7 @@ DType CudaOperators::getDefaultFloatType() {
   return DType::kFloat16;
 }
 
-Tensor CudaOperators::zeros(lut::Span<const int> shape, DType dtype) {
+Tensor CudaOperators::zeros(lut::Span<const int> shape, DType) {
   Tensor tensor = createCudaTensorHalf(shape);
   op::cuda::fill(tensor, 0.0);
 
