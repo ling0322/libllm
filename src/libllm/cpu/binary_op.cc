@@ -53,6 +53,8 @@ Tensor binaryOpKernel(const Tensor &A, const Tensor &B, BinaryOp op) {
     for (int i = 0; i < a.getShape(0); ++i) {
       if (op == BinaryOp::ADD) {
         c[i] = a[i] + b[i];
+      } else if (op == BinaryOp::SUB) {
+        c[i] = a[i] - b[i];
       } else if (op == BinaryOp::MUL) {
         c[i] = a[i] * b[i];
       } else {

@@ -33,6 +33,10 @@
 
 namespace libllm {
 
+Tensor Operators::arangeLong(LongType begin, LongType end, LongType step) {
+  NOT_IMPL();
+}
+
 Tensor Operators::lookup(Tensor table, Tensor indices) {
   NOT_IMPL();
 }
@@ -41,7 +45,19 @@ Tensor Operators::matmul(Tensor a, Tensor b) {
   NOT_IMPL();
 }
 
+Tensor Operators::matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB) {
+  NOT_IMPL();
+}
+
 Tensor Operators::mul(Tensor input, float other) {
+  NOT_IMPL();
+}
+
+Tensor Operators::div(Tensor input, float other) {
+  NOT_IMPL();
+}
+
+Tensor Operators::mod(Tensor input, LongType other) {
   NOT_IMPL();
 }
 
@@ -53,7 +69,7 @@ Tensor Operators::softmax(Tensor input) {
   NOT_IMPL();
 }
 
-Tensor Operators::sum(Tensor input) {
+Tensor Operators::sum(Tensor input, int dim) {
   NOT_IMPL();
 }
 
@@ -65,11 +81,23 @@ Tensor Operators::gelu(Tensor input) {
   NOT_IMPL();
 }
 
+Tensor Operators::square(Tensor input) {
+  NOT_IMPL();
+}
+
 void Operators::fill(Tensor input, float value) {
   NOT_IMPL();
 }
 
 Tensor Operators::add(Tensor a, Tensor b) {
+  NOT_IMPL();
+}
+
+Tensor Operators::sub(Tensor a, Tensor b) {
+  NOT_IMPL();
+}
+
+float Operators::elem(Tensor tensor) {
   NOT_IMPL();
 }
 
@@ -151,6 +179,10 @@ Tensor Operators::rand(
     lut::Random *generator,
     float min,
     float max) {
+  NOT_IMPL();
+}
+
+Tensor Operators::randNormal(lut::Span<const int> shape) {
   NOT_IMPL();
 }
 

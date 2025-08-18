@@ -265,7 +265,7 @@ Tensor Attention::forward(StateMap &past, Tensor input) const {
   q = q.transpose(1, 2);
   k = k.transpose(1, 2);
   v = v.transpose(1, 2);
-  Tensor x = qLen == 1 ? F::attention(q, k, v)
+  Tensor x = qLen == 1 ? F::attention(q, k, v, Tensor())
                        : F::attention(q, k, v, F::causalMask(q.getShape(2), getCtx().getDevice()));
 
   x = F::contiguous(x.transpose(1, 2)).view({N, qLen, _hiddenSize});
@@ -455,10 +455,11 @@ Tensor LlamaModelForGeneration::buildInput(const Prompt &prompt) const {
     if (block.blockType == PromptBlock::ControlToken || block.blockType == PromptBlock::Text) {
       encodePromptBlock(block, inputData);
     } else {
-      throw lut::AbortedError(lut::sprintf(
-          "unexpected prompt type %s for model %s",
-          PromptBlock::typeToString(block.blockType),
-          _modelName));
+      throw lut::AbortedError(
+          lut::sprintf(
+              "unexpected prompt type %s for model %s",
+              PromptBlock::typeToString(block.blockType),
+              _modelName));
     }
   }
 

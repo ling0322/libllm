@@ -58,6 +58,12 @@ struct QInt4x32 {
 };
 static_assert(sizeof(QInt4x32) == 20, "invalid size of QInt4x32");
 
+struct Fp4E2M0x2 {
+  uint8_t v0 : 4;
+  uint8_t v1 : 4;
+};
+static_assert(sizeof(Fp4E2M0x2) == 1, "invalid size of Fp4E2M0x2");
+
 typedef int8_t Byte;
 typedef int64_t LongType;
 typedef int64_t LongType;
@@ -71,6 +77,7 @@ class DType {
   static constexpr int16_t kFloat16 = 4;
   static constexpr int16_t kQInt4x32 = 5;
   static constexpr int16_t kInt8 = 6;
+  static constexpr int16_t kFp4E2M0x2 = 7;
 
   // get DType from type T
   template<typename T>

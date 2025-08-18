@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 202r Xiaoyang Chen
+// Copyright (c) 2025 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -24,120 +24,61 @@ namespace libllm {
 namespace op {
 namespace cuda {
 
-template<typename T>
-__global__ void fill5DKernel(PackedSubtensor<T, 5> dest, float value) {
-  int d4 = blockIdx.x * blockDim.x + threadIdx.x;
-  int d3 = blockIdx.y * blockDim.y + threadIdx.y;
+template<typename scalar_t>
+__global__ void fillContigKernel(scalar_t *__restrict__ data, int numel, scalar_t v) {
+  int stride = (int64_t)blockDim.x * gridDim.x;
+  int idx = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
 
-  dim3 dz = splitIndexToDim3(blockIdx.z * blockDim.z + threadIdx.z, dest.getSize());
-  int d2 = dz.x;
-  int d1 = dz.y;
-  int d0 = dz.z;
+  for (; idx < numel; idx += stride) {
+    data[idx] = v;
+  }
+}
 
-  const Size *s = dest.getSize();
+template<typename scalar_t, int DIM>
+__global__ void fillGenericKernel(PackedSubtensor<scalar_t, DIM> A, int numel, scalar_t v) {
+  int stride = (int64_t)blockDim.x * gridDim.x;
+  int idx = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
 
-  if (d0 < s[0].shape && d1 < s[1].shape && d2 < s[2].shape && d3 < s[3].shape && d4 < s[4].shape) {
-    dest[d0][d1][d2][d3][d4] = value;
+  for (; idx < numel; idx += stride) {
+    A.getElemByIndex(idx) = v;
   }
 }
 
 template<typename T>
-__global__ void fill4DKernel(PackedSubtensor<T, 4> dest, float value) {
-  int d3 = blockIdx.x * blockDim.x + threadIdx.x;
+void fillImpl(Tensor &tensor, T v) {
+  int64_t numel64 = tensor.getNumEl();
+  CHECK(numel64 < std::numeric_limits<int>::max());
+  int numel = static_cast<int>(numel64);
 
-  dim3 dz = splitIndexToDim3(blockIdx.y * blockDim.y + threadIdx.y, dest.getSize());
-  int d2 = dz.x;
-  int d1 = dz.y;
-  int d0 = dz.z;
+  constexpr int blockSize = 256;
+  dim3 grid = getGrid1D(numel, blockSize);
+  int d = tensor.getDim();
 
-  const Size *s = dest.getSize();
-
-  if (d0 < s[0].shape && d1 < s[1].shape && d2 < s[2].shape && d3 < s[3].shape) {
-    dest[d0][d1][d2][d3] = value;
+  if (tensor.isContiguous()) {
+    fillContigKernel<T><<<grid, blockSize>>>(tensor.getData<T>(), numel, v);
+  } else {
+    if (d == 1)
+      fillGenericKernel<T, 1><<<grid, blockSize>>>(tensor, numel, v);
+    else if (d == 2)
+      fillGenericKernel<T, 2><<<grid, blockSize>>>(tensor, numel, v);
+    else if (d == 3)
+      fillGenericKernel<T, 3><<<grid, blockSize>>>(tensor, numel, v);
+    else if (d == 4)
+      fillGenericKernel<T, 4><<<grid, blockSize>>>(tensor, numel, v);
+    else
+      NOT_IMPL();
   }
-}
 
-template<typename T>
-__global__ void fill3DKernel(PackedSubtensor<T, 3> dest, float value) {
-  int d2 = blockIdx.x * blockDim.x + threadIdx.x;
-  int d1 = blockIdx.y * blockDim.y + threadIdx.y;
-  int d0 = blockIdx.z * blockDim.z + threadIdx.z;
-
-  const Size *s = dest.getSize();
-
-  if (d0 < s[0].shape && d1 < s[1].shape && d2 < s[2].shape) {
-    dest[d0][d1][d2] = value;
-  }
-}
-
-template<typename T>
-void fill5D(Tensor tensor, float value) {
-  PackedSubtensor<T, 5> sC(tensor);
-
-  constexpr int blockSize = 256;
-  dim3 d;
-  d.z = tensor.getShape(0) * tensor.getShape(1) * tensor.getShape(2);
-  d.y = tensor.getShape(3);
-  d.x = (tensor.getShape(4) + blockSize - 1) / blockSize;
-
-  fill5DKernel<T><<<d, blockSize>>>(sC, value);
   cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
-
-template<typename T>
-void fill4D(Tensor tensor, float value) {
-  PackedSubtensor<T, 4> sC(tensor);
-
-  constexpr int blockSize = 256;
-  dim3 d;
-  d.y = tensor.getShape(0) * tensor.getShape(1) * tensor.getShape(2);
-  d.x = (tensor.getShape(3) + blockSize - 1) / blockSize;
-
-  fill4DKernel<T><<<d, blockSize>>>(sC, value);
-  cudaDeviceSynchronize();
-  LL_CHECK_CUDA_STATUS(cudaGetLastError());
-}
-
-template<typename T>
-void fill3D(Tensor tensor, float value) {
-  PackedSubtensor<T, 3> sC(tensor);
-
-  constexpr int blockSize = 256;
-  dim3 d;
-  d.z = tensor.getShape(0);
-  d.y = tensor.getShape(1);
-  d.x = (tensor.getShape(2) + blockSize - 1) / blockSize;
-
-  fill3DKernel<T><<<d, blockSize>>>(sC, value);
-  cudaDeviceSynchronize();
-  LL_CHECK_CUDA_STATUS(cudaGetLastError());
-}
-
-template<typename T>
-void fill2D(Tensor tensor, float value) {
-  int d0 = tensor.getShape(0);
-  int d1 = tensor.getShape(1);
-
-  fill3D<T>(tensor.view({1, d0, d1}), value);
-}
-
-template<typename T>
-void fill1D(Tensor tensor, float value) {
-  int d0 = tensor.getShape(0);
-  fill3D<T>(tensor.view({1, 1, d0}), value);
-}
-
 void fill(Tensor A, float value) {
   CHECK(A.getDevice().getType() == Device::kCuda);
 
-  if (A.getDType() == DType::kFloat16 && A.getDim() == 5) return fill5D<half>(A, value);
-  if (A.getDType() == DType::kFloat16 && A.getDim() == 4) return fill4D<half>(A, value);
-  if (A.getDType() == DType::kFloat16 && A.getDim() == 3) return fill3D<half>(A, value);
-  if (A.getDType() == DType::kFloat16 && A.getDim() == 2) return fill2D<half>(A, value);
-  if (A.getDType() == DType::kFloat16 && A.getDim() == 1) return fill1D<half>(A, value);
-
-  NOT_IMPL();
+  if (A.getDType() == DType::kFloat16)
+    fillImpl<half>(A, __float2half(value));
+  else
+    NOT_IMPL();
 }
 
 }  // namespace cuda

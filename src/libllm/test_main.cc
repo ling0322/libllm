@@ -22,8 +22,11 @@
 #include "libllm/operators.h"
 #include "lutil/error.h"
 #include "lutil/log.h"
+#include "lutil/platform.h"
 
 int main(int argc, char **argv) {
+  // lut::enablePrintStackOnError();
+
   libllm::initOperators();
 
   // enable some slow kernels for reference.

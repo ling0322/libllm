@@ -44,6 +44,7 @@ class CPUOperators : public Operators {
   // implement interface Operators
   Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) override;
   Tensor add(Tensor a, Tensor b) override;
+  Tensor sub(Tensor a, Tensor b) override;
   bool allClose(Tensor A, Tensor B, float rtol, float atol) override;
   Tensor cast(Tensor tensor, DType dtype) override;
   Tensor causalMask(int max_len) override;
@@ -63,7 +64,7 @@ class CPUOperators : public Operators {
   void repetitionPenalty(Tensor logits, Tensor history, float weight) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor softmax(Tensor input) override;
-  Tensor sum(Tensor inputs) override;
+  Tensor sum(Tensor inputs, int dim) override;
   Tensor swiglu(Tensor A) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;
   Tensor tensorLike(Tensor input) override;

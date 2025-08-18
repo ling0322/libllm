@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2024 Xiaoyang Chen
+// Copyright (c) 2025 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -19,28 +19,13 @@
 
 #pragma once
 
-#include "libllm/cuda/gemm.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-/// @brief Operators implemented by cuBLAS.
-class CutlassGemm : public Gemm {
- public:
-  static std::shared_ptr<Gemm> create();
-
-  lut::ErrorCode gemmMxfp4Bf16(
-      int m,
-      int n,
-      int k,
-      float alpha,
-      const Fp4E2M0x2 *A,
-      const UInt8 *sfA,
-      const Fp4E2M0x2 *B,
-      const UInt8 *sfB,
-      Float16 *C) override;
-};
+Tensor arangeLong(LongType begin, LongType end, LongType step);
 
 }  // namespace cuda
 }  // namespace op

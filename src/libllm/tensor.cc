@@ -225,11 +225,12 @@ Tensor Tensor::squeeze(int dim) const {
 
 void Tensor::throwIfInvalidShape(lut::Span<const int> shape, const std::string &name) const {
   if (shape.size() != getDim()) {
-    throw lut::AbortedError(lut::sprintf(
-        "%s: invalid shape. dim=%d expected, but %d got.",
-        name,
-        shape.size(),
-        getDim()));
+    throw lut::AbortedError(
+        lut::sprintf(
+            "%s: invalid shape. dim=%d expected, but %d got.",
+            name,
+            shape.size(),
+            getDim()));
   }
 
   int i = 0;
@@ -260,11 +261,12 @@ void Tensor::throwIfInvalidShape(lut::Span<const int> shape, const std::string &
     }
     expected << ")";
 
-    throw lut::AbortedError(lut::sprintf(
-        "%s: invalid shape: %s expected, but %s found.",
-        name,
-        expected.str(),
-        actual.str()));
+    throw lut::AbortedError(
+        lut::sprintf(
+            "%s: invalid shape: %s expected, but %s found.",
+            name,
+            expected.str(),
+            actual.str()));
   }
 }
 
@@ -306,6 +308,26 @@ int64_t Tensor::getOffset_() const {
 
 std::shared_ptr<TensorData> Tensor::getDataShared_() const {
   return _data;
+}
+
+Tensor Tensor::div(float rhs) const {
+  return F::div(*this, rhs);
+}
+
+Tensor Tensor::mod(LongType rhs) const {
+  return F::mod(*this, rhs);
+}
+
+Tensor Tensor::randn(lut::Span<const int> shape, Device device) {
+  return F::randn(shape, device);
+}
+
+Tensor Tensor::arange(LongType begin, LongType end, LongType step, Device device) {
+  return F::arange(begin, end, step, device);
+}
+
+float Tensor::elem() const {
+  return F::elem(*this);
 }
 
 // -----------------------------------------------------------------------------------------------+

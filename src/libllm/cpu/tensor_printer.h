@@ -78,7 +78,7 @@ class TensorPrinter {
       int padSpace) {
     printf("[");
     for (int i = 0; i < A.getShape(0); ++i) {
-      TPrinterImpl::printValue(&A[i]);
+      TPrinterImpl::printValue(A, i);
 
       if (A.getShape(0) > kPrintEdgeItems * 2 && i == kPrintEdgeItems - 1) {
         printf(" ... ");

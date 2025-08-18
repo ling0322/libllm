@@ -30,7 +30,7 @@ class OperatorTester {
   using ShapeType = std::initializer_list<int>;
 
   static constexpr uint32_t MagicNumber = 0x33;
-  enum class OperatorType { Add, Mul, Softmax, Swiglu, Gelu };
+  enum class OperatorType { Add, Sub, Mul, Softmax, Swiglu, Gelu };
 
   OperatorTester();
 

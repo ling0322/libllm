@@ -3,6 +3,7 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+
 set(libllm_SOURCES
     "cpu/kernel/fallback.cc"
     "cpu/kernel/interface.cc"
@@ -86,8 +87,10 @@ if (WITH_CUDA)
     set(libllm_INCDIR ${libllm_INCDIR} ${CUDAToolkit_INCLUDE_DIRS})
     set(libllm_SOURCES
         ${libllm_SOURCES}
+        "cuda/arange.cu"
         "cuda/apply_rotary_pos_emb.cu"
         "cuda/binary_op.cu"
+        "cuda/binary_scalar.cu"
         "cuda/cast.cu"
         "cuda/causal_mask.cu"
         "cuda/copy.cu"
@@ -96,26 +99,28 @@ if (WITH_CUDA)
         "cuda/cuda_tensor_data.cc"
         "cuda/dequant.cu"
         "cuda/fill.cu"
-        "cuda/gelu.cu"
         "cuda/layer_norm.cu"
         "cuda/lookup.cu"
         "cuda/matmul.cc"
         "cuda/matvec.cu"
         "cuda/print.cc"
+        "cuda/rand.cc"
         "cuda/reduce.cu"
         "cuda/repetition_penalty.cu"
         "cuda/rms_norm.cu"
         "cuda/softmax.cu"
         "cuda/swiglu.cu"
         "cuda/to_device.cc"
-        "cuda/transform.cu"
+        "cuda/unary.cu"
         "cuda/unfold.cu")
 
     set(libllm_test_SOURCES ${libllm_test_SOURCES} "cuda/test.cc")
 
     if (WITH_CUTLASS)
-        set(libllm_SOURCES ${libllm_SOURCES} "cuda/gemm_cutlass.cu")
-        set(libllm_INCDIR ${libllm_INCDIR} "../../third_party/cutlass/include")
+        set(libllm_SOURCES ${libllm_SOURCES} "cuda/gemm_cutlass_mxfp4.cu")
+        set(libllm_INCDIR ${libllm_INCDIR}
+            "../../third_party/cutlass/include"
+            "../../third_party/cutlass/tools/util/include")
     endif(WITH_CUTLASS)
 
     set(llmplugincublas_SOURCES
@@ -173,8 +178,10 @@ endif()
 
 add_library(libllm_static OBJECT ${libllm_SOURCES})
 target_compile_options(libllm_static PRIVATE "-DLIBLLM_EXPORTS")
-set_target_properties(libllm_static PROPERTIES CXX_VISIBILITY_PRESET hidden)
-set_target_properties(libllm_static PROPERTIES CUDA_VISIBILITY_PRESET hidden)
+target_include_directories(libllm_static PRIVATE ${LIBDWARF_INCLUDE_DIRS})
+#set_target_properties(libllm_static PROPERTIES CXX_VISIBILITY_PRESET hidden)
+#set_target_properties(libllm_static PROPERTIES CUDA_VISIBILITY_PRESET hidden)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
 target_include_directories(libllm_static PRIVATE ${libllm_INCDIR})
 
 add_library(libllm_test OBJECT ${libllm_test_SOURCES})

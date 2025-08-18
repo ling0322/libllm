@@ -1,13 +1,13 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2025 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,17 +17,59 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
+#include "libllm/cuda/rand.h"
 
-#include "libllm/tensor.h"
+#include <curand.h>
+
+#include <memory>
+
+#include "libllm/cuda/cast.h"
+#include "libllm/cuda/common.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-// apply C <- alpha * A + beta
-Tensor transform(const Tensor &src, float alpha, float beta);
+class Rand::Impl {
+ public:
+  ~Impl();
+  static std::unique_ptr<Impl> newImpl();
 
-}  // cuda
-}  // op
-}  // ly
+  Tensor randNormal(lut::Span<const int> shape);
+
+ private:
+  Impl() = default;
+
+  curandGenerator_t gen;
+};
+
+Tensor Rand::Impl::randNormal(lut::Span<const int> shape) {
+  Tensor result = createCudaTensorFloat(shape);
+  curandGenerateNormal(gen, result.getData<float>(), result.getNumEl(), 0.0, 1.0);
+  return castFloatToHalf(result);
+}
+
+Rand::Impl::~Impl() {
+  curandDestroyGenerator(gen);
+}
+
+std::unique_ptr<Rand::Impl> Rand::Impl::newImpl() {
+  std::unique_ptr<Impl> impl{new Impl()};
+  curandCreateGenerator(&impl->gen, CURAND_RNG_PSEUDO_DEFAULT);
+  return impl;
+}
+
+std::shared_ptr<Rand> Rand::newRand() {
+  std::shared_ptr<Rand> rand{new Rand()};
+  rand->_impl = Rand::Impl::newImpl();
+
+  return rand;
+}
+
+Tensor Rand::randNormal(lut::Span<const int> shape) {
+  return _impl->randNormal(shape);
+}
+
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

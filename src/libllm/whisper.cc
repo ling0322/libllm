@@ -114,7 +114,7 @@ Tensor EncoderAttention::forward(Tensor inputs) {
   q = q.transpose(1, 2);
   k = k.transpose(1, 2);
   v = v.transpose(1, 2);
-  Tensor x = F::attention(q, k, v);
+  Tensor x = F::attention(q, k, v, Tensor());
 
   x = F::contiguous(x.transpose(1, 2)).view({bsz, len, _hiddenSize});
   x = _outProj->forward(x);
@@ -481,7 +481,7 @@ Tensor Attention::forward(StateMap &past, Tensor inputs) {
   if (_selfAttn && inputs.getShape(1) > 1) {
     x = F::attention(q, k, v, F::causalMask(q.getShape(2), getCtx().getDevice()));
   } else {
-    x = F::attention(q, k, v);
+    x = F::attention(q, k, v, Tensor());
   }
 
   x = F::contiguous(x.transpose(1, 2)).view({bsz, len, _hiddenSize});

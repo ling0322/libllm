@@ -20,8 +20,10 @@
 #include <assert.h>
 #include <cuda_fp16.h>
 #include <math.h>
+#include <thrust/device_vector.h>
+#include <thrust/iterator/transform_iterator.h>
 
-#include <cub/block/block_reduce.cuh>
+#include <cub/cub.cuh>
 #include <cuda/std/cmath>
 #include <cuda/std/limits>
 
@@ -32,46 +34,54 @@ namespace libllm {
 namespace op {
 namespace cuda {
 
-enum class MapType { EXP_FP16_FP32, SQUARE_FP16_FP32, IDENTITY, FP16_FP32, UNKNOWN };
-enum class ReduceType { SUM, MAX, UNKNOWN };
-
-__device__ __forceinline__ constexpr MapType getMapType(MapReduceType mapReduceType) {
-  switch (mapReduceType) {
-    case MapReduceType::SUM_EXP_FP16_FP32:
-      return MapType::EXP_FP16_FP32;
-    case MapReduceType::SUM_SQUARE_FP16_FP32:
-      return MapType::SQUARE_FP16_FP32;
-    case MapReduceType::SUM_FP16_FP32:
-      return MapType::FP16_FP32;
-    case MapReduceType::MAX:
-      return MapType::IDENTITY;
-    default:
-      return MapType::UNKNOWN;
-  }
-}
-
-__device__ __forceinline__ constexpr ReduceType getReduceType(MapReduceType mapReduceType) {
-  switch (mapReduceType) {
-    case MapReduceType::SUM_EXP_FP16_FP32:
-    case MapReduceType::SUM_SQUARE_FP16_FP32:
-    case MapReduceType::SUM_FP16_FP32:
-      return ReduceType::SUM;
-    case MapReduceType::MAX:
-      return ReduceType::MAX;
-    default:
-      return ReduceType::UNKNOWN;
-  }
-}
-
-template<typename T, ReduceType REDUCE_TYPE>
-__device__ __forceinline__ T getReduceInitial() {
-  switch (REDUCE_TYPE) {
-    case ReduceType::SUM:
-      return T(0);
-    case ReduceType::MAX:
-      return -::cuda::std::numeric_limits<float>::infinity();
-    default:
+template<MapReduceType MR_TYPE, typename TIn, typename TOut>
+struct MapOp {
+  __device__ TOut operator()(const TIn &x) const {
+    if constexpr (
+        MR_TYPE == MapReduceType::SUM_FP16_FP32 || MR_TYPE == MapReduceType::MAX ||
+        MR_TYPE == MapReduceType::SUM_FP32) {
+      return x;
+    } else if constexpr (MR_TYPE == MapReduceType::SUM_EXP_FP16_FP32) {
+      return expf(static_cast<float>(x));
+    } else if constexpr (MR_TYPE == MapReduceType::SUM_SQUARE_FP16_FP32) {
+      return TOut(x) * TOut(x);
+    } else {
       __trap();
+    }
+  }
+};
+
+template<MapReduceType MR_TYPE, typename T>
+struct ReduceOp {
+  __device__ T operator()(const T &a, const T &b) const {
+    if constexpr (
+        MR_TYPE == MapReduceType::SUM_FP16_FP32 || MR_TYPE == MapReduceType::SUM_FP32 ||
+        MR_TYPE == MapReduceType::SUM_EXP_FP16_FP32 ||
+        MR_TYPE == MapReduceType::SUM_SQUARE_FP16_FP32) {
+      return a + b;
+    } else if constexpr (MR_TYPE == MapReduceType::MAX) {
+      return std::max(a, b);
+    } else {
+      __trap();
+    }
+  }
+};
+
+template<typename T, MapReduceType MR_TYPE>
+__device__ __host__ T getReduceInitial() {
+  if constexpr (
+      MR_TYPE == MapReduceType::SUM_FP32 || MR_TYPE == MapReduceType::SUM_FP16_FP32 ||
+      MR_TYPE == MapReduceType::SUM_EXP_FP16_FP32 ||
+      MR_TYPE == MapReduceType::SUM_SQUARE_FP16_FP32) {
+    return T(0);
+  } else if constexpr (MR_TYPE == MapReduceType::MAX) {
+    return -::cuda::std::numeric_limits<float>::infinity();
+  } else {
+#ifdef __CUDA_ARCH__
+    __trap();
+#else
+    NOT_IMPL();
+#endif
   }
 }
 
@@ -82,45 +92,20 @@ __global__ void reduce0Kernel3D(
     PackedSubtensor<TOut, 2> output) {
   assert(blockDim.x == BLOCK_DIM);
   assert(input.getShape(0) == output.getShape(0));
+  MapOp<REDUCE_TYPE, TIn, TOut> mapOp;
+  ReduceOp<REDUCE_TYPE, TOut> reduceOp;
 
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-  TOut elemReduce = getReduceInitial<TOut, getReduceType(REDUCE_TYPE)>();
+  TOut elemReduce = getReduceInitial<TOut, REDUCE_TYPE>();
   for (int offset = 0; offset < input.getShape(2); offset += BLOCK_DIM) {
     int idx = offset + threadIdx.x;
     if (idx < input.getShape(2)) {
       // element-wise map.
       TIn elemIn = input[z][y][idx];
-      TOut elemMap;
-      switch (getMapType(REDUCE_TYPE)) {
-        case MapType::EXP_FP16_FP32:
-          elemMap = expf(static_cast<float>(elemIn));
-          break;
-        case MapType::SQUARE_FP16_FP32:
-          elemMap = static_cast<float>(elemIn) * static_cast<float>(elemIn);
-          break;
-        case MapType::FP16_FP32:
-          elemMap = static_cast<float>(elemIn);
-          break;
-        case MapType::IDENTITY:
-          elemMap = elemIn;
-          break;
-        default:
-          __trap();
-      }
-
-      // element-wise reduce.
-      switch (getReduceType(REDUCE_TYPE)) {
-        case ReduceType::SUM:
-          elemReduce += elemMap;
-          break;
-        case ReduceType::MAX:
-          elemReduce = cub::Max()(elemReduce, elemMap);
-          break;
-        default:
-          __trap();
-      }
+      TOut elemMap = mapOp(elemIn);
+      elemReduce = reduceOp(elemReduce, elemMap);
     }
   }
 
@@ -129,20 +114,55 @@ __global__ void reduce0Kernel3D(
 
   __shared__ TempStorage tempStorage;
   BlockReduce blockReduce{tempStorage};
-
-  // block-level reduce.
-  switch (getReduceType(REDUCE_TYPE)) {
-    case ReduceType::SUM:
-      elemReduce = blockReduce.Sum(elemReduce);
-      break;
-    case ReduceType::MAX:
-      elemReduce = blockReduce.Reduce(elemReduce, cub::Max());
-      break;
-    default:
-      assert(false);
-  }
+  elemReduce = blockReduce.Reduce(elemReduce, reduceOp);
 
   if (threadIdx.x == 0) output[z][y] = elemReduce;
+}
+
+template<MapReduceType MR_TYPE, typename TIn, typename TOut>
+Tensor reduceAllImpl(const Tensor &A) {
+  CHECK(A.isContiguous());
+  CHECK(A.getDType() == DType::getType<TIn>());
+
+  int64_t numel = A.getNumEl();
+
+  Tensor C = createCudaTensor<TOut>({1});
+  TOut *result = C.getData<TOut>();
+
+  thrust::device_ptr<const TIn> pdata = thrust::device_pointer_cast(A.getData<TIn>());
+  thrust::device_vector<TIn> data(pdata, pdata + numel);
+  auto iter = thrust::make_transform_iterator(data.begin(), MapOp<MR_TYPE, TIn, TOut>{});
+
+  void *tempStorage = nullptr;
+  size_t tempStorageBytes = 0;
+
+  // Step 1: Query temp storage size
+  cub::DeviceReduce::Reduce(
+      tempStorage,
+      tempStorageBytes,
+      A.getData<TIn>(),
+      result,
+      numel,
+      ReduceOp<MR_TYPE, TOut>{},
+      0.0);
+
+  // Allocate temp storage
+  cudaMalloc(&tempStorage, tempStorageBytes);
+
+  // Step 2: Run the reduction
+  cub::DeviceReduce::Reduce(
+      tempStorage,
+      tempStorageBytes,
+      iter,
+      result,
+      numel,
+      ReduceOp<MR_TYPE, TOut>{},
+      getReduceInitial<TOut, MR_TYPE>());
+
+  // Free temp storage
+  cudaFree(tempStorage);
+
+  return C;
 }
 
 Tensor reduceHalfToSingle3D(Tensor A, MapReduceType reduceType) {
@@ -276,6 +296,15 @@ Tensor reduce(Tensor A, MapReduceType reduceType) {
   if (reduceType == MapReduceType::SUM_EXP_FP16_FP32) return reduceHalfToSingle(A, reduceType);
   if (reduceType == MapReduceType::SUM_FP16_FP32) return reduceHalfToSingle(A, reduceType);
   if (reduceType == MapReduceType::MAX) return reduceHalf(A, reduceType);
+
+  NOT_IMPL();
+}
+
+Tensor reduceAll(Tensor A, MapReduceType reduceType) {
+  if (reduceType == MapReduceType::SUM_FP16_FP32)
+    return reduceAllImpl<MapReduceType::SUM_FP16_FP32, half, float>(A);
+  if (reduceType == MapReduceType::SUM_FP32)
+    return reduceAllImpl<MapReduceType::SUM_FP32, float, float>(A);
 
   NOT_IMPL();
 }

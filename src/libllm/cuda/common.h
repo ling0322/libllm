@@ -100,6 +100,33 @@ lut::c_ptr<T> llynCudaAlloc(int64_t n) {
 Tensor createCudaTensorHalf(lut::Span<const int> shape);
 Tensor createCudaTensorLong(lut::Span<const int> shape);
 Tensor createCudaTensorFloat(lut::Span<const int> shape);
+Tensor createCudaTensorFp4x2(lut::Span<const int> shape);
+Tensor createCudaTensorUInt8(lut::Span<const int> shape);
+Tensor tensorLike(const Tensor &tensor);
+
+template<typename T>
+inline Tensor createCudaTensor(lut::Span<const int> shape);
+
+template<>
+inline Tensor createCudaTensor<half>(lut::Span<const int> shape) {
+  return createCudaTensorHalf(shape);
+}
+template<>
+inline Tensor createCudaTensor<LongType>(lut::Span<const int> shape) {
+  return createCudaTensorLong(shape);
+}
+template<>
+inline Tensor createCudaTensor<float>(lut::Span<const int> shape) {
+  return createCudaTensorFloat(shape);
+}
+template<>
+inline Tensor createCudaTensor<Fp4E2M0x2>(lut::Span<const int> shape) {
+  return createCudaTensorFp4x2(shape);
+}
+template<>
+inline Tensor createCudaTensor<UInt8>(lut::Span<const int> shape) {
+  return createCudaTensorUInt8(shape);
+}
 
 /// @brief Split a index into dim3 object according to the shape info in `size`.
 /// @param index the index to split.
@@ -123,6 +150,12 @@ int getCudaDeviceAttribute(cudaDeviceAttr attr);
 /// @brief Get number of cuda devices available.
 /// @return cuda device count.
 int getCudaDeviceCount();
+
+/// @brief Get float element from a scalar tensor (1D tensor which has only 1 element)
+float elem(const Tensor &tensor);
+
+/// get grid for 1D kernel for a specified numel.
+dim3 getGrid1D(int numel, int blockSize);
 
 }  // namespace cuda
 }  // namespace op

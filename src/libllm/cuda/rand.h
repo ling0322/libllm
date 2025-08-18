@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2024 Xiaoyang Chen
+// Copyright (c) 2025 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -19,13 +19,27 @@
 
 #pragma once
 
+#include <memory>
+
 #include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-Tensor gelu(const Tensor &tensor);
+class Rand {
+ public:
+  ~Rand() = default;
+  static std::shared_ptr<Rand> newRand();
+
+  Tensor randNormal(lut::Span<const int> shape);
+
+ private:
+  class Impl;
+  std::unique_ptr<Impl> _impl;
+
+  Rand() = default;
+};
 
 }  // namespace cuda
 }  // namespace op

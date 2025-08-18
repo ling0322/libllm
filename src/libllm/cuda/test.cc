@@ -24,12 +24,14 @@
 
 #include "catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/cpu_tensor_data.h"
+#include "libllm/cuda/cuda_operators.h"
 #include "libllm/cuda/dequant.h"
 #include "libllm/cuda/matmul.h"
 #include "libllm/cuda/matvec.h"
 #include "libllm/device.h"
 #include "libllm/functional.h"
 #include "libllm/operator_tester.h"
+#include "libllm/operators.h"
 #include "lutil/half.h"
 #include "lutil/random.h"
 #include "lutil/time.h"
@@ -117,6 +119,7 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
     CATCH_REQUIRE(tester.testMulScale());
     // CATCH_REQUIRE(tester.testBinaryOp(OperatorType::Mul));
     CATCH_REQUIRE(tester.withTol(5e-3).testBinaryOp(OperatorType::Add));
+    CATCH_REQUIRE(tester.withTol(5e-3).testBinaryOp(OperatorType::Sub));
   }
 
   CATCH_SECTION("test activations") {
@@ -219,7 +222,7 @@ CATCH_TEST_CASE("test attention", "[ly][op][cuda]") {
   Tensor q = F::rand({1, 2, 5, 16}, DType::kFloat);
   Tensor k = F::rand({1, 2, 5, 16}, DType::kFloat);
   Tensor v = F::rand({1, 2, 5, 16}, DType::kFloat);
-  Tensor xr = F::attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2));
+  Tensor xr = F::attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), Tensor());
 
   Tensor x = F::to(Device::getCuda(), q);
   Tensor y = F::to(Device::getCuda(), k);
@@ -230,7 +233,7 @@ CATCH_TEST_CASE("test attention", "[ly][op][cuda]") {
   x = x.transpose(1, 2);
   y = y.transpose(1, 2);
   z = z.transpose(1, 2);
-  x = F::attention(x, y, z);
+  x = F::attention(x, y, z, Tensor());
   x = F::cast(x, DType::kFloat);
   x = F::to(Device::getCpu(), x);
 
@@ -333,6 +336,35 @@ CATCH_TEST_CASE("benchmark cutlass hgemm", "[ly][op][cuda]") {
 
   Tensor C = mmCublas->apply(A, B);
   LOG_TIME(mmCutlass->apply(A, B), "mmCutlass->apply(A, B)");
+}
+
+CATCH_TEST_CASE("benchmark gemm mxfp4", "[op][cuda][mxfp4]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+  std::shared_ptr<op::cuda::MatMul> mmCutlass = op::cuda::MatMul::createCutlass();
+
+  Tensor A = Tensor::randn({4096, 4096}, Device::getCuda());
+  Tensor B = Tensor::randn({4096, 4096}, Device::getCuda());
+
+  auto [fp4A, sfA] = op::cuda::quantHalfToMxfp4(A);
+  auto [fp4B, sfB] = op::cuda::quantHalfToMxfp4(B);
+  A = op::cuda::dequandMxfp4ToHalf(fp4A, sfA);
+  B = op::cuda::dequandMxfp4ToHalf(fp4B, sfB);
+
+  sfA = op::cuda::toSm1xxScaleBlock(sfA);
+  sfB = op::cuda::toSm1xxScaleBlock(sfB);
+
+  Operators *op = getOperators(Device::kCuda);
+
+  Tensor C = F::matmul(A, B.transpose(0, 1));
+  Tensor Cr = mmCutlass->applyNarrowPrecision(fp4A, sfA, fp4B, sfB);
+
+  Tensor diff = F::sub(C, Cr);
+  diff = F::cast(diff, DType::kFloat);
+  diff = F::square(diff);
+  diff = F::sum(diff, None);
+  diff = diff.div(C.getShape(0) * C.getShape(1));
+
+  CATCH_REQUIRE(diff.elem() < 1e-6);
 }
 
 #endif  // LIBLLM_CUTLASS_ENABLED

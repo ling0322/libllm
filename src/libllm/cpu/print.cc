@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -20,6 +20,7 @@
 #include "libllm/cpu/print.h"
 
 #include <inttypes.h>
+
 #include "libllm/cpu/accessor.h"
 #include "libllm/cpu/tensor_printer.h"
 
@@ -27,28 +28,31 @@ namespace libllm {
 namespace op {
 namespace cpu {
 
-
 struct CpuPrinterImpl {
   template<typename T, int DIM>
   using accessor_type = TensorAccessor<T, DIM>;
 
-  static void printValue(const float *pval) {
-    float value = *pval;
+  static void printValue(accessor_type<const float, 1> valAcc, int index) {
+    float value = valAcc[index];
     if (std::abs(value) > 100 || std::abs(value) < 0.01) {
       printf("%.4e", value);
     } else {
       printf("%.4f", value);
     }
   }
-  
-  static void printValue(const LongType *pval) {
-    LongType value = *pval;
+
+  static void printValue(accessor_type<const LongType, 1> valAcc, int index) {
+    LongType value = valAcc[index];
     printf("%" PRId64, value);
   }
 #if LUT_CPU_ARCH == LUT_AARCH64
-  static void printValue(const Float16 *pval) {
-    float value = *pval;
-    printValue(&value);
+  static void printValue(accessor_type<const Float16, 1> valAcc, int index) {
+    float value = valAcc[index];
+    if (std::abs(value) > 100 || std::abs(value) < 0.01) {
+      printf("%.4e", value);
+    } else {
+      printf("%.4f", value);
+    }
   }
 #endif
 };
@@ -58,12 +62,15 @@ void print(const Tensor &tensor) {
 
   if (tensor.getDType() == DType::kFloat) printer.print<float>(tensor);
 #if LUT_CPU_ARCH == LUT_AARCH64
-  else if (tensor.getDType() == DType::kFloat16) printer.print<Float16>(tensor);
+  else if (tensor.getDType() == DType::kFloat16)
+    printer.print<Float16>(tensor);
 #endif
-  else if (tensor.getDType() == DType::kLong) printer.print<LongType>(tensor);
-  else NOT_IMPL();
+  else if (tensor.getDType() == DType::kLong)
+    printer.print<LongType>(tensor);
+  else
+    NOT_IMPL();
 }
 
-}  // cpu
-}  // op
-}  // libllm
+}  // namespace cpu
+}  // namespace op
+}  // namespace libllm
