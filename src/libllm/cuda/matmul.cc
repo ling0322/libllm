@@ -25,6 +25,7 @@
 #include "libllm/cpu/matmul.h"
 #include "libllm/cuda/common.h"
 #include "libllm/cuda/dequant.h"
+#include "libllm/cuda/fill.h"
 #include "libllm/cuda/gemm_cutlass.h"
 #include "libllm/cuda/matvec.h"
 #include "libllm/dtype.h"
@@ -100,6 +101,24 @@ Tensor MatMul::apply(const Tensor &A, const Tensor &B) {
   }
 }
 
+Tensor MatMul::applyNarrowPrecision(
+    const Tensor &A,
+    const Tensor &sfA,
+    const Tensor &B,
+    const Tensor &sfB) {
+  CHECK(A.getDevice().getType() == Device::kCuda);
+  CHECK(B.getDevice().getType() == Device::kCuda);
+  CHECK(sfA.getDevice().getType() == Device::kCuda);
+  CHECK(sfB.getDevice().getType() == Device::kCuda);
+
+  if (A.getDType() == DType::kFp4E2M0x2 && B.getDType() == DType::kFp4E2M0x2 &&
+      sfA.getDType() == DType::kUInt8 && sfB.getDType() == DType::kUInt8) {
+    return matmulMxfp4(A, sfA, B, sfB);
+  }
+
+  NOT_IMPL();
+}
+
 Tensor MatMul::matmulQ4(const Tensor &A, const Tensor &B) {
   CHECK(B.getDType() == DType::kQInt4x32);
   CHECK(A.getDType() == DType::kFloat16);
@@ -111,6 +130,35 @@ Tensor MatMul::matmulQ4(const Tensor &A, const Tensor &B) {
   } else {
     NOT_IMPL();
   }
+}
+
+Tensor MatMul::matmulMxfp4(const Tensor &A, const Tensor &sfA, const Tensor &B, const Tensor &sfB) {
+  CHECK(A.getDim() == B.getDim() && A.getDim() == 2);
+  Tensor C = createCudaTensorHalf({A.getShape(0), B.getShape(1) * 2});
+  fill(C, 0.0f);
+
+  int m = A.getShape(0);
+  int k = A.getShape(1) * 2;
+  int n = B.getShape(1) * 2;
+  CHECK(k == B.getShape(1) * 2);
+
+  float alpha = 1.0;
+
+  if (lut::ErrorCode::OK != _gemm->gemmMxfp4Bf16(
+                                m,
+                                n,
+                                k,
+                                alpha,
+                                A.getData<Fp4E2M0x2>(),
+                                sfA.getData<UInt8>(),
+                                B.getData<Fp4E2M0x2>(),
+                                sfB.getData<UInt8>(),
+                                C.getData<Float16>())) {
+    THROW(Aborted, "gemmMxfp4Bf16 failed.");
+  }
+  cudaDeviceSynchronize();
+
+  return C;
 }
 
 Tensor MatMul::bmmToGemmQ4(const Tensor &A, const Tensor &B) {

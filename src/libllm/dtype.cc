@@ -71,6 +71,11 @@ DType DType::getTypeImpl<half>() {
 }
 #endif
 
+template<>
+DType DType::getTypeImpl<Fp4E2M0x2>() {
+  return DType::kFp4E2M0x2;
+}
+
 int64_t DType::getTotalSize(int64_t numel) const {
   switch (_dtype) {
     case DType::kFloat:
@@ -82,6 +87,7 @@ int64_t DType::getTotalSize(int64_t numel) const {
     case DType::kQInt4x32:
       CHECK(numel % 32 == 0);
       return numel / 32 * sizeof(QInt4x32);
+    case DType::kFp4E2M0x2:
     case DType::kInt8:
     case DType::kUInt8:
       return numel;
@@ -98,6 +104,7 @@ bool DType::isValid() const {
     case DType::kLong:
     case DType::kUInt8:
     case DType::kQInt4x32:
+    case DType::kFp4E2M0x2:
     case DType::kInt8:
       return true;
     default:
@@ -108,6 +115,7 @@ bool DType::isValid() const {
 bool DType::isQuantized() const {
   switch (_dtype) {
     case DType::kQInt4x32:
+    case DType::kFp4E2M0x2:
       return true;
     default:
       return false;
@@ -147,6 +155,8 @@ std::string DType::toString() const {
       return "uint8";
     case DType::kQInt4x32:
       return "q4";
+    case DType::kFp4E2M0x2:
+      return "fp4";
     case DType::kInt8:
       return "int8";
     default:

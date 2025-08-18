@@ -29,5 +29,6 @@ namespace lut {
 void *alloc32ByteAlignedMem(int64_t nbytes);
 void free32ByteAlignedMem(void *);
 const char *getPathDelim();
+void printStackTrace();
 
 }  // namespace lut

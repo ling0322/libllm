@@ -93,6 +93,10 @@ Tensor CPUOperators::add(Tensor input, Tensor other) {
   return cpu::binaryOp(input, other, BinaryOp::ADD);
 }
 
+Tensor CPUOperators::sub(Tensor input, Tensor other) {
+  return cpu::binaryOp(input, other, BinaryOp::SUB);
+}
+
 Tensor CPUOperators::softmax(Tensor input) {
   return cpu::softmax(input);
 }
@@ -121,7 +125,8 @@ void CPUOperators::fill(Tensor input, float value) {
   return cpu::fill(input, value);
 }
 
-Tensor CPUOperators::sum(Tensor inputs) {
+Tensor CPUOperators::sum(Tensor inputs, int dim) {
+  CHECK(dim == -1 || dim == inputs.getDim() - 1);
   return cpu::reduce(inputs, MapReduceType::SUM);
 }
 

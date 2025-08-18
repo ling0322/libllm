@@ -13,3 +13,6 @@ BreakConstructorInitializers: BeforeColon
 PackConstructorInitializers: Never
 ReturnTypeBreakingStyle: Automatic
 PenaltyReturnTypeOnItsOwnLine: 8000
+DerivePointerAlignment: false
+PointerAlignment: Right
+IndentPragmas: true

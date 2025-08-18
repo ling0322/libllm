@@ -266,6 +266,9 @@ bool OperatorTester::testBinaryOp(OperatorTester::OperatorType op) {
     case OperatorType::Add:
       xr = F::add(at, b);
       break;
+    case OperatorType::Sub:
+      xr = F::sub(at, b);
+      break;
     case OperatorType::Mul:
       xr = F::mul(at, b);
       break;
@@ -282,6 +285,9 @@ bool OperatorTester::testBinaryOp(OperatorTester::OperatorType op) {
   switch (op) {
     case OperatorType::Add:
       x = _op->add(x, y);
+      break;
+    case OperatorType::Sub:
+      x = _op->sub(x, y);
       break;
     case OperatorType::Mul:
       x = _op->mul(x, y);

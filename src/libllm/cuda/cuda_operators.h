@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2023-2025 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -26,6 +26,7 @@ namespace op {
 namespace cuda {
 
 class MatMul;
+class Rand;
 
 /// @brief Implementation of Operator interface with cuda device.
 class CudaOperators : public Operators {
@@ -36,39 +37,48 @@ class CudaOperators : public Operators {
   /// @return if CudaOperators available.
   static bool isAvailable();
 
-  // create a instance of CPUOperators
+  // create a instance of CudaOperators
   static Operators *create();
 
   // implement interface Operators
+  Tensor arangeLong(LongType begin, LongType end, LongType step) override;
   Tensor cast(Tensor tensor, DType dtype) override;
   Tensor add(Tensor a, Tensor b) override;
+  Tensor sub(Tensor input, Tensor other) override;
   Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) override;
   Tensor causalMask(int max_len) override;
   void copy(Tensor src, Tensor dest) override;
   void fill(Tensor input, float value) override;
   Tensor gelu(Tensor input) override;
+  Tensor square(Tensor input) override;
   Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
   Tensor lookup(Tensor table, Tensor indices) override;
   Tensor matmul(Tensor a, Tensor b) override;
+  Tensor matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB) override;
   Tensor max(Tensor inputs) override;
   Tensor mul(Tensor input, float other) override;
+  Tensor div(Tensor input, float other) override;
+  Tensor mod(Tensor input, LongType other) override;
   Tensor mul(Tensor input, Tensor other) override;
   void print(Tensor tensor) override;
   void repetitionPenalty(Tensor logits, Tensor history, float weight) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor softmax(Tensor input) override;
-  Tensor sum(Tensor inputs) override;
+  Tensor sum(Tensor inputs, int dim) override;
   Tensor swiglu(Tensor A) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;
   Tensor tensorLike(Tensor input) override;
   Tensor to(Device device, Tensor tensor) override;
   Tensor unfold(Tensor input, int kernelSize, int stride) override;
   Tensor zeros(lut::Span<const int> shape, DType dtype) override;
+  Tensor randNormal(lut::Span<const int> shape);
+  float elem(Tensor tensor) override;
 
   DType getDefaultFloatType() override;
 
  private:
   std::shared_ptr<MatMul> _matmul;
+  std::shared_ptr<Rand> _rand;
 
   CudaOperators() = default;
 };

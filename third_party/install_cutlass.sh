@@ -3,10 +3,10 @@
 set -e
 
 if [ ! -d cutlass ]; then
-  wget -nv https://github.com/NVIDIA/cutlass/archive/refs/tags/v2.11.0.tar.gz
-  tar xzf v2.11.0.tar.gz
+  wget -nv https://github.com/NVIDIA/cutlass/archive/refs/tags/v4.1.0.tar.gz
+  tar xzf v4.1.0.tar.gz
 
-  rm v2.11.0.tar.gz
-  mv cutlass-2.11.0 cutlass
+  rm v4.1.0.tar.gz
+  mv cutlass-4.1.0 cutlass
 fi
 

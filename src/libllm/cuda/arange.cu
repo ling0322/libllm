@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2024 Xiaoyang Chen
+// Copyright (c) 2025 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,30 +17,38 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
-
-#include "libllm/cuda/gemm.h"
+#include "libllm/cuda/common.h"
+#include "libllm/cuda/fill.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-/// @brief Operators implemented by cuBLAS.
-class CutlassGemm : public Gemm {
- public:
-  static std::shared_ptr<Gemm> create();
+template<typename T>
+__global__ void arangeKernel(T *__restrict__ out, int n, T start, T step) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int stride = blockDim.x * gridDim.x;
+  for (int i = idx; i < n; i += stride) {
+    out[i] = start + step * (T)i;
+  }
+}
 
-  lut::ErrorCode gemmMxfp4Bf16(
-      int m,
-      int n,
-      int k,
-      float alpha,
-      const Fp4E2M0x2 *A,
-      const UInt8 *sfA,
-      const Fp4E2M0x2 *B,
-      const UInt8 *sfB,
-      Float16 *C) override;
-};
+Tensor arangeLong(LongType begin, LongType end, LongType step) {
+  int64_t numel64 = (end - begin) / step;
+  CHECK(numel64 < std::numeric_limits<int32_t>::max());
+  int numel = static_cast<int>(numel64);
+
+  Tensor tensor = createCudaTensorLong({numel});
+
+  constexpr int blockSize = 256;
+  dim3 grid = getGrid1D(numel, blockSize);
+
+  arangeKernel<LongType><<<grid, blockSize>>>(tensor.getData<LongType>(), numel, begin, step);
+  cudaDeviceSynchronize();
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+
+  return tensor;
+}
 
 }  // namespace cuda
 }  // namespace op

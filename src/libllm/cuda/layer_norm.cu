@@ -20,11 +20,11 @@
 #include <cuda_fp16.h>
 
 #include "libllm/cuda/binary_op.h"
+#include "libllm/cuda/binary_scalar.h"
 #include "libllm/cuda/cast.h"
 #include "libllm/cuda/common.h"
 #include "libllm/cuda/layer_norm.h"
 #include "libllm/cuda/reduce.h"
-#include "libllm/cuda/transform.h"
 #include "libllm/functional.h"
 
 namespace libllm {
@@ -71,7 +71,7 @@ Tensor layerNorm3D(Tensor tensor, Tensor weight, Tensor bias, float eps) {
   CHECK(reduceSum.getDim() == 2);
   reduceSum = op::cuda::castFloatToHalf(reduceSum);
 
-  Tensor mean = op::cuda::transform(reduceSum, 1.0 / tensor.getShape(2), 0.0f);
+  Tensor mean = applyBinaryScalarOp(BinaryScalarOp::DIV, reduceSum, tensor.getShape(2));
   Tensor diff = op::cuda::binaryOp(tensor, mean.unsqueeze(2), BinaryOp::SUB);
 
   Tensor sumDiffSquare = op::cuda::reduceHalfToSingle3D(diff, MapReduceType::SUM_SQUARE_FP16_FP32);

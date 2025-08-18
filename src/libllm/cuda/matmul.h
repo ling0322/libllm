@@ -38,6 +38,11 @@ class MatMul {
   static std::shared_ptr<MatMul> createCublas();
 
   Tensor apply(const Tensor &A, const Tensor &B);
+  Tensor applyNarrowPrecision(
+      const Tensor &A,
+      const Tensor &sfA,
+      const Tensor &B,
+      const Tensor &sfB);
 
  protected:
   // _gemmExtLib must be defined before _gemm. Since destruction of _gemm needs the _gemmExtLib.
@@ -53,6 +58,8 @@ class MatMul {
 
   Tensor matmulHalf(const Tensor &A, const Tensor &B);
   Tensor bmmToGemmHalf(const Tensor &A, const Tensor &B);
+
+  Tensor matmulMxfp4(const Tensor &A, const Tensor &sfA, const Tensor &B, const Tensor &sfB);
 
   std::vector<const half *> getBatch(const Tensor &A, int nBatchDim);
 };

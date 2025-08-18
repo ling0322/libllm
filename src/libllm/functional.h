@@ -19,12 +19,17 @@
 
 #pragma once
 
-#include "libllm/tensor.h"
+#include "libllm/device.h"
+#include "libllm/dtype.h"
 #include "lutil/random.h"
 #include "lutil/span.h"
 
 namespace libllm {
+class Tensor;
+
 namespace F {
+
+Tensor arange(LongType begin, LongType end, LongType step = 1, Device device = Device::getCpu());
 
 // retrieve word embeddings using indices. Input is a long tensor with indices and the output is
 // the word embeddings for these indices.
@@ -68,11 +73,23 @@ Tensor matmul(Tensor A, Tensor B);
 Tensor mul(Tensor input, float other);
 Tensor mul(Tensor input, Tensor other);
 
+// apply input % other
+Tensor mod(Tensor input, LongType other);
+
 // Apply softmax on the last dimension of input
 Tensor softmax(Tensor input);
 
+// Apply x^2
+Tensor square(Tensor input);
+
 // return input + other.
 Tensor add(Tensor input, Tensor other);
+
+// return input - other.
+Tensor sub(Tensor input, Tensor other);
+
+// return input - other.
+Tensor div(Tensor input, float other);
 
 // Applies the Gaussian Error Linear Units function for `input`. Here it use the approximate
 // version of GELU:
@@ -106,6 +123,10 @@ Tensor rand(
     lut::Random *generator = nullptr,
     float min = -1.0f,
     float max = 1.0f);
+
+/// @brief Returns a tensor filled with random numbers from a normal distribution with mean 0 and
+/// variance 1
+Tensor randn(lut::Span<const int> shape, Device device = Device::getCpu());
 
 // returns a uninitialized tensor with the same shape and dtype as input
 Tensor tensorLike(Tensor input);
@@ -161,7 +182,7 @@ void copy(Tensor src, Tensor dest);
 //   mask <float>(L, S):  A float mask added to the attention score.
 // Returns:
 //   <float>(N, nHead, L, D): the output tensor.
-Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask = Tensor());
+Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask);
 
 // Applies the Swish-Gated Linear Unit function SwiGLU(a, b) = swish(a) * b.  Where a is the first
 // half of input (input[..., :input.shape[-1] / 2]) and b is the second half of input
@@ -186,6 +207,7 @@ void fill(Tensor tensor, float value);
 
 /// @brief Returns the sum of each row of the input tensor in the given dimension dim.
 /// @param tensor <float>(d1, d2, ..., dn) the input tensor.
+/// @param dim <int>: the dimension to reduce. None for all dimensions.
 /// @return <float>(d1, d2, ..., dn-1): the output tensor.
 Tensor sum(Tensor tensor, int dim = -1);
 
@@ -232,6 +254,9 @@ Tensor cast(Tensor tensor, DType dtype);
 /// @param device The device to query.
 /// @return float type as DType.
 DType getDefaultFloatType(Device device);
+
+/// @brief Get element from scalar tensor (1D tensor with only 1 element)
+float elem(Tensor tensor);
 
 }  // namespace F
 }  // namespace libllm

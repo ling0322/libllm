@@ -109,14 +109,27 @@ class PackedSubtensorBase {
     }
   }
 
-  __device__ int getShape(int dim) const {
+  __forceinline__ __device__ int getShape(int dim) const {
     return this->_size[dim].shape;
   }
-  __device__ const Size *getSize() const {
+  __forceinline__ __device__ int getStride(int dim) const {
+    return this->_size[dim].stride;
+  }
+  __forceinline__ __device__ const Size *getSize() const {
     return _size;
   }
-  __device__ T *getData() const {
+  __forceinline__ __device__ T *getData() const {
     return _data;
+  }
+
+  __forceinline__ __device__ T &getElemByIndex(int idx) const {
+    int stridedIdx = 0;
+#pragma unroll
+    for (int d = DIM - 1; d >= 0; --d) {
+      stridedIdx += (idx % this->_size[d].shape) * this->_size[d].stride;
+      idx /= this->_size[d].shape;
+    }
+    return _data[stridedIdx];
   }
 
  protected:

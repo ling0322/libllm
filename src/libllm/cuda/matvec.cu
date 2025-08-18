@@ -34,6 +34,7 @@ union OWORD {
   uint32_t u[4];
   half h[8];
 };
+static_assert(sizeof(OWORD) == 16, "invalid size of OWORD");
 
 int divUp(int a, int b) {
   return (a - 1) / b + 1;
@@ -85,8 +86,10 @@ __global__ void mat_vec_kernel(
   if (threadIdx.x == 0) y[row] = (half)sum;
 }
 
-__global__ void
-mat_vec_kernel_q4g32(half *y, const half *__restrict__ x, PackedSubtensor2DQInt4x32 A) {
+__global__ void mat_vec_kernel_q4g32(
+    half *y,
+    const half *__restrict__ x,
+    PackedSubtensor2DQInt4x32 A) {
   int numCol = A.getNumCol();
   int row = blockIdx.x * blockDim.y + threadIdx.y;
   if (row >= A.getNumRow()) return;

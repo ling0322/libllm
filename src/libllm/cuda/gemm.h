@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -19,10 +19,13 @@
 
 #pragma once
 
-#include <cuda_runtime.h>
+#include <cuda_bf16.h>
 #include <cuda_fp16.h>
-#include "libllm/tensor.h"
+#include <cuda_runtime.h>
+#include <stdint.h>
+
 #include "libllm/cuda/common.h"
+#include "libllm/tensor.h"
 
 namespace libllm {
 namespace op {
@@ -39,13 +42,28 @@ class Gemm {
       int n,
       int k,
       __half alpha,
-      const __half *A, 
+      const __half *A,
       int lda,
       const __half *B,
       int ldb,
       __half beta,
       __half *C,
-      int ldc) = 0;
+      int ldc) {
+    return lut::ErrorCode::NotImplemented;
+  }
+
+  virtual lut::ErrorCode gemmMxfp4Bf16(
+      int m,
+      int n,
+      int k,
+      float alpha,
+      const Fp4E2M0x2 *A,
+      const UInt8 *sfA,
+      const Fp4E2M0x2 *B,
+      const UInt8 *sfB,
+      Float16 *C) {
+    return lut::ErrorCode::NotImplemented;
+  }
 
   virtual lut::ErrorCode hgemmArray(
       bool transA,
@@ -61,9 +79,11 @@ class Gemm {
       __half beta,
       __half *const *arrayC,
       int ldc,
-      int batchSize) = 0;
+      int batchSize) {
+    return lut::ErrorCode::NotImplemented;
+  }
 };
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

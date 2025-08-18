@@ -34,6 +34,7 @@ enum class MapReduceType {
 
   // Sum of x.
   SUM_FP16_FP32,
+  SUM_FP32,
 
   // Get maximun number in list.
   MAX
@@ -42,6 +43,7 @@ enum class MapReduceType {
 Tensor reduce(Tensor A, MapReduceType reduceType);
 Tensor reduceHalfToSingle3D(Tensor A, MapReduceType reduceType);
 Tensor reduceHalf3D(Tensor A, MapReduceType reduceType);
+Tensor reduceAll(Tensor A, MapReduceType reduceType);
 
 }  // namespace cuda
 }  // namespace op

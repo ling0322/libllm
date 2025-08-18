@@ -22,12 +22,15 @@
 #include <math.h>
 
 #include "libllm/operators.h"
-#include "libllm/tensor.h"
 #include "lutil/error.h"
 #include "lutil/strings.h"
 
 namespace libllm {
 namespace F {
+
+Tensor arange(LongType begin, LongType end, LongType step, Device device) {
+  return getOperators(device.getType())->arangeLong(begin, end, step);
+}
 
 Tensor lookup(Tensor table, Tensor indices) {
   return getOperators(table.getDevice().getType())->lookup(table, indices);
@@ -53,6 +56,10 @@ Tensor mul(Tensor input, float other) {
   return getOperators(input.getDevice().getType())->mul(input, other);
 }
 
+Tensor div(Tensor input, float other) {
+  return getOperators(input.getDevice().getType())->div(input, other);
+}
+
 Tensor mul(Tensor input, Tensor other) {
   return getOperators(input.getDevice().getType())->mul(input, other);
 }
@@ -61,8 +68,20 @@ Tensor softmax(Tensor input) {
   return getOperators(input.getDevice().getType())->softmax(input);
 }
 
+Tensor square(Tensor input) {
+  return getOperators(input.getDevice().getType())->square(input);
+}
+
 Tensor add(Tensor input, Tensor other) {
   return getOperators(input.getDevice().getType())->add(input, other);
+}
+
+Tensor sub(Tensor input, Tensor other) {
+  return getOperators(input.getDevice().getType())->sub(input, other);
+}
+
+Tensor mod(Tensor input, LongType other) {
+  return getOperators(input.getDevice().getType())->mod(input, other);
 }
 
 Tensor gelu(Tensor input) {
@@ -85,6 +104,10 @@ Tensor rand(
     float min,
     float max) {
   return getOperators(device.getType())->rand(shape, dtype, generator, min, max);
+}
+
+Tensor randn(lut::Span<const int> shape, Device device) {
+  return getOperators(device.getType())->randNormal(shape);
 }
 
 Tensor zeros(lut::Span<const int> shape, DType dtype, Device device) {
@@ -157,8 +180,7 @@ void repetitionPenalty(Tensor logits, Tensor history, float weight) {
 }
 
 Tensor sum(Tensor tensor, int dim) {
-  CHECK(dim == -1 || dim == tensor.getDim() - 1);
-  return getOperators(tensor.getDevice().getType())->sum(tensor);
+  return getOperators(tensor.getDevice().getType())->sum(tensor, dim);
 }
 
 Tensor max(Tensor tensor, int dim) {
@@ -217,6 +239,10 @@ Tensor cast(Tensor tensor, DType dtype) {
 
 DType getDefaultFloatType(Device device) {
   return getOperators(device.getType())->getDefaultFloatType();
+}
+
+float elem(Tensor tensor) {
+  return getOperators(tensor.getDevice().getType())->elem(tensor);
 }
 
 }  // namespace F

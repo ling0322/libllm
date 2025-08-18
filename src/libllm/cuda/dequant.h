@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -27,8 +27,11 @@ namespace cuda {
 
 Tensor dequantQ4ToHalf(const Tensor &tensor);
 
+std::pair<Tensor, Tensor> quantHalfToMxfp4(const Tensor &tensor);
+Tensor dequandMxfp4ToHalf(const Tensor &fp4, const Tensor &scale);
 
-}  // cuda
-}  // op
-}  // ly
+Tensor toSm1xxScaleBlock(const Tensor &scale);
 
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

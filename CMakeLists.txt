@@ -18,14 +18,8 @@ if(WITH_CUDA)
     add_definitions("-DLIBLLM_CUDA_ENABLED")
     find_package(CUDAToolkit REQUIRED)
     include_directories(${CUDAToolkit_INCLUDE_DIRS}) 
-    set(CMAKE_CUDA_ARCHITECTURES 61)
+    set(CMAKE_CUDA_ARCHITECTURES 120a)
     enable_language(CUDA)
-    if(WIN32)
-        set(cuda_LIBRARIES CUDA::cudart_static)
-    endif(WIN32)
-    if(UNIX)
-        set(cuda_LIBRARIES CUDA::cudart_static)
-    endif(UNIX)
 endif()
 
 if(WITH_CUTLASS)
@@ -69,6 +63,25 @@ if(UNIX)
     set(CMAKE_C_FLAGS "-O3 -g")
 endif(UNIX)
 
+
+set(UNWIND_ARCH_LIB_NAME "")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
+  set(UNWIND_ARCH_LIB_NAME unwind-x86_64)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+  set(UNWIND_ARCH_LIB_NAME unwind-aarch64)
+else()
+  message(FATAL_ERROR "Unknown arch '${CMAKE_SYSTEM_PROCESSOR}', will try generic libunwind only.")
+endif()
+find_library(UNWIND_LIB NAMES libunwind.a REQUIRED PATHS "third_party/libunwind/libunwind-1.6.2/build/src/.libs/"
+             NO_DEFAULT_PATH)
+find_library(UNWIND_ARCH_LIB NAMES lib${UNWIND_ARCH_LIB_NAME}.a REQUIRED PATHS "third_party/libunwind/libunwind-1.6.2/build/src/.libs/"
+             NO_DEFAULT_PATH)
+
+
+
+message("UNWIND_LIB=" ${UNWIND_LIB})
+message("UNWIND_ARCH_LIB=" ${UNWIND_ARCH_LIB})
+
 message("CMAKE_HOST_SYSTEM_PROCESSOR=" ${CMAKE_HOST_SYSTEM_PROCESSOR})
 
 if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
@@ -86,10 +99,14 @@ endif()
 
 add_subdirectory("src")
 
-set(libllm_LIBADD lutil ${CMAKE_DL_LIBS})
+set(libllm_LIBADD lutil ${CMAKE_DL_LIBS} ${UNWIND_ARCH_LIB} ${UNWIND_LIB} )
 
 if(WITH_OPENMP)
     set(libllm_LIBADD ${libllm_LIBADD} OpenMP::OpenMP_CXX)
+endif()
+
+if(WITH_CUDA)
+    set(libllm_LIBADD ${libllm_LIBADD} CUDA::cudart_static CUDA::curand_static)
 endif()
 
 add_library(libllm SHARED $<TARGET_OBJECTS:libllm_static>)
@@ -98,6 +115,7 @@ set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
 if(UNIX AND NOT APPLE)
     target_link_options(libllm PUBLIC "-Wl,--no-undefined")
 endif()
+
 
 set(unittest_LIBADD
     libllm_static
@@ -108,6 +126,7 @@ set(unittest_LIBADD
 if (WITH_MKL)
     set(unittest_LIBADD
         ${unittest_LIBADD}
+        ${LIBDWARF_LIB}
         mkl_intel_lp64
         mkl_intel_thread
         mkl_core
@@ -132,7 +151,7 @@ target_link_libraries(benchmark ${benchmark_LIBADD})
 if (WITH_CUDA)
     add_library(llmplugincublas SHARED $<TARGET_OBJECTS:llmplugincublas_static>)
     target_include_directories(llmplugincublas PRIVATE ${libllm_INCDIR})
-    target_link_libraries(llmplugincublas lutil CUDA::cublas)
+    target_link_libraries(llmplugincublas lutil CUDA::cublas ${UNWIND_ARCH_LIB} ${UNWIND_LIB} )
     if(UNIX AND NOT APPLE)
         target_link_options(llmplugincublas PUBLIC "-Wl,--no-undefined")
     endif()

@@ -26,6 +26,7 @@
 
 #include "libllm/device.h"
 #include "libllm/dtype.h"
+#include "libllm/functional.h"
 #include "lutil/fixed_array.h"
 #include "lutil/reader.h"
 #include "lutil/span.h"
@@ -135,6 +136,17 @@ class Tensor {
   const TensorShape *getShape_() const;
   std::shared_ptr<TensorData> getDataShared_() const;
   int64_t getOffset_() const;
+
+  // ----------------- functional operators -----------------
+  static Tensor randn(lut::Span<const int> shape, Device device = Device::getCpu());
+  static Tensor arange(
+      LongType begin,
+      LongType end,
+      LongType step = 1,
+      Device device = Device::getCpu());
+  Tensor div(float rhs) const;
+  Tensor mod(LongType rhs) const;
+  float elem() const;
 
  protected:
   std::shared_ptr<TensorData> _data;

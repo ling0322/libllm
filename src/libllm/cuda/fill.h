@@ -26,6 +26,7 @@ namespace op {
 namespace cuda {
 
 void fill(Tensor tensor, float value);
+Tensor arangeLong(LongType begin, LongType end, LongType step);
 
 }  // namespace cuda
 }  // namespace op

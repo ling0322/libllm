@@ -22,23 +22,25 @@
 #include <math.h>
 
 #include "libllm/cuda/apply_rotary_pos_emb.h"
+#include "libllm/cuda/arange.h"
 #include "libllm/cuda/binary_op.h"
+#include "libllm/cuda/binary_scalar.h"
 #include "libllm/cuda/cast.h"
 #include "libllm/cuda/causal_mask.h"
 #include "libllm/cuda/copy.h"
 #include "libllm/cuda/fill.h"
-#include "libllm/cuda/gelu.h"
 #include "libllm/cuda/layer_norm.h"
 #include "libllm/cuda/lookup.h"
 #include "libllm/cuda/matmul.h"
 #include "libllm/cuda/print.h"
+#include "libllm/cuda/rand.h"
 #include "libllm/cuda/reduce.h"
 #include "libllm/cuda/repetition_penalty.h"
 #include "libllm/cuda/rms_norm.h"
 #include "libllm/cuda/softmax.h"
 #include "libllm/cuda/swiglu.h"
 #include "libllm/cuda/to_device.h"
-#include "libllm/cuda/transform.h"
+#include "libllm/cuda/unary.h"
 #include "libllm/cuda/unfold.h"
 #include "libllm/functional.h"
 
@@ -53,6 +55,7 @@ bool CudaOperators::isAvailable() {
 Operators *CudaOperators::create() {
   std::unique_ptr<CudaOperators> op{new CudaOperators()};
   op->_matmul = MatMul::create();
+  op->_rand = Rand::newRand();
 
   LOG(INFO) << "cuda numDevices = " << getCudaDeviceCount();
   LOG(INFO) << "cuda:0 maxThreadsPerMultiProcessor = "
@@ -68,16 +71,38 @@ void CudaOperators::fill(Tensor input, float value) {
 }
 
 Tensor CudaOperators::gelu(Tensor input) {
-  return op::cuda::gelu(input);
+  return op::cuda::applyUnaryOp(UnaryOp::GELU, input);
+}
+
+Tensor CudaOperators::square(Tensor input) {
+  return op::cuda::applyUnaryOp(UnaryOp::SQUARE, input);
 }
 
 Tensor CudaOperators::max(Tensor inputs) {
   return op::cuda::reduce(inputs, MapReduceType::MAX);
 }
 
-Tensor CudaOperators::sum(Tensor inputs) {
-  Tensor A = op::cuda::reduce(inputs, MapReduceType::SUM_FP16_FP32);
-  return castFloatToHalf(A);
+Tensor CudaOperators::sum(Tensor inputs, int dim) {
+  Tensor C;
+  MapReduceType mrType;
+  if (inputs.getDType() == DType::kFloat16) {
+    mrType = MapReduceType::SUM_FP16_FP32;
+  } else if (inputs.getDType() == DType::kFloat) {
+    mrType = MapReduceType::SUM_FP32;
+  } else {
+    NOT_IMPL();
+  }
+
+  if (dim == -1 || dim == inputs.getDim() - 1) {
+    C = op::cuda::reduce(inputs, mrType);
+  } else if (dim == None) {
+    C = op::cuda::reduceAll(inputs, mrType);
+  }
+
+  if (inputs.getDType() == DType::kFloat16) {
+    C = castFloatToHalf(C);
+  }
+  return C;
 }
 
 Tensor CudaOperators::lookup(Tensor table, Tensor indices) {
@@ -88,8 +113,20 @@ Tensor CudaOperators::matmul(Tensor a, Tensor b) {
   return _matmul->apply(a, b);
 }
 
+Tensor CudaOperators::matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB) {
+  return _matmul->applyNarrowPrecision(A, sfA, B, sfB);
+}
+
 Tensor CudaOperators::mul(Tensor input, float other) {
-  return op::cuda::transform(input, other, 0.0f);
+  return op::cuda::applyBinaryScalarOp(BinaryScalarOp::MUL, input, other);
+}
+
+Tensor CudaOperators::div(Tensor input, float other) {
+  return op::cuda::applyBinaryScalarOp(BinaryScalarOp::DIV, input, other);
+}
+
+Tensor CudaOperators::mod(Tensor input, LongType other) {
+  return op::cuda::applyBinaryScalarOpLong(BinaryScalarOp::MOD, input, other);
 }
 
 Tensor CudaOperators::mul(Tensor input, Tensor other) {
@@ -102,6 +139,10 @@ Tensor CudaOperators::softmax(Tensor input) {
 
 Tensor CudaOperators::add(Tensor input, Tensor other) {
   return op::cuda::binaryOp(input, other, BinaryOp::ADD);
+}
+
+Tensor CudaOperators::sub(Tensor input, Tensor other) {
+  return op::cuda::binaryOp(input, other, BinaryOp::SUB);
 }
 
 void CudaOperators::repetitionPenalty(Tensor logits, Tensor history, float weight) {
@@ -128,6 +169,7 @@ Tensor CudaOperators::applyRotaryPosEmb(Tensor A, Tensor roPE) {
 
 Tensor CudaOperators::tensor(lut::Span<const int> shape, DType dtype) {
   if (dtype == DType::kFloat16) return createCudaTensorHalf(shape);
+  if (dtype == DType::kUInt8) return createCudaTensorUInt8(shape);
 
   NOT_IMPL();
 }
@@ -137,12 +179,7 @@ Tensor CudaOperators::unfold(Tensor input, int kernelSize, int stride) {
 }
 
 Tensor CudaOperators::tensorLike(Tensor input) {
-  CHECK(input.getDevice().getType() == Device::kCuda);
-
-  if (input.getDType() == DType::kFloat16) return createCudaTensorHalf(input.getShape());
-  if (input.getDType() == DType::kLong) return createCudaTensorLong(input.getShape());
-
-  NOT_IMPL();
+  return op::cuda::tensorLike(input);
 }
 
 void CudaOperators::copy(Tensor src, Tensor dest) {
@@ -184,6 +221,18 @@ Tensor CudaOperators::zeros(lut::Span<const int> shape, DType dtype) {
   op::cuda::fill(tensor, 0.0);
 
   return tensor;
+}
+
+Tensor CudaOperators::randNormal(lut::Span<const int> shape) {
+  return _rand->randNormal(shape);
+}
+
+Tensor CudaOperators::arangeLong(LongType begin, LongType end, LongType step) {
+  return cuda::arangeLong(begin, end, step);
+}
+
+float CudaOperators::elem(Tensor tensor) {
+  return op::cuda::elem(tensor);
 }
 
 }  // namespace cuda

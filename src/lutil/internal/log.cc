@@ -26,6 +26,8 @@
 #include <ctime>
 #include <string>
 
+#include "lutil/platform.h"
+
 namespace lut {
 namespace internal {
 
@@ -84,6 +86,7 @@ const char *LogWrapper::Severity() const {
 
 LogWrapper &LogWrapper::DefaultMessage(const char *message) {
   default_message_ = message;
+  printStackTrace();
   return *this;
 }
 
