@@ -38,12 +38,12 @@ template<MapReduceType MR_TYPE, typename TIn, typename TOut>
 struct MapOp {
   __device__ TOut operator()(const TIn &x) const {
     if constexpr (
-        MR_TYPE == MapReduceType::SUM_FP16_FP32 || MR_TYPE == MapReduceType::MAX ||
-        MR_TYPE == MapReduceType::SUM_FP32) {
-      return x;
-    } else if constexpr (MR_TYPE == MapReduceType::SUM_EXP_FP16_FP32) {
-      return expf(static_cast<float>(x));
-    } else if constexpr (MR_TYPE == MapReduceType::SUM_SQUARE_FP16_FP32) {
+        MR_TYPE == MapReduceType::SUM || MR_TYPE == MapReduceType::MAX ||
+        MR_TYPE == MapReduceType::ALL) {
+      return TOut(x);
+    } else if constexpr (MR_TYPE == MapReduceType::SUM_EXP) {
+      return expf(TOut(x));
+    } else if constexpr (MR_TYPE == MapReduceType::SUM_SQUARE) {
       return TOut(x) * TOut(x);
     } else {
       __trap();
@@ -55,10 +55,11 @@ template<MapReduceType MR_TYPE, typename T>
 struct ReduceOp {
   __device__ T operator()(const T &a, const T &b) const {
     if constexpr (
-        MR_TYPE == MapReduceType::SUM_FP16_FP32 || MR_TYPE == MapReduceType::SUM_FP32 ||
-        MR_TYPE == MapReduceType::SUM_EXP_FP16_FP32 ||
-        MR_TYPE == MapReduceType::SUM_SQUARE_FP16_FP32) {
+        MR_TYPE == MapReduceType::SUM || MR_TYPE == MapReduceType::SUM_EXP ||
+        MR_TYPE == MapReduceType::SUM_SQUARE) {
       return a + b;
+    } else if constexpr (MR_TYPE == MapReduceType::ALL) {
+      return a && b;
     } else if constexpr (MR_TYPE == MapReduceType::MAX) {
       return std::max(a, b);
     } else {
@@ -70,12 +71,13 @@ struct ReduceOp {
 template<typename T, MapReduceType MR_TYPE>
 __device__ __host__ T getReduceInitial() {
   if constexpr (
-      MR_TYPE == MapReduceType::SUM_FP32 || MR_TYPE == MapReduceType::SUM_FP16_FP32 ||
-      MR_TYPE == MapReduceType::SUM_EXP_FP16_FP32 ||
-      MR_TYPE == MapReduceType::SUM_SQUARE_FP16_FP32) {
+      MR_TYPE == MapReduceType::SUM || MR_TYPE == MapReduceType::SUM_EXP ||
+      MR_TYPE == MapReduceType::SUM_SQUARE) {
     return T(0);
   } else if constexpr (MR_TYPE == MapReduceType::MAX) {
     return -::cuda::std::numeric_limits<float>::infinity();
+  } else if constexpr (MR_TYPE == MapReduceType::ALL) {
+    return true;
   } else {
 #ifdef __CUDA_ARCH__
     __trap();
@@ -88,8 +90,8 @@ __device__ __host__ T getReduceInitial() {
 // Wrap-level reduce
 template<typename TIn, typename TOut, MapReduceType REDUCE_TYPE, int BLOCK_DIM>
 __global__ void reduce0Kernel3D(
-    PackedSubtensor<const TIn, 3> input,
-    PackedSubtensor<TOut, 2> output) {
+    PackedTensorAccessor<const TIn, 3> input,
+    PackedTensorAccessor<TOut, 2> output) {
   assert(blockDim.x == BLOCK_DIM);
   assert(input.getShape(0) == output.getShape(0));
   MapOp<REDUCE_TYPE, TIn, TOut> mapOp;
@@ -165,14 +167,28 @@ Tensor reduceAllImpl(const Tensor &A) {
   return C;
 }
 
-Tensor reduceHalfToSingle3D(Tensor A, MapReduceType reduceType) {
-  CHECK(A.getDType() == DType::kFloat16);
-  CHECK(A.getDim() == 3);
+template<MapReduceType MR_TYPE, typename TIn, typename TOut>
+Tensor reduceLastDim3DImpl(Tensor A) {
+  CHECK(A.getDType() == DType::getType<TIn>());
+  int origDim = A.getDim();
+
+  switch (A.getDim()) {
+    case 1:
+      A = A.view({1, 1, A.getShape(0)});
+      break;
+    case 2:
+      A = A.view({1, A.getShape(0), A.getShape(1)});
+      break;
+    case 3:
+      break;
+    default:
+      NOT_IMPL();
+  }
 
   std::vector<int> shape = A.getShape();
   shape.pop_back();
 
-  Tensor C = createCudaTensorFloat(shape);
+  Tensor C = createCudaTensor<TOut>(shape);
 
   constexpr int blockSize = 256;
   dim3 d;
@@ -180,131 +196,48 @@ Tensor reduceHalfToSingle3D(Tensor A, MapReduceType reduceType) {
   d.y = A.getShape(1);
   d.x = 1;
 
-  switch (reduceType) {
-    case MapReduceType::SUM_EXP_FP16_FP32:
-      reduce0Kernel3D<half, float, MapReduceType::SUM_EXP_FP16_FP32, blockSize>
-          <<<d, blockSize>>>(A, C);
+  reduce0Kernel3D<TIn, TOut, MR_TYPE, blockSize><<<d, blockSize>>>(A, C);
+
+  cudaDeviceSynchronize();
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+
+  switch (origDim) {
+    case 1:
+      C = C.view({C.getShape(2)});
       break;
-    case MapReduceType::SUM_SQUARE_FP16_FP32:
-      reduce0Kernel3D<half, float, MapReduceType::SUM_SQUARE_FP16_FP32, blockSize>
-          <<<d, blockSize>>>(A, C);
+    case 2:
+      C = C.view({C.getShape(1), C.getShape(2)});
       break;
-    case MapReduceType::SUM_FP16_FP32:
-      reduce0Kernel3D<half, float, MapReduceType::SUM_FP16_FP32, blockSize><<<d, blockSize>>>(A, C);
-      break;
-    case MapReduceType::MAX:
-      reduce0Kernel3D<half, float, MapReduceType::MAX, blockSize><<<d, blockSize>>>(A, C);
+    case 3:
       break;
     default:
       NOT_IMPL();
   }
-  cudaDeviceSynchronize();
-  LL_CHECK_CUDA_STATUS(cudaGetLastError());
-
   return C;
 }
 
-Tensor reduceHalfToSingle2D(Tensor A, MapReduceType reduceType) {
-  CHECK(A.getDType() == DType::kFloat16);
-  CHECK(A.getDim() == 2);
+Tensor reduceLastDim(Tensor A, DType outType, MapReduceType reduceType) {
+  DType inType = A.getDType();
 
-  int d0 = A.getShape(0);
-  int d1 = A.getShape(1);
-
-  Tensor C = reduceHalfToSingle3D(A.view({1, d0, d1}), reduceType);
-  return C.view({d0});
-}
-
-Tensor reduceHalfToSingle1D(Tensor A, MapReduceType reduceType) {
-  CHECK(A.getDType() == DType::kFloat16);
-  CHECK(A.getDim() == 1);
-
-  int d0 = A.getShape(0);
-
-  Tensor C = reduceHalfToSingle3D(A.view({1, 1, d0}), reduceType);
-  return C.view({1});
-}
-
-Tensor reduceHalf3D(Tensor A, MapReduceType reduceType) {
-  CHECK(A.getDType() == DType::kFloat16);
-  CHECK(A.getDim() == 3);
-
-  std::vector<int> shape = A.getShape();
-  shape.pop_back();
-
-  Tensor C = createCudaTensorHalf(shape);
-
-  constexpr int blockSize = 256;
-  dim3 d;
-  d.z = A.getShape(0);
-  d.y = A.getShape(1);
-  d.x = 1;
-
-  switch (reduceType) {
-    case MapReduceType::MAX:
-      reduce0Kernel3D<half, half, MapReduceType::MAX, blockSize><<<d, blockSize>>>(A, C);
-      break;
-    default:
-      NOT_IMPL();
-  }
-  cudaDeviceSynchronize();
-  LL_CHECK_CUDA_STATUS(cudaGetLastError());
-
-  return C;
-}
-
-Tensor reduceHalf2D(Tensor A, MapReduceType reduceType) {
-  CHECK(A.getDType() == DType::kFloat16);
-  CHECK(A.getDim() == 2);
-
-  int d0 = A.getShape(0);
-  int d1 = A.getShape(1);
-
-  Tensor C = reduceHalf3D(A.view({1, d0, d1}), reduceType);
-  return C.view({d0});
-}
-
-Tensor reduceHalf1D(Tensor A, MapReduceType reduceType) {
-  CHECK(A.getDType() == DType::kFloat16);
-  CHECK(A.getDim() == 1);
-
-  int d0 = A.getShape(0);
-
-  Tensor C = reduceHalf3D(A.view({1, 1, d0}), reduceType);
-  return C.view({1});
-}
-
-Tensor reduceHalf(Tensor A, MapReduceType reduceType) {
-  if (A.getDim() == 3) return reduceHalf3D(A, reduceType);
-  if (A.getDim() == 2) return reduceHalf2D(A, reduceType);
-  if (A.getDim() == 1) return reduceHalf1D(A, reduceType);
+  if (inType == DType::kFloat16 && outType == DType::kFloat && reduceType == MapReduceType::SUM_EXP)
+    return reduceLastDim3DImpl<MapReduceType::SUM_EXP, half, float>(A);
+  if (inType == DType::kFloat16 && outType == DType::kFloat && reduceType == MapReduceType::SUM)
+    return reduceLastDim3DImpl<MapReduceType::SUM, half, float>(A);
+  if (inType == DType::kFloat16 && outType == DType::kFloat16 && reduceType == MapReduceType::MAX)
+    return reduceLastDim3DImpl<MapReduceType::MAX, half, half>(A);
 
   NOT_IMPL();
 }
 
-Tensor reduceHalfToSingle(Tensor A, MapReduceType reduceType) {
-  if (A.getDim() == 3) return reduceHalfToSingle3D(A, reduceType);
-  if (A.getDim() == 2) return reduceHalfToSingle2D(A, reduceType);
-  if (A.getDim() == 1) return reduceHalfToSingle1D(A, reduceType);
+Tensor reduceAll(Tensor A, DType outType, MapReduceType reduceType) {
+  DType inType = A.getDType();
 
-  NOT_IMPL();
-}
-
-Tensor reduce(Tensor A, MapReduceType reduceType) {
-  CHECK(A.getDType() == DType::kFloat16);
-
-  if (reduceType == MapReduceType::SUM_EXP_FP16_FP32) return reduceHalfToSingle(A, reduceType);
-  if (reduceType == MapReduceType::SUM_FP16_FP32) return reduceHalfToSingle(A, reduceType);
-  if (reduceType == MapReduceType::MAX) return reduceHalf(A, reduceType);
-
-  NOT_IMPL();
-}
-
-Tensor reduceAll(Tensor A, MapReduceType reduceType) {
-  if (reduceType == MapReduceType::SUM_FP16_FP32)
-    return reduceAllImpl<MapReduceType::SUM_FP16_FP32, half, float>(A);
-  if (reduceType == MapReduceType::SUM_FP32)
-    return reduceAllImpl<MapReduceType::SUM_FP32, float, float>(A);
+  if (inType == DType::kFloat16 && outType == DType::kFloat && reduceType == MapReduceType::SUM)
+    return reduceAllImpl<MapReduceType::SUM, half, float>(A);
+  if (inType == DType::kFloat && outType == DType::kFloat && reduceType == MapReduceType::SUM)
+    return reduceAllImpl<MapReduceType::SUM, float, float>(A);
+  if (inType == DType::kBool && outType == DType::kBool && reduceType == MapReduceType::ALL)
+    return reduceAllImpl<MapReduceType::ALL, BoolType, BoolType>(A);
 
   NOT_IMPL();
 }

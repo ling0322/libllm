@@ -35,7 +35,7 @@ __global__ void fillContigKernel(scalar_t *__restrict__ data, int numel, scalar_
 }
 
 template<typename scalar_t, int DIM>
-__global__ void fillGenericKernel(PackedSubtensor<scalar_t, DIM> A, int numel, scalar_t v) {
+__global__ void fillGenericKernel(PackedTensorAccessor<scalar_t, DIM> A, int numel, scalar_t v) {
   int stride = (int64_t)blockDim.x * gridDim.x;
   int idx = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
 

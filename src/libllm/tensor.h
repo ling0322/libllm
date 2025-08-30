@@ -35,6 +35,9 @@ namespace libllm {
 
 class TensorShape;
 class TensorData;
+class Operators;
+
+constexpr int None = std::numeric_limits<int>::min();
 
 class Tensor {
  public:
@@ -127,6 +130,9 @@ class Tensor {
   template<typename T>
   const T *getData() const;
 
+  // get operators for this tensor.
+  Operators *getOperators() const;
+
   // Check the shape of a tensor. If shape of `tensor` does not match `shape`, return AbortedError
   // with message "invalid shape".
   void throwIfInvalidShape(lut::Span<const int> shape, const std::string &name) const;
@@ -145,8 +151,16 @@ class Tensor {
       LongType step = 1,
       Device device = Device::getCpu());
   Tensor div(float rhs) const;
+  Tensor square() const;
+  Tensor sum(int dim = None) const;
   Tensor mod(LongType rhs) const;
-  float elem() const;
+  Tensor eq(const Tensor &rhs) const;
+  Tensor to(DType dtype) const;
+  Tensor operator==(const Tensor &rhs) const;
+  Tensor operator-(const Tensor &rhs) const;
+
+  template<typename T>
+  T elem() const;
 
  protected:
   std::shared_ptr<TensorData> _data;
@@ -307,9 +321,6 @@ class TensorData {
     return getSlot(0)->getSizeInBytes();
   }
 };
-
-constexpr int None = std::numeric_limits<int>::min();
-
 inline DType Tensor::getDType() const {
   return _data ? _data->getDType() : DType(DType::kUnknown);
 }

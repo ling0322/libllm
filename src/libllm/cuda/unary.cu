@@ -56,7 +56,7 @@ __global__ void unaryContigKernel(
 
 template<typename scalar_t, UnaryOp OP, int DIM>
 __global__ void unaryGenericKernel(
-    PackedSubtensor<const scalar_t, DIM> A,
+    PackedTensorAccessor<const scalar_t, DIM> A,
     scalar_t *__restrict__ C,
     int numel) {
   int stride = (int64_t)blockDim.x * gridDim.x;
@@ -108,7 +108,7 @@ Tensor applyUnaryOp(UnaryOp op, const Tensor &tensor) {
   if (op == UnaryOp::GELU && dtype == DType::kFloat16)
     return unaryImpl<half, UnaryOp::GELU>(tensor);
   if (op == UnaryOp::SQUARE && dtype == DType::kFloat16)
-    return unaryImpl<half, UnaryOp::GELU>(tensor);
+    return unaryImpl<half, UnaryOp::SQUARE>(tensor);
   if (op == UnaryOp::GELU && dtype == DType::kFloat) return unaryImpl<float, UnaryOp::GELU>(tensor);
   if (op == UnaryOp::SQUARE && dtype == DType::kFloat)
     return unaryImpl<float, UnaryOp::SQUARE>(tensor);

@@ -80,6 +80,17 @@ struct CudaPrinterImpl {
 
     printf("(%+.1f, %+.1f)", e2m1Fp4Values[hvalue.v0], e2m1Fp4Values[hvalue.v1]);
   }
+
+  static void printValue(accessor_type<const BoolType, 1> valAcc, int index) {
+    BoolType v;
+    LL_CHECK_CUDA_STATUS(cudaMemcpy(&v, &valAcc[index], sizeof(BoolType), cudaMemcpyDeviceToHost));
+
+    if (v) {
+      printf("true");
+    } else {
+      printf("false");
+    }
+  }
 };
 
 void print(const Tensor &tensor) {
@@ -95,6 +106,8 @@ void print(const Tensor &tensor) {
     printer.print<Fp4E2M0x2>(tensor);
   else if (tensor.getDType() == DType::kLong)
     printer.print<LongType>(tensor);
+  else if (tensor.getDType() == DType::kBool)
+    printer.print<BoolType>(tensor);
   else
     NOT_IMPL();
 }

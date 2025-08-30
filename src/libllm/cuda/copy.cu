@@ -25,7 +25,9 @@ namespace op {
 namespace cuda {
 
 template<typename T>
-__global__ void copy5DKernel(PackedSubtensor<const T, 5> src, PackedSubtensor<T, 5> dest) {
+__global__ void copy5DKernel(
+    PackedTensorAccessor<const T, 5> src,
+    PackedTensorAccessor<T, 5> dest) {
   int d4 = blockIdx.x * blockDim.x + threadIdx.x;
   int d3 = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -42,7 +44,9 @@ __global__ void copy5DKernel(PackedSubtensor<const T, 5> src, PackedSubtensor<T,
 }
 
 template<typename T>
-__global__ void copy4DKernel(PackedSubtensor<const T, 4> src, PackedSubtensor<T, 4> dest) {
+__global__ void copy4DKernel(
+    PackedTensorAccessor<const T, 4> src,
+    PackedTensorAccessor<T, 4> dest) {
   const Size *s = src.getSize();
   const int W = s[3].shape;
   const int H = s[2].shape;
@@ -61,7 +65,9 @@ __global__ void copy4DKernel(PackedSubtensor<const T, 4> src, PackedSubtensor<T,
 }
 
 template<typename T>
-__global__ void copy3DKernel(PackedSubtensor<const T, 3> src, PackedSubtensor<T, 3> dest) {
+__global__ void copy3DKernel(
+    PackedTensorAccessor<const T, 3> src,
+    PackedTensorAccessor<T, 3> dest) {
   int d2 = blockIdx.x * blockDim.x + threadIdx.x;
   int d1 = blockIdx.y * blockDim.y + threadIdx.y;
   int d0 = blockIdx.z * blockDim.z + threadIdx.z;
@@ -77,8 +83,8 @@ template<typename T>
 void copy5D(const Tensor &src, Tensor &dest) {
   src.throwIfInvalidShape(dest.getShape(), "copy5D");
 
-  PackedSubtensor<const T, 5> sA(src);
-  PackedSubtensor<T, 5> sC(dest);
+  PackedTensorAccessor<const T, 5> sA(src);
+  PackedTensorAccessor<T, 5> sC(dest);
 
   constexpr int blockSize = 256;
   dim3 d;
@@ -95,8 +101,8 @@ template<typename T>
 void copy4D(const Tensor &src, Tensor &dest) {
   src.throwIfInvalidShape(dest.getShape(), "copy4D");
 
-  PackedSubtensor<const T, 4> sA(src);
-  PackedSubtensor<T, 4> sC(dest);
+  PackedTensorAccessor<const T, 4> sA(src);
+  PackedTensorAccessor<T, 4> sC(dest);
 
   dim3 block(32, 8, 1);
   dim3 grid(
@@ -113,8 +119,8 @@ template<typename T>
 void copy3D(const Tensor &src, Tensor &dest) {
   src.throwIfInvalidShape(dest.getShape(), "copy3D");
 
-  PackedSubtensor<const T, 3> sA(src);
-  PackedSubtensor<T, 3> sC(dest);
+  PackedTensorAccessor<const T, 3> sA(src);
+  PackedTensorAccessor<T, 3> sC(dest);
 
   constexpr int blockSize = 256;
   dim3 d;

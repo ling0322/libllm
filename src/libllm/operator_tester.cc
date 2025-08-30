@@ -28,14 +28,6 @@
 #include "lutil/strings.h"
 #include "lutil/time.h"
 
-#define CONCAT2(l, r) l##r
-#define CONCAT(l, r) CONCAT2(l, r)
-
-#define LOG_TIME(stmt, message)             \
-  double CONCAT(t0, __LINE__) = lut::now(); \
-  stmt;                                     \
-  LOG(INFO) << message << ": " << (lut::now() - CONCAT(t0, __LINE__)) * 1000 << "ms";
-
 namespace libllm {
 
 OperatorTester::OperatorTester()

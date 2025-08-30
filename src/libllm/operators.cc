@@ -61,6 +61,10 @@ Tensor Operators::mod(Tensor input, LongType other) {
   NOT_IMPL();
 }
 
+Tensor Operators::eq(Tensor input, Tensor other) {
+  NOT_IMPL();
+}
+
 Tensor Operators::mul(Tensor input, Tensor other) {
   NOT_IMPL();
 }
@@ -101,6 +105,10 @@ float Operators::elem(Tensor tensor) {
   NOT_IMPL();
 }
 
+bool Operators::elemBool(Tensor tensor) {
+  NOT_IMPL();
+}
+
 Tensor Operators::tensor(lut::Span<const int> shape, DType dtype) {
   NOT_IMPL();
 }
@@ -114,6 +122,10 @@ Tensor Operators::zeros(lut::Span<const int> shape, DType dtype) {
 }
 
 bool Operators::allClose(Tensor A, Tensor B, float rtol, float atol) {
+  NOT_IMPL();
+}
+
+bool Operators::all(Tensor A) {
   NOT_IMPL();
 }
 
@@ -170,6 +182,10 @@ DType Operators::getDefaultFloatType() {
 }
 
 Tensor Operators::logMelSpectrogram(Tensor wave) {
+  NOT_IMPL();
+}
+
+void Operators::manualSeed(uint64_t seed) {
   NOT_IMPL();
 }
 

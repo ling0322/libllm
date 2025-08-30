@@ -59,7 +59,7 @@ __global__ void binaryScalarContigKernel(
 
 template<typename T, BinaryScalarOp OP, int DIM>
 __global__ void binaryScalarGenericKernel(
-    PackedSubtensor<const T, DIM> A,
+    PackedTensorAccessor<const T, DIM> A,
     T rhs,
     T *__restrict__ C,
     int numel) {

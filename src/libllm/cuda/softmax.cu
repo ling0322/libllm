@@ -20,7 +20,7 @@
 #include <cuda_fp16.h>
 #include <math.h>
 
-#include "libllm/cuda/binary_op.h"
+#include "libllm/cuda/binary.h"
 #include "libllm/cuda/common.h"
 #include "libllm/cuda/reduce.h"
 #include "libllm/functional.h"
@@ -31,9 +31,9 @@ namespace cuda {
 
 template<typename T>
 __global__ void softmaxKernel3D(
-    PackedSubtensor<const T, 3> input,
-    PackedSubtensor<const float, 2> sumExp,
-    PackedSubtensor<T, 3> output) {
+    PackedTensorAccessor<const T, 3> input,
+    PackedTensorAccessor<const float, 2> sumExp,
+    PackedTensorAccessor<T, 3> output) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
@@ -48,12 +48,12 @@ Tensor softmaxHalf3D(Tensor A) {
   CHECK(A.getDType() == DType::kFloat16);
   CHECK(A.getDim() == 3);
 
-  Tensor max = reduceHalf3D(A, MapReduceType::MAX);
+  Tensor max = reduceLastDim(A, DType::kFloat16, MapReduceType::MAX);
   max = max.view({max.getShape(0), max.getShape(1), 1});
 
-  A = cuda::binaryOp(A, max, BinaryOp::SUB);
+  A = cuda::applyBinaryOp(BinaryOp::SUB, A, max);
 
-  Tensor sumExp = reduceHalfToSingle3D(A, MapReduceType::SUM_EXP_FP16_FP32);
+  Tensor sumExp = reduceLastDim(A, DType::kFloat, MapReduceType::SUM_EXP);
 
   Tensor C = createCudaTensorHalf(A.getShape());
 

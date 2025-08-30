@@ -245,5 +245,17 @@ float elem(Tensor tensor) {
   return getOperators(tensor.getDevice().getType())->elem(tensor);
 }
 
+Tensor eq(Tensor tensor, Tensor other) {
+  return getOperators(tensor.getDevice().getType())->eq(tensor, other);
+}
+
+bool all(Tensor tensor) {
+  return getOperators(tensor.getDevice().getType())->all(tensor);
+}
+
+void manualSeed(Device device, uint64_t seed) {
+  return getOperators(device.getType())->manualSeed(seed);
+}
+
 }  // namespace F
 }  // namespace libllm

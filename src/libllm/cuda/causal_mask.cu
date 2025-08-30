@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,17 +17,17 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cuda/causal_mask.h"
-
 #include <cuda_fp16.h>
 #include <math.h>
+
+#include "libllm/cuda/causal_mask.h"
 #include "libllm/cuda/common.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-__global__ void causalMaskKernel(PackedSubtensor<half, 2> mask) {
+__global__ void causalMaskKernel(PackedTensorAccessor<half, 2> mask) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -50,6 +50,6 @@ Tensor causalMask(int size) {
   return C;
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

@@ -26,6 +26,7 @@
 #include "libllm/cpu/cpu_tensor_data.h"
 #include "libllm/cpu/view.h"
 #include "libllm/functional.h"
+#include "libllm/operators.h"
 #include "lutil/error.h"
 #include "lutil/strings.h"
 
@@ -318,6 +319,14 @@ Tensor Tensor::mod(LongType rhs) const {
   return F::mod(*this, rhs);
 }
 
+Tensor Tensor::square() const {
+  return getOperators()->square(*this);
+}
+
+Tensor Tensor::sum(int dim) const {
+  return getOperators()->sum(*this, dim);
+}
+
 Tensor Tensor::randn(lut::Span<const int> shape, Device device) {
   return F::randn(shape, device);
 }
@@ -326,12 +335,41 @@ Tensor Tensor::arange(LongType begin, LongType end, LongType step, Device device
   return F::arange(begin, end, step, device);
 }
 
-float Tensor::elem() const {
-  return F::elem(*this);
+Tensor Tensor::eq(const Tensor &rhs) const {
+  return F::eq(*this, rhs);
 }
 
+Tensor Tensor::to(DType dtype) const {
+  return getOperators()->cast(*this, dtype);
+}
+
+Tensor Tensor::operator==(const Tensor &rhs) const {
+  return eq(rhs);
+}
+
+Tensor Tensor::operator-(const Tensor &rhs) const {
+  return getOperators()->sub(*this, rhs);
+}
+
+Operators *Tensor::getOperators() const {
+  return libllm::getOperators(getDevice().getType());
+}
+
+template<>
+float Tensor::elem<float>() const {
+  return getOperators()->elem(*this);
+}
+
+template<>
+bool Tensor::elem<bool>() const {
+  return getOperators()->elemBool(*this);
+}
+
+template float Tensor::elem<float>() const;
+template bool Tensor::elem<bool>() const;
+
 // -----------------------------------------------------------------------------------------------+
-// TensorShaoe                                                                                    |
+// TensorShaoe |
 // -----------------------------------------------------------------------------------------------+
 
 TensorShape::TensorShape(const TensorShape &size)

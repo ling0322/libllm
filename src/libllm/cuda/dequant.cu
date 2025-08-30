@@ -33,7 +33,7 @@ namespace cuda {
 
 __global__ void dequantTensor2DQ4(
     PackedSubtensor2DQInt4x32 qtensor,
-    PackedSubtensor<half, 2> destTensor) {
+    PackedTensorAccessor<half, 2> destTensor) {
   int64_t numQ4x2 = qtensor.getNumCol() * qtensor.getNumRow() / 2;
   half *destData = destTensor.getData();
 
@@ -54,43 +54,125 @@ __global__ void dequantTensor2DQ4(
   }
 }
 
-inline __device__ uint8_t fp32_vec_to_e2m1(float v0, float v1) {
-  uint8_t b = __nv_cvt_float2_to_fp4x2(make_float2(v0, v1), __NV_E2M1, cudaRoundNearest);
+__forceinline__ __device__ int getScaleOffset(int row, int col, int numCol) {
+  int tileRow = row / 128;
+  int tileCol = col / 4;
+  int tileNumCol = numCol / 4;
+  int tileOffset = (tileCol + tileRow * tileNumCol) * 512;
+  int innerRow = row % 128;
+  int innerCol = col % 4;
+  int swizzedRow = innerRow % 32;
+  int swizzedCol = (innerRow / 32) * 4 + innerCol;
+  int offset = tileOffset + swizzedRow * 16 + swizzedCol;
+
+  return offset;
+}
+
+template<typename T>
+__global__ void swizzleScaleKernel(const T *__restrict__ in, T *__restrict__ out, int m, int n) {
+  int stride = blockDim.x * gridDim.x;
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int numel = n * m;
+
+  for (; idx < numel; idx += stride) {
+    int row = idx / n;
+    int col = idx % n;
+
+    int offset = getScaleOffset(row, col, n);
+    if (offset >= numel) {
+      __trap();
+    }
+
+    out[offset] = in[idx];
+  }
+}
+
+__forceinline__ __device__ uint32_t cvtFp32x8ToFp4(float2 (&array)[4]) {
+  uint32_t val;
+  asm volatile(
+      "{\n"
+      ".reg .b8 byte0;\n"
+      ".reg .b8 byte1;\n"
+      ".reg .b8 byte2;\n"
+      ".reg .b8 byte3;\n"
+      "cvt.rn.satfinite.e2m1x2.f32   byte0, %2, %1;\n"
+      "cvt.rn.satfinite.e2m1x2.f32   byte1, %4, %3;\n"
+      "cvt.rn.satfinite.e2m1x2.f32   byte2, %6, %5;\n"
+      "cvt.rn.satfinite.e2m1x2.f32   byte3, %8, %7;\n"
+      "mov.b32 %0, {byte0, byte1, byte2, byte3};\n"
+      "}"
+      : "=r"(val)
+      : "f"(array[0].x),
+        "f"(array[0].y),
+        "f"(array[1].x),
+        "f"(array[1].y),
+        "f"(array[2].x),
+        "f"(array[2].y),
+        "f"(array[3].x),
+        "f"(array[3].y));
+  return val;
+}
+
+__forceinline__ __device__ float fastRcp(float a) {
+  float b;
+  asm volatile("rcp.approx.ftz.f32 %0, %1;\n" : "=f"(b) : "f"(a));
   return b;
 }
 
+template<bool SWIZZLE_SCALE>
 __global__ void quantizeHalfToMxfp4Kernel(
     const half *__restrict__ x,
-    uint8_t *__restrict__ q,
-    uint8_t *__restrict__ scales,
-    int64_t N) {
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  int lane = threadIdx.x & (32 - 1);
-  int group = idx >> 5;
-  int group_start = group << 5;
+    __nv_fp4x2_storage_t *__restrict__ q,
+    __nv_fp8_storage_t *__restrict__ scales,
+    int numRow,
+    int numCol) {
+  for (int rowIdx = blockIdx.x; rowIdx < numRow; rowIdx += gridDim.x) {
+    for (int columnIdx = threadIdx.x; columnIdx < numCol / 8; columnIdx += blockDim.x) {
+      int offset = rowIdx * (numCol / 8) + columnIdx;
+      PackedOWORD<half2> po = reinterpret_cast<const PackedOWORD<half2> *>(x)[offset];
 
-  float xi = (idx < N) ? static_cast<float>(x[idx]) : 0.0f;
+      half2 maxAbs2 = __habs2(po.v[0]);
+      maxAbs2 = __hmax2(maxAbs2, __habs2(po.v[1]));
+      maxAbs2 = __hmax2(maxAbs2, __habs2(po.v[2]));
+      maxAbs2 = __hmax2(maxAbs2, __habs2(po.v[3]));
 
-  float a = fabsf(xi);
-  unsigned mask = 0xFFFFFFFFu;
+      unsigned mask = 0xffffffff;
+      maxAbs2 = __hmax2(maxAbs2, __shfl_xor_sync(mask, maxAbs2, 1));
+      maxAbs2 = __hmax2(maxAbs2, __shfl_xor_sync(mask, maxAbs2, 2));
 
-  a = fmaxf(a, __shfl_down_sync(mask, a, 16));
-  a = fmaxf(a, __shfl_down_sync(mask, a, 8));
-  a = fmaxf(a, __shfl_down_sync(mask, a, 4));
-  a = fmaxf(a, __shfl_down_sync(mask, a, 2));
-  a = fmaxf(a, __shfl_down_sync(mask, a, 1));
+      float maxAbs = float(__hmax(maxAbs2.x, maxAbs2.y));
+      float scale = maxAbs * fastRcp(6.0);
+      uint32_t scaleU32 = reinterpret_cast<uint32_t &>(scale) >> 23;
+      __nv_fp8_storage_t e8m0Scale = scaleU32 & 0xff;
+      reinterpret_cast<uint32_t &>(scale) = scaleU32 << 23;
 
-  float max_abs = __shfl_sync(mask, a, 0);
-  float scale = (max_abs / 3.0) + 1e-8f;
-  reinterpret_cast<uint32_t &>(scale) = (reinterpret_cast<uint32_t &>(scale)) & 0x7f800000;
+      int scaleOffset;
+      if constexpr (SWIZZLE_SCALE) {
+        scaleOffset = getScaleOffset(rowIdx, columnIdx / 4, numCol / 32);
+      } else {
+        scaleOffset = rowIdx * (numCol / 32) + (columnIdx / 4);
+      }
+      scales[scaleOffset] = e8m0Scale;
 
-  float v0 = xi / scale;
-  float v1 = __shfl_xor_sync(mask, v0, 1);
-  if (lane % 2 == 0 && idx < N) {
-    q[idx / 2] = fp32_vec_to_e2m1(v0, v1);
-  }
-  if (lane == 0 && group_start < N) {
-    scales[group] = static_cast<uint8_t>(reinterpret_cast<uint32_t &>(scale) >> 23);
+      float rcpScale = fastRcp(scale);
+      float2 f2[4];
+      f2[0] = __half22float2(po.v[0]);
+      f2[1] = __half22float2(po.v[1]);
+      f2[2] = __half22float2(po.v[2]);
+      f2[3] = __half22float2(po.v[3]);
+
+      f2[0].x *= rcpScale;
+      f2[0].y *= rcpScale;
+      f2[1].x *= rcpScale;
+      f2[1].y *= rcpScale;
+      f2[2].x *= rcpScale;
+      f2[2].y *= rcpScale;
+      f2[3].x *= rcpScale;
+      f2[3].y *= rcpScale;
+
+      uint32_t qfp4x8 = cvtFp32x8ToFp4(f2);
+      reinterpret_cast<uint32_t *>(q)[offset] = qfp4x8;
+    }
   }
 }
 
@@ -134,7 +216,7 @@ Tensor dequantQ4ToHalf(const Tensor &qtensor) {
   dim3 grid = getGrid1D(static_cast<int>(qT.getNumEl()), blockSize);
 
   PackedSubtensor2DQInt4x32 sA(qT);
-  PackedSubtensor<half, 2> sC(dst);
+  PackedTensorAccessor<half, 2> sC(dst);
 
   dequantTensor2DQ4<<<grid, blockSize>>>(sA, sC);
   cudaDeviceSynchronize();
@@ -144,32 +226,47 @@ Tensor dequantQ4ToHalf(const Tensor &qtensor) {
   return dst;
 }
 
-std::pair<Tensor, Tensor> quantHalfToMxfp4(const Tensor &tensor) {
+std::pair<Tensor, Tensor> quantHalfToMxfp4(const Tensor &tensor, bool scaleLayout) {
   CHECK(tensor.getDType() == DType::kFloat16);
-  CHECK(tensor.isContiguous());
-  CHECK(tensor.getShape(-1) % 32 == 0);
+  CHECK(tensor.isContiguous() && tensor.getDim() == 2);
+  CHECK(tensor.getShape(0) % 128 == 0 && tensor.getShape(1) % 128 == 0);
 
-  int64_t numel = tensor.getNumEl();
+  int64_t numel64 = tensor.getNumEl();
+  CHECK(numel64 < std::numeric_limits<int32_t>::max());
 
-  dim3 block(256);
-  dim3 grid((numel + block.x - 1) / block.x);
+  int numRow = tensor.getShape(0);
+  int numCol = tensor.getShape(1);
+  CHECK(numRow % 128 == 0 && numCol % 128 == 0);
 
-  std::vector<Tensor::ShapeType> shape = tensor.getShape();
-  shape.back() /= 2;
-  Tensor data = createCudaTensorFp4x2(shape);
+  int numSM = getCudaDeviceAttribute(cudaDevAttrMultiProcessorCount);
+  int numBlock = std::min(tensor.getShape(0), 4 * numSM);
+  int blockSize = std::min(tensor.getShape(1) / 8, 256);
 
-  shape.back() /= 16;
-  Tensor scale = createCudaTensorUInt8(shape);
+  Tensor q = createCudaTensorFp4x2({numRow, numCol / 2});
+  Tensor scales = createCudaTensorUInt8({numRow, numCol / 32});
+  if (scaleLayout) {
+    scales = scales.view({-1, 32, 16});
+  }
 
-  quantizeHalfToMxfp4Kernel<<<grid, block>>>(
-      tensor.getData<half>(),
-      reinterpret_cast<uint8_t *>(data.getData<Fp4E2M0x2>()),
-      reinterpret_cast<uint8_t *>(scale.getData<UInt8>()),
-      numel);
+  if (scaleLayout) {
+    quantizeHalfToMxfp4Kernel<true><<<numBlock, blockSize>>>(
+        tensor.getData<half>(),
+        reinterpret_cast<uint8_t *>(q.getData<Fp4E2M0x2>()),
+        reinterpret_cast<uint8_t *>(scales.getData<UInt8>()),
+        numRow,
+        numCol);
+  } else {
+    quantizeHalfToMxfp4Kernel<false><<<numBlock, blockSize>>>(
+        tensor.getData<half>(),
+        reinterpret_cast<uint8_t *>(q.getData<Fp4E2M0x2>()),
+        reinterpret_cast<uint8_t *>(scales.getData<UInt8>()),
+        numRow,
+        numCol);
+  }
   cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
-  return std::make_pair(data, scale);
+  return std::make_pair(q, scales);
 }
 
 Tensor dequandMxfp4ToHalf(const Tensor &fp4, const Tensor &scale) {
@@ -199,22 +296,45 @@ Tensor dequandMxfp4ToHalf(const Tensor &fp4, const Tensor &scale) {
   return C;
 }
 
-Tensor toSm1xxScaleBlock(const Tensor &scale) {
-  CHECK(scale.getDim() == 2);  //  && scale.getDType() == DType::kUInt8);
+template<typename T>
+Tensor toSm1xxScaleBlockImpl(const Tensor &scale) {
+  CHECK(scale.getDim() == 2 && scale.getDType() == DType::getType<T>());
 
   int numRow = scale.getShape(0);
   int numCol = scale.getShape(1);
 
   CHECK(numRow % 128 == 0 && numCol % 4 == 0);
-  Tensor scale0 = scale.view({numRow / 128, 128, numCol / 4, 4}).transpose(1, 2);
-  Tensor scale1 = tensorLike(scale0);
-  copy(scale0, scale1);
 
-  scale1 = scale1.view({-1, 4, 32, 4}).transpose(1, 2);
-  Tensor scale2 = tensorLike(scale1);
-  copy(scale1, scale2);
+  int64_t numel64 = scale.getNumEl();
+  CHECK(numel64 < std::numeric_limits<int32_t>::max());
+  int numel = static_cast<int>(numel64);
 
-  return scale2;
+  int blockSize = 256;
+  dim3 grid = getGrid1D(numel, blockSize);
+
+  Tensor C = createCudaTensor<T>({scale.getShape(0), scale.getShape(1)});
+  C = C.view({-1, 32, 16});
+
+  swizzleScaleKernel<T><<<grid, blockSize>>>(
+      reinterpret_cast<const T *>(scale.getData<T>()),
+      reinterpret_cast<T *>(C.getData<T>()),
+      numRow,
+      numCol);
+
+  cudaDeviceSynchronize();
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+
+  return C;
+}
+
+Tensor toSm1xxScaleBlock(const Tensor &scale) {
+  CHECK(scale.getDevice().getType() == Device::kCuda);
+  DType dtype = scale.getDType();
+
+  if (dtype == DType::kLong) return toSm1xxScaleBlockImpl<LongType>(scale);
+  if (dtype == DType::kUInt8) return toSm1xxScaleBlockImpl<UInt8>(scale);
+
+  NOT_IMPL();
 }
 
 }  // namespace cuda

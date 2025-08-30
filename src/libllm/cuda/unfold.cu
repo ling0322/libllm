@@ -25,8 +25,8 @@ namespace op {
 namespace cuda {
 
 __global__ void unfold1DKernel3D(
-    PackedSubtensor<const half, 3> A,
-    PackedSubtensor<half, 3> C,
+    PackedTensorAccessor<const half, 3> A,
+    PackedTensorAccessor<half, 3> C,
     int kernelSize,
     int stride) {
   // x, y, z is the dimensions of C.

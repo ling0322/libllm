@@ -27,23 +27,23 @@ namespace cuda {
 
 enum class MapReduceType {
   // Sum of exp(x). FP16_FP32 means the input type if fp16, intermediate and output type is fp32.
-  SUM_EXP_FP16_FP32,
+  SUM_EXP,
 
   // Sum of x^2.
-  SUM_SQUARE_FP16_FP32,
+  SUM_SQUARE,
 
   // Sum of x.
-  SUM_FP16_FP32,
-  SUM_FP32,
+  SUM,
 
   // Get maximun number in list.
-  MAX
+  MAX,
+
+  // Return true if all elements are true
+  ALL
 };
 
-Tensor reduce(Tensor A, MapReduceType reduceType);
-Tensor reduceHalfToSingle3D(Tensor A, MapReduceType reduceType);
-Tensor reduceHalf3D(Tensor A, MapReduceType reduceType);
-Tensor reduceAll(Tensor A, MapReduceType reduceType);
+Tensor reduceLastDim(Tensor A, DType outType, MapReduceType reduceType);
+Tensor reduceAll(Tensor A, DType outType, MapReduceType reduceType);
 
 }  // namespace cuda
 }  // namespace op

@@ -57,6 +57,7 @@ class CudaOperators : public Operators {
   Tensor matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB) override;
   Tensor max(Tensor inputs) override;
   Tensor mul(Tensor input, float other) override;
+  bool all(Tensor A) override;
   Tensor div(Tensor input, float other) override;
   Tensor mod(Tensor input, LongType other) override;
   Tensor mul(Tensor input, Tensor other) override;
@@ -72,7 +73,10 @@ class CudaOperators : public Operators {
   Tensor unfold(Tensor input, int kernelSize, int stride) override;
   Tensor zeros(lut::Span<const int> shape, DType dtype) override;
   Tensor randNormal(lut::Span<const int> shape);
+  void manualSeed(uint64_t seed) override;
   float elem(Tensor tensor) override;
+  bool elemBool(Tensor tensor) override;
+  Tensor eq(Tensor input, Tensor other) override;
 
   DType getDefaultFloatType() override;
 

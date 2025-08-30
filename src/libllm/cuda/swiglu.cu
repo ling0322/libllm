@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,23 +17,24 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cuda/swiglu.h"
-
 #include <cuda_fp16.h>
+
 #include "libllm/cuda/common.h"
+#include "libllm/cuda/swiglu.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-__global__ void swigluKernel3D(PackedSubtensor<const half, 3> A, PackedSubtensor<half, 3> C) {
+__global__ void swigluKernel3D(
+    PackedTensorAccessor<const half, 3> A,
+    PackedTensorAccessor<half, 3> C) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-  if (z >= C.getShape(0) || y >= C.getShape(1) || x >= C.getShape(2))
-    return;
-  
+  if (z >= C.getShape(0) || y >= C.getShape(1) || x >= C.getShape(2)) return;
+
   float g = __half2float(A[z][y][x]);
   float a = __half2float(A[z][y][x + C.getShape(2)]);  // C.getShape(2) == A.getShape(2) / 2
   float c = a * g / (1.0f + expf(-g));
@@ -68,7 +69,6 @@ Tensor swiglu(const Tensor &tensor) {
   NOT_IMPL();
 }
 
-}  // cuda
-}  // op
-}  // ly
-
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm

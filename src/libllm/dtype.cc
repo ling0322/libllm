@@ -64,6 +64,10 @@ template<>
 DType DType::getTypeImpl<Int8>() {
   return DType::kInt8;
 }
+template<>
+DType DType::getTypeImpl<BoolType>() {
+  return DType::kBool;
+}
 #ifdef LIBLLM_CUDA_ENABLED
 template<>
 DType DType::getTypeImpl<half>() {
@@ -90,7 +94,8 @@ int64_t DType::getTotalSize(int64_t numel) const {
     case DType::kFp4E2M0x2:
     case DType::kInt8:
     case DType::kUInt8:
-      return numel;
+    case DType::kBool:
+      return numel * sizeof(BoolType);
     default:
       NOT_IMPL();
       return -1;
@@ -106,6 +111,7 @@ bool DType::isValid() const {
     case DType::kQInt4x32:
     case DType::kFp4E2M0x2:
     case DType::kInt8:
+    case DType::kBool:
       return true;
     default:
       return false;
@@ -157,6 +163,8 @@ std::string DType::toString() const {
       return "q4";
     case DType::kFp4E2M0x2:
       return "fp4";
+    case DType::kBool:
+      return "bool";
     case DType::kInt8:
       return "int8";
     default:

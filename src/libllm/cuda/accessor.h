@@ -40,9 +40,9 @@ struct Size {
 };
 
 template<typename T, int DIM>
-class SubtensorBase {
+class TensorAccessorBase {
  public:
-  __device__ SubtensorBase(const Size *size, T *data)
+  __device__ TensorAccessorBase(const Size *size, T *data)
       : _size(size),
         _data(data) {
   }
@@ -53,27 +53,27 @@ class SubtensorBase {
 };
 
 template<typename T, int DIM>
-class Subtensor : public SubtensorBase<T, DIM> {
+class TensorAccessor : public TensorAccessorBase<T, DIM> {
  public:
-  __device__ Subtensor(const Size *size, T *data)
-      : SubtensorBase<T, DIM>(size, data) {
+  __device__ TensorAccessor(const Size *size, T *data)
+      : TensorAccessorBase<T, DIM>(size, data) {
   }
 
-  __device__ Subtensor<T, DIM - 1> operator[](int index) {
+  __device__ TensorAccessor<T, DIM - 1> operator[](int index) {
     int64_t offset = index * this->_size[0].stride;
-    return Subtensor<T, DIM - 1>(this->_size + 1, this->_data + offset);
+    return TensorAccessor<T, DIM - 1>(this->_size + 1, this->_data + offset);
   }
-  __device__ const Subtensor<T, DIM - 1> operator[](int index) const {
+  __device__ const TensorAccessor<T, DIM - 1> operator[](int index) const {
     int64_t offset = index * this->_size[0].stride;
-    return Subtensor<T, DIM - 1>(this->_size + 1, this->_data + offset);
+    return TensorAccessor<T, DIM - 1>(this->_size + 1, this->_data + offset);
   }
 };
 
 template<typename T>
-class Subtensor<T, 1> : public SubtensorBase<T, 1> {
+class TensorAccessor<T, 1> : public TensorAccessorBase<T, 1> {
  public:
-  __device__ Subtensor(const Size *size, T *data)
-      : SubtensorBase<T, 1>(size, data) {
+  __device__ TensorAccessor(const Size *size, T *data)
+      : TensorAccessorBase<T, 1>(size, data) {
   }
 
   __device__ T &operator[](int index) {
@@ -86,14 +86,14 @@ class Subtensor<T, 1> : public SubtensorBase<T, 1> {
   }
 };
 
-/// @brief A packed tensor accessor. `Packed` means the subtensor also packed with the tensor
+/// @brief A packed tensor accessor. `Packed` means the TensorAccessor also packed with the tensor
 /// metadata.
 /// @tparam T Tensor data type.
 /// @tparam DIM Dimension of this tensor.
 template<typename T, int DIM>
-class PackedSubtensorBase {
+class PackedTensorAccessorBase {
  public:
-  __host__ explicit PackedSubtensorBase(Tensor &tensor) {
+  __host__ explicit PackedTensorAccessorBase(Tensor &tensor) {
     CHECK(tensor.getDim() == DIM);
     _data = tensor.getData<T>();
     for (int i = 0; i < DIM; ++i) {
@@ -101,7 +101,7 @@ class PackedSubtensorBase {
     }
   }
 
-  __host__ explicit PackedSubtensorBase(const Tensor &tensor) {
+  __host__ explicit PackedTensorAccessorBase(const Tensor &tensor) {
     CHECK(tensor.getDim() == DIM);
     _data = tensor.getData<T>();
     for (int i = 0; i < DIM; ++i) {
@@ -138,33 +138,33 @@ class PackedSubtensorBase {
 };
 
 template<typename T, int DIM>
-class PackedSubtensor : public PackedSubtensorBase<T, DIM> {
+class PackedTensorAccessor : public PackedTensorAccessorBase<T, DIM> {
  public:
-  __host__ PackedSubtensor(Tensor &tensor)
-      : PackedSubtensorBase<T, DIM>(tensor) {
+  __host__ PackedTensorAccessor(Tensor &tensor)
+      : PackedTensorAccessorBase<T, DIM>(tensor) {
   }
-  __host__ PackedSubtensor(const Tensor &tensor)
-      : PackedSubtensorBase<T, DIM>(tensor) {
+  __host__ PackedTensorAccessor(const Tensor &tensor)
+      : PackedTensorAccessorBase<T, DIM>(tensor) {
   }
 
-  __device__ Subtensor<T, DIM - 1> operator[](int index) {
+  __device__ TensorAccessor<T, DIM - 1> operator[](int index) {
     int64_t offset = index * this->_size[0].stride;
-    return Subtensor<T, DIM - 1>(this->_size + 1, this->_data + offset);
+    return TensorAccessor<T, DIM - 1>(this->_size + 1, this->_data + offset);
   }
-  __device__ const Subtensor<T, DIM - 1> operator[](int index) const {
+  __device__ const TensorAccessor<T, DIM - 1> operator[](int index) const {
     int64_t offset = index * this->_size[0].stride;
-    return Subtensor<T, DIM - 1>(this->_size + 1, this->_data + offset);
+    return TensorAccessor<T, DIM - 1>(this->_size + 1, this->_data + offset);
   }
 };
 
 template<typename T>
-class PackedSubtensor<T, 1> : public PackedSubtensorBase<T, 1> {
+class PackedTensorAccessor<T, 1> : public PackedTensorAccessorBase<T, 1> {
  public:
-  __host__ PackedSubtensor(Tensor &tensor)
-      : PackedSubtensorBase<T, 1>(tensor) {
+  __host__ PackedTensorAccessor(Tensor &tensor)
+      : PackedTensorAccessorBase<T, 1>(tensor) {
   }
-  __host__ PackedSubtensor(const Tensor &tensor)
-      : PackedSubtensorBase<T, 1>(tensor) {
+  __host__ PackedTensorAccessor(const Tensor &tensor)
+      : PackedTensorAccessorBase<T, 1>(tensor) {
   }
 
   __device__ T &operator[](int index) {

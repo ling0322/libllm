@@ -89,7 +89,7 @@ if (WITH_CUDA)
         ${libllm_SOURCES}
         "cuda/arange.cu"
         "cuda/apply_rotary_pos_emb.cu"
-        "cuda/binary_op.cu"
+        "cuda/binary.cu"
         "cuda/binary_scalar.cu"
         "cuda/cast.cu"
         "cuda/causal_mask.cu"
@@ -181,7 +181,7 @@ target_compile_options(libllm_static PRIVATE "-DLIBLLM_EXPORTS")
 target_include_directories(libllm_static PRIVATE ${LIBDWARF_INCLUDE_DIRS})
 #set_target_properties(libllm_static PROPERTIES CXX_VISIBILITY_PRESET hidden)
 #set_target_properties(libllm_static PROPERTIES CUDA_VISIBILITY_PRESET hidden)
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr --use_fast_math")
 target_include_directories(libllm_static PRIVATE ${libllm_INCDIR})
 
 add_library(libllm_test OBJECT ${libllm_test_SOURCES})
