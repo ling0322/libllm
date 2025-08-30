@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2023 Xiaoyang Chen
+// Copyright (c) 2023-2025 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -25,10 +25,10 @@ namespace libllm {
 namespace op {
 namespace cuda {
 
-enum class BinaryOp { ADD, SUB, MUL };
+enum class BinaryOp { ADD, SUB, MUL, EQUAL };
 
 // apply C <- BinaryOp(A, B)
-Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op);
+Tensor applyBinaryOp(BinaryOp op, const Tensor &A, const Tensor &B);
 
 }  // namespace cuda
 }  // namespace op

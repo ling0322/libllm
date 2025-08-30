@@ -25,7 +25,7 @@
 
 #include <type_traits>
 
-#include "libllm/cuda/subtensor.h"
+#include "libllm/cuda/accessor.h"
 #include "libllm/dtype.h"
 #include "libllm/tensor.h"
 #include "lutil/c_ptr.h"
@@ -51,6 +51,13 @@
 namespace libllm {
 namespace op {
 namespace cuda {
+
+template<typename T>
+struct PackedOWORD {
+  static_assert(16 % sizeof(T) == 0, "invalid typename T for PackedOWORD");
+  T v[16 / sizeof(T)];
+};
+static_assert(sizeof(PackedOWORD<half2>) == 16, "invalid size of PackedOWORD<half2>");
 
 /// @brief A q4 quantized constant matrix (2D tensor).
 struct PackedSubtensor2DQInt4x32 {
@@ -102,6 +109,7 @@ Tensor createCudaTensorLong(lut::Span<const int> shape);
 Tensor createCudaTensorFloat(lut::Span<const int> shape);
 Tensor createCudaTensorFp4x2(lut::Span<const int> shape);
 Tensor createCudaTensorUInt8(lut::Span<const int> shape);
+Tensor createCudaTensorBool(lut::Span<const int> shape);
 Tensor tensorLike(const Tensor &tensor);
 
 template<typename T>
@@ -127,6 +135,10 @@ template<>
 inline Tensor createCudaTensor<UInt8>(lut::Span<const int> shape) {
   return createCudaTensorUInt8(shape);
 }
+template<>
+inline Tensor createCudaTensor<BoolType>(lut::Span<const int> shape) {
+  return createCudaTensorBool(shape);
+}
 
 /// @brief Split a index into dim3 object according to the shape info in `size`.
 /// @param index the index to split.
@@ -151,8 +163,9 @@ int getCudaDeviceAttribute(cudaDeviceAttr attr);
 /// @return cuda device count.
 int getCudaDeviceCount();
 
-/// @brief Get float element from a scalar tensor (1D tensor which has only 1 element)
+/// @brief Get element from a scalar tensor (1D tensor which has only 1 element)
 float elem(const Tensor &tensor);
+bool elemBool(const Tensor &tensor);
 
 /// get grid for 1D kernel for a specified numel.
 dim3 getGrid1D(int numel, int blockSize);

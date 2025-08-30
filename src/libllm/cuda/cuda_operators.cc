@@ -23,7 +23,7 @@
 
 #include "libllm/cuda/apply_rotary_pos_emb.h"
 #include "libllm/cuda/arange.h"
-#include "libllm/cuda/binary_op.h"
+#include "libllm/cuda/binary.h"
 #include "libllm/cuda/binary_scalar.h"
 #include "libllm/cuda/cast.h"
 #include "libllm/cuda/causal_mask.h"
@@ -79,24 +79,20 @@ Tensor CudaOperators::square(Tensor input) {
 }
 
 Tensor CudaOperators::max(Tensor inputs) {
-  return op::cuda::reduce(inputs, MapReduceType::MAX);
+  return op::cuda::reduceLastDim(inputs, inputs.getDType(), MapReduceType::MAX);
+}
+
+bool CudaOperators::all(Tensor A) {
+  return op::cuda::elemBool(op::cuda::reduceAll(A, DType::kBool, MapReduceType::ALL));
 }
 
 Tensor CudaOperators::sum(Tensor inputs, int dim) {
   Tensor C;
-  MapReduceType mrType;
-  if (inputs.getDType() == DType::kFloat16) {
-    mrType = MapReduceType::SUM_FP16_FP32;
-  } else if (inputs.getDType() == DType::kFloat) {
-    mrType = MapReduceType::SUM_FP32;
-  } else {
-    NOT_IMPL();
-  }
 
   if (dim == -1 || dim == inputs.getDim() - 1) {
-    C = op::cuda::reduce(inputs, mrType);
+    C = op::cuda::reduceLastDim(inputs, DType::kFloat, MapReduceType::SUM);
   } else if (dim == None) {
-    C = op::cuda::reduceAll(inputs, mrType);
+    C = op::cuda::reduceAll(inputs, DType::kFloat, MapReduceType::SUM);
   }
 
   if (inputs.getDType() == DType::kFloat16) {
@@ -130,7 +126,7 @@ Tensor CudaOperators::mod(Tensor input, LongType other) {
 }
 
 Tensor CudaOperators::mul(Tensor input, Tensor other) {
-  return op::cuda::binaryOp(input, other, BinaryOp::MUL);
+  return op::cuda::applyBinaryOp(BinaryOp::MUL, input, other);
 }
 
 Tensor CudaOperators::softmax(Tensor input) {
@@ -138,11 +134,11 @@ Tensor CudaOperators::softmax(Tensor input) {
 }
 
 Tensor CudaOperators::add(Tensor input, Tensor other) {
-  return op::cuda::binaryOp(input, other, BinaryOp::ADD);
+  return op::cuda::applyBinaryOp(BinaryOp::ADD, input, other);
 }
 
 Tensor CudaOperators::sub(Tensor input, Tensor other) {
-  return op::cuda::binaryOp(input, other, BinaryOp::SUB);
+  return op::cuda::applyBinaryOp(BinaryOp::SUB, input, other);
 }
 
 void CudaOperators::repetitionPenalty(Tensor logits, Tensor history, float weight) {
@@ -233,6 +229,18 @@ Tensor CudaOperators::arangeLong(LongType begin, LongType end, LongType step) {
 
 float CudaOperators::elem(Tensor tensor) {
   return op::cuda::elem(tensor);
+}
+
+bool CudaOperators::elemBool(Tensor tensor) {
+  return op::cuda::elemBool(tensor);
+}
+
+Tensor CudaOperators::eq(Tensor input, Tensor other) {
+  return op::cuda::applyBinaryOp(BinaryOp::EQUAL, input, other);
+}
+
+void CudaOperators::manualSeed(uint64_t seed) {
+  _rand->setSeed(seed);
 }
 
 }  // namespace cuda

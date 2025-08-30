@@ -258,5 +258,13 @@ DType getDefaultFloatType(Device device);
 /// @brief Get element from scalar tensor (1D tensor with only 1 element)
 float elem(Tensor tensor);
 
+/// tensor == other (no reduce)
+Tensor eq(Tensor tensor, Tensor other);
+
+/// Returns true if all elements in tensor are true
+bool all(Tensor tensor);
+
+void manualSeed(Device device, uint64_t seed);
+
 }  // namespace F
 }  // namespace libllm

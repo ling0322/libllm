@@ -19,6 +19,7 @@ if(WITH_CUDA)
     find_package(CUDAToolkit REQUIRED)
     include_directories(${CUDAToolkit_INCLUDE_DIRS}) 
     set(CMAKE_CUDA_ARCHITECTURES 120a)
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 -Xptxas -v")
     enable_language(CUDA)
 endif()
 

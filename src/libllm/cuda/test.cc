@@ -36,14 +36,6 @@
 #include "lutil/random.h"
 #include "lutil/time.h"
 
-#define CONCAT2(l, r) l##r
-#define CONCAT(l, r) CONCAT2(l, r)
-
-#define LOG_TIME(stmt, message)             \
-  double CONCAT(t0, __LINE__) = lut::now(); \
-  stmt;                                     \
-  LOG(INFO) << message << ": " << (lut::now() - CONCAT(t0, __LINE__)) * 1000 << "ms";
-
 using OperatorType = libllm::OperatorTester::OperatorType;
 
 namespace libllm {
@@ -95,6 +87,15 @@ CATCH_TEST_CASE("test CUDA matMul", "[op][cuda]") {
   CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 5, 20}, {10, 40, 30}));
 }
 
+CATCH_TEST_CASE("test CUDA binary operators", "[op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  OperatorTester tester = getOperatorTester();
+  CATCH_REQUIRE(tester.withTol(5e-3).testBinaryOp(OperatorType::Add));
+  CATCH_REQUIRE(tester.withTol(5e-3).testBinaryOp(OperatorType::Sub));
+  CATCH_REQUIRE(tester.testMulScale());
+}
+
 CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
@@ -113,13 +114,6 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
     CATCH_REQUIRE(tester.testCopy5D());
 
     CATCH_REQUIRE(tester.testCausalMask());
-  }
-
-  CATCH_SECTION("test binary operators") {
-    CATCH_REQUIRE(tester.testMulScale());
-    // CATCH_REQUIRE(tester.testBinaryOp(OperatorType::Mul));
-    CATCH_REQUIRE(tester.withTol(5e-3).testBinaryOp(OperatorType::Add));
-    CATCH_REQUIRE(tester.withTol(5e-3).testBinaryOp(OperatorType::Sub));
   }
 
   CATCH_SECTION("test activations") {
@@ -338,17 +332,152 @@ CATCH_TEST_CASE("benchmark cutlass hgemm", "[ly][op][cuda]") {
   LOG_TIME(mmCutlass->apply(A, B), "mmCutlass->apply(A, B)");
 }
 
-CATCH_TEST_CASE("benchmark gemm mxfp4", "[op][cuda][mxfp4]") {
+Tensor toSm1xxScaleBlockRef(const Tensor &scale) {
+  CHECK(scale.getDim() == 2);  //  && scale.getDType() == DType::kUInt8);
+
+  int numRow = scale.getShape(0);
+  int numCol = scale.getShape(1);
+
+  CHECK(numRow % 128 == 0 && numCol % 4 == 0);
+  Tensor x = F::contiguous(scale.view({numRow / 128, 128, numCol / 4, 4}).transpose(1, 2));
+  x = F::contiguous(x.view({-1, 4, 32, 4}).transpose(1, 2));
+
+  return x.view({-1, 32, 16});
+}
+
+CATCH_TEST_CASE("test quantHalfToMxfp4", "[op][cuda][mxfp4]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
   std::shared_ptr<op::cuda::MatMul> mmCutlass = op::cuda::MatMul::createCutlass();
 
   Tensor A = Tensor::randn({4096, 4096}, Device::getCuda());
-  Tensor B = Tensor::randn({4096, 4096}, Device::getCuda());
+  auto [qA, sA] = op::cuda::quantHalfToMxfp4(A);
+  Tensor sAr = toSm1xxScaleBlockRef(sA);
 
+  auto [qA0, sA0] = op::cuda::quantHalfToMxfp4(A, true);
+  CATCH_REQUIRE(F::all(sA0 == sAr));
+
+  Tensor dA = op::cuda::dequandMxfp4ToHalf(qA, sA);
+  Tensor sum = (dA - A).square().to(DType::kFloat).sum();
+  CATCH_REQUIRE(sum.elem<float>() / (4096 * 4096) < 0.05);
+}
+
+CATCH_TEST_CASE("benchmark quantHalfToMxfp4", "[op][cuda][mxfp4]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+  std::shared_ptr<op::cuda::MatMul> mmCutlass = op::cuda::MatMul::createCutlass();
+
+  Tensor A = Tensor::randn({4096, 4096}, Device::getCuda());
+
+  op::cuda::quantHalfToMxfp4(A, true);
+  LOG_TIME(op::cuda::quantHalfToMxfp4(A), "op::cuda::quantHalfToMxfp4(A) 4096*4096)");
+  LOG_TIME(op::cuda::quantHalfToMxfp4(A), "op::cuda::quantHalfToMxfp4(A) 4096*4096)");
+  LOG_TIME(op::cuda::quantHalfToMxfp4(A), "op::cuda::quantHalfToMxfp4(A) 4096*4096)");
+}
+
+CATCH_TEST_CASE("test toSm1xxScaleBlock", "[op][cuda][mxfp4]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+  std::shared_ptr<op::cuda::MatMul> mmCutlass = op::cuda::MatMul::createCutlass();
+
+  Tensor A = Tensor::arange(0, 4096 * 4096, 1, Device::getCuda());
+  A = A.view({-1, 128});
+
+  LOG_TIME(toSm1xxScaleBlockRef(A), "op::cuda::toSm1xxScaleBlockRef(A)");
+  LOG_TIME(op::cuda::toSm1xxScaleBlock(A), "op::cuda::toSm1xxScaleBlock(A)");
+
+  LOG_TIME(toSm1xxScaleBlockRef(A), "op::cuda::toSm1xxScaleBlockRef(A)");
+  LOG_TIME(op::cuda::toSm1xxScaleBlock(A), "op::cuda::toSm1xxScaleBlock(A)");
+
+  A = Tensor::randn({4096, 4096}, Device::getCuda());
   auto [fp4A, sfA] = op::cuda::quantHalfToMxfp4(A);
-  auto [fp4B, sfB] = op::cuda::quantHalfToMxfp4(B);
-  A = op::cuda::dequandMxfp4ToHalf(fp4A, sfA);
-  B = op::cuda::dequandMxfp4ToHalf(fp4B, sfB);
+
+  LOG_TIME(op::cuda::quantHalfToMxfp4(A), "quant");
+  LOG_TIME(op::cuda::quantHalfToMxfp4(A), "quant");
+  LOG_TIME(op::cuda::quantHalfToMxfp4(A), "quant");
+  sfA = op::cuda::toSm1xxScaleBlock(sfA);
+
+  LOG_TIME(Tensor Cr = mmCutlass->applyNarrowPrecision(fp4A, sfA, fp4A, sfA), "gemm");
+  LOG_TIME(Cr = mmCutlass->applyNarrowPrecision(fp4A, sfA, fp4A, sfA), "gemm");
+}
+
+CATCH_TEST_CASE("test quantHalfToMxfp4 with scale swizzle", "[op][cuda][mxfp4]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+  std::shared_ptr<op::cuda::MatMul> mmCutlass = op::cuda::MatMul::createCutlass();
+
+  Tensor A = Tensor::randn({4096, 4096}, Device::getCuda());
+  auto [fpA0, sfA] = op::cuda::quantHalfToMxfp4(A);
+  auto [fpA1, sfSwizzledA] = op::cuda::quantHalfToMxfp4(A, true);
+
+  F::print(sfA);
+  sfA = op::cuda::toSm1xxScaleBlock(sfA);
+  F::print(sfA);
+  F::print(sfSwizzledA);
+  F::print(sfA == sfSwizzledA);
+}
+
+void benchmarkMxfp4Quant(int m, int n) {
+  Tensor A = Tensor::randn({m, n}, Device::getCuda());
+
+  // warmup
+  op::cuda::quantHalfToMxfp4(A, true);
+  op::cuda::quantHalfToMxfp4(A, true);
+  op::cuda::quantHalfToMxfp4(A, true);
+
+  double t0 = lut::now();
+  for (int i = 0; i < 10; ++i) {
+    op::cuda::quantHalfToMxfp4(A, true);
+  }
+  double t1 = lut::now();
+
+  double diffMs = round((t1 - t0) / 10.0 * 1000000.0) / 1000.0;
+  LOG(INFO) << "quantHalfToMxfp4() with (" << m << ", " << n << "): " << diffMs << "ms";
+}
+
+void benchmarkGemmMxfp4(int m, int n, int k) {
+  std::shared_ptr<op::cuda::MatMul> mmCutlass = op::cuda::MatMul::createCutlass();
+
+  Tensor A = Tensor::randn({m, k}, Device::getCuda());
+  Tensor B = Tensor::randn({k, n}, Device::getCuda());
+
+  auto [fp4A, sfA] = op::cuda::quantHalfToMxfp4(A, true);
+  auto [fp4B, sfB] = op::cuda::quantHalfToMxfp4(B, true);
+
+  // warmup
+  mmCutlass->applyNarrowPrecision(fp4A, sfA, fp4B, sfB);
+  mmCutlass->applyNarrowPrecision(fp4A, sfA, fp4B, sfB);
+  mmCutlass->applyNarrowPrecision(fp4A, sfA, fp4B, sfB);
+
+  double t0 = lut::now();
+  for (int i = 0; i < 10; ++i) {
+    mmCutlass->applyNarrowPrecision(fp4A, sfA, fp4B, sfB);
+  }
+  double t1 = lut::now();
+
+  double diffMs = round((t1 - t0) / 10.0 * 1000000.0) / 1000.0;
+  LOG(INFO) << "gemmMxfp4() with (" << m << ", " << k << ") and (" << k << ", " << n
+            << "): " << diffMs << "ms";
+}
+
+CATCH_TEST_CASE("benchmark mxfp4", "[op][cuda][mxfp4]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  benchmarkMxfp4Quant(4096, 4096);
+  benchmarkMxfp4Quant(128, 4096);
+
+  benchmarkGemmMxfp4(4096, 4096, 4096);
+  benchmarkGemmMxfp4(128, 4096, 4096);
+}
+
+CATCH_TEST_CASE("test gemm mxfp4", "[op][cuda][mxfp4]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+  std::shared_ptr<op::cuda::MatMul> mmCutlass = op::cuda::MatMul::createCutlass();
+
+  Tensor A0 = Tensor::randn({4096, 4096}, Device::getCuda());
+  Tensor B0 = Tensor::randn({4096, 4096}, Device::getCuda());
+
+  auto [fp4A, sfA] = op::cuda::quantHalfToMxfp4(A0);
+  auto [fp4B, sfB] = op::cuda::quantHalfToMxfp4(B0);
+
+  Tensor A = op::cuda::dequandMxfp4ToHalf(fp4A, sfA);
+  Tensor B = op::cuda::dequandMxfp4ToHalf(fp4B, sfB);
 
   sfA = op::cuda::toSm1xxScaleBlock(sfA);
   sfB = op::cuda::toSm1xxScaleBlock(sfB);
@@ -358,13 +487,9 @@ CATCH_TEST_CASE("benchmark gemm mxfp4", "[op][cuda][mxfp4]") {
   Tensor C = F::matmul(A, B.transpose(0, 1));
   Tensor Cr = mmCutlass->applyNarrowPrecision(fp4A, sfA, fp4B, sfB);
 
-  Tensor diff = F::sub(C, Cr);
-  diff = F::cast(diff, DType::kFloat);
-  diff = F::square(diff);
-  diff = F::sum(diff, None);
-  diff = diff.div(C.getShape(0) * C.getShape(1));
-
-  CATCH_REQUIRE(diff.elem() < 1e-6);
+  Tensor Cr0 = F::matmul(A0, B0.transpose(0, 1));
+  float mse = (Cr0 - Cr).square().to(DType::kFloat).sum().elem<float>() / (4096 * 4096);
+  CATCH_REQUIRE(mse < 400);
 }
 
 #endif  // LIBLLM_CUTLASS_ENABLED

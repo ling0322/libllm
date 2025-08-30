@@ -27,9 +27,9 @@ namespace op {
 namespace cuda {
 
 __global__ void lookupHalfKernel2D(
-    PackedSubtensor<const half, 2> embd,
-    PackedSubtensor<const int64_t, 2> inputs,
-    PackedSubtensor<half, 3> dst) {
+    PackedTensorAccessor<const half, 2> embd,
+    PackedTensorAccessor<const int64_t, 2> inputs,
+    PackedTensorAccessor<half, 3> dst) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
@@ -43,8 +43,8 @@ __global__ void lookupHalfKernel2D(
 
 __global__ void lookupQ4Kernel2D(
     PackedSubtensor2DQInt4x32 embd,
-    PackedSubtensor<const int64_t, 2> inputs,
-    PackedSubtensor<half, 3> dst) {
+    PackedTensorAccessor<const int64_t, 2> inputs,
+    PackedTensorAccessor<half, 3> dst) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
@@ -80,9 +80,9 @@ Tensor lookup2DHalf(const Tensor &embdTable, const Tensor &input) {
   d.y = dst.getShape(1);
   d.x = (dst.getShape(2) + blockSize - 1) / blockSize;
 
-  PackedSubtensor<const half, 2> sA(embdTable);
-  PackedSubtensor<const int64_t, 2> sB(input);
-  PackedSubtensor<half, 3> sC(dst);
+  PackedTensorAccessor<const half, 2> sA(embdTable);
+  PackedTensorAccessor<const int64_t, 2> sB(input);
+  PackedTensorAccessor<half, 3> sC(dst);
 
   lookupHalfKernel2D<<<d, blockSize>>>(sA, sB, sC);
   cudaDeviceSynchronize();
@@ -106,8 +106,8 @@ Tensor lookup2DQ4(const Tensor &embdTable, const Tensor &input) {
   d.x = (dst.getShape(2) / 2 + blockSize - 1) / blockSize;
 
   PackedSubtensor2DQInt4x32 sA(embdTable);
-  PackedSubtensor<const int64_t, 2> sB(input);
-  PackedSubtensor<half, 3> sC(dst);
+  PackedTensorAccessor<const int64_t, 2> sB(input);
+  PackedTensorAccessor<half, 3> sC(dst);
 
   lookupQ4Kernel2D<<<d, blockSize>>>(sA, sB, sC);
   cudaDeviceSynchronize();

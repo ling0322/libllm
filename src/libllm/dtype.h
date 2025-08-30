@@ -46,6 +46,9 @@ static_assert(sizeof(Int8) == 1, "invalid size of Int8");
 
 struct UInt8 {
   uint8_t v;
+  constexpr bool operator==(UInt8 rhs) const {
+    return v == rhs.v;
+  }
 };
 static_assert(sizeof(Int8) == 1, "invalid size of UInt8");
 
@@ -67,6 +70,7 @@ static_assert(sizeof(Fp4E2M0x2) == 1, "invalid size of Fp4E2M0x2");
 typedef int8_t Byte;
 typedef int64_t LongType;
 typedef int64_t LongType;
+typedef bool BoolType;
 
 class DType {
  public:
@@ -78,6 +82,7 @@ class DType {
   static constexpr int16_t kQInt4x32 = 5;
   static constexpr int16_t kInt8 = 6;
   static constexpr int16_t kFp4E2M0x2 = 7;
+  static constexpr int16_t kBool = 8;
 
   // get DType from type T
   template<typename T>

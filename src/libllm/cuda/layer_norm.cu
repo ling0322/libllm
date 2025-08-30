@@ -19,7 +19,7 @@
 
 #include <cuda_fp16.h>
 
-#include "libllm/cuda/binary_op.h"
+#include "libllm/cuda/binary.h"
 #include "libllm/cuda/binary_scalar.h"
 #include "libllm/cuda/cast.h"
 #include "libllm/cuda/common.h"
@@ -32,12 +32,12 @@ namespace op {
 namespace cuda {
 
 __global__ void layerNormKernel3D(
-    PackedSubtensor<const half, 3> inputTensor,
-    PackedSubtensor<const half, 2> mean,
-    PackedSubtensor<const float, 2> sumDiffSquare,
-    PackedSubtensor<const half, 1> weight,
-    PackedSubtensor<const half, 1> bias,
-    PackedSubtensor<half, 3> outputTensor,
+    PackedTensorAccessor<const half, 3> inputTensor,
+    PackedTensorAccessor<const half, 2> mean,
+    PackedTensorAccessor<const float, 2> sumDiffSquare,
+    PackedTensorAccessor<const half, 1> weight,
+    PackedTensorAccessor<const half, 1> bias,
+    PackedTensorAccessor<half, 3> outputTensor,
     float eps) {
   assert(inputTensor.getShape(0) == outputTensor.getShape(0));
   assert(inputTensor.getShape(1) == outputTensor.getShape(1));
@@ -67,14 +67,14 @@ __global__ void layerNormKernel3D(
 Tensor layerNorm3D(Tensor tensor, Tensor weight, Tensor bias, float eps) {
   CHECK(tensor.getShape(-1) == weight.getShape(0) && bias.getShape(0) == weight.getShape(0));
 
-  Tensor reduceSum = op::cuda::reduceHalfToSingle3D(tensor, MapReduceType::SUM_FP16_FP32);
+  Tensor reduceSum = op::cuda::reduceLastDim(tensor, DType::kFloat, MapReduceType::SUM);
   CHECK(reduceSum.getDim() == 2);
   reduceSum = op::cuda::castFloatToHalf(reduceSum);
 
   Tensor mean = applyBinaryScalarOp(BinaryScalarOp::DIV, reduceSum, tensor.getShape(2));
-  Tensor diff = op::cuda::binaryOp(tensor, mean.unsqueeze(2), BinaryOp::SUB);
+  Tensor diff = op::cuda::applyBinaryOp(BinaryOp::SUB, tensor, mean.unsqueeze(2));
 
-  Tensor sumDiffSquare = op::cuda::reduceHalfToSingle3D(diff, MapReduceType::SUM_SQUARE_FP16_FP32);
+  Tensor sumDiffSquare = op::cuda::reduceLastDim(diff, DType::kFloat, MapReduceType::SUM_SQUARE);
   Tensor C = createCudaTensorHalf(tensor.getShape());
 
   constexpr int blockSize = 256;

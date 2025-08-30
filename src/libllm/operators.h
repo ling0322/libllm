@@ -49,12 +49,14 @@ class Operators {
   virtual Tensor sum(Tensor input, int dim);
   virtual Tensor max(Tensor input);
   virtual Tensor melFbank(Tensor input);
+  virtual Tensor eq(Tensor input, Tensor other);
   virtual Tensor gelu(Tensor input);
   virtual Tensor square(Tensor input);
   virtual void fill(Tensor input, float value);
   virtual Tensor tensor(lut::Span<const int> shape, DType dtype);
   virtual Tensor tensorLike(Tensor input);
   virtual Tensor zeros(lut::Span<const int> shape, DType dtype);
+  virtual bool all(Tensor A);
   virtual bool allClose(Tensor A, Tensor B, float rtol, float atol);
   virtual void print(Tensor tensor);
   virtual Tensor causalMask(int max_len);
@@ -63,6 +65,7 @@ class Operators {
   virtual Tensor swiglu(Tensor A);
   virtual Tensor to(Device device, Tensor tensor);
   virtual float elem(Tensor tensor);
+  virtual bool elemBool(Tensor tensor);
   virtual Tensor unfold(Tensor input, int kernelSize, int stride);
   virtual void repetitionPenalty(Tensor logits, Tensor history, float weight);
   virtual Tensor cast(Tensor tensor, DType dtype);
@@ -74,6 +77,7 @@ class Operators {
       float min,
       float max);
   virtual Tensor randNormal(lut::Span<const int> shape);
+  virtual void manualSeed(uint64_t seed);
 
   virtual DType getDefaultFloatType();
 };

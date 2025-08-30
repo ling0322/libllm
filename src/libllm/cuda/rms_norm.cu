@@ -28,10 +28,10 @@ namespace op {
 namespace cuda {
 
 __global__ void rmsNormKernel3D(
-    PackedSubtensor<const half, 3> inputTensor,
-    PackedSubtensor<const float, 2> sumSquare,
-    PackedSubtensor<const half, 1> weight,
-    PackedSubtensor<half, 3> outputTensor,
+    PackedTensorAccessor<const half, 3> inputTensor,
+    PackedTensorAccessor<const float, 2> sumSquare,
+    PackedTensorAccessor<const half, 1> weight,
+    PackedTensorAccessor<half, 3> outputTensor,
     float eps) {
   assert(inputTensor.getShape(0) == outputTensor.getShape(0));
   assert(inputTensor.getShape(1) == outputTensor.getShape(1));
@@ -51,7 +51,7 @@ __global__ void rmsNormKernel3D(
 }
 
 Tensor rmsNorm3D(const Tensor &tensor, const Tensor &weight, float eps) {
-  Tensor reduceNorm2 = op::cuda::reduceHalfToSingle3D(tensor, MapReduceType::SUM_SQUARE_FP16_FP32);
+  Tensor reduceNorm2 = op::cuda::reduceLastDim(tensor, DType::kFloat, MapReduceType::SUM_SQUARE);
   CHECK(reduceNorm2.getDim() == 2);
 
   Tensor C = createCudaTensorHalf(tensor.getShape());

@@ -29,8 +29,8 @@ namespace cuda {
 __device__ constexpr int MaxHistory = 64;
 
 __global__ void repetitionPenalty2DKernel(
-    PackedSubtensor<half, 2> logits,
-    PackedSubtensor<const LongType, 2> history,
+    PackedTensorAccessor<half, 2> logits,
+    PackedTensorAccessor<const LongType, 2> history,
     float weight) {
   assert(logits.getShape(0) == history.getShape(0));
 

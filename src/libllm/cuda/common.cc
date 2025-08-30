@@ -27,6 +27,9 @@ namespace libllm {
 namespace op {
 namespace cuda {
 
+int gMaxThreadsPerSM = 0;
+int gNumSM = 0;
+
 PackedSubtensor2DQInt4x32::PackedSubtensor2DQInt4x32(const Tensor &tensor) {
   CHECK(tensor.getDType() == DType::kQInt4x32);
   CHECK(tensor.getDevice().getType() == Device::kCuda);
@@ -60,6 +63,13 @@ Tensor createCudaTensorUInt8(lut::Span<const int> shape) {
   return Tensor::create(tensorShape, data);
 }
 
+Tensor createCudaTensorBool(lut::Span<const int> shape) {
+  auto tensorShape = std::make_shared<TensorShape>(shape);
+  auto data = CudaTensorData::create(tensorShape->getNumEl(), DType::kBool);
+
+  return Tensor::create(tensorShape, data);
+}
+
 Tensor createCudaTensorLong(lut::Span<const int> shape) {
   auto tensorShape = std::make_shared<TensorShape>(shape);
   auto data = CudaTensorData::create(tensorShape->getNumEl(), DType::kLong);
@@ -86,7 +96,7 @@ Tensor tensorLike(const Tensor &tensor) {
 
 template<typename T>
 float elemImpl(const Tensor &tensor) {
-  half v;
+  T v;
   LL_CHECK_CUDA_STATUS(cudaMemcpy(&v, tensor.getData<T>(), sizeof(T), cudaMemcpyDeviceToHost));
   return v;
 }
@@ -97,6 +107,17 @@ float elem(const Tensor &tensor) {
   if (tensor.getDType() == DType::kFloat) return elemImpl<float>(tensor);
 
   NOT_IMPL();
+}
+
+bool elemBool(const Tensor &tensor) {
+  CHECK(tensor.getDim() == 1 && tensor.getShape(0) == 1);
+  CHECK(tensor.getDType() == DType::kBool);
+
+  bool v;
+  LL_CHECK_CUDA_STATUS(
+      cudaMemcpy(&v, tensor.getData<BoolType>(), sizeof(BoolType), cudaMemcpyDeviceToHost));
+
+  return v;
 }
 
 int getCudaDeviceAttribute(cudaDeviceAttr attr) {
@@ -117,10 +138,19 @@ int getCudaDeviceCount() {
 }
 
 dim3 getGrid1D(int numel, int blockSize) {
-  int maxThreadsPerSM = getCudaDeviceAttribute(cudaDevAttrMaxThreadsPerMultiProcessor);
-  int numSM = getCudaDeviceAttribute(cudaDevAttrMultiProcessorCount);
+  if (!gMaxThreadsPerSM) {
+    gMaxThreadsPerSM = getCudaDeviceAttribute(cudaDevAttrMaxThreadsPerMultiProcessor);
+  }
+  if (!gNumSM) {
+    gNumSM = getCudaDeviceAttribute(cudaDevAttrMultiProcessorCount);
+  }
+
+  int maxThreadsPerSM = gMaxThreadsPerSM;
+  int numSM = gNumSM;
   int numBlock = (numel + blockSize - 1) / blockSize;
   int deviceNumBlock = maxThreadsPerSM * numSM / blockSize;
+  CHECK(deviceNumBlock > 0);
+
   dim3 grid(std::min(numBlock, deviceNumBlock));
 
   return grid;

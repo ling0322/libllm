@@ -21,6 +21,8 @@
 
 #include <sstream>
 
+#include "lutil/time.h"
+
 #define LOG(severity)                                             \
   if (lut::internal::gLogLevel > lut::LogSeverity::k##severity) { \
   } else                                                          \
@@ -30,6 +32,14 @@
     LOG(FATAL) << "not implemented"; \
     abort();                         \
   }
+
+#define LUT_CONCAT2(l, r) l##r
+#define LUT_CONCAT(l, r) LUT_CONCAT2(l, r)
+
+#define LOG_TIME(stmt, message)                 \
+  double LUT_CONCAT(t0, __LINE__) = lut::now(); \
+  stmt;                                         \
+  LOG(INFO) << message << ": " << (lut::now() - LUT_CONCAT(t0, __LINE__)) * 1000 << "ms";
 
 // CHECK macro conflicts with catch2
 #define CHECK(cond) \

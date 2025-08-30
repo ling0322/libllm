@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -17,19 +17,20 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/cuda/apply_rotary_pos_emb.h"
-
 #include <cuda_fp16.h>
+
 #include "libllm/cpu/view.h"
+#include "libllm/cuda/apply_rotary_pos_emb.h"
 #include "libllm/cuda/common.h"
 
 namespace libllm {
 namespace op {
 namespace cuda {
 
-__global__ void applyRotaryPosEmbKernel4D(PackedSubtensor<const half, 4> A,
-                                          PackedSubtensor<const half, 2> roPE,
-                                          PackedSubtensor<half, 4> C) {
+__global__ void applyRotaryPosEmbKernel4D(
+    PackedTensorAccessor<const half, 4> A,
+    PackedTensorAccessor<const half, 2> roPE,
+    PackedTensorAccessor<half, 4> C) {
   // dimensions for A and C are (N, L, H, D)
   int dD = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -44,8 +45,8 @@ __global__ void applyRotaryPosEmbKernel4D(PackedSubtensor<const half, 4> A,
     return;
   }
 
-  Subtensor<const half, 1> vA = A[dN][dL][dH];
-  Subtensor<half, 1> vC = C[dN][dL][dH];
+  TensorAccessor<const half, 1> vA = A[dN][dL][dH];
+  TensorAccessor<half, 1> vC = C[dN][dL][dH];
   half cosTheta = roPE[dL][dD * 2];
   half sinTheta = roPE[dL][dD * 2 + 1];
   half a0 = vA[dD * 2];
@@ -83,6 +84,6 @@ Tensor applyRotaryPosEmb(const Tensor &tensor, Tensor roPE) {
   NOT_IMPL();
 }
 
-}  // cuda
-}  // op
-}  // ly
+}  // namespace cuda
+}  // namespace op
+}  // namespace libllm
