@@ -22,10 +22,10 @@
 #include <memory>
 
 #include "libllm/read_audio_ffmpeg.h"
-#include "libllm/tensor.h"
 #include "lutil/c_ptr.h"
 #include "lutil/shared_library.h"
 #include "lutil/span.h"
+#include "lynn/tensor.h"
 
 namespace libllm {
 
@@ -37,7 +37,7 @@ class WaveStream {
   /// On other errors, throw an exception.
   /// @param buffer the dest buffer.
   /// @return bytes read.
-  virtual int read(lut::Span<Byte> buffer) = 0;
+  virtual int read(lut::Span<ly::Byte> buffer) = 0;
 
   virtual bool eof() const = 0;
   virtual int getSampleRate() const = 0;
@@ -49,7 +49,7 @@ class FFmpegWaveStream : public WaveStream {
   static std::shared_ptr<FFmpegWaveStream> open(const std::string &filename);
   ~FFmpegWaveStream();
 
-  int read(lut::Span<Byte> buffer) override;
+  int read(lut::Span<ly::Byte> buffer) override;
   int getSampleRate() const override;
   int getBytesPerSample() const override;
   bool eof() const override;

@@ -100,7 +100,7 @@ endif()
 
 add_subdirectory("src")
 
-set(libllm_LIBADD lutil ${CMAKE_DL_LIBS} ${UNWIND_ARCH_LIB} ${UNWIND_LIB} )
+set(libllm_LIBADD lutil lynn_static ${CMAKE_DL_LIBS} ${UNWIND_ARCH_LIB} ${UNWIND_LIB} )
 
 if(WITH_OPENMP)
     set(libllm_LIBADD ${libllm_LIBADD} OpenMP::OpenMP_CXX)
@@ -120,7 +120,7 @@ endif()
 
 set(unittest_LIBADD
     libllm_static
-    libllm_test
+    lynn_test
     lutil_test
     ${libllm_LIBADD}
     catch2)

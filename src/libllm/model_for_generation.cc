@@ -34,7 +34,7 @@ namespace libllm {
 constexpr char ModelForGeneration::ModelConfig[];
 
 std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
-    const Context &fromCtx,
+    const ly::Context &fromCtx,
     lut::ZipFile *package) {
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(
       package->open(ModelConfig).get());
@@ -44,7 +44,7 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
   LOG(INFO) << "model_type = " << modelType;
   LOG(INFO) << "device = " << fromCtx.getDevice().getName();
 
-  Context ctx = fromCtx.withName(modelType);
+  ly::Context ctx = fromCtx.withName(modelType);
   std::shared_ptr<ModelForGeneration> model;
   if (modelType == "llama") {
     model = llama::LlamaModelForGeneration::fromPackage(ctx, package);
@@ -69,7 +69,7 @@ const Vocab *ModelForGeneration::getVocab() const {
 
 void ModelForGeneration::encodePromptBlock(
     const PromptBlock &block,
-    std::vector<LongType> &tokenIds) const {
+    std::vector<ly::LongType> &tokenIds) const {
   int tokenId;
   switch (block.blockType) {
     case PromptBlock::ControlToken:

@@ -19,12 +19,12 @@
 
 #pragma once
 
-#include "libllm/context.h"
 #include "libllm/prompt.h"
-#include "libllm/state_map.h"
-#include "libllm/tensor.h"
 #include "libllm/tokenizer.h"
 #include "lutil/zip_file.h"
+#include "lynn/context.h"
+#include "lynn/state_map.h"
+#include "lynn/tensor.h"
 
 namespace libllm {
 
@@ -38,8 +38,8 @@ class LogitsProcessor {
   virtual void notifyToken(int tokenId) = 0;
 
   /// @brief process the logits tensor.
-  /// @param logits the logits tensor to process.
-  virtual void processLogits(Tensor logits) = 0;
+  /// @param logits the logits ly::Tensor to process.
+  virtual void processLogits(ly::Tensor logits) = 0;
 };
 
 // base class for language model.
@@ -48,7 +48,9 @@ class ModelForGeneration {
   static constexpr char ModelConfig[] = "model.ini";
 
   // Cretae instance of ModelForGeneration from local package file (.llmpkg).
-  static std::shared_ptr<ModelForGeneration> fromPackage(const Context &ctx, lut::ZipFile *package);
+  static std::shared_ptr<ModelForGeneration> fromPackage(
+      const ly::Context &ctx,
+      lut::ZipFile *package);
 
   virtual ~ModelForGeneration() = default;
 
@@ -57,14 +59,14 @@ class ModelForGeneration {
   /// @param past (StateMap): key-value cache.
   /// @param prompt (Prompt): the input prompt for prefill.
   /// @return  <float>(N, 1, V): hidden state from last layer.
-  virtual Tensor prefill(StateMap &past, const Prompt &prompt) const = 0;
+  virtual ly::Tensor prefill(ly::StateMap &past, const Prompt &prompt) const = 0;
 
   /// @brief Used in the decodeing phase. Forward input token ids through this language model,
   /// update the `past` state and return the logits for the next token.
   /// @param past (StateMap): key-value cache.
   /// @param inputToken (LongType): the input token.
   /// @return  <float>(N, 1, V): hidden state from last layer.
-  virtual Tensor decode(StateMap &past, LongType inputToken) const = 0;
+  virtual ly::Tensor decode(ly::StateMap &past, ly::LongType inputToken) const = 0;
 
   /// @brief Return true if tokenId is a stop token. (stop generating texts)
   /// @param tokenId the token id.
@@ -74,9 +76,9 @@ class ModelForGeneration {
   // get model name.
   virtual const char *getName() const = 0;
 
-  /// @brief Get device of the model.
+  /// @brief Get ly::Device of the model.
   /// @return the device.
-  virtual Device getDevice() const = 0;
+  virtual ly::Device getDevice() const = 0;
 
   /// @brief get the output dimension of model. This dimention is usually the same as vocabulary
   /// size. But for some specific models, they are different.
@@ -105,7 +107,7 @@ class ModelForGeneration {
   /// types of promptBlock: text and controlToken. Once other type occured, it will fatal directly.
   /// @param block The block to process.
   /// @param tokenIds The vector to append processed tokens.
-  void encodePromptBlock(const PromptBlock &block, std::vector<LongType> &tokenIds) const;
+  void encodePromptBlock(const PromptBlock &block, std::vector<ly::LongType> &tokenIds) const;
 };
 
 }  // namespace libllm

@@ -23,10 +23,10 @@
 
 #include <algorithm>
 
-#include "libllm/functional.h"
 #include "libllm/whisper.h"
 #include "lutil/error.h"
 #include "lutil/strings.h"
+#include "lynn/functional.h"
 
 namespace libllm {
 
@@ -45,8 +45,8 @@ Sampler::Sampler(int topK, float topP)
       _topP(topP) {
 }
 
-std::vector<int> Sampler::getTopP(const Tensor &distribution, lut::Span<const int> topK) {
-  CHECK(distribution.getDim() == 1 && distribution.getDType() == DType::kFloat);
+std::vector<int> Sampler::getTopP(const ly::Tensor &distribution, lut::Span<const int> topK) {
+  CHECK(distribution.getDim() == 1 && distribution.getDType() == ly::DType::kFloat);
   float sumP = 0.0f;
 
   std::vector<int> topP;
@@ -64,7 +64,7 @@ std::vector<int> Sampler::getTopP(const Tensor &distribution, lut::Span<const in
   return topP;
 }
 
-std::vector<int> Sampler::getTopK(const Tensor &distribution) {
+std::vector<int> Sampler::getTopK(const ly::Tensor &distribution) {
   CHECK(_topK <= distribution.getShape(0) && distribution.getStride(0) == 1);
   if (_topBuffer.size() != distribution.getShape(0)) _topBuffer.resize(distribution.getShape(0));
 
@@ -91,8 +91,8 @@ std::vector<int> Sampler::getTopK(const Tensor &distribution) {
   return topK;
 }
 
-int Sampler::sampleTopP(const Tensor &distribution, lut::Span<const int> topP) {
-  CHECK(distribution.getDim() == 1 && distribution.getDType() == DType::kFloat);
+int Sampler::sampleTopP(const ly::Tensor &distribution, lut::Span<const int> topP) {
+  CHECK(distribution.getDim() == 1 && distribution.getDType() == ly::DType::kFloat);
   std::vector<float> probAcc;
 
   float sumP = 0.0f;
@@ -112,8 +112,8 @@ int Sampler::sampleTopP(const Tensor &distribution, lut::Span<const int> topP) {
   return topP.back();
 }
 
-int Sampler::sample(const Tensor &distribution) {
-  CHECK(distribution.getDim() == 1 && distribution.getDType() == DType::kFloat);
+int Sampler::sample(const ly::Tensor &distribution) {
+  CHECK(distribution.getDim() == 1 && distribution.getDType() == ly::DType::kFloat);
 
   std::vector<int> topK = getTopK(distribution);  // topK is sorted by its prob in x
   std::vector<int> topP = getTopP(distribution, topK);
@@ -187,20 +187,20 @@ std::shared_ptr<SamplingGenerator> SamplingGenerator::newGenerator(
   return generator;
 }
 
-int SamplingGenerator::searchToken(const Tensor &logits) {
+int SamplingGenerator::searchToken(const ly::Tensor &logits) {
   CHECK(logits.getDim() == 3 && logits.getShape(0) == 1 && logits.getShape(1) == 1);
 
-  Tensor x = logits.subtensor(0).subtensor(0);
+  ly::Tensor x = logits.subtensor(0).subtensor(0);
   if (_temperature != 1.0f) {
-    x = F::mul(x, 1.0f / _temperature);
+    x = ly::F::mul(x, 1.0f / _temperature);
   }
 
-  x = F::softmax(x);
-  if (x.getDType() == DType::kFloat16) {
-    x = F::cast(x, DType::kFloat);
+  x = ly::F::softmax(x);
+  if (x.getDType() == ly::DType::kFloat16) {
+    x = ly::F::cast(x, ly::DType::kFloat);
   }
-  if (x.getDevice().getType() == Device::kCuda) {
-    x = F::to(Device::kCpu, x);
+  if (x.getDevice().getType() == ly::Device::kCuda) {
+    x = ly::F::to(ly::Device::kCpu, x);
   }
 
   return _sampler.sample(x);

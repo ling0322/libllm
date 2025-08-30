@@ -23,9 +23,9 @@
 #include <mutex>
 
 #include "libllm/read_audio_ffmpeg.h"
-#include "libllm/tensor.h"
 #include "lutil/error.h"
 #include "lutil/span.h"
+#include "lynn/tensor.h"
 
 namespace libllm {
 
@@ -94,7 +94,7 @@ std::shared_ptr<FFmpegWaveStream> FFmpegWaveStream::open(const std::string &file
   return stream;
 }
 
-int FFmpegWaveStream::read(lut::Span<Byte> buffer) {
+int FFmpegWaveStream::read(lut::Span<ly::Byte> buffer) {
   int nb = p_llm_ffmpeg_audio_read(
       _reader.get(),
       reinterpret_cast<char *>(buffer.data()),

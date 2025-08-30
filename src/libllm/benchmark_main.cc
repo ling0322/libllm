@@ -22,16 +22,16 @@
 #include <iostream>
 #include <string>
 
-#include "libllm/dtype.h"
-#include "libllm/functional.h"
 #include "libllm/llama.h"
 #include "libllm/llm.h"
 #include "libllm/model_for_generation.h"
-#include "libllm/operators.h"
 #include "lutil/error.h"
 #include "lutil/flags.h"
 #include "lutil/random.h"
 #include "lutil/time.h"
+#include "lynn/dtype.h"
+#include "lynn/functional.h"
+#include "lynn/operators.h"
 
 constexpr int MagicNumber = 0x55aa;
 constexpr double MaxWait = 10;
@@ -40,12 +40,12 @@ enum class LlamaType { Llama2_7B };
 
 namespace libllm {
 
-Tensor randomLongTensor(lut::Random *r, int length, int vocabSize, Device device) {
-  std::vector<LongType> prompt(length);
+ly::Tensor randomLongTensor(lut::Random *r, int length, int vocabSize, ly::Device device) {
+  std::vector<ly::LongType> prompt(length);
   r->fill(lut::makeSpan(prompt), 0, vocabSize);
 
-  Tensor inputs = Tensor::create<LongType>({1, length}, prompt);
-  inputs = F::to(device, inputs);
+  ly::Tensor inputs = ly::Tensor::create<ly::LongType>({1, length}, prompt);
+  inputs = ly::F::to(device, inputs);
 
   return inputs;
 }
@@ -61,14 +61,14 @@ float benchmarkPromptForward(
     int vocabSize,
     int promptLen) {
   // first run.
-  StateMap past;
-  Tensor inputs = randomLongTensor(r, promptLen, vocabSize, model->getCtx().getDevice());
-  Tensor x = model->forward(past, inputs);
+  ly::StateMap past;
+  ly::Tensor inputs = randomLongTensor(r, promptLen, vocabSize, model->getCtx().getDevice());
+  ly::Tensor x = model->forward(past, inputs);
 
   double t0 = lut::now();
   int nLoop = 0;
   while (lut::now() - t0 < MaxWait) {
-    StateMap past;
+    ly::StateMap past;
     x = model->forward(past, inputs);
     ++nLoop;
   }
@@ -84,16 +84,16 @@ float benchmarkTokenGeneration(
     std::shared_ptr<llama::LlamaModel> model,
     int vocabSize,
     int contextLen) {
-  // get kv_cache for the given context size.
-  StateMap past;
-  Tensor inputs = randomLongTensor(r, contextLen, vocabSize, model->getCtx().getDevice());
-  Tensor x = model->forward(past, inputs);
+  // get kv_cache for the given ly::Context size.
+  ly::StateMap past;
+  ly::Tensor inputs = randomLongTensor(r, contextLen, vocabSize, model->getCtx().getDevice());
+  ly::Tensor x = model->forward(past, inputs);
 
   // first run.
-  StateMap pastClone = past.clone();
-  std::array<LongType, 1> inputData{1024};
-  Tensor inputToken = Tensor::create<LongType>({1, 1}, inputData);
-  inputToken = F::to(model->getCtx().getDevice(), inputToken);
+  ly::StateMap pastClone = past.clone();
+  std::array<ly::LongType, 1> inputData{1024};
+  ly::Tensor inputToken = ly::Tensor::create<ly::LongType>({1, 1}, inputData);
+  inputToken = ly::F::to(model->getCtx().getDevice(), inputToken);
 
   x = model->forward(pastClone, inputToken);
   x = model->forwardLmHead(x);
@@ -101,7 +101,7 @@ float benchmarkTokenGeneration(
   double t0 = lut::now();
   int nLoop = 0;
   while (lut::now() - t0 < MaxWait) {
-    StateMap pastClone = past.clone();
+    ly::StateMap pastClone = past.clone();
     x = model->forward(pastClone, inputToken);
     x = model->forwardLmHead(x);
     ++nLoop;
@@ -135,11 +135,11 @@ llama::LlamaConfig getLlamaConfig(LlamaType type) {
 std::shared_ptr<llama::LlamaModel> getLlamaModel(
     lut::Random *r,
     LlamaType type,
-    Device device,
-    DType weightType) {
-  Context ctx;
+    ly::Device device,
+    ly::DType weightType) {
+  ly::Context ctx;
   ctx.setDevice(device);
-  ctx.setFloatDType(F::getDefaultFloatType(device));
+  ctx.setFloatDType(ly::F::getDefaultFloatType(device));
 
   llama::LlamaConfig config = getLlamaConfig(type);
   std::shared_ptr<llama::LlamaModel> model = llama::LlamaModel::create(ctx, config);
@@ -148,7 +148,7 @@ std::shared_ptr<llama::LlamaModel> getLlamaModel(
   return model;
 }
 
-void benchmarkLlama(std::shared_ptr<llama::LlamaModel> model, int ctxLength, DType weightType) {
+void benchmarkLlama(std::shared_ptr<llama::LlamaModel> model, int ctxLength, ly::DType weightType) {
   lut::Random r(MagicNumber);
 
   float tokenPerSec = benchmarkPromptForward(&r, model, 32000, ctxLength);
@@ -168,26 +168,26 @@ void benchmarkLlama(std::shared_ptr<llama::LlamaModel> model, int ctxLength, DTy
       tokenPerSec);
 }
 
-int benchmarkMain(Device device) {
-  libllm::initOperators();
+int benchmarkMain(ly::Device device) {
+  ly::initOperators();
 
   LlamaType llamaType = LlamaType::Llama2_7B;
-  DType weightType = libllm::DType::kQInt4x32;
+  ly::DType weightType = ly::DType::kQInt4x32;
 
   LOG(INFO) << "intializing model ...";
   auto model = libllm::getLlamaModel(nullptr, llamaType, device, weightType);
   LOG(INFO) << "model initialized.";
 
   printf("==========================================================\n");
-  printf("ModelType   Device   Weight   Task               Token/s  \n");
+  printf("ModelType   ly::Device   Weight   Task               Token/s  \n");
   printf("----------------------------------------------------------\n");
 
-  libllm::benchmarkLlama(model, 128, libllm::DType::kQInt4x32);
-  libllm::benchmarkLlama(model, 512, libllm::DType::kQInt4x32);
+  libllm::benchmarkLlama(model, 128, ly::DType::kQInt4x32);
+  libllm::benchmarkLlama(model, 512, ly::DType::kQInt4x32);
 
   printf("----------------------------------------------------------\n");
 
-  libllm::destroyOperators();
+  ly::destroyOperators();
   return 0;
 }
 
@@ -204,13 +204,13 @@ int main(int argc, char **argv) {
   flags.parse(argc, argv);
 
   if (deviceType == "cpu") {
-    libllm::benchmarkMain(libllm::Device::getCpu());
+    libllm::benchmarkMain(ly::Device::getCpu());
     return 0;
   } else if (deviceType == "cuda") {
-    libllm::benchmarkMain(libllm::Device::getCuda());
+    libllm::benchmarkMain(ly::Device::getCuda());
     return 0;
   } else {
-    fprintf(stderr, "unexpected device %s\n", deviceType.c_str());
+    fprintf(stderr, "unexpected ly::Device %s\n", deviceType.c_str());
     return 1;
   }
 }

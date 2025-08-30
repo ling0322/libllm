@@ -28,7 +28,7 @@ QwenModelForGeneration::QwenModelForGeneration()
 }
 
 std::shared_ptr<QwenModelForGeneration> QwenModelForGeneration::fromPackage(
-    const Context &ctx,
+    const ly::Context &ctx,
     lut::ZipFile *package) {
   std::shared_ptr<lut::Reader> reader = package->open(ModelConfig);
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(reader.get());
@@ -42,7 +42,7 @@ std::shared_ptr<QwenModelForGeneration> QwenModelForGeneration::fromPackage(
   std::shared_ptr<QwenModelForGeneration> model{new QwenModelForGeneration()};
   llama::LlamaConfig llamaConfig = llama::LlamaConfig::loadConfig(qwenIni);
 
-  StateMap stateMap;
+  ly::StateMap stateMap;
   stateMap.read(package->open(modelFile).get());
 
   model->_model = llama::LlamaModel::create(ctx, llamaConfig);

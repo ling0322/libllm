@@ -33,7 +33,7 @@ namespace index {
 class IndexModelForGeneration : public llama::LlamaModelForGeneration {
  public:
   static std::shared_ptr<IndexModelForGeneration> fromPackage(
-      const Context &ctx,
+      const ly::Context &ctx,
       lut::ZipFile *package);
 
   // noncopyable

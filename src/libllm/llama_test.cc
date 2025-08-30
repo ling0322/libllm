@@ -23,10 +23,10 @@
 
 #include "catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/fingerprint.h"
-#include "libllm/tensor.h"
 #include "libllm/test_helper.h"
 #include "lutil/random.h"
 #include "lutil/span.h"
+#include "lynn/tensor.h"
 
 namespace libllm {
 namespace llama {
@@ -51,12 +51,12 @@ class TestCommon {
 
 class LlamaTester : public ModuleTester {
  public:
-  LlamaTester(Device device, DType weightType)
+  LlamaTester(Device device, ly::DType weightType)
       : ModuleTester(device, weightType) {
   }
 
   float getRtol() const override {
-    DType defaultFloatType = F::getDefaultFloatType(getDevice());
+    ly::DType defaultFloatType = ly::F::getDefaultFloatType(getDevice());
     if (getDevice().getType() == Device::kCpu && defaultFloatType == DType::kFloat16) {
       return 3e-2;
     } else {
@@ -69,10 +69,10 @@ class LlamaTester : public ModuleTester {
     std::shared_ptr<LlamaModel> layer = LlamaModel::create(getCtx(), config);
     randomInit(layer);
 
-    Tensor x = Tensor::create<LongType>({1, 7}, {3, 6, 7, 99, 23, 1, 2});
+    ly::Tensor x = ly::Tensor::create<ly::LongType>({1, 7}, {3, 6, 7, 99, 23, 1, 2});
     x = toTargetDevice(x);
 
-    StateMap past;
+    ly::StateMap past;
     x = layer->forward(past, x);
 
     std::vector<float> xr0, xr1;
@@ -86,7 +86,7 @@ class LlamaTester : public ModuleTester {
     CATCH_REQUIRE(allClose(op::cpu::fingerprint(toCpu(x)), xr0));
 
     // forward next token.
-    x = Tensor::create<LongType>({1, 1}, {5});
+    x = ly::Tensor::create<ly::LongType>({1, 1}, {5});
     x = toTargetDevice(x);
 
     x = layer->forward(past, x);
@@ -96,7 +96,7 @@ class LlamaTester : public ModuleTester {
 
 class DecoderLayerTester : public ModuleTester {
  public:
-  DecoderLayerTester(Device device, DType weightType)
+  DecoderLayerTester(Device device, ly::DType weightType)
       : ModuleTester(device, weightType) {
   }
 
@@ -105,10 +105,10 @@ class DecoderLayerTester : public ModuleTester {
     std::shared_ptr<DecodeLayer> layer = DecodeLayer::create(getCtx(), config);
     randomInit(layer);
 
-    Tensor x = generateTensor({1, 20, config.hiddenSize});
-    Tensor roPE = generateTensor({256, 1, config.hiddenSize / config.numHeads / 2});
+    ly::Tensor x = generateTensor({1, 20, config.hiddenSize});
+    ly::Tensor roPE = generateTensor({256, 1, config.hiddenSize / config.numHeads / 2});
 
-    StateMap past;
+    ly::StateMap past;
     x = layer->forward(past, x);
 
     std::vector<float> xr0, xr1;
@@ -130,7 +130,7 @@ class DecoderLayerTester : public ModuleTester {
 
 class MlpTester : public ModuleTester {
  public:
-  MlpTester(Device device, DType weightType)
+  MlpTester(Device device, ly::DType weightType)
       : ModuleTester(device, weightType) {
   }
 
@@ -139,7 +139,7 @@ class MlpTester : public ModuleTester {
     std::shared_ptr<MLP> layer = MLP::create(getCtx(), config);
     randomInit(layer);
 
-    Tensor x = generateTensor({1, 20, config.hiddenSize});
+    ly::Tensor x = generateTensor({1, 20, config.hiddenSize});
     x = layer->forward(x);
 
     std::vector<float> xr;
@@ -154,7 +154,7 @@ class MlpTester : public ModuleTester {
 
 class AttnetionTester : public ModuleTester {
  public:
-  AttnetionTester(Device device, DType weightType)
+  AttnetionTester(Device device, ly::DType weightType)
       : ModuleTester(device, weightType) {
   }
 
@@ -163,10 +163,10 @@ class AttnetionTester : public ModuleTester {
     std::shared_ptr<Attention> layer = Attention::create(getCtx(), config);
     randomInit(layer);
 
-    Tensor x = generateTensor({1, 20, config.hiddenSize});
-    Tensor roPE = generateTensor({256, 1, config.hiddenSize / config.numHeads / 2});
+    ly::Tensor x = generateTensor({1, 20, config.hiddenSize});
+    ly::Tensor roPE = generateTensor({256, 1, config.hiddenSize / config.numHeads / 2});
 
-    StateMap past;
+    ly::StateMap past;
     x = layer->forward(past, x);
 
     std::vector<float> xr0, xr1;
