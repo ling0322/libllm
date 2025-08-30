@@ -27,7 +27,7 @@
 #include "lynn/tensor.h"
 #include "lynn/test_helper.h"
 
-namespace libllm {
+namespace ly {
 
 class LinearTester : public ModuleTester {
  public:
@@ -139,4 +139,4 @@ CATCH_TEST_CASE("test Embedding (cuda)", "[ly][nn][embedding][cuda]") {
 
 #endif  // LIBLLM_CUDA_ENABLED
 
-}  // namespace libllm
+}  // namespace ly

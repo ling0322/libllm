@@ -289,7 +289,7 @@ void matmul_host_mxf4_bf16_tn(
   }
 }
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -314,4 +314,4 @@ std::shared_ptr<Gemm> CutlassGemm::create() {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

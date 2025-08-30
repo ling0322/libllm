@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -29,4 +29,4 @@ Tensor arangeLong(LongType begin, LongType end, LongType step);
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

@@ -23,7 +23,7 @@
 #include "lynn/cuda/apply_rotary_pos_emb.h"
 #include "lynn/cuda/common.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -86,4 +86,4 @@ Tensor applyRotaryPosEmb(const Tensor &tensor, Tensor roPE) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

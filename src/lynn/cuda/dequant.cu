@@ -27,7 +27,7 @@
 #include "lynn/cuda/copy.h"
 #include "lynn/cuda/dequant.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -339,4 +339,4 @@ Tensor toSm1xxScaleBlock(const Tensor &scale) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

@@ -29,7 +29,7 @@
 #include "lynn/cpu/kernel/util.h"
 #include "lynn/mp.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -143,4 +143,4 @@ void gemv(const GemvArgs<ElementA, ElementB, ElementC> &args) {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

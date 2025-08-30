@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -30,4 +30,4 @@ Tensor layerNorm(Tensor tensor, Tensor weight, Tensor bias, float eps);
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

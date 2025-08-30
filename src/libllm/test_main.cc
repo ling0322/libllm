@@ -27,14 +27,14 @@
 int main(int argc, char **argv) {
   // lut::enablePrintStackOnError();
 
-  libllm::initOperators();
+  ly::initOperators();
 
   // enable some slow kernels for reference.
-  libllm::op::cpu::kernel::setAllowSlowKernel(true);
+  ly::op::cpu::kernel::setAllowSlowKernel(true);
 
   int result = Catch::Session().run(argc, argv);
 
-  libllm::destroyOperators();
+  ly::destroyOperators();
 
   return result;
 }

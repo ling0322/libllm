@@ -24,7 +24,7 @@
 #include "lutil/time.h"
 #include "lynn/functional.h"
 
-namespace libllm {
+namespace ly {
 
 StateMap::~StateMap() {
 }
@@ -130,4 +130,4 @@ StateMap StateMap::clone() const {
   return s;
 }
 
-}  // namespace libllm
+}  // namespace ly

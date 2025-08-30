@@ -25,7 +25,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -149,4 +149,4 @@ Tensor applyBinaryOp(BinaryOp op, const Tensor &A, const Tensor &B) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

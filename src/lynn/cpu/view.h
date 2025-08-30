@@ -22,7 +22,7 @@
 #include "lutil/span.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -39,4 +39,4 @@ std::vector<TensorShape::Elem> mergeContigShape(const Tensor &src);
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

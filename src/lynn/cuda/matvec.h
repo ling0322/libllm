@@ -24,7 +24,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -33,4 +33,4 @@ Tensor gemvQ4(const Tensor &A, const Tensor &x);
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

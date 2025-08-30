@@ -28,7 +28,7 @@
 #include "lynn/cuda/gemm_cutlass.h"
 #include "lynn/dtype.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -234,4 +234,4 @@ lut::ErrorCode CutlassGemm::hgemmArray(
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

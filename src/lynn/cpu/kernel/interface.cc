@@ -39,7 +39,7 @@
 #include "lynn/cpu/kernel/interface.h"
 #include "ruapu/ruapu.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -389,4 +389,4 @@ void convertFloatToHalf(int n, const float *x, Float16 *y, Mode mode, CpuMathBac
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

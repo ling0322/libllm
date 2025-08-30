@@ -37,7 +37,7 @@ Wave::Wave(std::shared_ptr<WaveStream> waveStream)
       _eof(false) {
 }
 
-Tensor Wave::toTensor(lut::Span<const Byte> data) {
+ly::Tensor Wave::toTensor(lut::Span<const ly::Byte> data) {
   int numSamples = static_cast<int>(data.size() / 2);
   if (data.size() % 2 != 0) {
     throw lut::AbortedError("Wave: invalid size of data");
@@ -49,16 +49,16 @@ Tensor Wave::toTensor(lut::Span<const Byte> data) {
     wave[i] = static_cast<float>(phData[i]) / 32768.0f;
   }
 
-  return Tensor::create({numSamples}, lut::makeConstSpan(wave));
+  return ly::Tensor::create({numSamples}, lut::makeConstSpan(wave));
 }
 
 void Wave::readBlock() {
-  std::vector<Byte> data(BlockSize);
+  std::vector<ly::Byte> data(BlockSize);
   int64_t nb = _waveStream->read(lut::makeSpan(data));
   _buffer.insert(_buffer.end(), data.begin(), data.begin() + nb);
 }
 
-Tensor Wave::read(lut::Duration duration) {
+ly::Tensor Wave::read(lut::Duration duration) {
   CHECK(_waveStream->getBytesPerSample() == 2);
 
   int64_t nbTotalSize = durationToNumBytes(duration);
@@ -66,7 +66,7 @@ Tensor Wave::read(lut::Duration duration) {
     readBlock();
   }
 
-  std::vector<Byte> data;
+  std::vector<ly::Byte> data;
   CHECK(_readOffset >= _bufferOffset && _readOffset < _bufferOffset + _buffer.size());
   auto it = _buffer.begin() + (_readOffset - _bufferOffset);
   data.insert(data.end(), it, std::min(it + nbTotalSize, _buffer.end()));
@@ -80,7 +80,7 @@ Tensor Wave::read(lut::Duration duration) {
   if (!data.empty()) {
     return toTensor(data);
   } else {
-    return Tensor();
+    return ly::Tensor();
   }
 }
 

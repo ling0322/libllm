@@ -36,9 +36,9 @@
 #include "lynn/operator_tester.h"
 #include "lynn/operators.h"
 
-using OperatorType = libllm::OperatorTester::OperatorType;
+using OperatorType = ly::OperatorTester::OperatorType;
 
-namespace libllm {
+namespace ly {
 
 OperatorTester getOperatorTester() {
   return OperatorTester()
@@ -494,4 +494,4 @@ CATCH_TEST_CASE("test gemm mxfp4", "[op][cuda][mxfp4]") {
 
 #endif  // LIBLLM_CUTLASS_ENABLED
 
-}  // namespace libllm
+}  // namespace ly

@@ -29,7 +29,7 @@
 #define EXTAPI
 #endif
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -76,9 +76,9 @@ class CublasGemm : public Gemm {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly
 
 extern "C" {
-EXTAPI libllm::op::cuda::Gemm *llmGemmExt_New();
-EXTAPI void llmGemmExt_Delete(libllm::op::cuda::Gemm *gemm);
+EXTAPI ly::op::cuda::Gemm *llmGemmExt_New();
+EXTAPI void llmGemmExt_Delete(ly::op::cuda::Gemm *gemm);
 }  // extern "C"

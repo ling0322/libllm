@@ -30,7 +30,7 @@
 #include "lynn/functional.h"
 #include "lynn/operators.h"
 
-namespace libllm {
+namespace ly {
 
 template<typename T>
 Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const T> data) {
@@ -352,7 +352,7 @@ Tensor Tensor::operator-(const Tensor &rhs) const {
 }
 
 Operators *Tensor::getOperators() const {
-  return libllm::getOperators(getDevice().getType());
+  return ly::getOperators(getDevice().getType());
 }
 
 template<>
@@ -572,4 +572,4 @@ std::string TensorShape::toString() const {
   return os.str();
 }
 
-}  // namespace libllm
+}  // namespace ly

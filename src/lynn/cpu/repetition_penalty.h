@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -29,4 +29,4 @@ void repetitionPenalty(Tensor logits, Tensor history, float weight);
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

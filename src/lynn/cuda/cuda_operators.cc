@@ -44,7 +44,7 @@
 #include "lynn/cuda/unfold.h"
 #include "lynn/functional.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -245,11 +245,11 @@ void CudaOperators::manualSeed(uint64_t seed) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly
 
-libllm::Operators *llynCreateCudaOperators() {
-  if (libllm::op::cuda::CudaOperators::isAvailable()) {
-    return libllm::op::cuda::CudaOperators::create();
+ly::Operators *llynCreateCudaOperators() {
+  if (ly::op::cuda::CudaOperators::isAvailable()) {
+    return ly::op::cuda::CudaOperators::create();
   } else {
     LOG(INFO) << "No CUDA device available.";
     return nullptr;

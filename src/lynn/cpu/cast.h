@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -33,4 +33,4 @@ Tensor castFp32ToFp16(Tensor A);
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

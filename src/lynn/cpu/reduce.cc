@@ -24,7 +24,7 @@
 #include "lynn/mp.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -112,4 +112,4 @@ Tensor reduce(const Tensor &A, MapReduceType reduceType) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

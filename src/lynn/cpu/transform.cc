@@ -25,7 +25,7 @@
 #include "lynn/mp.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -60,4 +60,4 @@ Tensor transform(const Tensor &src, float alpha, float beta) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

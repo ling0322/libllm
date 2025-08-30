@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -34,4 +34,4 @@ Tensor zerosLike(const Tensor &input);
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

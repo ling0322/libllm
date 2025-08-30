@@ -22,7 +22,7 @@
 #include "lutil/random.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -32,4 +32,4 @@ Tensor randQ4(lut::Span<const int> shape, lut::Random *generator, float min, flo
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

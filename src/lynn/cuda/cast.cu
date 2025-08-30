@@ -22,7 +22,7 @@
 #include "lynn/cuda/cast.h"
 #include "lynn/cuda/common.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -86,4 +86,4 @@ Tensor cast(const Tensor &tensor, DType dtype) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

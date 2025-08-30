@@ -27,7 +27,7 @@
 #include "lynn/tensor.h"
 #include "tensor.h"
 
-namespace libllm {
+namespace ly {
 
 // base class for all nn modules.
 class Module {
@@ -207,4 +207,4 @@ class Conv1D : public Module {
   Conv1D();
 };
 
-}  // namespace libllm
+}  // namespace ly

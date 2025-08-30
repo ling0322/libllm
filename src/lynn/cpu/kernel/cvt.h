@@ -23,7 +23,7 @@
 #include "lynn/cpu/kernel/abstract.h"
 #include "lynn/mp.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -54,4 +54,4 @@ void cvt(int64_t n, const ElementA *x, int64_t offsetX, ElementC *y, int64_t off
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

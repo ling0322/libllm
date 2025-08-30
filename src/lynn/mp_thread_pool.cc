@@ -28,7 +28,7 @@
 #include "lutil/range.h"
 #include "lutil/thread_pool.h"
 
-namespace libllm {
+namespace ly {
 
 lut::ThreadPool *gThreadPoolMP = nullptr;
 
@@ -68,4 +68,4 @@ void MP::parallelFor2(int numBlocks, std::function<void(Context)> closure) {
   }
 }
 
-}  // namespace libllm
+}  // namespace ly

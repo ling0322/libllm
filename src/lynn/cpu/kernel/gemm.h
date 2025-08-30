@@ -27,7 +27,7 @@
 #include "lynn/cpu/kernel/gemv.h"
 #include "lynn/mp.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -263,4 +263,4 @@ void qgemm(const GemmArgs<T, TQ, T> &args) {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

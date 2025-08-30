@@ -44,10 +44,10 @@ class Wave {
   Wave();
   Wave(std::shared_ptr<WaveStream> wave_stream);
 
-  /// @brief convert S16LE format audio date to tensor (samples).
-  static Tensor toTensor(lut::Span<const Byte> data);
+  /// @brief convert S16LE format audio date to ly::Tensor (samples).
+  static ly::Tensor toTensor(lut::Span<const ly::Byte> data);
 
-  Tensor read(lut::Duration length);
+  ly::Tensor read(lut::Duration length);
   void seek(lut::Duration offset);
   lut::Duration tell() const;
   bool eof();
@@ -56,7 +56,7 @@ class Wave {
   int64_t _bufferOffset;
   int64_t _readOffset;
   bool _eof;
-  std::deque<Byte> _buffer;
+  std::deque<ly::Byte> _buffer;
   std::shared_ptr<WaveStream> _waveStream;
 
   int64_t durationToNumBytes(lut::Duration dur) const;

@@ -24,7 +24,7 @@
 
 #include "lynn/cpu/kernel/abstract.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -371,4 +371,4 @@ void shcvtAsimdhpKernel(int64_t n, const float *x, Float16 *y) {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

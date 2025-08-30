@@ -38,7 +38,7 @@ struct PromptBlock {
   };
 
   std::string text;
-  std::vector<Byte> data;
+  std::vector<ly::Byte> data;
   WaveFormat waveFormat;
   Type blockType;
 

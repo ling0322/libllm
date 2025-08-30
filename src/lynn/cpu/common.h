@@ -24,7 +24,7 @@
 #include "lynn/cpu/kernel/interface.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -67,4 +67,4 @@ inline void applyDequant(int64_t offset, int n, const TensorData *data, Float16 
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

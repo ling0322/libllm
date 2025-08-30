@@ -48,7 +48,7 @@
     }                                                                                    \
   }
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -172,4 +172,4 @@ dim3 getGrid1D(int numel, int blockSize);
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

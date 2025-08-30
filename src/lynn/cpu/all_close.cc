@@ -24,7 +24,7 @@
 #include "lynn/cpu/tensor.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -90,4 +90,4 @@ bool allClose(Tensor A, Tensor B, float rtol, float atol) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

@@ -26,7 +26,7 @@
 #include "lynn/cpu/tensor.h"
 #include "lynn/mp.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -70,4 +70,4 @@ Tensor swiglu(const Tensor &A) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

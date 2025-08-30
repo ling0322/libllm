@@ -22,7 +22,7 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -136,12 +136,12 @@ lut::ErrorCode CublasGemm::hgemmArray(
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly
 
-libllm::op::cuda::Gemm *llmGemmExt_New() {
-  return libllm::op::cuda::CublasGemm::create();
+ly::op::cuda::Gemm *llmGemmExt_New() {
+  return ly::op::cuda::CublasGemm::create();
 }
 
-void llmGemmExt_Delete(libllm::op::cuda::Gemm *gemm) {
+void llmGemmExt_Delete(ly::op::cuda::Gemm *gemm) {
   delete gemm;
 }

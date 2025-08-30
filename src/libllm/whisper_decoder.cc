@@ -69,34 +69,36 @@ std::shared_ptr<WhisperChunkGreedySearchDecoder> WhisperChunkGreedySearchDecoder
   return decoder;
 }
 
-Tensor WhisperChunkGreedySearchDecoder::applySoftmax(Tensor logits) {
+ly::Tensor WhisperChunkGreedySearchDecoder::applySoftmax(ly::Tensor logits) {
   CHECK(logits.getDim() == 3 && logits.getShape(0) == 1 && logits.getShape(1) == 1);
 
-  Tensor x = logits.subtensor(0).subtensor(0);
+  ly::Tensor x = logits.subtensor(0).subtensor(0);
   if (_temperature != 1.0f) {
-    x = F::mul(x, 1.0f / _temperature);
+    x = ly::F::mul(x, 1.0f / _temperature);
   }
 
   processLogits(x);
 
-  x = F::softmax(x);
-  if (x.getDType() == DType::kFloat16) {
-    x = F::cast(x, DType::kFloat);
+  x = ly::F::softmax(x);
+  if (x.getDType() == ly::DType::kFloat16) {
+    x = ly::F::cast(x, ly::DType::kFloat);
   }
-  if (x.getDevice().getType() == Device::kCuda) {
-    x = F::to(Device::kCpu, x);
+  if (x.getDevice().getType() == ly::Device::kCuda) {
+    x = ly::F::to(ly::Device::kCpu, x);
   }
 
   return x;
 }
 
 void WhisperChunkGreedySearchDecoder::inferLang() {
-  std::vector<LongType> tokenIds{_startOfTranscriptToken};
-  Tensor inputs = Tensor::create<LongType>({1, static_cast<int>(tokenIds.size())}, tokenIds);
-  inputs = F::to(_model->getDevice(), inputs);
+  std::vector<ly::LongType> tokenIds{_startOfTranscriptToken};
+  ly::Tensor inputs = ly::Tensor::create<ly::LongType>(
+      {1, static_cast<int>(tokenIds.size())},
+      tokenIds);
+  inputs = ly::F::to(_model->getDevice(), inputs);
 
-  Tensor logits = _model->prefillPrompt(_kvCache, inputs);
-  Tensor prob = applySoftmax(logits);
+  ly::Tensor logits = _model->prefillPrompt(_kvCache, inputs);
+  ly::Tensor prob = applySoftmax(logits);
 
   CHECK(prob.getDim() == 1 && prob.getStride(0) == 1);
   float *probData = prob.getData<float>();
@@ -121,7 +123,7 @@ void WhisperChunkGreedySearchDecoder::setTranscribeMode() {
   updateHistory(_transcribeToken);
 }
 
-void WhisperChunkGreedySearchDecoder::processLogits(Tensor logits) {
+void WhisperChunkGreedySearchDecoder::processLogits(ly::Tensor logits) {
   bool lastWasTimestamp = _history.size() >= 1 && _history.back() >= _timestamp0000;
   bool lastWasTranscribe = _history.size() >= 1 && _history.back() == _transcribeToken;
   bool penultimateWasTimestamp = _history.size() < 2 ||
@@ -131,44 +133,45 @@ void WhisperChunkGreedySearchDecoder::processLogits(Tensor logits) {
 
   constexpr int MaxHistory = 5;
   if (!_history.empty()) {
-    Tensor history = Tensor::create<LongType>(
+    ly::Tensor history = ly::Tensor::create<ly::LongType>(
         {std::min<int>(_history.size(), MaxHistory)},
-        lut::makeConstSpan(_history).subspan(std::max<LongType>(_history.size() - MaxHistory, 0)));
-    history = F::to(logits.getDevice(), history);
-    F::repetitionPenalty(logits, history, 1.5);
+        lut::makeConstSpan(_history).subspan(
+            std::max<ly::LongType>(_history.size() - MaxHistory, 0)));
+    history = ly::F::to(logits.getDevice(), history);
+    ly::F::repetitionPenalty(logits, history, 1.5);
   }
 
   constexpr float Inf = std::numeric_limits<float>::infinity();
   if (lastWasTranscribe) {
-    F::fill(logits.slice(-1, {_noTimestampToken, _noTimestampToken + 1}), -Inf);
+    ly::F::fill(logits.slice(-1, {_noTimestampToken, _noTimestampToken + 1}), -Inf);
   }
 
   if (lastWasTimestamp) {
     _lastTimeTokenIdx = static_cast<int>(_history.size());
     if (penultimateWasTimestamp) {
-      F::fill(logits.slice(-1, {_timestamp0000, _timestamp3000 + 1}), -Inf);
+      ly::F::fill(logits.slice(-1, {_timestamp0000, _timestamp3000 + 1}), -Inf);
     } else {
-      F::fill(logits.slice(-1, {0, _eotToken + 1}), -Inf);
+      ly::F::fill(logits.slice(-1, {0, _eotToken + 1}), -Inf);
     }
   }
 
   if (_lastTimeToken > _timestamp0000) {
     // do not mask the <|30.00|> timestamp tag
     int endToken = std::min(_lastTimeToken + 1, _timestamp3000);
-    F::fill(logits.slice(-1, {_timestamp0000, endToken}), -Inf);
+    ly::F::fill(logits.slice(-1, {_timestamp0000, endToken}), -Inf);
   }
 
-  Tensor probs = F::softmax(logits);
-  Tensor maxText = F::max(probs.slice(-1, {0, _eotToken + 1}));
-  Tensor sumTimestamp = F::sum(probs.slice(-1, {_timestamp0000, _timestamp3000 + 1}));
+  ly::Tensor probs = ly::F::softmax(logits);
+  ly::Tensor maxText = ly::F::max(probs.slice(-1, {0, _eotToken + 1}));
+  ly::Tensor sumTimestamp = ly::F::sum(probs.slice(-1, {_timestamp0000, _timestamp3000 + 1}));
 
-  maxText = F::cast(F::to(Device::getCpu(), maxText), DType::kFloat);
-  sumTimestamp = F::cast(F::to(Device::getCpu(), sumTimestamp), DType::kFloat);
+  maxText = ly::F::cast(ly::F::to(ly::Device::getCpu(), maxText), ly::DType::kFloat);
+  sumTimestamp = ly::F::cast(ly::F::to(ly::Device::getCpu(), sumTimestamp), ly::DType::kFloat);
 
   float maxTextVal = *maxText.getData<float>();
   float sumTimestampVal = *sumTimestamp.getData<float>();
   if (sumTimestampVal >= maxTextVal || _history.size() - _lastTimeTokenIdx > 70) {
-    F::fill(logits.slice(-1, {0, _eotToken}), -Inf);
+    ly::F::fill(logits.slice(-1, {0, _eotToken}), -Inf);
   }
 }
 
@@ -176,8 +179,8 @@ int WhisperChunkGreedySearchDecoder::decodeToken() {
   CHECK(!_history.empty());
   int lastToken = _history.back();
 
-  Tensor logits = _model->decode(_kvCache, lastToken);
-  Tensor probCpu = applySoftmax(logits);
+  ly::Tensor logits = _model->decode(_kvCache, lastToken);
+  ly::Tensor probCpu = applySoftmax(logits);
 
   CHECK(probCpu.getDim() == 1 && probCpu.getStride(0) == 1);
   float *pProb = probCpu.getData<float>();
@@ -216,9 +219,9 @@ std::string WhisperChunkGreedySearchDecoder::parseLangToken(int tokenId) const {
   return token.substr(2, token.size() - 4);
 }
 
-std::vector<RecognitionResult> WhisperChunkGreedySearchDecoder::decode(Tensor wave) {
+std::vector<RecognitionResult> WhisperChunkGreedySearchDecoder::decode(ly::Tensor wave) {
   // reset states.
-  _kvCache = StateMap();
+  _kvCache = ly::StateMap();
   _history.clear();
   _lastTimeToken = -1;
   _noSpeechProb = 0.0f;
@@ -316,7 +319,7 @@ std::optional<RecognitionResult> WhisperDecoder::nextResult() {
   while (_results.empty() && !_wave->eof()) {
     lut::Duration offset = _wave->tell();
     LOG(INFO) << "offset=" << offset.toString();
-    Tensor waveChunk = _wave->read(lut::Duration::seconds(30));
+    ly::Tensor waveChunk = _wave->read(lut::Duration::seconds(30));
     if (waveChunk.empty() || waveChunk.getShape(0) <= 1600) {
       // we ignore the chunks less than 0.1s (1600 samples)
       break;

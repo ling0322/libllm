@@ -24,7 +24,7 @@
 #include "lynn/cpu/kernel/abstract.h"
 #include "lynn/mp.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -175,4 +175,4 @@ constexpr Block<T> PackedBlock<T>::block(int i) const {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

@@ -24,7 +24,7 @@
 #include "lynn/cpu/accessor.h"
 #include "lynn/cpu/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -153,4 +153,4 @@ Tensor fingerprint(Tensor A) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

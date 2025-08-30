@@ -26,7 +26,7 @@
 
 #include "lutil/attributes.h"
 
-namespace libllm {
+namespace ly {
 
 #if defined(LUT_ARCH_AARCH64)
 typedef _Float16 Float16;
@@ -68,7 +68,6 @@ struct Fp4E2M0x2 {
 static_assert(sizeof(Fp4E2M0x2) == 1, "invalid size of Fp4E2M0x2");
 
 typedef int8_t Byte;
-typedef int64_t LongType;
 typedef int64_t LongType;
 typedef bool BoolType;
 
@@ -132,4 +131,4 @@ inline DType DType::getType() {
   return DType::getTypeImpl<typename std::remove_cv<T>::type>();
 }
 
-}  // namespace libllm
+}  // namespace ly

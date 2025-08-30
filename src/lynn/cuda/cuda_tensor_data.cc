@@ -29,7 +29,7 @@
 #include "lynn/device.h"
 #include "lynn/dtype.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -108,4 +108,4 @@ int CudaTensorData::getNumSlot() const {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

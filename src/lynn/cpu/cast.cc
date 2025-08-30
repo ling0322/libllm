@@ -32,7 +32,7 @@
 #include "lynn/cpu/tensor.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -103,4 +103,4 @@ Tensor castFp32ToQ4(Tensor A) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

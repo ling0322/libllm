@@ -7,7 +7,7 @@
 // restriction, including without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
 //
@@ -21,9 +21,9 @@
 
 #include <string>
 
-namespace libllm {
+namespace ly {
 
-// storage device for tensor data. 
+// storage device for tensor data.
 // Note: once the Device type is increased, we should also change the initialization of
 // gOperatorsForDevice.
 class Device {
@@ -47,7 +47,9 @@ class Device {
   Device(Type type);
 
   // get type of the device
-  Type getType() const { return _type; }
+  Type getType() const {
+    return _type;
+  }
 
   /// @brief Get the name of device.
   /// @return name of the device.
@@ -57,4 +59,4 @@ class Device {
   Type _type;
 };
 
-}  // namespace libllm
+}  // namespace ly

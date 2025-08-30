@@ -22,7 +22,7 @@
 #include "lutil/log.h"
 #include "lynn/cuda/cuda_operators.h"
 
-namespace libllm {
+namespace ly {
 
 Device::Device()
     : _type(Type::kUnknown) {
@@ -58,4 +58,4 @@ std::string Device::getName() const {
   }
 }
 
-}  // namespace libllm
+}  // namespace ly

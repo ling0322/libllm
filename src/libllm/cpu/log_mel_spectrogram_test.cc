@@ -141,14 +141,15 @@ CATCH_TEST_CASE("test logMelSpectrogram", "[op][cpu][logmelspectrogram]") {
   lut::Span<const Byte> pcmSpan(pcmData);
   pcmSpan = pcmSpan.subspan(44);  // 44: pcm header size.
 
-  Tensor wave = Wave::toTensor(pcmSpan);
-  Tensor features = logMelSpectrogram(wave);
+  ly::Tensor wave = Wave::toTensor(pcmSpan);
+  ly::Tensor features = logMelSpectrogram(wave);
 
-  CATCH_REQUIRE(F::allClose(
-      op::cpu::fingerprint(features),
-      Tensor::create<float>(
-          {8},
-          {0.5365, 0.6787, 0.1886, 0.4008, -0.2633, -0.3035, -0.4268, -0.6635})));
+  CATCH_REQUIRE(
+      ly::F::allClose(
+          op::cpu::fingerprint(features),
+          ly::Tensor::create<float>(
+              {8},
+              {0.5365, 0.6787, 0.1886, 0.4008, -0.2633, -0.3035, -0.4268, -0.6635})));
 }
 
 }  // namespace cpu

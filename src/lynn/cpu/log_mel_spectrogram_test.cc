@@ -25,7 +25,7 @@
 #include "lynn/functional.h"
 #include "lynn/wave.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -154,4 +154,4 @@ CATCH_TEST_CASE("test logMelSpectrogram", "[op][cpu][logmelspectrogram]") {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

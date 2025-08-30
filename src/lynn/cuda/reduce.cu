@@ -30,7 +30,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/reduce.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -244,4 +244,4 @@ Tensor reduceAll(Tensor A, DType outType, MapReduceType reduceType) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

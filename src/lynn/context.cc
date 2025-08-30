@@ -24,7 +24,7 @@
 #include "lutil/strings.h"
 #include "lynn/device.h"
 
-namespace libllm {
+namespace ly {
 
 Context Context::getCpu() {
   Context ctx;
@@ -88,4 +88,4 @@ void Context::set(const std::string &key, const std::string &value) {
   _propertyBag[key] = value;
 }
 
-}  // namespace libllm
+}  // namespace ly

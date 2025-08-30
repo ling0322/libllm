@@ -23,7 +23,7 @@
 #include "lynn/device.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -66,4 +66,4 @@ class CpuTensorData : public TensorData {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

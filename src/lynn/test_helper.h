@@ -26,7 +26,7 @@
 #include "lynn/tensor.h"
 #include "lynn/test_helper.h"
 
-namespace libllm {
+namespace ly {
 
 /// @brief Helper class for Module testing.
 class ModuleTester {
@@ -85,4 +85,4 @@ class ModuleTester {
   lut::Random _random;
 };
 
-}  // namespace libllm
+}  // namespace ly

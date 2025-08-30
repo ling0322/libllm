@@ -21,7 +21,7 @@
 
 #include <functional>
 
-namespace libllm {
+namespace ly {
 
 // wrapper for OpenMP or other implementations
 class MP {
@@ -66,4 +66,4 @@ class MP::Context {
   int _attachedThreadIdx;
 };
 
-}  // namespace libllm
+}  // namespace ly

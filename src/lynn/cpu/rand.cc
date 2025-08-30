@@ -32,7 +32,7 @@
 #include "lynn/mp.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -91,4 +91,4 @@ Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, flo
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

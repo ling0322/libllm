@@ -22,7 +22,7 @@
 #include "lynn/cpu/accessor.h"
 #include "lynn/cpu/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -69,4 +69,4 @@ Tensor applyRotaryPosEmb(const Tensor &input, Tensor roPE) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

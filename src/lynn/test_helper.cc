@@ -24,7 +24,7 @@
 #include "lynn/module.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 
 ModuleTester::ModuleTester(Device device, DType weightType)
     : _device(device),
@@ -90,4 +90,4 @@ float ModuleTester::getRtol() const {
   }
 }
 
-}  // namespace libllm
+}  // namespace ly

@@ -25,7 +25,7 @@
 #include "lynn/device.h"
 #include "lynn/dtype.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -137,4 +137,4 @@ int CpuTensorData::getNumSlot() const {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

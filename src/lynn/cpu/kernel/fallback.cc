@@ -31,7 +31,7 @@
 #include "lynn/cpu/kernel/abstract.h"
 #include "lynn/cpu/kernel/util.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -221,4 +221,4 @@ void hqcvtFallbackKernel(int64_t n, const Float16 *x, QInt4x32 *y) {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

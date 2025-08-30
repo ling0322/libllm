@@ -26,7 +26,7 @@
 #include "lynn/cuda/cast.h"
 #include "lynn/cuda/common.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -81,4 +81,4 @@ void Rand::setSeed(uint64_t seed) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

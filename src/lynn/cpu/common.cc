@@ -19,7 +19,7 @@
 
 #include "lynn/cpu/common.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -52,4 +52,4 @@ Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> s
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

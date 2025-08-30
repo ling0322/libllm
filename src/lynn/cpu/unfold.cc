@@ -25,7 +25,7 @@
 #include "lynn/cpu/tensor.h"
 #include "lynn/mp.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -90,4 +90,4 @@ Tensor unfold(const Tensor &src, int kernelSize, int stride) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

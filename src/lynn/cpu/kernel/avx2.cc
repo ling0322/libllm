@@ -58,7 +58,7 @@
 // | 0 | A |  | 0 | B |
 // +---+---+  +---+---+
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -375,4 +375,4 @@ void hscvtAvx2Kernel(int64_t n, const Float16 *x, float *y) {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

@@ -24,7 +24,7 @@
 #include "lynn/operator_tester.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -74,4 +74,4 @@ CATCH_TEST_CASE("test CPU fp16 tensor operators", "[op][cpu][float16]") {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

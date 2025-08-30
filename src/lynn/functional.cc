@@ -25,7 +25,7 @@
 #include "lutil/strings.h"
 #include "lynn/operators.h"
 
-namespace libllm {
+namespace ly {
 namespace F {
 
 Tensor arange(LongType begin, LongType end, LongType step, Device device) {
@@ -258,4 +258,4 @@ void manualSeed(Device device, uint64_t seed) {
 }
 
 }  // namespace F
-}  // namespace libllm
+}  // namespace ly

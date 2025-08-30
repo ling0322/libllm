@@ -26,7 +26,7 @@
 #include "lynn/cpu/print.h"
 #include "lynn/cpu/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -94,4 +94,4 @@ Tensor lookup(const Tensor &table, const Tensor &indices) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

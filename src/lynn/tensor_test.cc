@@ -23,7 +23,7 @@
 #include "lynn/context.h"
 #include "lynn/functional.h"
 
-namespace libllm {
+namespace ly {
 
 CATCH_TEST_CASE("test subtensor and slice", "[core][nn][tensor]") {
   Tensor tensor = Tensor::create<float>(
@@ -83,4 +83,4 @@ CATCH_TEST_CASE("test subtensor and slice", "[core][nn][tensor]") {
   CATCH_REQUIRE(F::allClose(tensor.slice(0, {1, 3}).slice(1, {1, 3}), subtensor));
 }
 
-}  // namespace libllm
+}  // namespace ly

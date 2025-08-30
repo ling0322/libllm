@@ -24,7 +24,7 @@
 #include "lutil/log.h"
 #include "lynn/cpu/kernel/abstract.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -117,4 +117,4 @@ inline void axpyKernel<Float16, QInt4x32, float, CpuMathBackend::ASIMDHP>(
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

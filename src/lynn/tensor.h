@@ -31,7 +31,7 @@
 #include "lynn/dtype.h"
 #include "lynn/functional.h"
 
-namespace libllm {
+namespace ly {
 
 class TensorShape;
 class TensorData;
@@ -335,4 +335,4 @@ const T *Tensor::getData() const {
   return _data->getData<T>(_offset);
 }
 
-}  // namespace libllm
+}  // namespace ly

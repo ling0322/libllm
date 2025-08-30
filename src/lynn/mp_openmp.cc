@@ -30,7 +30,7 @@
 #include "lutil/log.h"
 #include "lutil/thread_pool.h"
 
-namespace libllm {
+namespace ly {
 
 void MP::init() {
   LOG(INFO) << "OMP max_threads = " << omp_get_max_threads();
@@ -50,4 +50,4 @@ void MP::parallelFor(int numBlocks, std::function<void(Context)> closure) {
   }
 }
 
-}  // namespace libllm
+}  // namespace ly

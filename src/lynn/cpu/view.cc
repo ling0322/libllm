@@ -21,7 +21,7 @@
 
 #include <algorithm>
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 
@@ -117,4 +117,4 @@ Tensor view(const Tensor &src, lut::Span<const int> view) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

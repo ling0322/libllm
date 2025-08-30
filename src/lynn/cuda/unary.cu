@@ -22,7 +22,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/unary.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -118,4 +118,4 @@ Tensor applyUnaryOp(UnaryOp op, const Tensor &tensor) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

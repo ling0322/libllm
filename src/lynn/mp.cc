@@ -22,4 +22,4 @@
 #include <algorithm>
 #include <functional>
 
-namespace libllm {}  // namespace libllm
+namespace ly {}  // namespace ly

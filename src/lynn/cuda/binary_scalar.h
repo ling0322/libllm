@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -32,4 +32,4 @@ Tensor applyBinaryScalarOpLong(BinaryScalarOp op, const Tensor &tensor, LongType
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

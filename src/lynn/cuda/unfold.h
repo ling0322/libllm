@@ -22,7 +22,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/tensor.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -30,4 +30,4 @@ Tensor unfold(const Tensor &src, int kernelSize, int stride);
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

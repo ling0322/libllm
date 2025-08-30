@@ -31,7 +31,7 @@
 #define LIBLLM_KERNEL_FORCE_INLINE __attribute__((always_inline)) inline
 #endif
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -90,4 +90,4 @@ struct GemmArgs {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly

@@ -21,7 +21,7 @@
 
 #include "lynn/operators.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cuda {
 
@@ -89,6 +89,6 @@ class CudaOperators : public Operators {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly
 
-libllm::Operators *llynCreateCudaOperators();
+ly::Operators *llynCreateCudaOperators();

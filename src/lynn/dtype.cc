@@ -26,7 +26,7 @@
 #include <cuda_fp16.h>
 #endif
 
-namespace libllm {
+namespace ly {
 
 constexpr int16_t DType::kUnknown;
 constexpr int16_t DType::kFloat;
@@ -172,4 +172,4 @@ std::string DType::toString() const {
   }
 }
 
-}  // namespace libllm
+}  // namespace ly

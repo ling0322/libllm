@@ -23,7 +23,7 @@
 
 #include "lutil/attributes.h"
 
-namespace libllm {
+namespace ly {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -151,4 +151,4 @@ void convertFloatToHalf(
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace libllm
+}  // namespace ly
