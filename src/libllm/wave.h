@@ -22,10 +22,10 @@
 #include <deque>
 #include <memory>
 
-#include "libllm/tensor.h"
 #include "libllm/wave_stream.h"
 #include "lutil/span.h"
 #include "lutil/time.h"
+#include "lynn/tensor.h"
 
 namespace libllm {
 

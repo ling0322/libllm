@@ -23,10 +23,10 @@
 
 #include "catch2/catch_amalgamated.hpp"
 #include "libllm/cpu/fingerprint.h"
-#include "libllm/tensor.h"
 #include "libllm/test_helper.h"
 #include "lutil/random.h"
 #include "lutil/span.h"
+#include "lynn/tensor.h"
 
 namespace libllm {
 namespace llama {

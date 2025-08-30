@@ -23,9 +23,9 @@
 #include <mutex>
 
 #include "libllm/read_audio_ffmpeg.h"
-#include "libllm/tensor.h"
 #include "lutil/error.h"
 #include "lutil/span.h"
+#include "lynn/tensor.h"
 
 namespace libllm {
 

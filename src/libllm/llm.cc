@@ -10,12 +10,8 @@
 #include <unordered_map>
 
 #include "../../third_party/nlohmann/json.hpp"
-#include "libllm/context.h"
-#include "libllm/dtype.h"
-#include "libllm/functional.h"
 #include "libllm/generator.h"
 #include "libllm/model_for_generation.h"
-#include "libllm/operators.h"
 #include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
 #include "libllm/whisper.h"
@@ -25,6 +21,10 @@
 #include "lutil/log.h"
 #include "lutil/strings.h"
 #include "lutil/zip_file.h"
+#include "lynn/context.h"
+#include "lynn/dtype.h"
+#include "lynn/functional.h"
+#include "lynn/operators.h"
 
 using libllm::Context;
 using libllm::GenerationConfig;

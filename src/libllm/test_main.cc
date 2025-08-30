@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "../../third_party/catch2/catch_amalgamated.hpp"
-#include "libllm/cpu/kernel/interface.h"
-#include "libllm/operators.h"
 #include "lutil/error.h"
 #include "lutil/log.h"
 #include "lutil/platform.h"
+#include "lynn/cpu/kernel/interface.h"
+#include "lynn/operators.h"
 
 int main(int argc, char **argv) {
   // lut::enablePrintStackOnError();

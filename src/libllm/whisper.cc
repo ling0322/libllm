@@ -22,9 +22,9 @@
 #include <limits>
 
 #include "libllm/constants.h"
-#include "libllm/functional.h"
 #include "lutil/error.h"
 #include "lutil/strings.h"
+#include "lynn/functional.h"
 
 namespace libllm {
 namespace whisper {

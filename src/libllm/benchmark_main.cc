@@ -22,16 +22,16 @@
 #include <iostream>
 #include <string>
 
-#include "libllm/dtype.h"
-#include "libllm/functional.h"
 #include "libllm/llama.h"
 #include "libllm/llm.h"
 #include "libllm/model_for_generation.h"
-#include "libllm/operators.h"
 #include "lutil/error.h"
 #include "lutil/flags.h"
 #include "lutil/random.h"
 #include "lutil/time.h"
+#include "lynn/dtype.h"
+#include "lynn/functional.h"
+#include "lynn/operators.h"
 
 constexpr int MagicNumber = 0x55aa;
 constexpr double MaxWait = 10;

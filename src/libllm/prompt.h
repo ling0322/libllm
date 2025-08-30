@@ -24,8 +24,8 @@
 #include <string>
 #include <vector>
 
-#include "libllm/dtype.h"
 #include "libllm/wave.h"
+#include "lynn/dtype.h"
 
 namespace libllm {
 

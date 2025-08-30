@@ -21,8 +21,8 @@
 
 #include <memory>
 
-#include "libllm/functional.h"
 #include "lutil/error.h"
+#include "lynn/functional.h"
 
 namespace libllm {
 namespace whisper {

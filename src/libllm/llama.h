@@ -22,11 +22,11 @@
 #include <memory>
 
 #include "libllm/constants.h"
-#include "libllm/functional.h"
 #include "libllm/model_for_generation.h"
-#include "libllm/module.h"
 #include "lutil/error.h"
 #include "lutil/ini_config.h"
+#include "lynn/functional.h"
+#include "lynn/module.h"
 
 namespace libllm {
 namespace llama {

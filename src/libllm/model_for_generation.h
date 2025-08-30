@@ -19,12 +19,12 @@
 
 #pragma once
 
-#include "libllm/context.h"
 #include "libllm/prompt.h"
-#include "libllm/state_map.h"
-#include "libllm/tensor.h"
 #include "libllm/tokenizer.h"
 #include "lutil/zip_file.h"
+#include "lynn/context.h"
+#include "lynn/state_map.h"
+#include "lynn/tensor.h"
 
 namespace libllm {
 

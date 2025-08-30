@@ -23,10 +23,10 @@
 
 #include <algorithm>
 
-#include "libllm/functional.h"
 #include "libllm/whisper.h"
 #include "lutil/error.h"
 #include "lutil/strings.h"
+#include "lynn/functional.h"
 
 namespace libllm {
 

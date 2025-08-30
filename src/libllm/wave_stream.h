@@ -22,10 +22,10 @@
 #include <memory>
 
 #include "libllm/read_audio_ffmpeg.h"
-#include "libllm/tensor.h"
 #include "lutil/c_ptr.h"
 #include "lutil/shared_library.h"
 #include "lutil/span.h"
+#include "lynn/tensor.h"
 
 namespace libllm {
 

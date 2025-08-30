@@ -22,8 +22,8 @@
 #include <memory>
 
 #include "libllm/model_for_generation.h"
-#include "libllm/module.h"
 #include "lutil/ini_config.h"
+#include "lynn/module.h"
 
 namespace libllm {
 namespace whisper {
