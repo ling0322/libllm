@@ -52,8 +52,6 @@ CATCH_TEST_CASE("test CPU fp16 matmul operators", "[op][cpu][float16]") {
   CATCH_REQUIRE(tester.testMatmulSlice({10, 20}, {40, 30}));
   CATCH_REQUIRE(tester.testMatmulSlice({5, 10, 20}, {40, 30}));
   CATCH_REQUIRE(tester.testMatmulSlice({5, 10, 5, 20}, {10, 40, 30}));
-  CATCH_REQUIRE(tester.testMatmulQInt4({5, 10, 50}, {50, 128}, false));
-  CATCH_REQUIRE(tester.testMatmulQInt4({1, 1, 128}, {50, 128}, true));
 }
 
 CATCH_TEST_CASE("test CPU fp16 rmsNorm operator", "[op][cpu][float16]") {

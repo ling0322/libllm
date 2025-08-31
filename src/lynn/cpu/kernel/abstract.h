@@ -39,7 +39,6 @@ namespace kernel {
 constexpr int GEMVMinRowsPerThread = 128;
 constexpr int CvtMinElemPerThread = 1024;
 constexpr int DequantMinElemPerThread = 1024;
-constexpr int GroupSizeQInt4 = 32;
 
 template<typename ElementA, typename ElementC, CpuMathBackend TYPE>
 void cvtKernel(int n, const ElementA *x, int64_t offsetX, ElementC *y, int64_t offsetY);

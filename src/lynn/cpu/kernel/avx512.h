@@ -33,15 +33,6 @@ namespace kernel {
 void sgemm12x32Avx512Kernel(int64_t kc, const float *a, const float *b, float *c, int64_t rs_c);
 
 template<>
-inline void cvtKernel<QInt4x32, float, CpuMathBackend::AVX512>(
-    int n,
-    const QInt4x32 *x,
-    int64_t offsetX,
-    float *y,
-    int64_t offsetY) {
-  return qscvtAvx2Kernel(n, x, offsetX, y + offsetY);
-}
-template<>
 inline void cvtKernel<Float16, float, CpuMathBackend::AVX512>(
     int n,
     const Float16 *x,
@@ -68,14 +59,7 @@ inline float dotKernel<float, float, float, CpuMathBackend::AVX512>(
     int64_t offsetY) {
   return sdotAvx2Kernel(n, x, y + offsetY);
 }
-template<>
-inline float dotKernel<float, float, QInt4x32, CpuMathBackend::AVX512>(
-    int64_t n,
-    const float *x,
-    const QInt4x32 *y,
-    int64_t offsetY) {
-  return sqdotAvx2Kernel(n, x, y, offsetY);
-}
+
 template<>
 inline void axpyKernel<float, float, float, CpuMathBackend::AVX512>(
     int64_t n,
@@ -84,15 +68,6 @@ inline void axpyKernel<float, float, float, CpuMathBackend::AVX512>(
     int64_t offsetX,
     float *y) {
   return saxpyAvx2Kernel(n, a, x + offsetX, y);
-}
-template<>
-inline void axpyKernel<float, QInt4x32, float, CpuMathBackend::AVX512>(
-    int64_t n,
-    float a,
-    const QInt4x32 *x,
-    int64_t offsetX,
-    float *y) {
-  NOT_IMPL();
 }
 
 }  // namespace kernel

@@ -160,21 +160,6 @@ bool OperatorTester::testLookup() {
   return F::allClose(x, xr);
 }
 
-bool OperatorTester::testLookupQInt4() {
-  lut::Random random(MagicNumber);
-  Tensor embd = F::rand({10, 256}, DType::kQInt4x32, Device::getCpu(), &random);
-  Tensor ids = Tensor::create<LongType>({2, 3}, {1, 2, 3, 4, 5, 6});
-
-  Tensor x = _op->to(_testDevice, embd);
-  Tensor y = _op->to(_testDevice, ids);
-  x = _op->lookup(x, y);
-  x = _op->cast(x, DType::kFloat);
-  x = _op->to(Device::getCpu(), x);
-
-  Tensor xr = F::lookup(embd, ids);
-  return F::allClose(x, xr);
-}
-
 bool OperatorTester::testMatmul(ShapeType shapeA, ShapeType shapeB, bool transposeB) {
   lut::Random random(MagicNumber);
   Tensor a = F::rand(shapeA, DType::kFloat, Device::getCpu(), &random);
@@ -210,22 +195,6 @@ bool OperatorTester::testMatmulSlice(ShapeType shapeA, ShapeType shapeB) {
   y = y.slice(-1, {5, 25});
   y = y.transpose(-1, -2);
   x = _op->matmul(x, y);
-  x = _op->cast(x, DType::kFloat);
-  x = _op->to(Device::getCpu(), x);
-
-  return F::allClose(x, xr, _rtol, _atol);
-}
-
-bool OperatorTester::testMatmulQInt4(ShapeType shapeA, ShapeType shapeB, bool transposeB) {
-  lut::Random random(MagicNumber);
-  Tensor a = F::rand(shapeA, DType::kFloat, Device::getCpu(), &random);
-  Tensor b = F::rand(shapeB, DType::kQInt4x32, Device::getCpu(), &random);
-  Tensor xr = F::matmul(a, transposeB ? b.transpose(-1, -2) : b);
-
-  Tensor x = _op->to(_testDevice, a);
-  Tensor y = _op->to(_testDevice, b);
-  x = _op->cast(x, _testFloatType);
-  x = _op->matmul(x, transposeB ? y.transpose(-1, -2) : y);
   x = _op->cast(x, DType::kFloat);
   x = _op->to(Device::getCpu(), x);
 

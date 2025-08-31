@@ -73,22 +73,6 @@ inline Float16 cvtf(Float16 v) {
   return v;
 }
 
-template<typename T>
-inline int getGroupSize();
-
-template<>
-inline int getGroupSize<float>() {
-  return 1;
-}
-template<>
-inline int getGroupSize<Float16>() {
-  return 1;
-}
-template<>
-inline int getGroupSize<QInt4x32>() {
-  return GroupSizeQInt4;
-}
-
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op

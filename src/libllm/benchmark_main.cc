@@ -170,23 +170,6 @@ void benchmarkLlama(std::shared_ptr<llama::LlamaModel> model, int ctxLength, ly:
 
 int benchmarkMain(ly::Device device) {
   ly::initOperators();
-
-  LlamaType llamaType = LlamaType::Llama2_7B;
-  ly::DType weightType = ly::DType::kQInt4x32;
-
-  LOG(INFO) << "intializing model ...";
-  auto model = libllm::getLlamaModel(nullptr, llamaType, device, weightType);
-  LOG(INFO) << "model initialized.";
-
-  printf("==========================================================\n");
-  printf("ModelType   ly::Device   Weight   Task               Token/s  \n");
-  printf("----------------------------------------------------------\n");
-
-  libllm::benchmarkLlama(model, 128, ly::DType::kQInt4x32);
-  libllm::benchmarkLlama(model, 512, ly::DType::kQInt4x32);
-
-  printf("----------------------------------------------------------\n");
-
   ly::destroyOperators();
   return 0;
 }

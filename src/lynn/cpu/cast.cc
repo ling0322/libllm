@@ -39,10 +39,6 @@ namespace cpu {
 Tensor cast(Tensor A, DType dtype) {
   if (A.getDType() == dtype) {
     return A;
-  } else if (A.getDType() == DType::kFloat && dtype == DType::kQInt4x32) {
-    return castFp32ToQ4(A);
-  } else if (A.getDType() == DType::kQInt4x32 && dtype == DType::kFloat) {
-    return castQ4ToFp32(A);
   } else if (A.getDType() == DType::kFloat16 && dtype == DType::kFloat) {
     return castFp16ToFp32(A);
   } else if (A.getDType() == DType::kFloat && dtype == DType::kFloat16) {
@@ -76,29 +72,6 @@ Tensor castFp32ToFp16(Tensor A) {
       kernel::CpuMathBackend::DEFAULT);
 
   return C;
-}
-
-Tensor castQ4ToFp32(Tensor A) {
-  Tensor x = op::cpu::tensor(A.getShape(), DType::kFloat);
-  op::cpu::applyDequant(0, A.getNumEl(), A.getDataObject(), x.getData<float>());
-
-  return x;
-}
-
-Tensor castFp32ToQ4(Tensor A) {
-  int64_t numel = A.getNumEl();
-  int64_t groupSize = DType(DType::kQInt4x32).getGroupSize();
-  CHECK(numel % groupSize == 0);
-
-  auto tensorData = CpuTensorData::create({{numel, DType::kQInt4x32}});
-  kernel::quantFloatToQInt4(
-      numel,
-      A.getData<float>(),
-      0,
-      (kernel::QInt4x32 *)tensorData->getData<QInt4x32>(0),
-      kernel::Mode::OMP);
-  auto tensorShape = std::make_shared<TensorShape>(A.getShape());
-  return Tensor::create(tensorShape, tensorData);
 }
 
 }  // namespace cpu

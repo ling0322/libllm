@@ -29,7 +29,6 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-void qhcvtAsimdhpKernel(int n, const QInt4x32 *x, int64_t offsetX, Float16 *y);
 void hscvtAsimdhpKernel(int64_t n, const Float16 *x, float *y);
 void shcvtAsimdhpKernel(int64_t n, const float *x, Float16 *y);
 void hgemm12x16AsimdhpKernel(
@@ -39,18 +38,8 @@ void hgemm12x16AsimdhpKernel(
     Float16 *c,
     int64_t rs_c);
 Float16 hdotAsimdhpKernel(int64_t n, const Float16 *x, const Float16 *y);
-Float16 hqdotAsimdhpKernel(int64_t n, const Float16 *x, const QInt4x32 *y, int64_t offsetY);
 void hsaxpyAsimdhpKernel(int64_t n, Float16 a, const Float16 *x, float *y);
 
-template<>
-inline void cvtKernel<QInt4x32, Float16, CpuMathBackend::ASIMDHP>(
-    int n,
-    const QInt4x32 *x,
-    int64_t offsetX,
-    Float16 *y,
-    int64_t offsetY) {
-  return qhcvtAsimdhpKernel(n, x, offsetX, y + offsetY);
-}
 template<>
 inline void cvtKernel<Float16, float, CpuMathBackend::ASIMDHP>(
     int n,
@@ -87,14 +76,7 @@ inline Float16 dotKernel<Float16, Float16, Float16, CpuMathBackend::ASIMDHP>(
     int64_t offsetY) {
   return hdotAsimdhpKernel(n, x, y + offsetY);
 }
-template<>
-inline Float16 dotKernel<Float16, Float16, QInt4x32, CpuMathBackend::ASIMDHP>(
-    int64_t n,
-    const Float16 *x,
-    const QInt4x32 *y,
-    int64_t offsetY) {
-  return hqdotAsimdhpKernel(n, x, y, offsetY);
-}
+
 template<>
 inline void axpyKernel<Float16, Float16, float, CpuMathBackend::ASIMDHP>(
     int64_t n,
@@ -103,15 +85,6 @@ inline void axpyKernel<Float16, Float16, float, CpuMathBackend::ASIMDHP>(
     int64_t offsetX,
     float *y) {
   return hsaxpyAsimdhpKernel(n, a, x + offsetX, y);
-}
-template<>
-inline void axpyKernel<Float16, QInt4x32, float, CpuMathBackend::ASIMDHP>(
-    int64_t n,
-    Float16 a,
-    const QInt4x32 *x,
-    int64_t offsetX,
-    float *y) {
-  NOT_IMPL();
 }
 
 }  // namespace kernel

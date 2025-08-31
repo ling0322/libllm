@@ -36,67 +36,6 @@ namespace op {
 namespace cpu {
 namespace kernel {
 
-template<typename T>
-void qfcvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, T *y) {
-  int64_t groupIdx = offsetX / GroupSizeQInt4;
-  int64_t nb = n / GroupSizeQInt4;
-  assert(offsetX % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
-
-  for (int i = groupIdx; i < groupIdx + nb; ++i) {
-    T scale = cvtf<T>(x[i].scale);
-    T zero = cvtf<T>(x[i].zero);
-    const uint8_t *p = x[i].data;
-    for (int j = 0; j < GroupSizeQInt4 / 2; ++j) {
-      uint8_t b = *p;
-      T b0 = static_cast<int>(b & 0xf);
-      T b1 = static_cast<int>(b >> 4);
-      *y++ = cvtf<T>(cvtf<T>(scale * b0) - zero);
-      *y++ = cvtf<T>(cvtf<T>(scale * b1) - zero);
-      ++p;
-    }
-  }
-}
-
-void qscvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, float *y) {
-  qfcvtFallbackKernel<float>(n, x, offsetX, y);
-}
-
-#if LUT_CPU_ARCH == LUT_AARCH64
-void qhcvtFallbackKernel(int n, const QInt4x32 *x, int64_t offsetX, Float16 *y) {
-  qfcvtFallbackKernel<Float16>(n, x, offsetX, y);
-}
-#endif
-
-template<typename T>
-T fqdotFallbackKernel(int64_t n, const T *x, const QInt4x32 *y, int64_t offsetY) {
-  int64_t groupIdx = offsetY / GroupSizeQInt4;
-  int64_t nb = n / GroupSizeQInt4;
-  assert(offsetY % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
-
-  float sum = 0.0f;
-  for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
-    float scale = cvtf<float>(y[i].scale);
-    float zero = cvtf<float>(y[i].zero);
-    const uint8_t *py = y[i].data;
-    for (int j = 0; j < GroupSizeQInt4 / 2; ++j) {
-      uint8_t b = *py;
-      sum += cvtf<float>(*x++) * (scale * static_cast<int>(b & 0xf) - zero);
-      sum += cvtf<float>(*x++) * (scale * static_cast<int>(b >> 4) - zero);
-      ++py;
-    }
-  }
-
-  return cvtf<T>(sum);
-}
-
-float sqdotFallbackKernel(int64_t n, const float *x, const QInt4x32 *y, int64_t offsetY) {
-  return fqdotFallbackKernel<float>(n, x, y, offsetY);
-}
-
-Float16 hqdotFallbackKernel(int64_t n, const Float16 *x, const QInt4x32 *y, int64_t offsetY) {
-  return fqdotFallbackKernel<Float16>(n, x, y, offsetY);
-}
-
 void saxpyFallbackKernel(int64_t n, float a, const float *x, float *y) {
   const float *px = x;
   float *py = y;
@@ -176,47 +115,6 @@ void hgemm12x16FallbackKernel(
     int64_t rs_c) {
   return gemmFallbackKernel<Float16, 12, 16>(kc, a, b, c, rs_c);
 }
-
-template<typename T>
-void fqcvtFallbackKernel(int64_t n, const T *x, QInt4x32 *y, int64_t offsetY) {
-  int64_t nb = n / GroupSizeQInt4;
-  int64_t groupOffset = offsetY / GroupSizeQInt4;
-  CHECK(n % GroupSizeQInt4 == 0 && offsetY % GroupSizeQInt4 == 0);
-
-  for (int i = 0; i < nb; ++i) {
-    int begin = i * GroupSizeQInt4;
-    int end = (i + 1) * GroupSizeQInt4;
-
-    float minVal = *std::min_element(x + begin, x + end);
-    float maxVal = *std::max_element(x + begin, x + end);
-
-    float scale = (maxVal - minVal) / 15.0f;
-    float zero = -minVal;
-
-    for (int j = 0; j < GroupSizeQInt4; j += 2) {
-      float dlFp32 = roundf((x[begin + j] - minVal) / scale);
-      float dhFp32 = roundf((x[begin + j + 1] - minVal) / scale);
-      CHECK(dlFp32 >= 0.0f && dlFp32 <= 15.0f && dhFp32 >= 0.0f && dhFp32 <= 15.0f);
-
-      uint8_t dl = static_cast<uint8_t>(dlFp32);
-      uint8_t dh = static_cast<uint8_t>(dhFp32);
-      y[groupOffset + i].data[j / 2] = (dh << 4) | dl;
-    }
-
-    y[groupOffset + i].scale = cvtf<Float16>(scale);
-    y[groupOffset + i].zero = cvtf<Float16>(zero);
-  }
-}
-
-void sqcvtFallbackKernel(int64_t n, const float *x, QInt4x32 *y, int64_t offsetY) {
-  fqcvtFallbackKernel<float>(n, x, y, offsetY);
-}
-
-#if LUT_APU_ARCH == LUT_AARCH64
-void hqcvtFallbackKernel(int64_t n, const Float16 *x, QInt4x32 *y) {
-  fqcvtFallbackKernel<Float16>(n, x, y);
-}
-#endif
 
 }  // namespace kernel
 }  // namespace cpu

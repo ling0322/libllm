@@ -86,53 +86,6 @@ __global__ void mat_vec_kernel(
   if (threadIdx.x == 0) y[row] = (half)sum;
 }
 
-__global__ void mat_vec_kernel_q4g32(
-    half *y,
-    const half *__restrict__ x,
-    PackedSubtensor2DQInt4x32 A) {
-  int numCol = A.getNumCol();
-  int row = blockIdx.x * blockDim.y + threadIdx.y;
-  if (row >= A.getNumRow()) return;
-
-  constexpr int VecX = 8;
-  constexpr int VecA = 4;
-  constexpr int WrapSize = 32;
-
-  int groupPerRow = numCol / QInt4x32::GroupSize;
-  int rowGroupIdx = row * groupPerRow;
-
-  float sum = 0;
-  int groupIdx = threadIdx.x;
-  OWORD packX;  // VecX * half
-  for (int i = groupIdx; i < groupPerRow; i += WrapSize) {
-    float scale = float(A.getScaleValue(rowGroupIdx + i));
-    float zero = float(A.getZeroValue(rowGroupIdx + i));
-    const uint32_t *data = reinterpret_cast<const uint32_t *>(A.getData(rowGroupIdx + i));
-
-    // 32 elements: QInt4x32::GroupSize / (VecA * VecX) == 1
-#pragma unroll
-    for (int k = 0; k < QInt4x32::GroupSize / (VecA * VecX); ++k) {
-      // 32 elements
-#pragma unroll
-      for (int j = 0; j < VecA; ++j) {
-        // TODO: Memory Coalescing
-        uint32_t packAv8 = data[j];
-        packX.vec = ldgv4u32(&x[i * QInt4x32::GroupSize + k * (VecA * VecX) + j * VecX]);
-
-        // 8 elements
-#pragma unroll
-        for (int el = 0; el < VecX; ++el) {
-          sum += (scale * float(packAv8 & 0xf) - zero) * float(packX.h[el]);
-          packAv8 = packAv8 >> 4;
-        }
-      }
-    }
-  }
-
-  sum = wrapReduceSum(sum);
-  if (threadIdx.x == 0) y[row] = (half)sum;
-}
-
 Tensor gemvHalf(const Tensor &A, const Tensor &B) {
   int n = A.getShape(1);
   int d = A.getShape(0);
@@ -149,22 +102,6 @@ Tensor gemvHalf(const Tensor &A, const Tensor &B) {
       n,
       d,
       n);
-  cudaDeviceSynchronize();
-  return C;
-}
-
-Tensor gemvQ4(const Tensor &A, const Tensor &x) {
-  CHECK(A.getShape(1) == x.getShape(0) && x.getShape(1) == 1);
-  CHECK(x.getShape(0) % QInt4x32::GroupSize == 0);
-  int n = A.getShape(1);
-  int d = A.getShape(0);
-
-  Tensor C = createCudaTensorHalf({d, 1});
-
-  dim3 block_dim(32, 4);
-  dim3 grid_dim(divUp(d, 4), 1);
-
-  mat_vec_kernel_q4g32<<<grid_dim, block_dim, 0>>>(C.getData<half>(), x.getData<half>(), A);
   cudaDeviceSynchronize();
   return C;
 }

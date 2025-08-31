@@ -36,13 +36,6 @@ struct Float16 {
 };
 #endif
 
-struct QInt4x32 {
-  Float16 zero;
-  Float16 scale;
-  uint8_t data[16];
-};
-static_assert(sizeof(QInt4x32) == 20, "invalid size of QInt4x32");
-
 enum class Mode { OMP, SingleThread };
 enum class CpuMathBackend { DEFAULT, AVX2, AVX512, ASIMDHP, FALLBACK, UNKNOWN };
 
@@ -76,60 +69,6 @@ void gemmHalf(
     const Float16 *B,
     int ldb,
     Float16 *C,
-    int ldc,
-    Mode mode,
-    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
-
-void gemmHalfQInt4(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const Float16 *A,
-    int lda,
-    const QInt4x32 *B,
-    Float16 *C,
-    int ldc,
-    Mode mode,
-    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
-
-void dequantQInt4ToFloat(
-    int n,
-    const QInt4x32 *data,
-    int offset,
-    float *tgt,
-    Mode mode,
-    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
-
-void quantFloatToQInt4(
-    int n,
-    const float *data,
-    int offset,
-    QInt4x32 *tgt,
-    Mode mode,
-    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
-
-void dequantQInt4ToHalf(
-    int n,
-    const QInt4x32 *data,
-    int offset,
-    Float16 *tgt,
-    Mode mode,
-    CpuMathBackend backendType = CpuMathBackend::DEFAULT);
-
-// GEMM: A is a float32 matrix, B is a matrix with 4-bit asymmetric quantization. C is a float32
-// matrix.
-void gemmFloatQInt4(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const float *A,
-    int lda,
-    const QInt4x32 *B,
-    float *C,
     int ldc,
     Mode mode,
     CpuMathBackend backendType = CpuMathBackend::DEFAULT);

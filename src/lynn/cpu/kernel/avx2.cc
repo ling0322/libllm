@@ -23,41 +23,6 @@
 
 #include "lynn/cpu/kernel/abstract.h"
 
-// UInt4x2 -> UInt8 SIMD
-// read 32 int4 (16 bytes), convert to 32 int8 and store to xi8x32.
-// Here is the steps of converting int4 to int8:
-//
-// Input:
-// High ----- Low
-// +---+---+
-// | B | A | <- packed 2 uint4 values A and B  into a byte
-// +---+---+
-//
-// u8 -> i16 (1)
-// +---+---+---+---+
-// | 0 | 0 | B | A |
-// +---+---+---+---+
-//
-// i16 SHIFT-LEFT 4 (2)
-// +---+---+---+---+
-// | 0 | B | A | 0 |
-// +---+---+---+---+
-//
-// i16 (1) OR (2)
-// +---+---+---+---+
-// | 0 | B | X | A |
-// +---+---+---+---+
-//
-// As 2 int8 (little-endian)
-// +---+---+  +---+---+
-// | 0 | A |  | X | B |
-// +---+---+  +---+---+
-//
-// AND 0xf
-// +---+---+  +---+---+
-// | 0 | A |  | 0 | B |
-// +---+---+  +---+---+
-
 namespace ly {
 namespace op {
 namespace cpu {
@@ -230,119 +195,12 @@ float sdotAvx2Kernel(int64_t n, const float *x, const float *y) {
   return sum;
 }
 
-LIBLLM_KERNEL_FORCE_INLINE __m256i loadNibble32ToByte32(const void *nibbleAddr) {
-  __m256i vbyte = _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *)nibbleAddr));
-  vbyte = _mm256_or_si256(_mm256_slli_epi16(vbyte, 4), vbyte);
-  vbyte = _mm256_and_si256(vbyte, _mm256_set1_epi8(0xf));
-  return vbyte;
-}
-
 LIBLLM_KERNEL_FORCE_INLINE float half2float(Float16 half) {
 #if LIBLLM_KERNEL_MSVC
   return libllm_cvtsh_ss(*reinterpret_cast<uint16_t *>(&half));
 #else
   return _cvtsh_ss(*reinterpret_cast<uint16_t *>(&half));
 #endif
-}
-
-LIBLLM_KERNEL_FORCE_INLINE __m256 extractFloat8FromByte32Block0(__m256i src) {
-  return _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm256_extracti128_si256(src, 0)));
-}
-
-LIBLLM_KERNEL_FORCE_INLINE __m256 extractFloat8FromByte32Block1(__m256i src) {
-  return _mm256_cvtepi32_ps(
-      _mm256_cvtepi8_epi32(_mm_srli_si128(_mm256_extracti128_si256(src, 0), 8)));
-}
-
-LIBLLM_KERNEL_FORCE_INLINE __m256 extractFloat8FromByte32Block2(__m256i src) {
-  return _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm256_extracti128_si256(src, 1)));
-}
-
-LIBLLM_KERNEL_FORCE_INLINE __m256 extractFloat8FromByte32Block3(__m256i src) {
-  return _mm256_cvtepi32_ps(
-      _mm256_cvtepi8_epi32(_mm_srli_si128(_mm256_extracti128_si256(src, 1), 8)));
-}
-
-float sqdotAvx2Kernel(int64_t n, const float *x, const QInt4x32 *y, int64_t offsetY) {
-  __m256 vx, vy, vsum, vscale, vzero;
-  __m256i vbytey;
-
-  vsum = _mm256_setzero_ps();
-  int64_t groupIdx = offsetY / GroupSizeQInt4;
-  int64_t nb = n / GroupSizeQInt4;
-  assert(offsetY % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
-
-  const float *px = x;
-  const QInt4x32 *py = y + groupIdx;
-  for (int i = groupIdx; i < groupIdx + nb; ++i) {
-    vscale = _mm256_set1_ps(half2float(py->scale));
-    vzero = _mm256_set1_ps(-half2float(py->zero));
-
-    // block 0
-    vbytey = loadNibble32ToByte32(py->data);
-
-    // block 0:0
-    vy = _mm256_fmadd_ps(extractFloat8FromByte32Block0(vbytey), vscale, vzero);
-    vx = _mm256_loadu_ps(px);
-    vsum = _mm256_fmadd_ps(vx, vy, vsum);
-    px += 8;
-
-    // block 0:1
-    vy = _mm256_fmadd_ps(extractFloat8FromByte32Block1(vbytey), vscale, vzero);
-    vx = _mm256_loadu_ps(px);
-    vsum = _mm256_fmadd_ps(vx, vy, vsum);
-    px += 8;
-
-    // block 0:2
-    vy = _mm256_fmadd_ps(extractFloat8FromByte32Block2(vbytey), vscale, vzero);
-    vx = _mm256_loadu_ps(px);
-    vsum = _mm256_fmadd_ps(vx, vy, vsum);
-    px += 8;
-
-    // block 0:3
-    vy = _mm256_fmadd_ps(extractFloat8FromByte32Block3(vbytey), vscale, vzero);
-    vx = _mm256_loadu_ps(px);
-    vsum = _mm256_fmadd_ps(vx, vy, vsum);
-    px += 8;
-
-    ++py;
-  }
-
-  return hsum(vsum);
-}
-
-void qscvtAvx2Kernel(int n, const QInt4x32 *x, int64_t offsetX, float *y) {
-  __m256 vx, vscale, vzero;
-  __m256i vbytex;
-
-  int64_t groupIdx = offsetX / GroupSizeQInt4;
-  int64_t nb = n / GroupSizeQInt4;
-  assert(offsetX % GroupSizeQInt4 == 0 && n % GroupSizeQInt4 == 0);
-
-  const QInt4x32 *px = x + groupIdx;
-  float *py = y;
-
-  for (int64_t i = groupIdx; i < groupIdx + nb; ++i) {
-    vscale = _mm256_set1_ps(half2float(px->scale));
-    vzero = _mm256_set1_ps(-half2float(px->zero));
-
-    // block 0
-    vbytex = loadNibble32ToByte32(px->data);
-    vx = _mm256_fmadd_ps(extractFloat8FromByte32Block0(vbytex), vscale, vzero);
-    _mm256_storeu_ps(py, vx);
-    py += 8;
-    vx = _mm256_fmadd_ps(extractFloat8FromByte32Block1(vbytex), vscale, vzero);
-    _mm256_storeu_ps(py, vx);
-    py += 8;
-    vx = _mm256_fmadd_ps(extractFloat8FromByte32Block2(vbytex), vscale, vzero);
-    _mm256_storeu_ps(py, vx);
-    py += 8;
-    vx = _mm256_fmadd_ps(extractFloat8FromByte32Block3(vbytex), vscale, vzero);
-    _mm256_storeu_ps(py, vx);
-    py += 8;
-
-    ++px;
-  }
 }
 
 void hscvtAvx2Kernel(int64_t n, const Float16 *x, float *y) {
