@@ -147,13 +147,6 @@ inline void fillRandom(lut::Random *r, lut::Span<float> v) {
   r->fill(v, -1, 1);
 }
 
-inline void fillRandom(lut::Random *r, lut::Span<QInt4x32> v) {
-  int n = v.size() * GroupSizeQInt4;
-  std::vector<float> vf(n);
-  r->fill(lut::makeSpan(vf), -1, 1);
-  cvtKernel<float, QInt4x32, CpuMathBackend::FALLBACK>(n, vf.data(), 0, v.data(), 0);
-}
-
 template<typename T>
 inline void fillZero(lut::Span<T> v) {
   memset(v.data(), 0, sizeof(T) * v.size());
@@ -217,12 +210,9 @@ struct AxpyKernelTester {
 template<typename ElementA, typename ElementC, CpuMathBackend TYPE>
 struct CvtKernelTester {
   void test(int n, int offsetX = 0) {
-    CHECK(n % getGroupSize<ElementA>() == 0 && offsetX % getGroupSize<ElementA>() == 0);
-    CHECK(n % getGroupSize<ElementC>() == 0 && offsetX % getGroupSize<ElementC>() == 0);
-
-    std::vector<ElementA> x(n / getGroupSize<ElementA>());
-    std::vector<ElementC> y(n / getGroupSize<ElementC>());
-    std::vector<ElementC> yr(n / getGroupSize<ElementC>());
+    std::vector<ElementA> x(n);
+    std::vector<ElementC> y(n);
+    std::vector<ElementC> yr(n);
 
     lut::Random random(MagicNumber);
     fillRandom(&random, lut::makeSpan<ElementA>(x));
@@ -248,11 +238,8 @@ struct DotKernelTester {
   }
 
   void test(int n, int offsetY = 0) {
-    CHECK(n % getGroupSize<ElementX>() == 0 && offsetY % getGroupSize<ElementX>() == 0);
-    CHECK(n % getGroupSize<ElementY>() == 0 && offsetY % getGroupSize<ElementY>() == 0);
-
-    std::vector<ElementX> x(n / getGroupSize<ElementX>());
-    std::vector<ElementY> y(n / getGroupSize<ElementY>());
+    std::vector<ElementX> x(n);
+    std::vector<ElementY> y(n);
 
     lut::Random random(MagicNumber);
     fillRandom(&random, lut::makeSpan<ElementX>(x));

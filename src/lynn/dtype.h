@@ -52,15 +52,6 @@ struct UInt8 {
 };
 static_assert(sizeof(Int8) == 1, "invalid size of UInt8");
 
-struct QInt4x32 {
-  static constexpr int GroupSize = 32;
-
-  Float16 zero;
-  Float16 scale;
-  uint8_t data[16];
-};
-static_assert(sizeof(QInt4x32) == 20, "invalid size of QInt4x32");
-
 struct Fp4E2M0x2 {
   uint8_t v0 : 4;
   uint8_t v1 : 4;
@@ -78,7 +69,6 @@ class DType {
   static constexpr int16_t kLong = 2;
   static constexpr int16_t kUInt8 = 3;
   static constexpr int16_t kFloat16 = 4;
-  static constexpr int16_t kQInt4x32 = 5;
   static constexpr int16_t kInt8 = 6;
   static constexpr int16_t kFp4E2M0x2 = 7;
   static constexpr int16_t kBool = 8;
@@ -115,9 +105,6 @@ class DType {
   /// @brief Return true if DType is a pure float type (without quantization).
   /// @return if DType is a pure float type.
   bool isFloat() const;
-
-  // get the group size for quantized data.
-  int getGroupSize() const;
 
  private:
   int16_t _dtype;

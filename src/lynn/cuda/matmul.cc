@@ -94,8 +94,6 @@ Tensor MatMul::apply(const Tensor &A, const Tensor &B) {
 
   if (A.getDType() == DType::kFloat16 && B.getDType() == DType::kFloat16) {
     return matmulHalf(A, B);
-  } else if (A.getDType() == DType::kFloat16 && B.getDType() == DType::kQInt4x32) {
-    return matmulQ4(A, B);
   } else {
     NOT_IMPL();
   }
@@ -117,19 +115,6 @@ Tensor MatMul::applyNarrowPrecision(
   }
 
   NOT_IMPL();
-}
-
-Tensor MatMul::matmulQ4(const Tensor &A, const Tensor &B) {
-  CHECK(B.getDType() == DType::kQInt4x32);
-  CHECK(A.getDType() == DType::kFloat16);
-
-  if (A.getDim() == 2 && B.getDim() == 2) {
-    return gemmQ4(A, B);
-  } else if (A.getDim() > 2 && B.getDim() == 2) {
-    return bmmToGemmQ4(A, B);
-  } else {
-    NOT_IMPL();
-  }
 }
 
 Tensor MatMul::matmulMxfp4(const Tensor &A, const Tensor &sfA, const Tensor &B, const Tensor &sfB) {
@@ -159,28 +144,6 @@ Tensor MatMul::matmulMxfp4(const Tensor &A, const Tensor &sfA, const Tensor &B, 
   cudaDeviceSynchronize();
 
   return C;
-}
-
-Tensor MatMul::bmmToGemmQ4(const Tensor &A, const Tensor &B) {
-  std::vector<int> shape = A.getShape();
-
-  Tensor xA = A.view({-1, A.getShape(-1)});
-  Tensor xC = gemmQ4(xA, B);
-
-  shape.back() = B.getShape(1);
-  return xC.view(shape);
-}
-
-Tensor MatMul::gemmQ4(const Tensor &A, const Tensor &B) {
-  if (A.getShape(0) > 1) {
-    Tensor xB = dequantQ4ToHalf(B);
-    return matmulHalf(A, xB);
-  } else {
-    CHECK(B.getDim() == 2 && B.getStride(0) == 1);  // make sure B is transposed.
-
-    // use GEMV if A is a single row matrix.
-    return op::cuda::gemvQ4(B.transpose(0, 1), A.transpose(0, 1)).transpose(0, 1);
-  }
 }
 
 Tensor MatMul::matmulHalf(const Tensor &A, const Tensor &B) {

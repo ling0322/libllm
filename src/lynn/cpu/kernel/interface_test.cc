@@ -64,47 +64,6 @@ void refGemm(
   }
 }
 
-template<typename T>
-void refGemmQInt4(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const T *A,
-    int lda,
-    const QInt4x32 *B,
-    T *C,
-    int ldc) {
-  lut::c_ptr<T> bB = alignedAlloc<T>(sizeof(T) * N * K);
-  cvtKernel<QInt4x32, T, CpuMathBackend::FALLBACK>(N * K, B, 0, bB.get(), 0);
-
-  refGemm(transA, transB, M, N, K, A, lda, bB.get(), transB ? K : N, C, ldc);
-}
-
-template<typename T>
-void testGemmQInt4(bool transB, int M, int N, int K) {
-  int ldb = transB ? K : N;
-  CHECK(ldb % getGroupSize<QInt4x32>() == 0);
-
-  std::vector<T> A(M * K);
-  std::vector<QInt4x32> B(K * N / getGroupSize<QInt4x32>());
-  std::vector<T> C(M * N);
-  std::vector<T> Cr(M * N);
-
-  lut::Random random(MagicNumber);
-
-  fillRandom(&random, lut::makeSpan(A));
-  fillRandom(&random, lut::makeSpan(B));
-  fillZero(lut::makeSpan(C));
-  fillZero(lut::makeSpan(Cr));
-
-  refGemmQInt4(false, transB, M, N, K, A.data(), K, B.data(), Cr.data(), N);
-  callGemmQInt4(false, transB, M, N, K, A.data(), K, B.data(), C.data(), N);
-
-  CATCH_REQUIRE(getMaxDiff<T>(C, Cr) / getMeanAbs<T>(Cr) < 0.05);
-}
-
 inline void callGemm(
     bool transA,
     bool transB,
@@ -133,34 +92,6 @@ inline void callGemm(
     Float16 *C,
     int ldc) {
   return gemmHalf(transA, transB, M, N, K, A, lda, B, ldb, C, ldc, Mode::OMP);
-}
-
-inline void callGemmQInt4(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const Float16 *A,
-    int lda,
-    const QInt4x32 *B,
-    Float16 *C,
-    int ldc) {
-  return gemmHalfQInt4(transA, transB, M, N, K, A, lda, B, C, ldc, Mode::OMP);
-}
-
-inline void callGemmQInt4(
-    bool transA,
-    bool transB,
-    int M,
-    int N,
-    int K,
-    const float *A,
-    int lda,
-    const QInt4x32 *B,
-    float *C,
-    int ldc) {
-  return gemmFloatQInt4(transA, transB, M, N, K, A, lda, B, C, ldc, Mode::OMP);
 }
 
 int gemmTestShapes[][3] = {{1, 2048, 2048}, {256, 256, 256}, {2, 2, 2},       {50, 50, 1},
@@ -229,13 +160,6 @@ void testHalfToFloat(int n) {
 
 #ifdef LUT_ARCH_AMD64
 
-CATCH_TEST_CASE("test sqint4gemm", "[cpu_kernel][interface][q4]") {
-  testGemmQInt4<float>(true, 1, 32, 128);
-  testGemmQInt4<float>(true, 1, 64, 4096);
-  testGemmQInt4<float>(true, 64, 64, 256);
-  testGemmQInt4<float>(true, 8, 1024, 4096);
-}
-
 CATCH_TEST_CASE("test lymath_half2float", "[cpu_kernel][interface][cvt]") {
   std::vector<int> ns{1, 50, 200, 800, 1600, 1601, 3200, 3201};
   for (int n : ns) {
@@ -259,12 +183,6 @@ CATCH_TEST_CASE("test hgemm", "[cpu_kernel][interface][hgemm]") {
     testGemm<Float16>(false, true, m, n, k);
     testGemm<Float16>(false, false, m, n, k);
   }
-}
-
-CATCH_TEST_CASE("test gemmHalfQInt4", "[cpu_kernel][interface][gemm]") {
-  testGemmQInt4<Float16>(true, 1, 32, 128);
-  testGemmQInt4<Float16>(true, 1, 1023, 2048);
-  testGemmQInt4<Float16>(true, 64, 200, 4096);
 }
 
 #endif  // LUT_ARCH_AARCH64

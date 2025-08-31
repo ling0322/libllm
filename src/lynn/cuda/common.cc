@@ -30,18 +30,6 @@ namespace cuda {
 int gMaxThreadsPerSM = 0;
 int gNumSM = 0;
 
-PackedSubtensor2DQInt4x32::PackedSubtensor2DQInt4x32(const Tensor &tensor) {
-  CHECK(tensor.getDType() == DType::kQInt4x32);
-  CHECK(tensor.getDevice().getType() == Device::kCuda);
-  CHECK(tensor.getStride(1) == 1);
-  CHECK(tensor.getOffset_() == 0);
-  CHECK(tensor.isContiguous());
-
-  _numRow = tensor.getShape(0);
-  _numCol = tensor.getShape(1);
-  _data = tensor.getDataObject()->getData<QInt4x32>();
-}
-
 Tensor createCudaTensorHalf(lut::Span<const int> shape) {
   auto tensorShape = std::make_shared<TensorShape>(shape);
   auto data = CudaTensorData::create(tensorShape->getNumEl(), DType::kFloat16);

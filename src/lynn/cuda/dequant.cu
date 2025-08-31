@@ -31,29 +31,6 @@ namespace ly {
 namespace op {
 namespace cuda {
 
-__global__ void dequantTensor2DQ4(
-    PackedSubtensor2DQInt4x32 qtensor,
-    PackedTensorAccessor<half, 2> destTensor) {
-  int64_t numQ4x2 = qtensor.getNumCol() * qtensor.getNumRow() / 2;
-  half *destData = destTensor.getData();
-
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-  for (int elemOffset = idx; elemOffset < numQ4x2; elemOffset += gridDim.x * blockDim.x) {
-    int elemGroup = elemOffset / (QInt4x32::GroupSize / 2);
-    uint8_t q4elem = qtensor.getData(elemGroup)[elemOffset % (QInt4x32::GroupSize / 2)];
-    half scale = qtensor.getScaleValue(elemGroup);
-    half zero = qtensor.getZeroValue(elemGroup);
-
-    destData[elemOffset * 2] = __hsub(
-        __hmul(scale, __int2half_rd(static_cast<int>(q4elem & 0xf))),
-        zero);
-    destData[elemOffset * 2 + 1] = __hsub(
-        __hmul(scale, __int2half_rd(static_cast<int>(q4elem >> 4))),
-        zero);
-  }
-}
-
 __forceinline__ __device__ int getScaleOffset(int row, int col, int numCol) {
   int tileRow = row / 128;
   int tileCol = col / 4;
@@ -199,31 +176,6 @@ __global__ void dequantizeMxfp4ToHalfKernel(
 
     x2[idx] = h2;
   }
-}
-
-Tensor dequantQ4ToHalf(const Tensor &qtensor) {
-  CHECK(qtensor.getDType() == DType::kQInt4x32);
-  Tensor qT = qtensor;
-  bool transQ = qtensor.getStride(0) == 1 && qtensor.getStride(1) != 1;
-  if (transQ) qT = qT.transpose(0, 1);
-
-  std::vector<Tensor::ShapeType> shape = qT.getShape();
-  Tensor dst = createCudaTensorHalf(shape);
-
-  constexpr int blockSize = 256;
-
-  CHECK(qT.getNumEl() < std::numeric_limits<int32_t>::max());
-  dim3 grid = getGrid1D(static_cast<int>(qT.getNumEl()), blockSize);
-
-  PackedSubtensor2DQInt4x32 sA(qT);
-  PackedTensorAccessor<half, 2> sC(dst);
-
-  dequantTensor2DQ4<<<grid, blockSize>>>(sA, sC);
-  cudaDeviceSynchronize();
-  LL_CHECK_CUDA_STATUS(cudaGetLastError());
-
-  if (transQ) dst = dst.transpose(0, 1);
-  return dst;
 }
 
 std::pair<Tensor, Tensor> quantHalfToMxfp4(const Tensor &tensor, bool scaleLayout) {

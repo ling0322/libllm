@@ -45,26 +45,6 @@ void copyVector(TensorAccessor<T, 1> dest, TensorAccessor<const T, 1> src) {
   }
 }
 
-inline void applyDequant(int64_t offset, int n, const TensorData *data, float *tgt) {
-  kernel::dequantQInt4ToFloat(
-      n,
-      (const kernel::QInt4x32 *)data->getData<QInt4x32>(),
-      offset,
-      tgt,
-      kernel::Mode::OMP,
-      kernel::CpuMathBackend::DEFAULT);
-}
-
-inline void applyDequant(int64_t offset, int n, const TensorData *data, Float16 *tgt) {
-  kernel::dequantQInt4ToHalf(
-      n,
-      (const kernel::QInt4x32 *)data->getData<QInt4x32>(),
-      offset,
-      (kernel::Float16 *)tgt,
-      kernel::Mode::OMP,
-      kernel::CpuMathBackend::DEFAULT);
-}
-
 }  // namespace cpu
 }  // namespace op
 }  // namespace ly

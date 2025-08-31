@@ -57,21 +57,6 @@ CATCH_TEST_CASE("test hsaxpyAsimdhpKernel", "[cpu_kernel][kernel][asimdhp]") {
   tester.test(2001);
 }
 
-CATCH_TEST_CASE("test qhcvtAsimdhpKernel", "[cpu_kernel][kernel][asimdhp]") {
-  CvtKernelTester<QInt4x32, Float16, CpuMathBackend::ASIMDHP> tester;
-  tester.test(GroupSizeQInt4);
-  tester.test(2 * GroupSizeQInt4);
-  tester.test(10 * GroupSizeQInt4);
-  tester.test(11 * GroupSizeQInt4);
-  tester.test(12 * GroupSizeQInt4);
-  tester.test(50 * GroupSizeQInt4);
-  tester.test(51 * GroupSizeQInt4);
-  tester.test(52 * GroupSizeQInt4);
-  tester.test(51 * GroupSizeQInt4);
-  tester.test(52 * GroupSizeQInt4, GroupSizeQInt4);
-  tester.test(52 * GroupSizeQInt4, GroupSizeQInt4 * 2);
-}
-
 CATCH_TEST_CASE("test hscvtAsimdhpKernel", "[cpu_kernel][kernel][asimdhp]") {
   CvtKernelTester<Float16, float, CpuMathBackend::ASIMDHP> tester;
   tester.test(1);
@@ -117,20 +102,6 @@ CATCH_TEST_CASE("test hdotAsimdhpKernel", "[cpu_kernel][kernel][asimdhp]") {
   tester.test(1500);
   tester.test(2001);
   tester.test(20000);
-}
-
-CATCH_TEST_CASE("test hqdotAsimdhpKernel", "[cpu_kernel][kernel][asimdhp]") {
-  DotKernelTester<Float16, Float16, QInt4x32, CpuMathBackend::ASIMDHP> tester;
-  tester.test(GroupSizeQInt4);
-  tester.test(2 * GroupSizeQInt4);
-  tester.test(16 * GroupSizeQInt4);
-  tester.test(17 * GroupSizeQInt4);
-  tester.test(31 * GroupSizeQInt4);
-  tester.test(32 * GroupSizeQInt4);
-  tester.test(33 * GroupSizeQInt4);
-  tester.test(50 * GroupSizeQInt4);
-  tester.test(50 * GroupSizeQInt4, GroupSizeQInt4);
-  tester.test(50 * GroupSizeQInt4, 2 * GroupSizeQInt4);
 }
 
 }  // namespace kernel

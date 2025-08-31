@@ -52,7 +52,6 @@ CATCH_TEST_CASE("test CUDA lookup", "[op][cuda]") {
 
   OperatorTester tester = getOperatorTester();
   CATCH_REQUIRE(tester.testLookup());
-  CATCH_REQUIRE(tester.testLookupQInt4());
 }
 
 CATCH_TEST_CASE("test CUDA unfold", "[op][cuda]") {
@@ -80,8 +79,6 @@ CATCH_TEST_CASE("test CUDA matMul", "[op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
   OperatorTester tester = getOperatorTester();
-  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({1, 1, 128}, {50, 128}, true));
-  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulQInt4({5, 10, 50}, {50, 128}, false));
   CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({10, 20}, {40, 30}));
   CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 20}, {40, 30}));
   CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 5, 20}, {10, 40, 30}));
@@ -156,20 +153,6 @@ CATCH_TEST_CASE("benchmark CUDA operators", "[op][cuda][benchmark]") {
   }
 }
 
-CATCH_TEST_CASE("test dequant", "[ly][op][cuda]") {
-  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
-
-  Tensor a = F::rand({5, 256}, DType::kQInt4x32);
-  Tensor xr = F::cast(a, DType::kFloat);
-
-  Tensor x = F::to(Device::getCuda(), a);
-  x = op::cuda::dequantQ4ToHalf(x);
-  x = F::cast(x, DType::kFloat);
-  x = F::to(Device::getCpu(), x);
-
-  CATCH_REQUIRE(F::allClose(x, xr));
-}
-
 CATCH_TEST_CASE("test softmax (large)", "[ly][op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
@@ -238,32 +221,23 @@ CATCH_TEST_CASE("benchmark gemv", "[ly][op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
   lut::Random r(0x55aa);
-  Tensor Aq = F::rand({8000, 4096}, DType::kQInt4x32, Device::kCpu, &r);
+  Tensor A = F::rand({8000, 4096}, DType::kFloat, Device::kCpu, &r);
   Tensor x = F::rand({4096, 1}, DType::kFloat, Device::kCpu, &r);
-  Tensor xrq = F::matmul(x.transpose(0, 1), Aq.transpose(0, 1));
 
-  Aq = F::to(Device::getCuda(), Aq);
   x = F::to(Device::getCuda(), x);
   x = F::cast(x, DType::kFloat16);
-
-  Tensor A = op::cuda::dequantQ4ToHalf(Aq);
 
   LOG_TIME(F::matmul(A, x), "First call F::matmul(A, x)");
   LOG_TIME(Tensor x0 = F::matmul(A, x), "Second call F::matmul(A, x)");
   LOG_TIME(Tensor x1 = op::cuda::gemvHalf(A, x), "op::cuda::gemvHalf(A, x)");
-  LOG_TIME(Tensor xq = op::cuda::gemvQ4(Aq, x), "op::cuda::gemvQ4(Aq, x)");
 
   x0 = F::cast(x0, DType::kFloat);
   x1 = F::cast(x1, DType::kFloat);
-  xq = F::cast(xq, DType::kFloat);
 
   x0 = F::to(Device::getCpu(), x0);
   x1 = F::to(Device::getCpu(), x1);
-  xq = F::to(Device::getCpu(), xq);
 
-  CATCH_REQUIRE(F::allClose(x0, xrq.transpose(0, 1), 5e-3f));
-  CATCH_REQUIRE(F::allClose(x1, xrq.transpose(0, 1), 5e-3f));
-  CATCH_REQUIRE(F::allClose(xq, xrq.transpose(0, 1), 5e-3f));
+  CATCH_REQUIRE(F::allClose(x0, x1));
 }
 
 #ifdef LIBLLM_CUTLASS_ENABLED

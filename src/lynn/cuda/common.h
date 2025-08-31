@@ -59,32 +59,6 @@ struct PackedOWORD {
 };
 static_assert(sizeof(PackedOWORD<half2>) == 16, "invalid size of PackedOWORD<half2>");
 
-/// @brief A q4 quantized constant matrix (2D tensor).
-struct PackedSubtensor2DQInt4x32 {
-  int _numRow;
-  int _numCol;
-
-  const QInt4x32 *_data;
-
-  __forceinline__ __device__ int getNumRow() const {
-    return _numRow;
-  }
-  __forceinline__ __device__ int getNumCol() const {
-    return _numCol;
-  }
-  __forceinline__ __device__ const uint8_t *getData(int groupIdx) const {
-    return _data[groupIdx].data;
-  }
-  __forceinline__ __device__ half getScaleValue(int groupIdx) const {
-    return *reinterpret_cast<const half *>(&(_data[groupIdx].scale));
-  }
-  __forceinline__ __device__ half getZeroValue(int groupIdx) const {
-    return *reinterpret_cast<const half *>(&(_data[groupIdx].zero));
-  }
-
-  PackedSubtensor2DQInt4x32(const Tensor &tensor);
-};
-
 /// @brief Automatically call destroy method on destruction for handles.
 /// @tparam T
 template<typename T>

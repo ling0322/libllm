@@ -71,19 +71,12 @@ Tensor randFp16(lut::Span<const int> shape, lut::Random *generator, float min, f
   return castFp32ToFp16(x);
 }
 
-Tensor randQ4(lut::Span<const int> shape, lut::Random *generator, float min, float max) {
-  Tensor x = randFp32(shape, generator, min, max);
-  return op::cpu::castFp32ToQ4(x);
-}
-
 Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min, float max) {
   switch (int16_t(dtype)) {
     case DType::kFloat:
       return randFp32(shape, generator, min, max);
     case DType::kFloat16:
       return randFp16(shape, generator, min, max);
-    case DType::kQInt4x32:
-      return randQ4(shape, generator, min, max);
     default:
       NOT_IMPL();
   }
