@@ -95,7 +95,7 @@ class PackedTensorAccessorBase {
  public:
   __host__ explicit PackedTensorAccessorBase(Tensor &tensor) {
     CHECK(tensor.getDim() == DIM);
-    _data = tensor.getData<T>();
+    _data = tensor.getInternalData()->getData<T>();
     for (int i = 0; i < DIM; ++i) {
       _size[i] = Size{tensor.getShape(i), tensor.getStride(i)};
     }
@@ -103,7 +103,7 @@ class PackedTensorAccessorBase {
 
   __host__ explicit PackedTensorAccessorBase(const Tensor &tensor) {
     CHECK(tensor.getDim() == DIM);
-    _data = tensor.getData<T>();
+    _data = tensor.getInternalData()->getData<T>();
     for (int i = 0; i < DIM; ++i) {
       _size[i] = Size{tensor.getShape(i), tensor.getStride(i)};
     }

@@ -33,77 +33,43 @@ namespace ly {
 namespace op {
 namespace cuda {
 
-CudaTensorData::Slot::Slot()
-    : data(nullptr),
-      numel(0),
-      dtype(DType::kUnknown) {
-}
-
-int64_t CudaTensorData::Slot::getNumEl() const {
-  return numel;
-}
-DType CudaTensorData::Slot::getDType() const {
-  return dtype;
-}
-Byte *CudaTensorData::Slot::getRawData() const {
-  return data;
-}
-
-CudaTensorData::CudaTensorData()
-    : _numSlot(0) {
-}
-
 std::shared_ptr<TensorData> CudaTensorData::create(int64_t numel, DType dtype) {
-  return create({{numel, dtype}});
-}
-
-std::shared_ptr<TensorData> CudaTensorData::create(
-    lut::Span<const std::pair<int64_t, DType>> slots) {
-  CHECK(slots.size() > 0 && slots.size() <= TensorData::MaxSlot);
-
   auto tensorData = std::make_shared<CudaTensorData>();
-  for (const std::pair<int64_t, DType> &slotSpec : slots) {
-    int64_t numel = slotSpec.first;
-    DType dtype = slotSpec.second;
 
-    CHECK(numel > 0);
-    int64_t size = dtype.getTotalSize(numel);
-    void *data = nullptr;
-    cudaError_t err = cudaMalloc(&data, size);
-    if (err != cudaSuccess) {
-      throw lut::AbortedError(cudaGetErrorString(err));
-    }
-
-    tensorData->_slots[tensorData->_numSlot].data = reinterpret_cast<Byte *>(data);
-    tensorData->_slots[tensorData->_numSlot].numel = numel;
-    tensorData->_slots[tensorData->_numSlot].dtype = dtype;
-
-    ++tensorData->_numSlot;
+  CHECK(numel > 0);
+  int64_t size = dtype.getTotalSize(numel);
+  void *data = nullptr;
+  cudaError_t err = cudaMalloc(&data, size);
+  if (err != cudaSuccess) {
+    throw lut::AbortedError(cudaGetErrorString(err));
   }
+
+  tensorData->_data = data;
+  data = nullptr;
+
+  tensorData->_numel = numel;
+  tensorData->_dtype = dtype;
 
   return tensorData;
 }
 
-CudaTensorData::~CudaTensorData() {
-  for (int i = 0; i < _numSlot; ++i) {
-    if (_slots[i].data) {
-      llynCudaFree(_slots[i].data);
-      _slots[i].data = nullptr;
-    }
-  }
+CudaTensorData::CudaTensorData()
+    : _data(nullptr) {
 }
 
-const SlotBase *CudaTensorData::getSlot(int slot) const {
-  CHECK(slot < _numSlot);
-  return &_slots[slot];
+CudaTensorData::~CudaTensorData() {
+  if (_data) {
+    llynCudaFree(_data);
+    _data = nullptr;
+  }
 }
 
 Device CudaTensorData::getDevice() const {
   return Device(Device::Type::kCuda);
 }
 
-int CudaTensorData::getNumSlot() const {
-  return _numSlot;
+std::byte *CudaTensorData::getRawData() const {
+  return reinterpret_cast<std::byte *>(_data);
 }
 
 }  // namespace cuda

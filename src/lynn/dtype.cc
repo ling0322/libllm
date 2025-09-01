@@ -40,6 +40,10 @@ DType::DType(int16_t dtype)
 }
 
 template<>
+DType DType::getTypeImpl<void>() {
+  return DType::kUnknown;
+}
+template<>
 DType DType::getTypeImpl<float>() {
   return DType::kFloat;
 }

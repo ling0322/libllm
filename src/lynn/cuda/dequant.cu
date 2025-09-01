@@ -202,16 +202,16 @@ std::pair<Tensor, Tensor> quantHalfToMxfp4(const Tensor &tensor, bool scaleLayou
 
   if (scaleLayout) {
     quantizeHalfToMxfp4Kernel<true><<<numBlock, blockSize>>>(
-        tensor.getData<half>(),
-        reinterpret_cast<uint8_t *>(q.getData<Fp4E2M0x2>()),
-        reinterpret_cast<uint8_t *>(scales.getData<UInt8>()),
+        tensor.getInternalData()->getData<half>(),
+        reinterpret_cast<uint8_t *>(q.getInternalData()->getData<Fp4E2M0x2>()),
+        reinterpret_cast<uint8_t *>(scales.getInternalData()->getData<UInt8>()),
         numRow,
         numCol);
   } else {
     quantizeHalfToMxfp4Kernel<false><<<numBlock, blockSize>>>(
-        tensor.getData<half>(),
-        reinterpret_cast<uint8_t *>(q.getData<Fp4E2M0x2>()),
-        reinterpret_cast<uint8_t *>(scales.getData<UInt8>()),
+        tensor.getInternalData()->getData<half>(),
+        reinterpret_cast<uint8_t *>(q.getInternalData()->getData<Fp4E2M0x2>()),
+        reinterpret_cast<uint8_t *>(scales.getInternalData()->getData<UInt8>()),
         numRow,
         numCol);
   }
@@ -238,9 +238,9 @@ Tensor dequandMxfp4ToHalf(const Tensor &fp4, const Tensor &scale) {
   Tensor C = createCudaTensorHalf(shape);
 
   dequantizeMxfp4ToHalfKernel<<<grid, blockSize>>>(
-      reinterpret_cast<const uint8_t *>(fp4.getData<Fp4E2M0x2>()),
-      reinterpret_cast<const uint8_t *>(scale.getData<UInt8>()),
-      C.getData<half>(),
+      reinterpret_cast<const uint8_t *>(fp4.getInternalData()->getData<Fp4E2M0x2>()),
+      reinterpret_cast<const uint8_t *>(scale.getInternalData()->getData<UInt8>()),
+      C.getInternalData()->getData<half>(),
       numel);
   cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
@@ -268,8 +268,8 @@ Tensor toSm1xxScaleBlockImpl(const Tensor &scale) {
   C = C.view({-1, 32, 16});
 
   swizzleScaleKernel<T><<<grid, blockSize>>>(
-      reinterpret_cast<const T *>(scale.getData<T>()),
-      reinterpret_cast<T *>(C.getData<T>()),
+      reinterpret_cast<const T *>(scale.getInternalData()->getData<T>()),
+      reinterpret_cast<T *>(C.getInternalData()->getData<T>()),
       numRow,
       numCol);
 

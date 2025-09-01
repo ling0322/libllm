@@ -41,6 +41,7 @@ set(lynn_SOURCES
     "operators.cc"
     "state_map.cc"
     "tensor.cc"
+    "tensor_shape.cc"
     "../../third_party/ruapu/ruapu.cc")
 
 set(lynn_test_SOURCES

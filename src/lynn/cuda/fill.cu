@@ -55,7 +55,7 @@ void fillImpl(Tensor &tensor, T v) {
   int d = tensor.getDim();
 
   if (tensor.isContiguous()) {
-    fillContigKernel<T><<<grid, blockSize>>>(tensor.getData<T>(), numel, v);
+    fillContigKernel<T><<<grid, blockSize>>>(tensor.getInternalData()->getData<T>(), numel, v);
   } else {
     if (d == 1)
       fillGenericKernel<T, 1><<<grid, blockSize>>>(tensor, numel, v);

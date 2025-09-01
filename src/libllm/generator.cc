@@ -50,7 +50,7 @@ std::vector<int> Sampler::getTopP(const ly::Tensor &distribution, lut::Span<cons
   float sumP = 0.0f;
 
   std::vector<int> topP;
-  const float *d = distribution.getData<float>();
+  const float *d = distribution.getInternalData()->getData<float>();
   for (int label : topK) {
     float p = d[label];
     topP.push_back(label);
@@ -68,7 +68,7 @@ std::vector<int> Sampler::getTopK(const ly::Tensor &distribution) {
   CHECK(_topK <= distribution.getShape(0) && distribution.getStride(0) == 1);
   if (_topBuffer.size() != distribution.getShape(0)) _topBuffer.resize(distribution.getShape(0));
 
-  const float *d = distribution.getData<float>();
+  const float *d = distribution.getInternalData()->getData<float>();
   for (int32_t i = 0; i < distribution.getShape(0); ++i) {
     _topBuffer[i] = std::make_pair(i, d[i]);
   }
@@ -96,7 +96,7 @@ int Sampler::sampleTopP(const ly::Tensor &distribution, lut::Span<const int> top
   std::vector<float> probAcc;
 
   float sumP = 0.0f;
-  const float *probData = distribution.getData<float>();
+  const float *probData = distribution.getInternalData()->getData<float>();
   for (int label : topP) {
     float p = probData[label];
     sumP += p;

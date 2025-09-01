@@ -38,7 +38,7 @@ namespace cpu {
 
 Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, float max) {
   Tensor x = op::cpu::tensor(shape, DType::kFloat);
-  lut::Span<float> tensorData(x.getData<float>(), x.getNumEl());
+  lut::Span<float> tensorData(x.getInternalData()->getData<float>(), x.getNumEl());
 
   if (generator) {
     generator->fill(tensorData, min, max);

@@ -121,7 +121,8 @@ bool OperatorTester::testCopyLongType() {
   _op->copy(x, x2);
   x2 = _op->to(Device::getCpu(), x2);
 
-  const LongType *px = tensor.getData<LongType>(), *pr = x2.getData<LongType>();
+  const LongType *px = tensor.getInternalData()->getData<LongType>(),
+                 *pr = x2.getInternalData()->getData<LongType>();
   x2.throwIfInvalidShape(tensor.getShape(), "OperatorTester::testCopyLongType");
   return std::equal(px, px + x2.getNumEl(), pr);
 }

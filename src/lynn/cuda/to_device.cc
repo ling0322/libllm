@@ -34,16 +34,14 @@ namespace op {
 namespace cuda {
 
 template<Device::Type DEVICE>
-std::shared_ptr<TensorData> createData(lut::Span<const std::pair<int64_t, DType>> slots);
+std::shared_ptr<TensorData> createData(int64_t numel, DType dtype);
 template<>
-std::shared_ptr<TensorData> createData<Device::kCpu>(
-    lut::Span<const std::pair<int64_t, DType>> slots) {
-  return op::cpu::CpuTensorData::create(slots);
+std::shared_ptr<TensorData> createData<Device::kCpu>(int64_t numel, DType dtype) {
+  return op::cpu::CpuTensorData::create(numel, dtype);
 }
 template<>
-std::shared_ptr<TensorData> createData<Device::kCuda>(
-    lut::Span<const std::pair<int64_t, DType>> slots) {
-  return CudaTensorData::create(slots);
+std::shared_ptr<TensorData> createData<Device::kCuda>(int64_t numel, DType dtype) {
+  return CudaTensorData::create(numel, dtype);
 }
 
 template<Device::Type DEST_DEVICE>
@@ -58,50 +56,24 @@ inline void copyData<Device::kCuda>(void *dest, const void *src, int64_t n) {
   LL_CHECK_CUDA_STATUS(cudaMemcpy(dest, src, n, cudaMemcpyHostToDevice));
 }
 
-std::vector<std::pair<int64_t, DType>> getSlotSpec(const Tensor &srcTensor) {
-  const TensorData *srcData = srcTensor.getDataObject();
-  std::vector<std::pair<int64_t, DType>> slotSpec;
-
-  if (srcData->getNumSlot() == 1) {
-    // for single slot tensors, offset is allowed. the real numel is stored in shape object.
-    const SlotBase *slot = srcData->getSlot(0);
-    int64_t numel = srcTensor.getNumEl();
-    CHECK(numel <= slot->getNumEl());
-    slotSpec.emplace_back(numel, slot->getDType());
-  } else {
-    // for quantized tensors, offset is not allowed, the numel in slots could be used directly.
-    CHECK(srcTensor.getOffset_() == 0);
-    for (int i = 0; i < srcData->getNumSlot(); ++i) {
-      const SlotBase *slot = srcData->getSlot(i);
-      slotSpec.emplace_back(slot->getNumEl(), slot->getDType());
-    }
-  }
-
-  return slotSpec;
-}
-
 template<Device::Type DEVICE>
 Tensor toDevice(const Tensor &tensor) {
   CHECK(tensor.getDevice().getType() != DEVICE);
   CHECK(tensor.isContiguous()) << "only contiguous tensor is allowed to copy between devices";
-  const TensorData *srcData = tensor.getDataObject();
+  std::shared_ptr<TensorData> srcData = tensor.getInternalData();
 
   // create data object.
-  std::vector<std::pair<int64_t, DType>> slotSpec = getSlotSpec(tensor);
-  std::shared_ptr<TensorData> destData = createData<DEVICE>(slotSpec);
+  int64_t numel = srcData->getNumEl();
+  DType dtype = srcData->getDType();
+
+  std::shared_ptr<TensorData> destData = createData<DEVICE>(numel, dtype);
 
   // copy data.
-  int64_t srcOffset = tensor.getOffset_();
-  for (int i = 0; i < srcData->getNumSlot(); ++i) {
-    const SlotBase *slot = srcData->getSlot(i);
-    DType dtype = slot->getDType();
-
-    void *src = srcData->getSlot(i)->getRawData() + dtype.getTotalSize(srcOffset);
-    void *dest = destData->getSlot(i)->getRawData();
-    int64_t nbytes = dtype.getTotalSize(destData->getSlot(i)->getNumEl());
-
-    copyData<DEVICE>(dest, src, nbytes);
-  }
+  int64_t srcOffset = tensor.getInternalOffset();
+  void *src = srcData->getRawData() + dtype.getTotalSize(srcOffset);
+  void *dest = destData->getRawData();
+  int64_t nbytes = dtype.getTotalSize(destData->getNumEl());
+  copyData<DEVICE>(dest, src, nbytes);
 
   // create dest tesnor.
   auto shape = std::make_shared<TensorShape>(tensor.getShape());

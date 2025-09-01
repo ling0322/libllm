@@ -36,8 +36,9 @@ Tensor RefMatMulFp32(const Tensor &A, const Tensor &B) {
   CATCH_REQUIRE(A.getDType() == DType::kFloat);
 
   Tensor C = F::zeros({A.getShape(0), B.getShape(1)}, DType::kFloat);
-  float *dataC = C.getData<float>();
-  const float *dataA = A.getData<float>(), *dataB = B.getData<float>();
+  float *dataC = C.getInternalData()->getData<float>();
+  const float *dataA = A.getInternalData()->getData<float>(),
+              *dataB = B.getInternalData()->getData<float>();
   int stride0A = A.getStride(0);
   int stride1A = A.getStride(1);
   int stride0B = B.getStride(0);

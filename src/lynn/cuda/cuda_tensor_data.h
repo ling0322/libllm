@@ -32,30 +32,15 @@ namespace cuda {
 class CudaTensorData : public TensorData {
  public:
   static std::shared_ptr<TensorData> create(int64_t numel, DType dtype);
-  static std::shared_ptr<TensorData> create(lut::Span<const std::pair<int64_t, DType>> slots);
 
   CudaTensorData();
   ~CudaTensorData();
 
   Device getDevice() const override;
-  int getNumSlot() const override;
-  const SlotBase *getSlot(int slot) const override;
+  std::byte *getRawData() const override;
 
  private:
-  struct Slot : public SlotBase {
-    Byte *data;
-    int64_t numel;
-    DType dtype;
-
-    Slot();
-
-    int64_t getNumEl() const override;
-    DType getDType() const override;
-    Byte *getRawData() const override;
-  };
-
-  Slot _slots[TensorData::MaxSlot];
-  int _numSlot;
+  void *_data;
 };
 
 }  // namespace cuda

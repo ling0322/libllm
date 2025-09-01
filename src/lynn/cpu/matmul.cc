@@ -166,11 +166,11 @@ Tensor gemm(const Tensor &A, const Tensor &B) {
       gemmArgs.M,
       gemmArgs.N,
       gemmArgs.K,
-      A.getData<T>(),
+      A.getInternalData()->getData<T>(),
       gemmArgs.lda,
-      B.getData<T>(),
+      B.getInternalData()->getData<T>(),
       gemmArgs.ldb,
-      C.getData<T>(),
+      C.getInternalData()->getData<T>(),
       gemmArgs.ldc,
       kernel::Mode::OMP);
 

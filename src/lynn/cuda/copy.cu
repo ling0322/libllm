@@ -152,8 +152,8 @@ void copy(const Tensor &src, Tensor &dest) {
 
 void copyContig(const Tensor &src, Tensor &dest) {
   LL_CHECK_CUDA_STATUS(cudaMemcpy(
-      dest.getData<void>(),
-      src.getData<void>(),
+      dest.getInternalData()->getData<void>(),
+      src.getInternalData()->getData<void>(),
       src.getDType().getTotalSize(src.getNumEl()),
       cudaMemcpyDeviceToDevice));
 }

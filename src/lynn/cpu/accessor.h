@@ -33,14 +33,14 @@ class TensorAccessorBase {
  public:
   explicit TensorAccessorBase(Tensor &tensor) {
     CHECK(tensor.getDim() == DIM);
-    _data = tensor.getData<T>();
-    _size = tensor.getShape_()->getData_().data();
+    _data = tensor.getInternalData()->getData<T>();
+    _size = tensor.getInternalShape()->getData_().data();
   }
 
   explicit TensorAccessorBase(const Tensor &tensor) {
     CHECK(tensor.getDim() == DIM);
-    _data = tensor.getData<T>();
-    _size = tensor.getShape_()->getData_().data();
+    _data = tensor.getInternalData()->getData<T>();
+    _size = tensor.getInternalShape()->getData_().data();
   }
 
   int getShape(int d) const {
@@ -198,8 +198,8 @@ void getDataPointerList(
 template<typename T, int DIM>
 TensorList<T, DIM> TensorList<T, DIM>::fromTensor(const Tensor &src) {
   std::vector<T *> pointerList;
-  lut::Span<const TensorShape::Elem> shape = src.getShape_()->getData_();
-  getDataPointerList<T, DIM>(src.getData<T>(), shape, pointerList);
+  lut::Span<const TensorShape::Elem> shape = src.getInternalShape()->getData_();
+  getDataPointerList<T, DIM>(src.getInternalData()->getData<T>(), shape, pointerList);
 
   const TensorShape::Elem *tensorShape = shape.data() + (shape.size() - DIM);
   if (src.isContiguous()) {
@@ -213,7 +213,7 @@ TensorList<T, DIM> TensorList<T, DIM>::fromTensor(const Tensor &src) {
       stride *= tensorShape[i].shape;
     }
 
-    return TensorList<T, DIM>(tensorShape, src.getData<T>(), numTensor, stride);
+    return TensorList<T, DIM>(tensorShape, src.getInternalData()->getData<T>(), numTensor, stride);
   } else {
     return TensorList<T, DIM>(tensorShape, std::move(pointerList));
   }
@@ -222,8 +222,8 @@ TensorList<T, DIM> TensorList<T, DIM>::fromTensor(const Tensor &src) {
 template<typename T, int DIM>
 TensorList<T, DIM> TensorList<T, DIM>::fromTensor(Tensor &src) {
   std::vector<T *> pointerList;
-  lut::Span<const TensorShape::Elem> shape = src.getShape_()->getData_();
-  getDataPointerList<T, DIM>(src.getData<T>(), shape, pointerList);
+  lut::Span<const TensorShape::Elem> shape = src.getInternalShape()->getData_();
+  getDataPointerList<T, DIM>(src.getInternalData()->getData<T>(), shape, pointerList);
 
   const TensorShape::Elem *tensorShape = shape.data() + (shape.size() - DIM);
   if (src.isContiguous()) {
@@ -237,7 +237,7 @@ TensorList<T, DIM> TensorList<T, DIM>::fromTensor(Tensor &src) {
       stride *= tensorShape[i].shape;
     }
 
-    return TensorList<T, DIM>(tensorShape, src.getData<T>(), numTensor, stride);
+    return TensorList<T, DIM>(tensorShape, src.getInternalData()->getData<T>(), numTensor, stride);
   } else {
     return TensorList<T, DIM>(tensorShape, std::move(pointerList));
   }
