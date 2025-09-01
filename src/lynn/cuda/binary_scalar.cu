@@ -80,13 +80,14 @@ Tensor binaryScalarImpl(const Tensor &tensor, T rhs) {
 
   int d = tensor.getDim();
   Tensor C = createCudaTensor<T>(tensor.getShape());
-  T *dataC = C.getData<T>();
+  T *dataC = C.getInternalData()->getData<T>();
 
   constexpr int blockSize = 256;
   dim3 grid = getGrid1D(numel, blockSize);
 
   if (tensor.isContiguous()) {
-    binaryScalarContigKernel<T, OP><<<grid, blockSize>>>(tensor.getData<T>(), rhs, dataC, numel);
+    binaryScalarContigKernel<T, OP>
+        <<<grid, blockSize>>>(tensor.getInternalData()->getData<T>(), rhs, dataC, numel);
   } else {
     if (d == 1)
       binaryScalarGenericKernel<T, OP, 1><<<grid, blockSize>>>(tensor, rhs, dataC, numel);

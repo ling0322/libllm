@@ -43,7 +43,8 @@ Tensor arangeLong(LongType begin, LongType end, LongType step) {
   constexpr int blockSize = 256;
   dim3 grid = getGrid1D(numel, blockSize);
 
-  arangeKernel<LongType><<<grid, blockSize>>>(tensor.getData<LongType>(), numel, begin, step);
+  arangeKernel<LongType>
+      <<<grid, blockSize>>>(tensor.getInternalData()->getData<LongType>(), numel, begin, step);
   cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 

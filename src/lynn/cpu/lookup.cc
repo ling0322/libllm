@@ -59,7 +59,7 @@ Tensor lookupKernel2D(const Tensor &table, const Tensor &indices) {
 template<typename SrcT, typename DestT>
 Tensor lookupQuantizedKernel2D(const Tensor &table, const Tensor &indices) {
   CHECK(table.getDim() == 2 && table.getShape(1) % DType::getType<SrcT>().getGroupSize() == 0);
-  const TensorData *embdData = table.getDataObject();
+  const TensorData *embdData = table.getInternalData();
 
   int vocabSize = table.getShape(0);
   int d0 = indices.getShape(0);

@@ -85,7 +85,8 @@ Tensor tensorLike(const Tensor &tensor) {
 template<typename T>
 float elemImpl(const Tensor &tensor) {
   T v;
-  LL_CHECK_CUDA_STATUS(cudaMemcpy(&v, tensor.getData<T>(), sizeof(T), cudaMemcpyDeviceToHost));
+  LL_CHECK_CUDA_STATUS(
+      cudaMemcpy(&v, tensor.getInternalData()->getData<T>(), sizeof(T), cudaMemcpyDeviceToHost));
   return v;
 }
 float elem(const Tensor &tensor) {
@@ -102,8 +103,11 @@ bool elemBool(const Tensor &tensor) {
   CHECK(tensor.getDType() == DType::kBool);
 
   bool v;
-  LL_CHECK_CUDA_STATUS(
-      cudaMemcpy(&v, tensor.getData<BoolType>(), sizeof(BoolType), cudaMemcpyDeviceToHost));
+  LL_CHECK_CUDA_STATUS(cudaMemcpy(
+      &v,
+      tensor.getInternalData()->getData<BoolType>(),
+      sizeof(BoolType),
+      cudaMemcpyDeviceToHost));
 
   return v;
 }

@@ -46,8 +46,8 @@ Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> s
 
   return Tensor::create(
       std::make_shared<TensorShape>(broadcastShape),
-      input.getDataShared_(),
-      input.getOffset_());
+      input.getInternalData(),
+      input.getInternalOffset());
 }
 
 }  // namespace cpu

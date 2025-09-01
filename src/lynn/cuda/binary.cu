@@ -98,9 +98,9 @@ Tensor binaryImpl(const Tensor &A, const Tensor &B) {
 
   int d = A.getDim();
   Tensor C = createCudaTensor<TOut>(A.getShape());
-  const TIn *pA = A.getData<TIn>();
-  const TIn *pB = B.getData<TIn>();
-  TOut *pC = C.getData<TOut>();
+  const TIn *pA = A.getInternalData()->getData<TIn>();
+  const TIn *pB = B.getInternalData()->getData<TIn>();
+  TOut *pC = C.getInternalData()->getData<TOut>();
 
   constexpr int blockSize = 256;
   dim3 grid = getGrid1D(numel, blockSize);

@@ -104,14 +104,14 @@ Tensor view(const Tensor &src, lut::Span<const int> view) {
   if (src.isContiguous()) {
     return Tensor::create(
         std::make_shared<TensorShape>(shape),
-        src.getDataShared_(),
-        src.getOffset_());
+        src.getInternalData(),
+        src.getInternalOffset());
   } else {
     std::vector<TensorShape::Elem> viewShape = getViewShapeStride(src, view);
     return Tensor::create(
         std::make_shared<TensorShape>(viewShape),
-        src.getDataShared_(),
-        src.getOffset_());
+        src.getInternalData(),
+        src.getInternalOffset());
   }
 }
 

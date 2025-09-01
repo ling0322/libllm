@@ -135,7 +135,7 @@ Tensor causalMask(int maxLen, Device device) {
 
 Tensor cat(Tensor A, Tensor B, int dim) {
   CHECK(A.getDType() == B.getDType());
-  dim = A.getShape_()->getRealDim(dim);
+  dim = A.getInternalShape()->getRealDim(dim);
   CHECK(A.getDim() == B.getDim() && dim < A.getDim());
 
   std::vector<int> shape = A.getShape();

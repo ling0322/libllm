@@ -30,7 +30,6 @@ namespace cpu {
 class CpuTensorData : public TensorData {
  public:
   static std::shared_ptr<TensorData> create(int64_t numel0, DType dtype0);
-  static std::shared_ptr<TensorData> create(lut::Span<const std::pair<int64_t, DType>> slots);
   static std::shared_ptr<TensorData> read(lut::Reader *fp);
 
   /// @brief Create a new instance of CpuTensorData with the same size and slots as `tensorData`.
@@ -42,26 +41,13 @@ class CpuTensorData : public TensorData {
   ~CpuTensorData();
 
   Device getDevice() const override;
-  int getNumSlot() const override;
-  const SlotBase *getSlot(int slot) const override;
+
+  std::byte *getRawData() const override;
 
  private:
-  struct Slot : public SlotBase {
-    Byte *data;
-    int64_t numel;
-    DType dtype;
+  void *_data;
 
-    Slot();
-
-    int64_t getNumEl() const override;
-    DType getDType() const override;
-    Byte *getRawData() const override;
-  };
-
-  Slot _slots[TensorData::MaxSlot];
-  int _numSlot;
-
-  void readSlot(lut::Reader *fp, int slotIdx);
+  void readSlot(lut::Reader *fp);
 };
 
 }  // namespace cpu

@@ -76,13 +76,14 @@ Tensor unaryImpl(const Tensor &tensor) {
 
   int d = tensor.getDim();
   Tensor C = createCudaTensor<T>(tensor.getShape());
-  T *dataC = C.getData<T>();
+  T *dataC = C.getInternalData()->getData<T>();
 
   constexpr int blockSize = 256;
   dim3 grid = getGrid1D(numel, blockSize);
 
   if (tensor.isContiguous()) {
-    unaryContigKernel<T, OP><<<grid, blockSize>>>(tensor.getData<T>(), dataC, numel);
+    unaryContigKernel<T, OP>
+        <<<grid, blockSize>>>(tensor.getInternalData()->getData<T>(), dataC, numel);
   } else {
     if (d == 1)
       unaryGenericKernel<T, OP, 1><<<grid, blockSize>>>(tensor, dataC, numel);

@@ -101,7 +101,7 @@ void WhisperChunkGreedySearchDecoder::inferLang() {
   ly::Tensor prob = applySoftmax(logits);
 
   CHECK(prob.getDim() == 1 && prob.getStride(0) == 1);
-  float *probData = prob.getData<float>();
+  float *probData = prob.getInternalData()->getData<float>();
 
   // get no speech prob.
   _noSpeechProb = probData[_noSpeechToken];
@@ -168,8 +168,8 @@ void WhisperChunkGreedySearchDecoder::processLogits(ly::Tensor logits) {
   maxText = ly::F::cast(ly::F::to(ly::Device::getCpu(), maxText), ly::DType::kFloat);
   sumTimestamp = ly::F::cast(ly::F::to(ly::Device::getCpu(), sumTimestamp), ly::DType::kFloat);
 
-  float maxTextVal = *maxText.getData<float>();
-  float sumTimestampVal = *sumTimestamp.getData<float>();
+  float maxTextVal = *maxText.getInternalData()->getData<float>();
+  float sumTimestampVal = *sumTimestamp.getInternalData()->getData<float>();
   if (sumTimestampVal >= maxTextVal || _history.size() - _lastTimeTokenIdx > 70) {
     ly::F::fill(logits.slice(-1, {0, _eotToken}), -Inf);
   }
@@ -183,7 +183,7 @@ int WhisperChunkGreedySearchDecoder::decodeToken() {
   ly::Tensor probCpu = applySoftmax(logits);
 
   CHECK(probCpu.getDim() == 1 && probCpu.getStride(0) == 1);
-  float *pProb = probCpu.getData<float>();
+  float *pProb = probCpu.getInternalData()->getData<float>();
 
   const float *pMaxProb = std::max_element(pProb, pProb + probCpu.getShape(0));
   int nextToken = static_cast<int>(pMaxProb - pProb);

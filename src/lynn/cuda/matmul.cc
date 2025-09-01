@@ -134,11 +134,11 @@ Tensor MatMul::matmulMxfp4(const Tensor &A, const Tensor &sfA, const Tensor &B, 
                                 n,
                                 k,
                                 alpha,
-                                A.getData<Fp4E2M0x2>(),
-                                sfA.getData<UInt8>(),
-                                B.getData<Fp4E2M0x2>(),
-                                sfB.getData<UInt8>(),
-                                C.getData<Float16>())) {
+                                A.getInternalData()->getData<Fp4E2M0x2>(),
+                                sfA.getInternalData()->getData<UInt8>(),
+                                B.getInternalData()->getData<Fp4E2M0x2>(),
+                                sfB.getInternalData()->getData<UInt8>(),
+                                C.getInternalData()->getData<Float16>())) {
     THROW(Aborted, "gemmMxfp4Bf16 failed.");
   }
   cudaDeviceSynchronize();
@@ -164,7 +164,7 @@ std::vector<const half *> getBatchImpl(const Tensor &A);
 
 template<>
 std::vector<const half *> getBatchImpl<1>(const Tensor &A) {
-  const half *base = A.getData<half>();
+  const half *base = A.getInternalData()->getData<half>();
 
   int stride0 = A.getStride(0);
   std::vector<const half *> batch;
@@ -176,7 +176,7 @@ std::vector<const half *> getBatchImpl<1>(const Tensor &A) {
 
 template<>
 std::vector<const half *> getBatchImpl<2>(const Tensor &A) {
-  const half *base = A.getData<half>();
+  const half *base = A.getInternalData()->getData<half>();
 
   int stride0 = A.getStride(0);
   int stride1 = A.getStride(1);
@@ -270,12 +270,12 @@ Tensor MatMul::gemmHalf(Tensor A, Tensor B) {
                                 gemmArgs.N,
                                 gemmArgs.K,
                                 1.0f,
-                                A.getData<half>(),
+                                A.getInternalData()->getData<half>(),
                                 gemmArgs.lda,
-                                B.getData<half>(),
+                                B.getInternalData()->getData<half>(),
                                 gemmArgs.ldb,
                                 0.0f,
-                                C.getData<half>(),
+                                C.getInternalData()->getData<half>(),
                                 gemmArgs.ldc)) {
     THROW(Aborted, "hgemm failed.");
   }

@@ -129,9 +129,10 @@ Tensor reduceAllImpl(const Tensor &A) {
   int64_t numel = A.getNumEl();
 
   Tensor C = createCudaTensor<TOut>({1});
-  TOut *result = C.getData<TOut>();
+  TOut *result = C.getInternalData()->getData<TOut>();
 
-  thrust::device_ptr<const TIn> pdata = thrust::device_pointer_cast(A.getData<TIn>());
+  thrust::device_ptr<const TIn> pdata = thrust::device_pointer_cast(
+      A.getInternalData()->getData<TIn>());
   thrust::device_vector<TIn> data(pdata, pdata + numel);
   auto iter = thrust::make_transform_iterator(data.begin(), MapOp<MR_TYPE, TIn, TOut>{});
 
@@ -142,7 +143,7 @@ Tensor reduceAllImpl(const Tensor &A) {
   cub::DeviceReduce::Reduce(
       tempStorage,
       tempStorageBytes,
-      A.getData<TIn>(),
+      A.getInternalData()->getData<TIn>(),
       result,
       numel,
       ReduceOp<MR_TYPE, TOut>{},
