@@ -17,39 +17,17 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "lynn/cuda/common.h"
-#include "lynn/cuda/fill.h"
+#include "lynn/operator_benchmark.h"
 
-namespace ly {
-namespace op {
-namespace cuda {
+int main() {
+  ly::initOperators();
+  ly::OperatorBenchmark b;
 
-template<typename T>
-__global__ void arangeKernel(T *__restrict__ out, int n, T start, T step) {
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  int stride = blockDim.x * gridDim.x;
-  for (int i = idx; i < n; i += stride) {
-    out[i] = start + step * (T)i;
-  }
+  b = b.withLoop(100);
+
+  b.benchmarkAll();
+  b.printResult();
+
+  ly::destroyOperators();
+  return 0;
 }
-
-Tensor arangeLong(LongType begin, LongType end, LongType step) {
-  int64_t numel64 = (end - begin) / step;
-  CHECK(numel64 < std::numeric_limits<int32_t>::max());
-  int numel = static_cast<int>(numel64);
-
-  Tensor tensor = createCudaTensorLong({numel});
-
-  constexpr int blockSize = 256;
-  dim3 grid = getGrid1D(numel, blockSize);
-
-  arangeKernel<LongType><<<grid, blockSize>>>(getDataPtrCuda<LongType>(tensor), numel, begin, step);
-  cudaDeviceSynchronize();
-  LL_CHECK_CUDA_STATUS(cudaGetLastError());
-
-  return tensor;
-}
-
-}  // namespace cuda
-}  // namespace op
-}  // namespace ly

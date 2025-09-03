@@ -50,6 +50,26 @@ Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> s
       input.getInternalOffset());
 }
 
+bool isLooselyContiguous(const Tensor &tensor) {
+  CHECK(!tensor.empty());
+
+  lut::Span<const TensorShape::Elem> sizes = tensor.getInternalShape()->getData_();
+
+  Tensor::ShapeType maxStride = sizes[0].stride;
+  Tensor::ShapeType maxSize = sizes[0].shape;
+  for (size_t i = 1; i < sizes.size(); ++i) {
+    if (sizes[i].stride > maxStride) {
+      maxStride = sizes[i].stride;
+      maxSize = sizes[i].shape;
+    }
+  }
+
+  int64_t contigNumel = static_cast<int64_t>(maxStride) * maxSize;
+  int64_t numel = tensor.getNumEl();
+
+  return contigNumel == numel;
+}
+
 }  // namespace cpu
 }  // namespace op
 }  // namespace ly

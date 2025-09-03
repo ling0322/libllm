@@ -51,7 +51,7 @@ class TensorData {
   /// @param offset the offset `n`.
   /// @return the pointer of type `T`.
   template<typename T>
-  T *getData(int64_t offset = 0) const {
+  T *getData(int64_t offset) const {
     DType dtype = getDType();
     CHECK((std::is_same_v<T, void> || DType::getType<T>() == dtype));
     return reinterpret_cast<T *>(getRawData() + dtype.getTotalSize(offset));

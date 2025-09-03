@@ -166,11 +166,11 @@ Tensor gemm(const Tensor &A, const Tensor &B) {
       gemmArgs.M,
       gemmArgs.N,
       gemmArgs.K,
-      A.getInternalData()->getData<T>(),
+      getDataPtrCpu<T>(A),
       gemmArgs.lda,
-      B.getInternalData()->getData<T>(),
+      getDataPtrCpu<T>(B),
       gemmArgs.ldb,
-      C.getInternalData()->getData<T>(),
+      getDataPtrCpu<T>(C),
       gemmArgs.ldc,
       kernel::Mode::OMP);
 

@@ -20,6 +20,7 @@
 #include <cuda_fp16.h>
 #include <math.h>
 
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/binary.h"
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/reduce.h"
@@ -54,7 +55,6 @@ Tensor softmaxHalf3D(Tensor A) {
   A = cuda::applyBinaryOp(BinaryOp::SUB, A, max);
 
   Tensor sumExp = reduceLastDim(A, DType::kFloat, MapReduceType::SUM_EXP);
-
   Tensor C = createCudaTensorHalf(A.getShape());
 
   constexpr int blockSize = 256;

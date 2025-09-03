@@ -121,8 +121,8 @@ bool OperatorTester::testCopyLongType() {
   _op->copy(x, x2);
   x2 = _op->to(Device::getCpu(), x2);
 
-  const LongType *px = tensor.getInternalData()->getData<LongType>(),
-                 *pr = x2.getInternalData()->getData<LongType>();
+  const LongType *px = tensor.getInternalData()->getData<LongType>(tensor.getInternalOffset()),
+                 *pr = x2.getInternalData()->getData<LongType>(x2.getInternalOffset());
   x2.throwIfInvalidShape(tensor.getShape(), "OperatorTester::testCopyLongType");
   return std::equal(px, px + x2.getNumEl(), pr);
 }
@@ -146,7 +146,7 @@ bool OperatorTester::testCopy5D() {
 
 bool OperatorTester::testLookup() {
   lut::Random random(MagicNumber);
-  Tensor embd = F::rand({10, 20}, DType::kFloat, Device::getCpu(), &random);
+  Tensor embd = F::rand({10, 32}, DType::kFloat, Device::getCpu(), &random);
   Tensor ids = Tensor::create<LongType>({2, 3}, {1, 2, 3, 4, 5, 6});
 
   Tensor x = _op->to(_testDevice, embd);
@@ -187,13 +187,13 @@ bool OperatorTester::testMatmulSlice(ShapeType shapeA, ShapeType shapeB) {
   lut::Random random(MagicNumber);
   Tensor a = F::rand(shapeA, DType::kFloat, Device::getCpu(), &random);
   Tensor b = F::rand(shapeB, DType::kFloat, Device::getCpu(), &random);
-  Tensor xr = F::matmul(a, b.slice(-1, {5, 25}).transpose(-1, -2));
+  Tensor xr = F::matmul(a, b.slice(-1, {8, 32}).transpose(-1, -2));
 
   Tensor x = _op->to(_testDevice, a);
   Tensor y = _op->to(_testDevice, b);
   x = _op->cast(x, _testFloatType);
   y = _op->cast(y, _testFloatType);
-  y = y.slice(-1, {5, 25});
+  y = y.slice(-1, {8, 32});
   y = y.transpose(-1, -2);
   x = _op->matmul(x, y);
   x = _op->cast(x, DType::kFloat);

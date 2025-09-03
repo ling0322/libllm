@@ -44,8 +44,8 @@ Tensor castFloatToHalf(const Tensor &tensor) {
   LL_CHECK_CONTIGUOUS(tensor);
 
   Tensor tgtTensor = createCudaTensorHalf(tensor.getShape());
-  const float *src = tensor.getInternalData()->getData<float>();
-  half *dest = (half *)tgtTensor.getInternalData()->getData<Float16>();
+  const float *src = getDataPtrCuda<float>(tensor);
+  half *dest = (half *)getDataPtrCuda<Float16>(tgtTensor);
 
   int64_t numel = tensor.getNumEl();
   constexpr int blockSize = 256;
@@ -61,8 +61,8 @@ Tensor castHalfToFloat(const Tensor &tensor) {
   LL_CHECK_CONTIGUOUS(tensor);
 
   Tensor tgtTensor = createCudaTensorFloat(tensor.getShape());
-  const half *src = (half *)tensor.getInternalData()->getData<Float16>();
-  float *dest = tgtTensor.getInternalData()->getData<float>();
+  const half *src = (half *)getDataPtrCuda<Float16>(tensor);
+  float *dest = getDataPtrCuda<float>(tgtTensor);
 
   int64_t numel = tensor.getNumEl();
   constexpr int blockSize = 256;

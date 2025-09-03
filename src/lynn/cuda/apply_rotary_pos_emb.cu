@@ -20,6 +20,7 @@
 #include <cuda_fp16.h>
 
 #include "lynn/cpu/view.h"
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/apply_rotary_pos_emb.h"
 #include "lynn/cuda/common.h"
 

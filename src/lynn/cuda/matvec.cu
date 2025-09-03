@@ -96,9 +96,9 @@ Tensor gemvHalf(const Tensor &A, const Tensor &B) {
   dim3 grid_dim(divUp(d, 4), 1);
 
   mat_vec_kernel<<<grid_dim, block_dim, 0>>>(
-      C.getInternalData()->getData<half>(),
-      B.getInternalData()->getData<half>(),
-      A.getInternalData()->getData<half>(),
+      getDataPtrCuda<half>(C),
+      getDataPtrCuda<half>(B),
+      getDataPtrCuda<half>(A),
       n,
       d,
       n);

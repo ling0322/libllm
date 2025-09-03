@@ -20,6 +20,7 @@
 #include <cuda_fp16.h>
 #include <math.h>
 
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/causal_mask.h"
 #include "lynn/cuda/common.h"
 

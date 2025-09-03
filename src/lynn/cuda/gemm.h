@@ -49,7 +49,7 @@ class Gemm {
       __half beta,
       __half *C,
       int ldc) {
-    return lut::ErrorCode::NotImplemented;
+    NOT_IMPL();
   }
 
   virtual lut::ErrorCode gemmMxfp4Bf16(
@@ -62,7 +62,7 @@ class Gemm {
       const Fp4E2M0x2 *B,
       const UInt8 *sfB,
       Float16 *C) {
-    return lut::ErrorCode::NotImplemented;
+    NOT_IMPL();
   }
 
   virtual lut::ErrorCode hgemmArray(
@@ -80,7 +80,7 @@ class Gemm {
       __half *const *arrayC,
       int ldc,
       int batchSize) {
-    return lut::ErrorCode::NotImplemented;
+    NOT_IMPL();
   }
 };
 

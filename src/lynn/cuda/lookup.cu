@@ -19,6 +19,7 @@
 
 #include <cuda_fp16.h>
 
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/lookup.h"
 
@@ -61,6 +62,7 @@ Tensor lookup2DHalf(const Tensor &embdTable, const Tensor &input) {
   lookupHalfKernel2D<<<d, blockSize>>>(sA, sB, sC);
   cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
+
   return dst;
 }
 

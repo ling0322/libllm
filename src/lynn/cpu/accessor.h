@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "lutil/span.h"
+#include "lynn/cpu/common.h"
 #include "lynn/tensor.h"
 
 namespace ly {
@@ -33,13 +34,13 @@ class TensorAccessorBase {
  public:
   explicit TensorAccessorBase(Tensor &tensor) {
     CHECK(tensor.getDim() == DIM);
-    _data = tensor.getInternalData()->getData<T>();
+    _data = getDataPtrCpu<T>(tensor);
     _size = tensor.getInternalShape()->getData_().data();
   }
 
   explicit TensorAccessorBase(const Tensor &tensor) {
     CHECK(tensor.getDim() == DIM);
-    _data = tensor.getInternalData()->getData<T>();
+    _data = getDataPtrCpu<T>(tensor);
     _size = tensor.getInternalShape()->getData_().data();
   }
 
@@ -197,9 +198,7 @@ void getDataPointerList(
 
 template<typename T, int DIM>
 TensorList<T, DIM> TensorList<T, DIM>::fromTensor(const Tensor &src) {
-  std::vector<T *> pointerList;
   lut::Span<const TensorShape::Elem> shape = src.getInternalShape()->getData_();
-  getDataPointerList<T, DIM>(src.getInternalData()->getData<T>(), shape, pointerList);
 
   const TensorShape::Elem *tensorShape = shape.data() + (shape.size() - DIM);
   if (src.isContiguous()) {
@@ -213,8 +212,10 @@ TensorList<T, DIM> TensorList<T, DIM>::fromTensor(const Tensor &src) {
       stride *= tensorShape[i].shape;
     }
 
-    return TensorList<T, DIM>(tensorShape, src.getInternalData()->getData<T>(), numTensor, stride);
+    return TensorList<T, DIM>(tensorShape, getDataPtrCpu<T>(src), numTensor, stride);
   } else {
+    std::vector<T *> pointerList;
+    getDataPointerList<T, DIM>(getDataPtrCpu<T>(src), shape, pointerList);
     return TensorList<T, DIM>(tensorShape, std::move(pointerList));
   }
 }
@@ -223,7 +224,7 @@ template<typename T, int DIM>
 TensorList<T, DIM> TensorList<T, DIM>::fromTensor(Tensor &src) {
   std::vector<T *> pointerList;
   lut::Span<const TensorShape::Elem> shape = src.getInternalShape()->getData_();
-  getDataPointerList<T, DIM>(src.getInternalData()->getData<T>(), shape, pointerList);
+  getDataPointerList<T, DIM>(getDataPtrCpu<T>(src), shape, pointerList);
 
   const TensorShape::Elem *tensorShape = shape.data() + (shape.size() - DIM);
   if (src.isContiguous()) {
@@ -237,7 +238,7 @@ TensorList<T, DIM> TensorList<T, DIM>::fromTensor(Tensor &src) {
       stride *= tensorShape[i].shape;
     }
 
-    return TensorList<T, DIM>(tensorShape, src.getInternalData()->getData<T>(), numTensor, stride);
+    return TensorList<T, DIM>(tensorShape, getDataPtrCpu<T>(src), numTensor, stride);
   } else {
     return TensorList<T, DIM>(tensorShape, std::move(pointerList));
   }

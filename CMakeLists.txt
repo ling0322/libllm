@@ -135,17 +135,19 @@ if (WITH_MKL)
 endif()
 
 set(benchmark_LIBADD
-    libllm_static
-    ${libllm_LIBADD})
+    lynn_benchmark
+    ${libllm_LIBADD}
+    catch2)
+
 
 add_library(catch2 STATIC  "../third_party/catch2/catch_amalgamated.cpp")
 
-add_executable(unittest "src/libllm/test_main.cc")
-target_include_directories(unittest PRIVATE "src")
+add_executable(unittest "src/lynn/bin/unittest.cc")
+target_include_directories(unittest PRIVATE "src" "third_party")
 
 target_link_libraries(unittest ${unittest_LIBADD})
 
-add_executable(benchmark "src/libllm/benchmark_main.cc")
+add_executable(benchmark "src/lynn/bin/benchmark.cc")
 target_include_directories(benchmark PRIVATE "src")
 target_link_libraries(benchmark ${benchmark_LIBADD})
 

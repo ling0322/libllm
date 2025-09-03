@@ -17,39 +17,49 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "lynn/cuda/common.h"
-#include "lynn/cuda/fill.h"
+#pragma once
+
+#include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "lutil/attributes.h"
+#include "lynn/device.h"
+#include "lynn/operators.h"
 
 namespace ly {
-namespace op {
-namespace cuda {
 
-template<typename T>
-__global__ void arangeKernel(T *__restrict__ out, int n, T start, T step) {
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  int stride = blockDim.x * gridDim.x;
-  for (int i = idx; i < n; i += stride) {
-    out[i] = start + step * (T)i;
-  }
-}
+class OperatorBenchmark {
+ public:
+  OperatorBenchmark();
 
-Tensor arangeLong(LongType begin, LongType end, LongType step) {
-  int64_t numel64 = (end - begin) / step;
-  CHECK(numel64 < std::numeric_limits<int32_t>::max());
-  int numel = static_cast<int>(numel64);
+  OperatorBenchmark withOperators(Device device) const;
+  OperatorBenchmark withDType(DType dtype) const;
+  OperatorBenchmark withLoop(int numLoop) const;
+  OperatorBenchmark withWarmUpLoop(int numLoop) const;
 
-  Tensor tensor = createCudaTensorLong({numel});
+  void benchmarkAdd(lut::Span<const int> shape) const;
+  void benchmarkSub(lut::Span<const int> shape) const;
+  void benchmarkMul(lut::Span<const int> shape) const;
 
-  constexpr int blockSize = 256;
-  dim3 grid = getGrid1D(numel, blockSize);
+  void benchmarkAll();
+  void printResult();
 
-  arangeKernel<LongType><<<grid, blockSize>>>(getDataPtrCuda<LongType>(tensor), numel, begin, step);
-  cudaDeviceSynchronize();
-  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+ private:
+  enum OpType { OpAdd, OpSub, OpMul };
 
-  return tensor;
-}
+  Device _device;
+  DType _dtype;
+  int _numLoop;
+  int _numWarmUpLoop;
+  std::shared_ptr<std::vector<std::pair<std::string, double>>> _records;
 
-}  // namespace cuda
-}  // namespace op
+  Tensor generateTensor(lut::Span<const int> shape) const;
+  void addRecord(std::string name, double value) const;
+
+  template<OpType OPTYPE>
+  void benchmarkBinaryOperators(lut::Span<const int> shape, std::string_view name) const;
+};
+
 }  // namespace ly

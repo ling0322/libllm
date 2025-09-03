@@ -19,6 +19,7 @@
 
 #include "catch2/catch_amalgamated.hpp"
 #include "lynn/context.h"
+#include "lynn/cpu/common.h"
 #include "lynn/cpu/fingerprint.h"
 #include "lynn/functional.h"
 #include "lynn/operator_tester.h"
@@ -36,9 +37,8 @@ Tensor RefMatMulFp32(const Tensor &A, const Tensor &B) {
   CATCH_REQUIRE(A.getDType() == DType::kFloat);
 
   Tensor C = F::zeros({A.getShape(0), B.getShape(1)}, DType::kFloat);
-  float *dataC = C.getInternalData()->getData<float>();
-  const float *dataA = A.getInternalData()->getData<float>(),
-              *dataB = B.getInternalData()->getData<float>();
+  float *dataC = getDataPtrCpu<float>(C);
+  const float *dataA = getDataPtrCpu<float>(A), *dataB = getDataPtrCpu<float>(B);
   int stride0A = A.getStride(0);
   int stride1A = A.getStride(1);
   int stride0B = B.getStride(0);

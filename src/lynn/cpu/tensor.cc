@@ -19,6 +19,7 @@
 
 #include "lynn/cpu/tensor.h"
 
+#include "lynn/cpu/common.h"
 #include "lynn/cpu/cpu_tensor_data.h"
 #include "lynn/cpu/print.h"
 
@@ -46,7 +47,7 @@ void fillZeroKernel(Tensor tensor) {
   // make sure tensor is contiguous.
   CHECK(tensor.isContiguous());
 
-  T *data = tensor.getInternalData()->getData<T>();
+  T *data = getDataPtrCpu<T>(tensor);
   int64_t numel = tensor.getNumEl();
 
   for (int64_t i = 0; i < numel; ++i) {
@@ -86,7 +87,7 @@ template<typename T>
 Tensor causalMaskKernel(int length) {
   Tensor mask = tensor({length, length}, DType::getType<T>());
 
-  T *data = mask.getInternalData()->getData<T>();
+  T *data = getDataPtrCpu<T>(mask);
   for (int i = 0; i < length; ++i) {
     T *row = data + i * length;
     for (int j = 0; j <= i; ++j) {

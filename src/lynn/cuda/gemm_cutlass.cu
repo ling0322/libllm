@@ -35,11 +35,6 @@ namespace cuda {
 using cutlass::layout::ColumnMajor;
 using cutlass::layout::RowMajor;
 
-std::shared_ptr<Gemm> CutlassGemm::create() {
-  std::shared_ptr<CutlassGemm> mm = std::make_shared<CutlassGemm>();
-  return mm;
-}
-
 template<class LayoutA, class layoutB>
 lut::ErrorCode hgemmT(
     int m,
@@ -53,19 +48,10 @@ lut::ErrorCode hgemmT(
     cutlass::half_t beta,
     cutlass::half_t *C,
     int ldc) {
-  using CutlassGemm = cutlass::gemm::device::Gemm<
-      cutlass::half_t,
-      LayoutA,
-      cutlass::half_t,
-      layoutB,
-      cutlass::half_t,
-      RowMajor,
-      float,
-      cutlass::arch::OpClassSimt,
-      cutlass::arch::Sm61>;
-  CutlassGemm gemmOperator;
-  typename CutlassGemm::Arguments
-      args({m, n, k}, {A, lda}, {B, ldb}, {C, ldc}, {C, ldc}, {alpha, beta});
+  using Gemm = cutlass::gemm::device::
+      Gemm<cutlass::half_t, LayoutA, cutlass::half_t, layoutB, cutlass::half_t, RowMajor, float>;
+  Gemm gemmOperator;
+  typename Gemm::Arguments args({m, n, k}, {A, lda}, {B, ldb}, {C, ldc}, {C, ldc}, {alpha, beta});
   cutlass::Status status = gemmOperator(args);
   if (status != cutlass::Status::kSuccess) {
     return lut::ErrorCode::Aborted;
@@ -115,19 +101,17 @@ lut::ErrorCode hgemmArrayT(
     cutlass::half_t *const *C,
     int ldc,
     int batchSize) {
-  using CutlassGemm = cutlass::gemm::device::GemmArray<
+  using Gemm = cutlass::gemm::device::GemmArray<
       cutlass::half_t,
       LayoutA,
       cutlass::half_t,
       layoutB,
       cutlass::half_t,
       RowMajor,
-      float,
-      cutlass::arch::OpClassSimt,
-      cutlass::arch::Sm61>;
-  CutlassGemm gemmOperator;
+      float>;
+  Gemm gemmOperator;
 
-  typename CutlassGemm::Arguments
+  typename Gemm::Arguments
       args({m, n, k}, A, lda, B, ldb, C, ldc, C, ldc, {alpha, beta}, batchSize);
   cutlass::Status status = gemmOperator(args);
   if (status != cutlass::Status::kSuccess) {

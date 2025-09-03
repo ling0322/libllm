@@ -28,7 +28,6 @@
 #include "lutil/c_ptr.h"
 #include "lutil/error.h"
 #include "lutil/strings.h"
-#include "lynn/cuda/accessor.h"
 #include "lynn/dtype.h"
 #include "lynn/tensor.h"
 
@@ -52,6 +51,11 @@ namespace ly {
 namespace op {
 namespace cuda {
 
+struct Size {
+  int32_t shape;
+  int32_t stride;
+};
+
 template<typename T>
 struct PackedOWORD {
   static_assert(16 % sizeof(T) == 0, "invalid typename T for PackedOWORD");
@@ -66,9 +70,11 @@ using auto_handle = lut::c_ptr<typename std::remove_pointer<T>::type>;
 
 inline void llynCudaFree(void *ptr) {
   cudaError_t err = cudaFree(ptr);
+  // TODO: remove
   if (err != cudaSuccess) {
     LOG(ERROR) << "Error while calling cudaFree(): " << cudaGetErrorString(err);
   }
+  CHECK(err == cudaSuccess);
 }
 
 template<typename T>
@@ -114,7 +120,7 @@ inline Tensor createCudaTensor<BoolType>(lut::Span<const int> shape) {
   return createCudaTensorBool(shape);
 }
 
-/// @brief Split a index into dim3 object according to the shape info in `size`.
+/// @brief Split a index into dim3 object according to the shape info in `size`. TODO: remove
 /// @param index the index to split.
 /// @param size the shape info. it should have at least 3 elements. size[0] is the shape and stride
 //              info for axis `z`, size[1] for `y` and size[2] for `x`.
@@ -143,6 +149,11 @@ bool elemBool(const Tensor &tensor);
 
 /// get grid for 1D kernel for a specified numel.
 dim3 getGrid1D(int numel, int blockSize);
+
+template<typename T>
+inline T *getDataPtrCuda(const Tensor &input) {
+  return input.getInternalData()->getData<T>(input.getInternalOffset());
+}
 
 }  // namespace cuda
 }  // namespace op

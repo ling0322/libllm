@@ -30,6 +30,37 @@ class CutlassGemm : public Gemm {
  public:
   static std::shared_ptr<Gemm> create();
 
+  lut::ErrorCode hgemm(
+      bool transA,
+      bool transB,
+      int m,
+      int n,
+      int k,
+      __half alpha,
+      const __half *A,
+      int lda,
+      const __half *B,
+      int ldb,
+      __half beta,
+      __half *C,
+      int ldc) override;
+
+  lut::ErrorCode hgemmArray(
+      bool transA,
+      bool transB,
+      int m,
+      int n,
+      int k,
+      __half alpha,
+      const __half *const *arrayA,
+      int lda,
+      const __half *const *arrayB,
+      int ldb,
+      __half beta,
+      __half *const *arrayC,
+      int ldc,
+      int batchSize) override;
+
   lut::ErrorCode gemmMxfp4Bf16(
       int m,
       int n,

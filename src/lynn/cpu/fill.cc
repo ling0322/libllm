@@ -44,7 +44,7 @@ void fillKernel(Tensor A, float value) {
 void fill(Tensor src, float value) {
   if (src.getDType() == DType::kFloat) {
     if (src.getNumEl() == 1) {
-      *src.getInternalData()->getData<float>() = value;
+      *getDataPtrCpu<float>(src) = value;
     } else {
       fillKernel<float>(src, value);
     }
@@ -53,7 +53,7 @@ void fill(Tensor src, float value) {
 #if LUT_CPU_ARCH == LUT_AARCH64
   if (src.getDType() == DType::kFloat16) {
     if (src.getNumEl() == 1) {
-      *src.getInternalData()->getData<Float16>() = value;
+      *getDataPtrCpu<Float16>(src) = value;
     } else {
       fillKernel<Float16>(src, value);
     }

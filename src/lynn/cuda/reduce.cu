@@ -27,6 +27,7 @@
 #include <cuda/std/cmath>
 #include <cuda/std/limits>
 
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/reduce.h"
 
@@ -129,10 +130,9 @@ Tensor reduceAllImpl(const Tensor &A) {
   int64_t numel = A.getNumEl();
 
   Tensor C = createCudaTensor<TOut>({1});
-  TOut *result = C.getInternalData()->getData<TOut>();
+  TOut *result = getDataPtrCuda<TOut>(C);
 
-  thrust::device_ptr<const TIn> pdata = thrust::device_pointer_cast(
-      A.getInternalData()->getData<TIn>());
+  thrust::device_ptr<const TIn> pdata = thrust::device_pointer_cast(getDataPtrCuda<TIn>(A));
   thrust::device_vector<TIn> data(pdata, pdata + numel);
   auto iter = thrust::make_transform_iterator(data.begin(), MapOp<MR_TYPE, TIn, TOut>{});
 
@@ -143,7 +143,7 @@ Tensor reduceAllImpl(const Tensor &A) {
   cub::DeviceReduce::Reduce(
       tempStorage,
       tempStorageBytes,
-      A.getInternalData()->getData<TIn>(),
+      getDataPtrCuda<TIn>(A),
       result,
       numel,
       ReduceOp<MR_TYPE, TOut>{},
@@ -224,6 +224,9 @@ Tensor reduceLastDim(Tensor A, DType outType, MapReduceType reduceType) {
     return reduceLastDim3DImpl<MapReduceType::SUM_EXP, half, float>(A);
   if (inType == DType::kFloat16 && outType == DType::kFloat && reduceType == MapReduceType::SUM)
     return reduceLastDim3DImpl<MapReduceType::SUM, half, float>(A);
+  if (inType == DType::kFloat16 && outType == DType::kFloat &&
+      reduceType == MapReduceType::SUM_SQUARE)
+    return reduceLastDim3DImpl<MapReduceType::SUM_SQUARE, half, float>(A);
   if (inType == DType::kFloat16 && outType == DType::kFloat16 && reduceType == MapReduceType::MAX)
     return reduceLastDim3DImpl<MapReduceType::MAX, half, half>(A);
 
