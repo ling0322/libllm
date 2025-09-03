@@ -53,6 +53,8 @@ set(lynn_test_SOURCES
     "tensor_test.cc"
     "test_helper.cc")
 
+set(lynn_benchmark_SOURCES
+    "operator_benchmark.cc")
 
 set(lynn_INCDIR ".." "../../third_party")
 
@@ -100,7 +102,9 @@ if (WITH_CUDA)
     set(lynn_test_SOURCES ${lynn_test_SOURCES} "cuda/test.cc")
 
     if (WITH_CUTLASS)
-        set(lynn_SOURCES ${lynn_SOURCES} "cuda/gemm_cutlass_mxfp4.cu")
+        set(lynn_SOURCES ${lynn_SOURCES}
+            "cuda/gemm_cutlass.cu"
+            "cuda/gemm_cutlass_mxfp4.cu")
         set(lynn_INCDIR ${lynn_INCDIR}
             "../../third_party/cutlass/include"
             "../../third_party/cutlass/tools/util/include")
@@ -169,3 +173,6 @@ target_include_directories(lynn_static PRIVATE ${lynn_INCDIR})
 
 add_library(lynn_test OBJECT ${lynn_test_SOURCES})
 target_include_directories(lynn_test PRIVATE ${lynn_INCDIR})
+
+add_library(lynn_benchmark OBJECT ${lynn_benchmark_SOURCES})
+target_include_directories(lynn_benchmark PRIVATE ${lynn_INCDIR})

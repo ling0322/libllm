@@ -17,6 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/fill.h"
 
@@ -55,7 +56,7 @@ void fillImpl(Tensor &tensor, T v) {
   int d = tensor.getDim();
 
   if (tensor.isContiguous()) {
-    fillContigKernel<T><<<grid, blockSize>>>(tensor.getInternalData()->getData<T>(), numel, v);
+    fillContigKernel<T><<<grid, blockSize>>>(getDataPtrCuda<T>(tensor), numel, v);
   } else {
     if (d == 1)
       fillGenericKernel<T, 1><<<grid, blockSize>>>(tensor, numel, v);

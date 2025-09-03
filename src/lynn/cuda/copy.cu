@@ -17,6 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/copy.h"
 
@@ -152,8 +153,8 @@ void copy(const Tensor &src, Tensor &dest) {
 
 void copyContig(const Tensor &src, Tensor &dest) {
   LL_CHECK_CUDA_STATUS(cudaMemcpy(
-      dest.getInternalData()->getData<void>(),
-      src.getInternalData()->getData<void>(),
+      getDataPtrCuda<void>(dest),
+      getDataPtrCuda<void>(src),
       src.getDType().getTotalSize(src.getNumEl()),
       cudaMemcpyDeviceToDevice));
 }

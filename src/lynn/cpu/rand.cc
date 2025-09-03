@@ -28,6 +28,7 @@
 #include "lutil/random.h"
 #include "lutil/time.h"
 #include "lynn/cpu/cast.h"
+#include "lynn/cpu/common.h"
 #include "lynn/cpu/tensor.h"
 #include "lynn/mp.h"
 #include "lynn/tensor.h"
@@ -38,7 +39,7 @@ namespace cpu {
 
 Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, float max) {
   Tensor x = op::cpu::tensor(shape, DType::kFloat);
-  lut::Span<float> tensorData(x.getInternalData()->getData<float>(), x.getNumEl());
+  lut::Span<float> tensorData(getDataPtrCpu<float>(x), x.getNumEl());
 
   if (generator) {
     generator->fill(tensorData, min, max);

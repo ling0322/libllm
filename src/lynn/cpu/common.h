@@ -20,7 +20,6 @@
 #pragma once
 
 #include "lutil/span.h"
-#include "lynn/cpu/accessor.h"
 #include "lynn/cpu/kernel/interface.h"
 #include "lynn/tensor.h"
 
@@ -37,12 +36,13 @@ typedef float DefaultFloatType;
 Tensor expandBatchDims(const Tensor &input, lut::Span<const Tensor::ShapeType> shape);
 bool isShapeMatch(const Tensor &A, const Tensor &B);
 
+// Check whether the given tensor can become contiguous by applying a permutation(transpose) of its
+// dimensions.
+bool isLooselyContiguous(const Tensor &tensor);
+
 template<typename T>
-void copyVector(TensorAccessor<T, 1> dest, TensorAccessor<const T, 1> src) {
-  CHECK(dest.getShape(0) == src.getShape(0));
-  for (int i = 0; i < src.getShape(0); ++i) {
-    dest[i] = src[i];
-  }
+inline T *getDataPtrCpu(const Tensor &input) {
+  return input.getInternalData()->getData<T>(input.getInternalOffset());
 }
 
 }  // namespace cpu

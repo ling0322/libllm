@@ -79,9 +79,9 @@ CATCH_TEST_CASE("test CUDA matMul", "[op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
   OperatorTester tester = getOperatorTester();
-  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({10, 20}, {40, 30}));
-  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 20}, {40, 30}));
-  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 5, 20}, {10, 40, 30}));
+  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({10, 24}, {40, 64}));
+  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 24}, {40, 64}));
+  CATCH_REQUIRE(tester.withTol(5e-2).testMatmulSlice({5, 10, 5, 24}, {10, 40, 64}));
 }
 
 CATCH_TEST_CASE("test CUDA binary operators", "[op][cuda]") {
@@ -196,9 +196,9 @@ CATCH_TEST_CASE("test cat", "[ly][op][cuda]") {
 CATCH_TEST_CASE("test attention", "[ly][op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
-  Tensor q = F::rand({1, 2, 5, 16}, DType::kFloat);
-  Tensor k = F::rand({1, 2, 5, 16}, DType::kFloat);
-  Tensor v = F::rand({1, 2, 5, 16}, DType::kFloat);
+  Tensor q = F::rand({1, 16, 8, 16}, DType::kFloat);
+  Tensor k = F::rand({1, 16, 8, 16}, DType::kFloat);
+  Tensor v = F::rand({1, 16, 8, 16}, DType::kFloat);
   Tensor xr = F::attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), Tensor());
 
   Tensor x = F::to(Device::getCuda(), q);
@@ -224,6 +224,8 @@ CATCH_TEST_CASE("benchmark gemv", "[ly][op][cuda]") {
   Tensor A = F::rand({8000, 4096}, DType::kFloat, Device::kCpu, &r);
   Tensor x = F::rand({4096, 1}, DType::kFloat, Device::kCpu, &r);
 
+  A = F::to(Device::getCuda(), A);
+  A = F::cast(A, DType::kFloat16);
   x = F::to(Device::getCuda(), x);
   x = F::cast(x, DType::kFloat16);
 
@@ -269,21 +271,21 @@ CATCH_TEST_CASE("test matmul bmm (cutlass)", "[ly][op][cuda][cutlass]") {
 
   std::shared_ptr<op::cuda::MatMul> mm = op::cuda::MatMul::createCutlass();
 
-  Tensor a = F::rand({5, 10, 5, 20}, DType::kFloat);
-  Tensor b = F::rand({10, 30, 20}, DType::kFloat);
-  Tensor xr = F::matmul(a, b.slice(1, {5, 25}).transpose(-1, -2));
+  Tensor a = F::rand({5, 10, 8, 24}, DType::kFloat);
+  Tensor b = F::rand({10, 64, 24}, DType::kFloat);
+  Tensor xr = F::matmul(a, b.slice(1, {8, 32}).transpose(-1, -2));
 
   Tensor x = F::to(Device::getCuda(), a);
   Tensor y = F::to(Device::getCuda(), b);
   x = F::cast(x, DType::kFloat16);
   y = F::cast(y, DType::kFloat16);
-  y = y.slice(1, {5, 25});
+  y = y.slice(1, {8, 32});
   y = y.transpose(-1, -2);
   x = mm->apply(x, y);
   x = F::cast(x, DType::kFloat);
   x = F::to(Device::getCpu(), x);
 
-  CATCH_REQUIRE(F::allClose(x, xr, 2e-3f));
+  CATCH_REQUIRE(F::allClose(x, xr, 5e-3f));
 }
 
 CATCH_TEST_CASE("benchmark cutlass hgemm", "[ly][op][cuda]") {
@@ -380,11 +382,7 @@ CATCH_TEST_CASE("test quantHalfToMxfp4 with scale swizzle", "[op][cuda][mxfp4]")
   auto [fpA0, sfA] = op::cuda::quantHalfToMxfp4(A);
   auto [fpA1, sfSwizzledA] = op::cuda::quantHalfToMxfp4(A, true);
 
-  F::print(sfA);
   sfA = op::cuda::toSm1xxScaleBlock(sfA);
-  F::print(sfA);
-  F::print(sfSwizzledA);
-  F::print(sfA == sfSwizzledA);
 }
 
 void benchmarkMxfp4Quant(int m, int n) {

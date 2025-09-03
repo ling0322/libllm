@@ -134,11 +134,11 @@ Tensor MatMul::matmulMxfp4(const Tensor &A, const Tensor &sfA, const Tensor &B, 
                                 n,
                                 k,
                                 alpha,
-                                A.getInternalData()->getData<Fp4E2M0x2>(),
-                                sfA.getInternalData()->getData<UInt8>(),
-                                B.getInternalData()->getData<Fp4E2M0x2>(),
-                                sfB.getInternalData()->getData<UInt8>(),
-                                C.getInternalData()->getData<Float16>())) {
+                                getDataPtrCuda<Fp4E2M0x2>(A),
+                                getDataPtrCuda<UInt8>(sfA),
+                                getDataPtrCuda<Fp4E2M0x2>(B),
+                                getDataPtrCuda<UInt8>(sfB),
+                                getDataPtrCuda<Float16>(C))) {
     THROW(Aborted, "gemmMxfp4Bf16 failed.");
   }
   cudaDeviceSynchronize();
@@ -164,7 +164,7 @@ std::vector<const half *> getBatchImpl(const Tensor &A);
 
 template<>
 std::vector<const half *> getBatchImpl<1>(const Tensor &A) {
-  const half *base = A.getInternalData()->getData<half>();
+  const half *base = getDataPtrCuda<half>(A);
 
   int stride0 = A.getStride(0);
   std::vector<const half *> batch;
@@ -176,7 +176,7 @@ std::vector<const half *> getBatchImpl<1>(const Tensor &A) {
 
 template<>
 std::vector<const half *> getBatchImpl<2>(const Tensor &A) {
-  const half *base = A.getInternalData()->getData<half>();
+  const half *base = getDataPtrCuda<half>(A);
 
   int stride0 = A.getStride(0);
   int stride1 = A.getStride(1);
@@ -214,6 +214,10 @@ Tensor MatMul::bmmHalf(Tensor A, Tensor B) {
   Tensor C = createCudaTensorHalf(shapeC);
 
   int nBatchDim = A.getDim() - 2;
+  CHECK(
+      A.getDType().getTotalSize(A.getStride(-3)) % 16 == 0 &&
+      B.getDType().getTotalSize(A.getStride(-3)) % 16 == 0)
+      << "bmm Half: stride should be 16 byte align";
 
   op::cpu::GEMMArgs gemmArgs = op::cpu::generateGemmArgs(A, xB, C);
   std::vector<const half *> batchA = getBatch(A, nBatchDim);
@@ -270,12 +274,12 @@ Tensor MatMul::gemmHalf(Tensor A, Tensor B) {
                                 gemmArgs.N,
                                 gemmArgs.K,
                                 1.0f,
-                                A.getInternalData()->getData<half>(),
+                                getDataPtrCuda<half>(A),
                                 gemmArgs.lda,
-                                B.getInternalData()->getData<half>(),
+                                getDataPtrCuda<half>(B),
                                 gemmArgs.ldb,
                                 0.0f,
-                                C.getInternalData()->getData<half>(),
+                                getDataPtrCuda<half>(C),
                                 gemmArgs.ldc)) {
     THROW(Aborted, "hgemm failed.");
   }

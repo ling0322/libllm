@@ -19,6 +19,7 @@
 
 #include <cuda_fp16.h>
 
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/binary.h"
 #include "lynn/cuda/binary_scalar.h"
 #include "lynn/cuda/cast.h"

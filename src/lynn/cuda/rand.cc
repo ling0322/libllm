@@ -46,12 +46,7 @@ class Rand::Impl {
 
 Tensor Rand::Impl::randNormal(lut::Span<const int> shape) {
   Tensor result = createCudaTensorFloat(shape);
-  curandGenerateNormal(
-      gen,
-      result.getInternalData()->getData<float>(),
-      result.getNumEl(),
-      0.0,
-      1.0);
+  curandGenerateNormal(gen, getDataPtrCuda<float>(result), result.getNumEl(), 0.0, 1.0);
   return castFloatToHalf(result);
 }
 

@@ -19,6 +19,7 @@
 
 #include <cuda_fp16.h>
 
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/reduce.h"
 #include "lynn/cuda/rms_norm.h"

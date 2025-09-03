@@ -19,6 +19,8 @@
 
 #include "lynn/cpu/binary_op.h"
 
+#include <omp.h>
+
 #include "lutil/attributes.h"
 #include "lynn/cpu/accessor.h"
 #include "lynn/cpu/common.h"
@@ -45,10 +47,11 @@ Tensor binaryOpKernel(const Tensor &A, const Tensor &B, BinaryOp op) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vB.getLength() && vC.getLength() == vB.getLength());
 
-  MP::parallelFor(vA.getLength(), [&vA, &vB, &vC, op](MP::Context ctx) {
-    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
-    TensorAccessor<const T, 1> b = vB.getTensor(ctx.getBlockIdx());
-    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
+#pragma omp parallel for num_threads(omp_get_max_threads())
+  for (int j = 0; j < vA.getLength(); ++j) {
+    TensorAccessor<const T, 1> a = vA.getTensor(j);
+    TensorAccessor<const T, 1> b = vB.getTensor(j);
+    TensorAccessor<T, 1> c = vC.getTensor(j);
 
     for (int i = 0; i < a.getShape(0); ++i) {
       if (op == BinaryOp::ADD) {
@@ -61,7 +64,7 @@ Tensor binaryOpKernel(const Tensor &A, const Tensor &B, BinaryOp op) {
         NOT_IMPL();
       }
     }
-  });
+  }
 
   return C;
 }

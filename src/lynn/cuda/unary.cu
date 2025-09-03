@@ -19,6 +19,7 @@
 
 #include <cuda_fp16.h>
 
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/unary.h"
 
@@ -76,14 +77,13 @@ Tensor unaryImpl(const Tensor &tensor) {
 
   int d = tensor.getDim();
   Tensor C = createCudaTensor<T>(tensor.getShape());
-  T *dataC = C.getInternalData()->getData<T>();
+  T *dataC = getDataPtrCuda<T>(C);
 
   constexpr int blockSize = 256;
   dim3 grid = getGrid1D(numel, blockSize);
 
   if (tensor.isContiguous()) {
-    unaryContigKernel<T, OP>
-        <<<grid, blockSize>>>(tensor.getInternalData()->getData<T>(), dataC, numel);
+    unaryContigKernel<T, OP><<<grid, blockSize>>>(getDataPtrCuda<T>(tensor), dataC, numel);
   } else {
     if (d == 1)
       unaryGenericKernel<T, OP, 1><<<grid, blockSize>>>(tensor, dataC, numel);

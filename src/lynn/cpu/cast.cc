@@ -53,8 +53,8 @@ Tensor castFp16ToFp32(Tensor A) {
   Tensor C = op::cpu::tensor(A.getShape(), DType::kFloat);
   kernel::convertHalfToFloat(
       A.getNumEl(),
-      reinterpret_cast<const kernel::Float16 *>(A.getInternalData()->getData<Float16>()),
-      C.getInternalData()->getData<float>(),
+      reinterpret_cast<const kernel::Float16 *>(getDataPtrCpu<Float16>(A)),
+      getDataPtrCpu<float>(C),
       kernel::Mode::OMP,
       kernel::CpuMathBackend::DEFAULT);
 
@@ -66,8 +66,8 @@ Tensor castFp32ToFp16(Tensor A) {
   Tensor C = op::cpu::tensor(A.getShape(), DType::kFloat16);
   kernel::convertFloatToHalf(
       A.getNumEl(),
-      A.getInternalData()->getData<float>(),
-      reinterpret_cast<kernel::Float16 *>(C.getInternalData()->getData<Float16>()),
+      getDataPtrCpu<float>(A),
+      reinterpret_cast<kernel::Float16 *>(getDataPtrCpu<Float16>(C)),
       kernel::Mode::OMP,
       kernel::CpuMathBackend::DEFAULT);
 

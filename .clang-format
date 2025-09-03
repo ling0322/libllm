@@ -8,11 +8,15 @@ BinPackParameters: false
 BinPackArguments: false
 SpaceAfterTemplateKeyword: false
 AllowShortFunctionsOnASingleLine: false
-PenaltyBreakAssignment: 2000
 BreakConstructorInitializers: BeforeColon
 PackConstructorInitializers: Never
 ReturnTypeBreakingStyle: Automatic
-PenaltyReturnTypeOnItsOwnLine: 8000
 DerivePointerAlignment: false
 PointerAlignment: Right
 IndentPragmas: true
+BreakBeforeParameters: true
+PenaltyBreakParameter: 0
+PenaltyBreakBeforeFirstCallParameter: 0
+PenaltyReturnTypeOnItsOwnLine: 100000
+PenaltyBreakAssignment: 100000
+PenaltyBreakBeforeTrailingReturnAnnotation: 100000

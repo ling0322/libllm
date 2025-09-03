@@ -151,7 +151,9 @@ class Tensor {
   Tensor eq(const Tensor &rhs) const;
   Tensor to(DType dtype) const;
   Tensor operator==(const Tensor &rhs) const;
+  Tensor operator+(const Tensor &rhs) const;
   Tensor operator-(const Tensor &rhs) const;
+  Tensor operator*(const Tensor &rhs) const;
 
   template<typename T>
   T elem() const;

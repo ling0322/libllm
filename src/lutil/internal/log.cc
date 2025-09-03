@@ -55,6 +55,7 @@ LogWrapper::~LogWrapper() {
   printf("%s %s %s:%d] %s\n", Severity(), Time(), source_file_, source_line_, message.c_str());
 
   if (severity_ == LogSeverity::kFATAL) {
+    printStackTrace();
     abort();
   }
 }
@@ -86,7 +87,6 @@ const char *LogWrapper::Severity() const {
 
 LogWrapper &LogWrapper::DefaultMessage(const char *message) {
   default_message_ = message;
-  printStackTrace();
   return *this;
 }
 

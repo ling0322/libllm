@@ -19,11 +19,20 @@
 
 #pragma once
 
+#include "lynn/cpu/accessor.h"
 #include "lynn/tensor.h"
 
 namespace ly {
 namespace op {
 namespace cpu {
+
+template<typename T>
+inline void copyVector(TensorAccessor<T, 1> dest, TensorAccessor<const T, 1> src) {
+  CHECK(dest.getShape(0) == src.getShape(0));
+  for (int i = 0; i < src.getShape(0); ++i) {
+    dest[i] = src[i];
+  }
+}
 
 void copy(const Tensor &src, Tensor &dest);
 

@@ -19,6 +19,7 @@
 
 #include <cuda_fp16.h>
 
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/binary_scalar.h"
 #include "lynn/cuda/common.h"
 
@@ -80,14 +81,14 @@ Tensor binaryScalarImpl(const Tensor &tensor, T rhs) {
 
   int d = tensor.getDim();
   Tensor C = createCudaTensor<T>(tensor.getShape());
-  T *dataC = C.getInternalData()->getData<T>();
+  T *dataC = getDataPtrCuda<T>(C);
 
   constexpr int blockSize = 256;
   dim3 grid = getGrid1D(numel, blockSize);
 
   if (tensor.isContiguous()) {
     binaryScalarContigKernel<T, OP>
-        <<<grid, blockSize>>>(tensor.getInternalData()->getData<T>(), rhs, dataC, numel);
+        <<<grid, blockSize>>>(getDataPtrCuda<T>(tensor), rhs, dataC, numel);
   } else {
     if (d == 1)
       binaryScalarGenericKernel<T, OP, 1><<<grid, blockSize>>>(tensor, rhs, dataC, numel);

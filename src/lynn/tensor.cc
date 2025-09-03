@@ -25,6 +25,7 @@
 
 #include "lutil/error.h"
 #include "lutil/strings.h"
+#include "lynn/cpu/common.h"
 #include "lynn/cpu/cpu_tensor_data.h"
 #include "lynn/cpu/view.h"
 #include "lynn/functional.h"
@@ -45,7 +46,7 @@ Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const T> data)
 
   // fill data
   CHECK(numel == data.size()) << "data size and shape mismatch";
-  std::copy(data.begin(), data.end(), tensor.getInternalData()->getData<T>());
+  std::copy(data.begin(), data.end(), op::cpu::getDataPtrCpu<T>(tensor));
 
   return tensor;
 }
@@ -345,6 +346,14 @@ Tensor Tensor::operator==(const Tensor &rhs) const {
 
 Tensor Tensor::operator-(const Tensor &rhs) const {
   return getOperators()->sub(*this, rhs);
+}
+
+Tensor Tensor::operator+(const Tensor &rhs) const {
+  return getOperators()->add(*this, rhs);
+}
+
+Tensor Tensor::operator*(const Tensor &rhs) const {
+  return getOperators()->mul(*this, rhs);
 }
 
 Operators *Tensor::getOperators() const {

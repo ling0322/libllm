@@ -27,17 +27,13 @@
 
 #include "lutil/error.h"
 #include "lutil/strings.h"
+#include "lynn/cuda/common.h"
 #include "lynn/cuda/cuda_tensor_data.h"
 #include "lynn/tensor.h"
 
 namespace ly {
 namespace op {
 namespace cuda {
-
-struct Size {
-  int32_t shape;
-  int32_t stride;
-};
 
 template<typename T, int DIM>
 class TensorAccessorBase {
@@ -95,7 +91,7 @@ class PackedTensorAccessorBase {
  public:
   __host__ explicit PackedTensorAccessorBase(Tensor &tensor) {
     CHECK(tensor.getDim() == DIM);
-    _data = tensor.getInternalData()->getData<T>();
+    _data = getDataPtrCuda<T>(tensor);
     for (int i = 0; i < DIM; ++i) {
       _size[i] = Size{tensor.getShape(i), tensor.getStride(i)};
     }
@@ -103,7 +99,7 @@ class PackedTensorAccessorBase {
 
   __host__ explicit PackedTensorAccessorBase(const Tensor &tensor) {
     CHECK(tensor.getDim() == DIM);
-    _data = tensor.getInternalData()->getData<T>();
+    _data = getDataPtrCuda<T>(tensor);
     for (int i = 0; i < DIM; ++i) {
       _size[i] = Size{tensor.getShape(i), tensor.getStride(i)};
     }

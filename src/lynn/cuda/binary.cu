@@ -21,6 +21,7 @@
 
 #include "lutil/span.h"
 #include "lynn/cpu/common.h"
+#include "lynn/cuda/accessor.h"
 #include "lynn/cuda/binary.h"
 #include "lynn/cuda/common.h"
 #include "lynn/tensor.h"
@@ -71,11 +72,13 @@ __global__ void binaryGenericKernel(
     int offsetA = 0;
     int offsetB = 0;
     int offsetC = idx;
+
+    int i = idx;
 #pragma unroll
     for (int d = DIM - 1; d >= 0; --d) {
-      offsetA += (idx % A.getShape(d)) * A.getStride(d);
-      offsetB += (idx % A.getShape(d)) * B.getStride(d);
-      idx /= A.getShape(d);
+      offsetA += (i % A.getShape(d)) * A.getStride(d);
+      offsetB += (i % A.getShape(d)) * B.getStride(d);
+      i /= A.getShape(d);
     }
     C[offsetC] = applyBinaryOp<TIn, TOut, OP>(A.getData()[offsetA], B.getData()[offsetB]);
   }
@@ -98,14 +101,15 @@ Tensor binaryImpl(const Tensor &A, const Tensor &B) {
 
   int d = A.getDim();
   Tensor C = createCudaTensor<TOut>(A.getShape());
-  const TIn *pA = A.getInternalData()->getData<TIn>();
-  const TIn *pB = B.getInternalData()->getData<TIn>();
-  TOut *pC = C.getInternalData()->getData<TOut>();
+  const TIn *pA = getDataPtrCuda<TIn>(A);
+  const TIn *pB = getDataPtrCuda<TIn>(B);
+  TOut *pC = getDataPtrCuda<TOut>(C);
 
   constexpr int blockSize = 256;
   dim3 grid = getGrid1D(numel, blockSize);
 
-  if (A.isContiguous() && B.isContiguous()) {
+  // TODO: improve when B is contiguous
+  if (A.isContiguous() && xB.isContiguous()) {
     binaryContigKernel<TIn, TOut, OP><<<grid, blockSize>>>(pA, pB, pC, numel);
   } else {
     if (d == 1)
