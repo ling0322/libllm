@@ -31,10 +31,10 @@ namespace libllm {
 
 std::once_flag gFFmpegPluginLoadOnce;
 lut::SharedLibrary *gFFmpegLibrary = nullptr;
-decltype(&llm_ffmpeg_get_err) p_llm_ffmpeg_get_err = nullptr;
-decltype(&llm_ffmpeg_audio_open) p_llm_ffmpeg_audio_open = nullptr;
-decltype(&llm_ffmpeg_audio_close) p_llm_ffmpeg_audio_close = nullptr;
-decltype(&llm_ffmpeg_audio_read) p_llm_ffmpeg_audio_read = nullptr;
+decltype(llm_ffmpeg_get_err) *p_llm_ffmpeg_get_err = nullptr;
+decltype(llm_ffmpeg_audio_open) *p_llm_ffmpeg_audio_open = nullptr;
+decltype(llm_ffmpeg_audio_close) *p_llm_ffmpeg_audio_close = nullptr;
+decltype(llm_ffmpeg_audio_read) *p_llm_ffmpeg_audio_read = nullptr;
 
 void initFFmpegPluginOnce() {
   std::call_once(gFFmpegPluginLoadOnce, []() {
@@ -48,13 +48,13 @@ void initFFmpegPluginOnce() {
       std::unique_ptr<lut::SharedLibrary> lib = lut::SharedLibrary::open("llmpluginffmpeg");
       gFFmpegLibrary = lib.release();
 
-      p_llm_ffmpeg_get_err = gFFmpegLibrary->getFunc<decltype(llm_ffmpeg_get_err)>(
+      p_llm_ffmpeg_get_err = gFFmpegLibrary->getFunc<decltype(llm_ffmpeg_get_err) *>(
           "llm_ffmpeg_get_err");
-      p_llm_ffmpeg_audio_open = gFFmpegLibrary->getFunc<decltype(llm_ffmpeg_audio_open)>(
+      p_llm_ffmpeg_audio_open = gFFmpegLibrary->getFunc<decltype(llm_ffmpeg_audio_open) *>(
           "llm_ffmpeg_audio_open");
-      p_llm_ffmpeg_audio_close = gFFmpegLibrary->getFunc<decltype(llm_ffmpeg_audio_close)>(
+      p_llm_ffmpeg_audio_close = gFFmpegLibrary->getFunc<decltype(llm_ffmpeg_audio_close) *>(
           "llm_ffmpeg_audio_close");
-      p_llm_ffmpeg_audio_read = gFFmpegLibrary->getFunc<decltype(llm_ffmpeg_audio_read)>(
+      p_llm_ffmpeg_audio_read = gFFmpegLibrary->getFunc<decltype(llm_ffmpeg_audio_read) *>(
           "llm_ffmpeg_audio_read");
 
     } catch (lut::Error &e) {

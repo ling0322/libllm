@@ -72,8 +72,7 @@ OperatorTester OperatorTester::withTol(float rtol, float atol) {
 }
 
 bool OperatorTester::testToDevice(std::initializer_list<int> shape) {
-  lut::Random random(MagicNumber);
-  Tensor xr = F::rand(shape, DType::kFloat, Device::getCpu(), &random);
+  Tensor xr = F::rand(shape, DType::kFloat, Device::getCpu());
   Tensor x = _op->to(_testDevice, xr);
   x = _op->to(Device::getCpu(), x);
 
@@ -81,8 +80,7 @@ bool OperatorTester::testToDevice(std::initializer_list<int> shape) {
 }
 
 bool OperatorTester::testCast(std::initializer_list<int> shape) {
-  lut::Random random(MagicNumber);
-  Tensor xr = F::rand(shape, DType::kFloat, Device::getCpu(), &random);
+  Tensor xr = F::rand(shape, DType::kFloat, Device::getCpu());
   Tensor x = _op->to(_testDevice, xr);
   x = _op->cast(x, _testFloatType);
   x = _op->cast(x, DType::kFloat);
@@ -92,8 +90,7 @@ bool OperatorTester::testCast(std::initializer_list<int> shape) {
 }
 
 bool OperatorTester::testCopy(std::initializer_list<int> shape, bool transpose) {
-  lut::Random random(MagicNumber);
-  Tensor tensor = F::rand(shape, DType::kFloat, Device::getCpu(), &random);
+  Tensor tensor = F::rand(shape, DType::kFloat, Device::getCpu());
   Tensor x = _op->to(_testDevice, tensor);
 
   // cudaMemcpy path.
@@ -128,8 +125,7 @@ bool OperatorTester::testCopyLongType() {
 }
 
 bool OperatorTester::testCopy5D() {
-  lut::Random random(MagicNumber);
-  Tensor tensor = F::rand({10, 2, 5, 20}, DType::kFloat, Device::getCpu(), &random);
+  Tensor tensor = F::rand({10, 2, 5, 20}, DType::kFloat, Device::getCpu());
   Tensor x = _op->to(_testDevice, tensor);
 
   x = _op->cast(x, _testFloatType);
@@ -145,8 +141,7 @@ bool OperatorTester::testCopy5D() {
 }
 
 bool OperatorTester::testLookup() {
-  lut::Random random(MagicNumber);
-  Tensor embd = F::rand({10, 32}, DType::kFloat, Device::getCpu(), &random);
+  Tensor embd = F::rand({10, 32}, DType::kFloat, Device::getCpu());
   Tensor ids = Tensor::create<LongType>({2, 3}, {1, 2, 3, 4, 5, 6});
 
   Tensor x = _op->to(_testDevice, embd);
@@ -162,9 +157,8 @@ bool OperatorTester::testLookup() {
 }
 
 bool OperatorTester::testMatmul(ShapeType shapeA, ShapeType shapeB, bool transposeB) {
-  lut::Random random(MagicNumber);
-  Tensor a = F::rand(shapeA, DType::kFloat, Device::getCpu(), &random);
-  Tensor b = F::rand(shapeB, DType::kFloat, Device::getCpu(), &random);
+  Tensor a = F::rand(shapeA, DType::kFloat, Device::getCpu());
+  Tensor b = F::rand(shapeB, DType::kFloat, Device::getCpu());
   Tensor xr = F::matmul(a, transposeB ? b.transpose(-1, -2) : b);
 
   Tensor x = _op->to(_testDevice, a);
@@ -184,9 +178,8 @@ bool OperatorTester::testMatmul(ShapeType shapeA, ShapeType shapeB, bool transpo
 }
 
 bool OperatorTester::testMatmulSlice(ShapeType shapeA, ShapeType shapeB) {
-  lut::Random random(MagicNumber);
-  Tensor a = F::rand(shapeA, DType::kFloat, Device::getCpu(), &random);
-  Tensor b = F::rand(shapeB, DType::kFloat, Device::getCpu(), &random);
+  Tensor a = F::rand(shapeA, DType::kFloat, Device::getCpu());
+  Tensor b = F::rand(shapeB, DType::kFloat, Device::getCpu());
   Tensor xr = F::matmul(a, b.slice(-1, {8, 32}).transpose(-1, -2));
 
   Tensor x = _op->to(_testDevice, a);
@@ -203,8 +196,7 @@ bool OperatorTester::testMatmulSlice(ShapeType shapeA, ShapeType shapeB) {
 }
 
 bool OperatorTester::testMulScale() {
-  lut::Random random(MagicNumber);
-  Tensor a = F::rand({2, 5, 10}, DType::kFloat, Device::getCpu(), &random);
+  Tensor a = F::rand({2, 5, 10}, DType::kFloat, Device::getCpu());
   Tensor xr = F::mul(a.transpose(2, 1).slice(1, {1, 9}), 0.1f);
 
   Tensor x = _op->to(_testDevice, a);
@@ -219,9 +211,8 @@ bool OperatorTester::testMulScale() {
 }
 
 bool OperatorTester::testBinaryOp(OperatorTester::OperatorType op) {
-  lut::Random random(MagicNumber);
-  Tensor a = F::rand({2, 5, 10}, DType::kFloat, Device::getCpu(), &random);
-  Tensor b = F::rand({5}, DType::kFloat, Device::getCpu(), &random);
+  Tensor a = F::rand({2, 5, 10}, DType::kFloat, Device::getCpu());
+  Tensor b = F::rand({5}, DType::kFloat, Device::getCpu());
   Tensor at = a.transpose(2, 1).slice(1, {1, 9});
   Tensor xr;
   switch (op) {
@@ -264,8 +255,7 @@ bool OperatorTester::testBinaryOp(OperatorTester::OperatorType op) {
 }
 
 bool OperatorTester::testUnaryOp(OperatorTester::OperatorType op, ShapeType shape) {
-  lut::Random random(MagicNumber);
-  Tensor a = F::rand(shape, DType::kFloat, Device::getCpu(), &random);
+  Tensor a = F::rand(shape, DType::kFloat, Device::getCpu());
   Tensor xr;
   switch (op) {
     case OperatorType::Softmax:
@@ -298,9 +288,8 @@ bool OperatorTester::testUnaryOp(OperatorTester::OperatorType op, ShapeType shap
 }
 
 bool OperatorTester::testRmsNorm(ShapeType shape) {
-  lut::Random random(MagicNumber);
-  Tensor a = F::rand(shape, DType::kFloat, Device::kCpu, &random);
-  Tensor b = F::rand({a.getShape(-1)}, DType::kFloat, Device::kCpu, &random);
+  Tensor a = F::rand(shape, DType::kFloat, Device::kCpu);
+  Tensor b = F::rand({a.getShape(-1)}, DType::kFloat, Device::kCpu);
   Tensor xr = F::rmsNorm(a, b, 1e-5);
 
   Tensor x = _op->to(_testDevice, a);
@@ -321,10 +310,11 @@ bool OperatorTester::testRmsNorm(ShapeType shape) {
 }
 
 bool OperatorTester::testLayerNorm(ShapeType shape) {
-  lut::Random random(MagicNumber);
-  Tensor a = F::rand(shape, DType::kFloat, Device::kCpu, &random, -1, 100);
-  Tensor mean = F::rand({a.getShape(-1)}, DType::kFloat, Device::kCpu, &random);
-  Tensor var = F::rand({a.getShape(-1)}, DType::kFloat, Device::kCpu, &random);
+  Tensor a = F::rand(shape, DType::kFloat, Device::kCpu);
+  a = (a * 100) - 1;
+
+  Tensor mean = F::rand({a.getShape(-1)}, DType::kFloat, Device::kCpu);
+  Tensor var = F::rand({a.getShape(-1)}, DType::kFloat, Device::kCpu);
   Tensor xr = F::layerNorm(a, mean, var, 1e-5);
 
   Tensor x = _op->to(_testDevice, a);
@@ -360,9 +350,8 @@ bool OperatorTester::testCausalMask() {
 }
 
 bool OperatorTester::testRoPE() {
-  lut::Random random(MagicNumber);
-  Tensor a = F::rand({2, 5, 2, 16}, DType::kFloat, Device::getCpu(), &random);
-  Tensor b = F::rand({5, 1, 16}, DType::kFloat, Device::getCpu(), &random);
+  Tensor a = F::rand({2, 5, 2, 16}, DType::kFloat, Device::getCpu());
+  Tensor b = F::rand({5, 1, 16}, DType::kFloat, Device::getCpu());
   Tensor xr = F::applyRotaryPosEmb(a, b);
 
   Tensor x = _op->to(_testDevice, a);
@@ -377,8 +366,7 @@ bool OperatorTester::testRoPE() {
 }
 
 bool OperatorTester::testRepetitionPenalty() {
-  lut::Random random(MagicNumber);
-  Tensor a = F::rand({2, 16}, DType::kFloat, Device::getCpu(), &random);
+  Tensor a = F::rand({2, 16}, DType::kFloat, Device::getCpu());
   Tensor h = Tensor::create<LongType>({2, 4}, {1, 0, 1, 3, 0, 0, 0, 1});
 
   Tensor x = _op->to(_testDevice, a);
@@ -395,8 +383,7 @@ bool OperatorTester::testRepetitionPenalty() {
 bool OperatorTester::testUnfold() {
   constexpr int DIM = 129;
 
-  lut::Random random(MagicNumber);
-  Tensor a = F::rand({2, 5, DIM}, DType::kFloat, Device::getCpu(), &random);
+  Tensor a = F::rand({2, 5, DIM}, DType::kFloat, Device::getCpu());
   Tensor xr = F::unfold(a, 5, 2);
 
   Tensor x = _op->to(_testDevice, a);

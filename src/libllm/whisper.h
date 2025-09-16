@@ -49,7 +49,6 @@ class EncoderAttention : public ly::Module {
   ~EncoderAttention();
 
   void initParameters(const ly::StateMap &stateDict) override;
-  void initParameters(lut::Random *generator, ly::DType weightType) override;
   ly::Tensor forward(ly::Tensor inputs);
 
  private:
@@ -67,7 +66,6 @@ class EncoderLayer : public ly::Module {
   ~EncoderLayer();
 
   void initParameters(const ly::StateMap &stateDict) override;
-  void initParameters(lut::Random *generator, ly::DType weightType) override;
   ly::Tensor forward(ly::Tensor inputs);
 
  private:
@@ -86,7 +84,6 @@ class EncoderModel : public ly::Module {
   ~EncoderModel();
 
   void initParameters(const ly::StateMap &stateDict) override;
-  void initParameters(lut::Random *generator, ly::DType weightType) override;
 
   /// @brief Forward the wave through the whisper encoder model and update the key-value cache in
   /// `past`.
@@ -113,7 +110,6 @@ class DecoderInitModel : public ly::Module {
   ~DecoderInitModel();
 
   void initParameters(const ly::StateMap &stateDict) override;
-  void initParameters(lut::Random *generator, ly::DType weightType) override;
 
   /// @brief Forward the encoderHidden through the cross attention kv-projection layers and update
   /// the key-value cache for cross attention in `past`.
@@ -135,7 +131,6 @@ class Attention : public ly::Module {
   ~Attention();
 
   void initParameters(const ly::StateMap &stateDict) override;
-  void initParameters(lut::Random *generator, ly::DType weightType) override;
   ly::Tensor forward(ly::StateMap &past, ly::Tensor inputs);
 
  private:
@@ -179,7 +174,6 @@ class DecoderLayer : public ly::Module {
   ~DecoderLayer();
 
   void initParameters(const ly::StateMap &stateDict) override;
-  void initParameters(lut::Random *generator, ly::DType weightType) override;
 
   ly::Tensor forward(ly::StateMap &past, ly::Tensor inputs);
 
@@ -201,7 +195,6 @@ class DecoderModel : public ly::Module {
   ~DecoderModel();
 
   void initParameters(const ly::StateMap &stateDict) override;
-  void initParameters(lut::Random *generator, ly::DType weightType) override;
 
   ly::Tensor forward(ly::StateMap &past, ly::Tensor inputs);
   ly::Tensor forwardLmHead(ly::Tensor inputs);

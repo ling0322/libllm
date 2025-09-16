@@ -33,12 +33,15 @@ class CudaOperators : public Operators {
  public:
   ~CudaOperators() = default;
 
+  static constexpr int OPT_CUTLASS_GEMM = 0x00000001;
+  static constexpr int OPT_CUBLAS_GEMM = 0x00000002;
+
   /// @brief Returns true if the CudaOperators is available (CUDA device available in host).
   /// @return if CudaOperators available.
   static bool isAvailable();
 
   // create a instance of CudaOperators
-  static Operators *create();
+  static std::shared_ptr<Operators> create(int options = 0);
 
   // implement interface Operators
   Tensor arangeLong(LongType begin, LongType end, LongType step) override;
@@ -72,7 +75,8 @@ class CudaOperators : public Operators {
   Tensor to(Device device, Tensor tensor) override;
   Tensor unfold(Tensor input, int kernelSize, int stride) override;
   Tensor zeros(lut::Span<const int> shape, DType dtype) override;
-  Tensor randNormal(lut::Span<const int> shape);
+  Tensor randNormal(lut::Span<const int> shape) override;
+  Tensor rand(lut::Span<const int> shape, DType dtype) override;
   void manualSeed(uint64_t seed) override;
   float elem(Tensor tensor) override;
   bool elemBool(Tensor tensor) override;
@@ -90,5 +94,3 @@ class CudaOperators : public Operators {
 }  // namespace cuda
 }  // namespace op
 }  // namespace ly
-
-ly::Operators *llynCreateCudaOperators();

@@ -30,7 +30,7 @@ class CutlassGemm : public Gemm {
  public:
   static std::shared_ptr<Gemm> create();
 
-  lut::ErrorCode hgemm(
+  void hgemm(
       bool transA,
       bool transB,
       int m,
@@ -45,7 +45,7 @@ class CutlassGemm : public Gemm {
       __half *C,
       int ldc) override;
 
-  lut::ErrorCode hgemmArray(
+  void hgemmArray(
       bool transA,
       bool transB,
       int m,
@@ -60,17 +60,6 @@ class CutlassGemm : public Gemm {
       __half *const *arrayC,
       int ldc,
       int batchSize) override;
-
-  lut::ErrorCode gemmMxfp4Bf16(
-      int m,
-      int n,
-      int k,
-      float alpha,
-      const Fp4E2M0x2 *A,
-      const UInt8 *sfA,
-      const Fp4E2M0x2 *B,
-      const UInt8 *sfB,
-      Float16 *C) override;
 };
 
 }  // namespace cuda

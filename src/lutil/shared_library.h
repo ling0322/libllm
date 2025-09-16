@@ -46,8 +46,8 @@ class SharedLibrary : private NonCopyable {
 
   // get function by name. return nullptr if function not found
   template<typename T>
-  T *getFunc(const std::string &name) {
-    return reinterpret_cast<T *>(getFuncPtr(name));
+  T getFunc(const std::string &name) {
+    return reinterpret_cast<T>(getFuncPtr(name));
   }
 
  private:

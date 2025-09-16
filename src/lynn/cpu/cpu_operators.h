@@ -23,6 +23,7 @@
 
 #include <memory>
 
+#include "lutil/random.h"
 #include "lynn/operators.h"
 #include "lynn/tensor.h"
 
@@ -45,6 +46,7 @@ class CPUOperators : public Operators {
   Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) override;
   Tensor add(Tensor a, Tensor b) override;
   Tensor sub(Tensor a, Tensor b) override;
+  Tensor subFloat(Tensor input, float other) override;
   bool allClose(Tensor A, Tensor B, float rtol, float atol) override;
   Tensor cast(Tensor tensor, DType dtype) override;
   Tensor causalMask(int max_len) override;
@@ -59,8 +61,7 @@ class CPUOperators : public Operators {
   Tensor mul(Tensor input, float other) override;
   Tensor mul(Tensor input, Tensor other) override;
   void print(Tensor tensor) override;
-  Tensor rand(lut::Span<const int> shape, DType dtype, lut::Random *generator, float min, float max)
-      override;
+  Tensor rand(lut::Span<const int> shape, DType dtype) override;
   void repetitionPenalty(Tensor logits, Tensor history, float weight) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor softmax(Tensor input) override;
@@ -71,11 +72,13 @@ class CPUOperators : public Operators {
   Tensor to(Device device, Tensor tensor) override;
   Tensor unfold(Tensor input, int kernelSize, int stride) override;
   Tensor zeros(lut::Span<const int> shape, DType dtype) override;
+  void manualSeed(uint64_t seed) override;
 
   DType getDefaultFloatType() override;
 
  private:
   typedef TensorShape::Elem Shape;
+  lut::Random _rand;
 };
 
 }  // namespace cpu

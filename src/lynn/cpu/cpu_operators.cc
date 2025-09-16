@@ -25,6 +25,7 @@
 #include <limits>
 #include <memory>
 
+#include "lutil/random.h"
 #include "lynn/cpu/all_close.h"
 #include "lynn/cpu/apply_rotary_pos_emb.h"
 #include "lynn/cpu/binary_op.h"
@@ -68,13 +69,8 @@ Tensor CPUOperators::tensorLike(Tensor input) {
 
 // -- class CPUOperators ----------
 
-Tensor CPUOperators::rand(
-    lut::Span<const int> shape,
-    DType dtype,
-    lut::Random *generator,
-    float min,
-    float max) {
-  return op::cpu::rand(shape, dtype, generator, min, max);
+Tensor CPUOperators::rand(lut::Span<const int> shape, DType dtype) {
+  return op::cpu::rand(shape, dtype, &_rand, 0, 1);
 }
 
 Tensor CPUOperators::zeros(lut::Span<const int> shape, DType dtype) {
@@ -95,6 +91,10 @@ Tensor CPUOperators::add(Tensor input, Tensor other) {
 
 Tensor CPUOperators::sub(Tensor input, Tensor other) {
   return cpu::binaryOp(input, other, BinaryOp::SUB);
+}
+
+Tensor CPUOperators::subFloat(Tensor input, float other) {
+  return op::cpu::transform(input, 1.0f, -other);
 }
 
 Tensor CPUOperators::softmax(Tensor input) {
@@ -182,6 +182,10 @@ Tensor CPUOperators::unfold(Tensor input, int kernelSize, int stride) {
 
 Tensor CPUOperators::cast(Tensor tensor, DType dtype) {
   return cpu::cast(tensor, dtype);
+}
+
+void CPUOperators::manualSeed(uint64_t seed) {
+  _rand.reset(seed);
 }
 
 DType CPUOperators::getDefaultFloatType() {

@@ -52,7 +52,6 @@ class MLP : public ly::Module {
   static std::shared_ptr<MLP> create(const ly::Context &ctx, const LlamaConfig &config);
 
   void initParameters(const ly::StateMap &stateDict) override;
-  void initParameters(lut::Random *generator, ly::DType weightType) override;
   ly::Tensor forward(ly::Tensor input) const;
 
  private:
@@ -70,7 +69,6 @@ class Attention : public ly::Module {
   static std::shared_ptr<Attention> create(const ly::Context &ctx, const LlamaConfig &config);
 
   void initParameters(const ly::StateMap &stateDict) override;
-  void initParameters(lut::Random *generator, ly::DType weightType) override;
   ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
 
  private:
@@ -102,7 +100,6 @@ class DecodeLayer : public ly::Module {
   static std::shared_ptr<DecodeLayer> create(const ly::Context &ctx, const LlamaConfig &config);
 
   void initParameters(const ly::StateMap &stateDict) override;
-  void initParameters(lut::Random *generator, ly::DType weightType) override;
   ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
 
  private:
@@ -120,7 +117,6 @@ class LlamaModel : public ly::Module {
 
   static std::shared_ptr<LlamaModel> create(const ly::Context &ctx, LlamaConfig config);
   void initParameters(const ly::StateMap &stateDict) override;
-  void initParameters(lut::Random *generator, ly::DType weightType) override;
 
   ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
   ly::Tensor forwardLmHead(ly::Tensor hidden) const;

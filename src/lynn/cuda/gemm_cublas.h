@@ -19,15 +19,7 @@
 
 #pragma once
 
-#include <cublas_v2.h>
-
 #include "lynn/cuda/gemm.h"
-
-#if defined(_WIN32)
-#define EXTAPI __declspec(dllexport)
-#else
-#define EXTAPI
-#endif
 
 namespace ly {
 namespace op {
@@ -36,9 +28,9 @@ namespace cuda {
 /// @brief Operators implemented by cuBLAS.
 class CublasGemm : public Gemm {
  public:
-  static Gemm *create();
+  static std::shared_ptr<Gemm> create();
 
-  lut::ErrorCode hgemm(
+  void hgemm(
       bool transA,
       bool transB,
       int m,
@@ -53,7 +45,7 @@ class CublasGemm : public Gemm {
       __half *C,
       int ldc) override;
 
-  lut::ErrorCode hgemmArray(
+  void hgemmArray(
       bool transA,
       bool transB,
       int m,
@@ -70,15 +62,10 @@ class CublasGemm : public Gemm {
       int batchSize) override;
 
  private:
-  auto_handle<cublasHandle_t> _handle;
-  static void safeDestroyCublas(cublasHandle_t handle);
+  class Impl;
+  std::unique_ptr<Impl> _impl;
 };
 
 }  // namespace cuda
 }  // namespace op
 }  // namespace ly
-
-extern "C" {
-EXTAPI ly::op::cuda::Gemm *llmGemmExt_New();
-EXTAPI void llmGemmExt_Delete(ly::op::cuda::Gemm *gemm);
-}  // extern "C"

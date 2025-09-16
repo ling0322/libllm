@@ -17,10 +17,22 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#define CUTLASS_DEBUG_TRACE_LEVEL 2
+
 #include <cuda_fp16.h>
+#include <cutlass/cutlass.h>
 #include <cutlass/gemm/device/gemm.h>
 #include <cutlass/gemm/device/gemm_array.h>
 
+#include "cutlass/epilogue/collective/collective_builder.hpp"
+#include "cutlass/epilogue/thread/linear_combination.h"
+#include "cutlass/gemm/collective/collective_builder.hpp"
+#include "cutlass/gemm/device/gemm_universal_adapter.h"
+#include "cutlass/gemm/dispatch_policy.hpp"
+#include "cutlass/gemm/kernel/gemm_universal.hpp"
+#include "cutlass/gemm/kernel/tile_scheduler_params.h"
+#include "cutlass/util/device_memory.h"
+#include "cutlass/util/packed_stride.hpp"
 #include "lutil/error.h"
 #include "lynn/cpu/common.h"
 #include "lynn/cpu/matmul.h"
@@ -28,15 +40,46 @@
 #include "lynn/cuda/gemm_cutlass.h"
 #include "lynn/dtype.h"
 
+#define CUTLASS_CHECK(x)                                                                     \
+  {                                                                                          \
+    cutlass::Status status = x;                                                              \
+    if (status != cutlass::Status::kSuccess) {                                               \
+      LOG(ERROR) << "Error while calling: " << #x << ": " << cutlassGetStatusString(status); \
+      throw lut::AbortedError(cutlassGetStatusString(status));                               \
+    }                                                                                        \
+  }
+
 namespace ly {
 namespace op {
 namespace cuda {
 
+using namespace cute;
+
 using cutlass::layout::ColumnMajor;
 using cutlass::layout::RowMajor;
 
-template<class LayoutA, class layoutB>
-lut::ErrorCode hgemmT(
+template<class LayoutA, class LayoutB>
+struct Sm80Gemm {
+  using Gemm = cutlass::gemm::device::Gemm<
+      cutlass::half_t,
+      LayoutA,
+      cutlass::half_t,
+      LayoutB,
+      cutlass::half_t,
+      cutlass::layout::RowMajor,
+      cutlass::half_t,
+      cutlass::arch::OpClassTensorOp,
+      cutlass::arch::Sm80,
+      cutlass::gemm::GemmShape<256, 128, 32>,
+      cutlass::gemm::GemmShape<64, 64, 32>,
+      cutlass::gemm::GemmShape<16, 8, 16>,
+      cutlass::epilogue::thread::
+          LinearCombination<cutlass::half_t, 8, cutlass::half_t, cutlass::half_t>,
+      cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<8>>;
+};
+
+template<class LayoutA, class LayoutB, class ArchTag>
+void hgemmT(
     int m,
     int n,
     int k,
@@ -48,19 +91,16 @@ lut::ErrorCode hgemmT(
     cutlass::half_t beta,
     cutlass::half_t *C,
     int ldc) {
-  using Gemm = cutlass::gemm::device::
-      Gemm<cutlass::half_t, LayoutA, cutlass::half_t, layoutB, cutlass::half_t, RowMajor, float>;
+  using Gemm = typename Sm80Gemm<LayoutA, LayoutB>::Gemm;
   Gemm gemmOperator;
-  typename Gemm::Arguments args({m, n, k}, {A, lda}, {B, ldb}, {C, ldc}, {C, ldc}, {alpha, beta});
-  cutlass::Status status = gemmOperator(args);
-  if (status != cutlass::Status::kSuccess) {
-    return lut::ErrorCode::Aborted;
-  }
 
-  return lut::ErrorCode::OK;
+  typename Gemm::Arguments args{{m, n, k}, {A, lda}, {B, ldb}, {C, ldc}, {C, ldc}, {alpha, beta}};
+
+  CUTLASS_CHECK(gemmOperator(args));
 }
 
-lut::ErrorCode cutlassHgemm(
+template<class ArchTag>
+void cutlassHgemmArch(
     bool transA,
     bool transB,
     int m,
@@ -75,20 +115,38 @@ lut::ErrorCode cutlassHgemm(
     cutlass::half_t *C,
     int ldc) {
   if (transA == false && transB == false) {
-    return hgemmT<RowMajor, RowMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
+    return hgemmT<RowMajor, RowMajor, ArchTag>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
   } else if (transA == true && transB == false) {
-    return hgemmT<ColumnMajor, RowMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
+    return hgemmT<ColumnMajor, RowMajor, ArchTag>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
   } else if (transA == false && transB == true) {
-    return hgemmT<RowMajor, ColumnMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
+    return hgemmT<RowMajor, ColumnMajor, ArchTag>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
   } else if (transA == true && transB == true) {
-    return hgemmT<ColumnMajor, ColumnMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
+    return hgemmT<ColumnMajor, ColumnMajor, ArchTag>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
+  } else {
+    NOT_IMPL();
   }
+}
 
-  return lut::ErrorCode::Aborted;
+void cutlassHgemm(
+    bool transA,
+    bool transB,
+    int m,
+    int n,
+    int k,
+    cutlass::half_t alpha,
+    const cutlass::half_t *A,
+    int lda,
+    const cutlass::half_t *B,
+    int ldb,
+    cutlass::half_t beta,
+    cutlass::half_t *C,
+    int ldc) {
+  cutlassHgemmArch<
+      cutlass::arch::Sm90>(transA, transB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
 }
 
 template<class LayoutA, class layoutB>
-lut::ErrorCode hgemmArrayT(
+void hgemmArrayT(
     int m,
     int n,
     int k,
@@ -113,15 +171,10 @@ lut::ErrorCode hgemmArrayT(
 
   typename Gemm::Arguments
       args({m, n, k}, A, lda, B, ldb, C, ldc, C, ldc, {alpha, beta}, batchSize);
-  cutlass::Status status = gemmOperator(args);
-  if (status != cutlass::Status::kSuccess) {
-    return lut::ErrorCode::Aborted;
-  }
-
-  return lut::ErrorCode::OK;
+  CUTLASS_CHECK(gemmOperator(args));
 }
 
-lut::ErrorCode cutlassHgemmArray(
+void cutlassHgemmArray(
     bool transA,
     bool transB,
     int m,
@@ -138,19 +191,19 @@ lut::ErrorCode cutlassHgemmArray(
     int batchSize) {
   int bs = batchSize;
   if (transA == false && transB == false) {
-    return hgemmArrayT<RowMajor, RowMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc, bs);
+    hgemmArrayT<RowMajor, RowMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc, bs);
   } else if (transA == true && transB == false) {
-    return hgemmArrayT<ColumnMajor, RowMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc, bs);
+    hgemmArrayT<ColumnMajor, RowMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc, bs);
   } else if (transA == false && transB == true) {
-    return hgemmArrayT<RowMajor, ColumnMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc, bs);
+    hgemmArrayT<RowMajor, ColumnMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc, bs);
   } else if (transA == true && transB == true) {
-    return hgemmArrayT<ColumnMajor, ColumnMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc, bs);
+    hgemmArrayT<ColumnMajor, ColumnMajor>(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc, bs);
+  } else {
+    NOT_IMPL();
   }
-
-  return lut::ErrorCode::Aborted;
 }
 
-lut::ErrorCode CutlassGemm::hgemm(
+void CutlassGemm::hgemm(
     bool transA,
     bool transB,
     int m,
@@ -166,7 +219,7 @@ lut::ErrorCode CutlassGemm::hgemm(
     int ldc) {
   cutlass::half_t alphaH = *reinterpret_cast<cutlass::half_t *>(&alpha);
   cutlass::half_t betaH = *reinterpret_cast<cutlass::half_t *>(&beta);
-  return cutlassHgemm(
+  cutlassHgemm(
       transA,
       transB,
       m,
@@ -182,7 +235,7 @@ lut::ErrorCode CutlassGemm::hgemm(
       ldc);
 }
 
-lut::ErrorCode CutlassGemm::hgemmArray(
+void CutlassGemm::hgemmArray(
     bool transA,
     bool transB,
     int m,
@@ -199,7 +252,7 @@ lut::ErrorCode CutlassGemm::hgemmArray(
     int batchSize) {
   cutlass::half_t alphaH = *reinterpret_cast<cutlass::half_t *>(&alpha);
   cutlass::half_t betaH = *reinterpret_cast<cutlass::half_t *>(&beta);
-  return cutlassHgemmArray(
+  cutlassHgemmArray(
       transA,
       transB,
       m,
@@ -214,6 +267,11 @@ lut::ErrorCode CutlassGemm::hgemmArray(
       reinterpret_cast<cutlass::half_t *const *>(arrayC),
       ldc,
       batchSize);
+}
+
+std::shared_ptr<Gemm> CutlassGemm::create() {
+  std::shared_ptr<CutlassGemm> mm = std::make_shared<CutlassGemm>();
+  return mm;
 }
 
 }  // namespace cuda

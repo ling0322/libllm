@@ -153,7 +153,9 @@ class Tensor {
   Tensor operator==(const Tensor &rhs) const;
   Tensor operator+(const Tensor &rhs) const;
   Tensor operator-(const Tensor &rhs) const;
+  Tensor operator-(float rhs) const;
   Tensor operator*(const Tensor &rhs) const;
+  Tensor operator*(float v) const;
 
   template<typename T>
   T elem() const;

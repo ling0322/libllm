@@ -105,11 +105,6 @@ void MLP::initParameters(const ly::StateMap &stateDict) {
   _downProj->initParameters(stateDict);
 }
 
-void MLP::initParameters(lut::Random *generator, ly::DType weightType) {
-  _gateUpProj->initParameters(generator, weightType);
-  _downProj->initParameters(generator, weightType);
-}
-
 ly::Tensor MLP::forward(ly::Tensor input) const {
   ly::Tensor x = _gateUpProj->forward(input);
   x = ly::F::swiglu(x);
@@ -167,16 +162,6 @@ void Attention::initParameters(const ly::StateMap &stateDict) {
   _roPE = stateDict.getTensor(ctx.get(LlamaModel::RoPECtxKey));
   _roPE = _roPE.view({2, _maxCtxLen, 1, _headDim});
   _roPE = moveAndCastFloat(_roPE, ctx);
-}
-
-void Attention::initParameters(lut::Random *generator, ly::DType weightType) {
-  _qkvProj->initParameters(generator, weightType);
-  _outProj->initParameters(generator, weightType);
-
-  ly::Device dCpu = ly::Device::getCpu();
-  float r = 0.2f;
-  _roPE = ly::F::rand({2, _maxCtxLen, 1, _headDim}, ly::DType::kFloat, dCpu, generator, -r, r);
-  _roPE = moveAndCastFloat(_roPE, getCtx());
 }
 
 int Attention::getCtxLength(const ly::StateMap &past) const {
@@ -311,13 +296,6 @@ void DecodeLayer::initParameters(const ly::StateMap &stateDict) {
   _postAttnNorm->initParameters(stateDict);
 }
 
-void DecodeLayer::initParameters(lut::Random *generator, ly::DType weightType) {
-  _attn->initParameters(generator, weightType);
-  _mlp->initParameters(generator, weightType);
-  _inputNorm->initParameters(generator, weightType);
-  _postAttnNorm->initParameters(generator, weightType);
-}
-
 ly::Tensor DecodeLayer::forward(ly::StateMap &past, ly::Tensor input) const {
   ly::Tensor residual = input;
 
@@ -367,18 +345,6 @@ void LlamaModel::initParameters(const ly::StateMap &stateDict) {
 
   for (int i = 0; i < _config.numLayers; ++i) {
     _layers[i]->initParameters(stateDict);
-  }
-}
-
-void LlamaModel::initParameters(lut::Random *generator, ly::DType weightType) {
-  ly::Device dCpu = ly::Device::getCpu();
-
-  _embedding->initParameters(generator, weightType);
-  _norm->initParameters(generator, weightType);
-  _outProj->initParameters(generator, weightType);
-
-  for (int i = 0; i < _config.numLayers; ++i) {
-    _layers[i]->initParameters(generator, weightType);
   }
 }
 

@@ -35,7 +35,7 @@ class Gemm {
  public:
   virtual ~Gemm() = default;
 
-  virtual lut::ErrorCode hgemm(
+  virtual void hgemm(
       bool transA,
       bool transB,
       int m,
@@ -52,7 +52,7 @@ class Gemm {
     NOT_IMPL();
   }
 
-  virtual lut::ErrorCode gemmMxfp4Bf16(
+  virtual void gemmMxfp4Bf16(
       int m,
       int n,
       int k,
@@ -65,7 +65,7 @@ class Gemm {
     NOT_IMPL();
   }
 
-  virtual lut::ErrorCode hgemmArray(
+  virtual void hgemmArray(
       bool transA,
       bool transB,
       int m,

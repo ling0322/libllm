@@ -20,12 +20,12 @@
 #include "lynn/operator_benchmark.h"
 
 #include "lutil/strings.h"
+#include "lynn/cpu/cpu_operators.h"
 
 namespace ly {
 
-// 构造函数
 OperatorBenchmark::OperatorBenchmark()
-    : _device(Device::getCpu()),
+    : _op(std::make_shared<op::cpu::CPUOperators>()),
       _numLoop(10),
       _dtype(DType::kFloat),
       _numWarmUpLoop(5),
@@ -34,7 +34,13 @@ OperatorBenchmark::OperatorBenchmark()
 
 OperatorBenchmark OperatorBenchmark::withOperators(Device device) const {
   OperatorBenchmark b = *this;
-  b._device = device;
+  b._op = getOperatorsSharedPtr(device.getType());
+  return b;
+}
+
+OperatorBenchmark OperatorBenchmark::withOperators(std::shared_ptr<Operators> op) const {
+  OperatorBenchmark b = *this;
+  b._op = op;
   return b;
 }
 
@@ -67,11 +73,11 @@ void OperatorBenchmark::benchmarkBinaryOperators(lut::Span<const int> shape, std
     if (i == _numWarmUpLoop) t0 = lut::now();
 
     if constexpr (OPTYPE == OpAdd) {
-      Tensor c = a + b;
+      Tensor c = _op->add(a, b);
     } else if constexpr (OPTYPE == OpSub) {
-      Tensor c = a - b;
+      Tensor c = _op->sub(a, b);
     } else if constexpr (OPTYPE == OpMul) {
-      Tensor c = a * b;
+      Tensor c = _op->mul(a, b);
     } else {
       NOT_IMPL();
     }
@@ -92,7 +98,7 @@ void OperatorBenchmark::printResult() {
     for (int i = 0; i < 32 - int(r.first.size()); ++i) {
       putchar(' ');
     }
-    printf("%.6lf\n", r.second);
+    printf(" %.3lfms\n", r.second * 1000.0);
   }
 }
 
@@ -109,7 +115,33 @@ void OperatorBenchmark::benchmarkMul(lut::Span<const int> shape) const {
 }
 
 Tensor OperatorBenchmark::generateTensor(lut::Span<const int> shape) const {
-  return F::rand(shape, _dtype, _device);
+  return _op->rand(shape, _dtype);
+}
+
+void OperatorBenchmark::benchmarkMatMul(int m, int n, int k, bool transA, bool transB) const {
+  Tensor a = transA ? generateTensor({k, m}) : generateTensor({m, k});
+  Tensor b = transB ? generateTensor({n, k}) : generateTensor({k, n});
+
+  if (transA) a = a.transpose(0, 1);
+  if (transB) b = b.transpose(0, 1);
+
+  double t0;
+  for (int i = 0; i < _numLoop + _numWarmUpLoop; ++i) {
+    if (i == _numWarmUpLoop) t0 = lut::now();
+
+    Tensor c = _op->matmul(a, b);
+  }
+
+  double t1 = lut::now();
+  std::string record = lut::sprintf(
+      "matmul:(%d,%d,%d),%s%s,%s",
+      m,
+      n,
+      k,
+      transA ? "t" : "n",
+      transB ? "t" : "n",
+      _dtype.toString());
+  addRecord(record, (t1 - t0) / _numLoop);
 }
 
 void OperatorBenchmark::addRecord(std::string name, double value) const {

@@ -27,6 +27,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/dequant.h"
 #include "lynn/cuda/fill.h"
+#include "lynn/cuda/gemm_cublas.h"
 #include "lynn/cuda/gemm_cutlass.h"
 #include "lynn/cuda/matvec.h"
 #include "lynn/dtype.h"
@@ -62,16 +63,7 @@ std::shared_ptr<MatMul> MatMul::create() {
 
 std::shared_ptr<MatMul> MatMul::createCublas() {
   std::shared_ptr<MatMul> mm{new MatMul()};
-
-  mm->_gemmExtLib = lut::SharedLibrary::open("llmplugincublas");
-
-  std::function<op::cuda::Gemm *()> factory;
-  std::function<void(op::cuda::Gemm *)> deleter;
-  factory = mm->_gemmExtLib->getFunc<op::cuda::Gemm *()>("llmGemmExt_New");
-  deleter = mm->_gemmExtLib->getFunc<void(op::cuda::Gemm *)>("llmGemmExt_Delete");
-
-  mm->_gemm = std::shared_ptr<op::cuda::Gemm>(factory(), deleter);
-  if (!mm->_gemm) throw lut::AbortedError("unable to create MatMul operator.");
+  mm->_gemm = CublasGemm::create();
 
   return mm;
 }
@@ -129,18 +121,17 @@ Tensor MatMul::matmulMxfp4(const Tensor &A, const Tensor &sfA, const Tensor &B, 
 
   float alpha = 1.0;
 
-  if (lut::ErrorCode::OK != _gemm->gemmMxfp4Bf16(
-                                m,
-                                n,
-                                k,
-                                alpha,
-                                getDataPtrCuda<Fp4E2M0x2>(A),
-                                getDataPtrCuda<UInt8>(sfA),
-                                getDataPtrCuda<Fp4E2M0x2>(B),
-                                getDataPtrCuda<UInt8>(sfB),
-                                getDataPtrCuda<Float16>(C))) {
-    THROW(Aborted, "gemmMxfp4Bf16 failed.");
-  }
+  _gemm->gemmMxfp4Bf16(
+      m,
+      n,
+      k,
+      alpha,
+      getDataPtrCuda<Fp4E2M0x2>(A),
+      getDataPtrCuda<UInt8>(sfA),
+      getDataPtrCuda<Fp4E2M0x2>(B),
+      getDataPtrCuda<UInt8>(sfB),
+      getDataPtrCuda<Float16>(C));
+
   cudaDeviceSynchronize();
 
   return C;
@@ -237,23 +228,21 @@ Tensor MatMul::bmmHalf(Tensor A, Tensor B) {
 
   float alpha = 1.0;
   float beta = 0.0;
-  if (lut::ErrorCode::OK != _gemm->hgemmArray(
-                                gemmArgs.transA,
-                                gemmArgs.transB,
-                                gemmArgs.M,
-                                gemmArgs.N,
-                                gemmArgs.K,
-                                1.0f,
-                                arrayA.get(),
-                                gemmArgs.lda,
-                                arrayB.get(),
-                                gemmArgs.ldb,
-                                0.0f,
-                                arrayC.get(),
-                                gemmArgs.ldc,
-                                nb)) {
-    THROW(Aborted, "hgemmArray failed.");
-  }
+  _gemm->hgemmArray(
+      gemmArgs.transA,
+      gemmArgs.transB,
+      gemmArgs.M,
+      gemmArgs.N,
+      gemmArgs.K,
+      1.0f,
+      arrayA.get(),
+      gemmArgs.lda,
+      arrayB.get(),
+      gemmArgs.ldb,
+      0.0f,
+      arrayC.get(),
+      gemmArgs.ldc,
+      nb);
 
   cudaDeviceSynchronize();
   return C;
@@ -267,22 +256,20 @@ Tensor MatMul::gemmHalf(Tensor A, Tensor B) {
   float beta = 0.0;
 
   op::cpu::GEMMArgs gemmArgs = op::cpu::generateGemmArgs(A, B, C);
-  if (lut::ErrorCode::OK != _gemm->hgemm(
-                                gemmArgs.transA,
-                                gemmArgs.transB,
-                                gemmArgs.M,
-                                gemmArgs.N,
-                                gemmArgs.K,
-                                1.0f,
-                                getDataPtrCuda<half>(A),
-                                gemmArgs.lda,
-                                getDataPtrCuda<half>(B),
-                                gemmArgs.ldb,
-                                0.0f,
-                                getDataPtrCuda<half>(C),
-                                gemmArgs.ldc)) {
-    THROW(Aborted, "hgemm failed.");
-  }
+  _gemm->hgemm(
+      gemmArgs.transA,
+      gemmArgs.transB,
+      gemmArgs.M,
+      gemmArgs.N,
+      gemmArgs.K,
+      1.0f,
+      getDataPtrCuda<half>(A),
+      gemmArgs.lda,
+      getDataPtrCuda<half>(B),
+      gemmArgs.ldb,
+      0.0f,
+      getDataPtrCuda<half>(C),
+      gemmArgs.ldc);
   cudaDeviceSynchronize();
 
   return C;

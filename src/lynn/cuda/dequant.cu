@@ -103,6 +103,7 @@ __global__ void quantizeHalfToMxfp4Kernel(
     __nv_fp8_storage_t *__restrict__ scales,
     int numRow,
     int numCol) {
+#if __CUDA_ARCH__ >= 1200
   for (int rowIdx = blockIdx.x; rowIdx < numRow; rowIdx += gridDim.x) {
     for (int columnIdx = threadIdx.x; columnIdx < numCol / 8; columnIdx += blockDim.x) {
       int offset = rowIdx * (numCol / 8) + columnIdx;
@@ -151,6 +152,7 @@ __global__ void quantizeHalfToMxfp4Kernel(
       reinterpret_cast<uint32_t *>(q)[offset] = qfp4x8;
     }
   }
+#endif
 }
 
 __global__ void dequantizeMxfp4ToHalfKernel(
@@ -158,6 +160,7 @@ __global__ void dequantizeMxfp4ToHalfKernel(
     const uint8_t *__restrict__ scales,
     half *__restrict__ x,
     int64_t numel) {
+#if __CUDA_ARCH__ >= 1200
   int stride = blockDim.x * gridDim.x;
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   half2 *__restrict__ x2 = reinterpret_cast<half2 *>(x);
@@ -176,9 +179,11 @@ __global__ void dequantizeMxfp4ToHalfKernel(
 
     x2[idx] = h2;
   }
+#endif
 }
 
 std::pair<Tensor, Tensor> quantHalfToMxfp4(const Tensor &tensor, bool scaleLayout) {
+#if __CUDA_ARCH__ >= 1200
   CHECK(tensor.getDType() == DType::kFloat16);
   CHECK(tensor.isContiguous() && tensor.getDim() == 2);
   CHECK(tensor.getShape(0) % 128 == 0 && tensor.getShape(1) % 128 == 0);
@@ -219,9 +224,13 @@ std::pair<Tensor, Tensor> quantHalfToMxfp4(const Tensor &tensor, bool scaleLayou
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return std::make_pair(q, scales);
+#else
+  NOT_IMPL()
+#endif
 }
 
 Tensor dequandMxfp4ToHalf(const Tensor &fp4, const Tensor &scale) {
+#if __CUDA_ARCH__ >= 1200
   CHECK(fp4.isContiguous() && scale.isContiguous());
   CHECK(fp4.getDim() == scale.getDim());
   CHECK(fp4.getShape(-1) % 16 == 0 && fp4.getShape(-1) / 16 == scale.getShape(-1));
@@ -246,6 +255,9 @@ Tensor dequandMxfp4ToHalf(const Tensor &fp4, const Tensor &scale) {
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return C;
+#else
+  NOT_IMPL()
+#endif
 }
 
 template<typename T>
