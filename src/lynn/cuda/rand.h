@@ -33,6 +33,7 @@ class Rand {
   static std::shared_ptr<Rand> newRand();
 
   Tensor randNormal(lut::Span<const int> shape);
+  Tensor rand(lut::Span<const int> shape);
   void setSeed(uint64_t seed);
 
  private:

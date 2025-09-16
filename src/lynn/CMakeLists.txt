@@ -16,7 +16,6 @@ set(lynn_SOURCES
     "cpu/cpu_operators.cc"
     "cpu/cpu_tensor_data.cc"
     "cpu/fill.cc"
-    "cpu/fingerprint.cc"
     "cpu/gelu.cc"
     "cpu/log_mel_spectrogram.cc"
     "cpu/lookup.cc"
@@ -50,8 +49,7 @@ set(lynn_test_SOURCES
     "cpu/test.cc"
     "module_test.cc"
     "operator_tester.cc"
-    "tensor_test.cc"
-    "test_helper.cc")
+    "tensor_test.cc")
 
 set(lynn_benchmark_SOURCES
     "operator_benchmark.cc")
@@ -84,6 +82,7 @@ if (WITH_CUDA)
         "cuda/cuda_tensor_data.cc"
         "cuda/dequant.cu"
         "cuda/fill.cu"
+        "cuda/gemm_cublas.cc"
         "cuda/layer_norm.cu"
         "cuda/lookup.cu"
         "cuda/matmul.cc"
@@ -103,16 +102,11 @@ if (WITH_CUDA)
 
     if (WITH_CUTLASS)
         set(lynn_SOURCES ${lynn_SOURCES}
-            "cuda/gemm_cutlass.cu"
-            "cuda/gemm_cutlass_mxfp4.cu")
+            "cuda/gemm_cutlass.cu")
         set(lynn_INCDIR ${lynn_INCDIR}
             "../../third_party/cutlass/include"
             "../../third_party/cutlass/tools/util/include")
     endif(WITH_CUTLASS)
-
-    set(llmplugincublas_SOURCES
-        "cuda/gemm_cublas.cc"
-        "../lutil/internal/log.cc")
 endif()
 
 # CPU specific code
@@ -149,12 +143,6 @@ if(LIBLLM_KERNEL_AARCH64)
         ${lynn_test_SOURCES}
         "cpu/test_float16.cc"
         "cpu/kernel/asimdhp_test.cc")
-endif()
-
-if (WITH_CUDA)
-    add_library(llmplugincublas_static OBJECT ${llmplugincublas_SOURCES})
-    target_compile_options(llmplugincublas_static PRIVATE "-DLIBLLM_EXPORTS")
-    target_include_directories(llmplugincublas_static PRIVATE ${lynn_INCDIR})
 endif()
 
 if (WITH_FFMPEG)

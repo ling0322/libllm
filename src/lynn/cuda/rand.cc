@@ -36,6 +36,7 @@ class Rand::Impl {
   static std::unique_ptr<Impl> newImpl();
 
   Tensor randNormal(lut::Span<const int> shape);
+  Tensor rand(lut::Span<const int> shape);
   void setSeed(uint64_t seed);
 
  private:
@@ -48,6 +49,12 @@ Tensor Rand::Impl::randNormal(lut::Span<const int> shape) {
   Tensor result = createCudaTensorFloat(shape);
   curandGenerateNormal(gen, getDataPtrCuda<float>(result), result.getNumEl(), 0.0, 1.0);
   return castFloatToHalf(result);
+}
+
+Tensor Rand::Impl::rand(lut::Span<const int> shape) {
+  Tensor result = createCudaTensorFloat(shape);
+  curandGenerateUniform(gen, getDataPtrCuda<float>(result), result.getNumEl());
+  return result;
 }
 
 void Rand::Impl::setSeed(uint64_t seed) {
@@ -73,6 +80,10 @@ std::shared_ptr<Rand> Rand::newRand() {
 
 Tensor Rand::randNormal(lut::Span<const int> shape) {
   return _impl->randNormal(shape);
+}
+
+Tensor Rand::rand(lut::Span<const int> shape) {
+  return _impl->rand(shape);
 }
 
 void Rand::setSeed(uint64_t seed) {

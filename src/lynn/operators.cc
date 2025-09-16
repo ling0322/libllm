@@ -101,6 +101,10 @@ Tensor Operators::sub(Tensor a, Tensor b) {
   NOT_IMPL();
 }
 
+Tensor Operators::subFloat(Tensor input, float other) {
+  NOT_IMPL();
+}
+
 float Operators::elem(Tensor tensor) {
   NOT_IMPL();
 }
@@ -189,12 +193,7 @@ void Operators::manualSeed(uint64_t seed) {
   NOT_IMPL();
 }
 
-Tensor Operators::rand(
-    lut::Span<const int> shape,
-    DType dtype,
-    lut::Random *generator,
-    float min,
-    float max) {
+Tensor Operators::rand(lut::Span<const int> shape, DType dtype) {
   NOT_IMPL();
 }
 
@@ -202,7 +201,7 @@ Tensor Operators::randNormal(lut::Span<const int> shape) {
   NOT_IMPL();
 }
 
-Operators *gOperatorsForDevice[Device::NumDeviceType] = {nullptr, nullptr};
+std::shared_ptr<Operators> gOperatorsForDevice[Device::NumDeviceType] = {nullptr, nullptr};
 
 static std::atomic<bool> gInitialized{false};
 
@@ -211,10 +210,10 @@ void initOperators() {
 
   if (!gInitialized.exchange(true)) {
     CHECK(!gOperatorsForDevice[Device::kCpu]);
-    gOperatorsForDevice[Device::kCpu] = new op::cpu::CPUOperators();
+    gOperatorsForDevice[Device::kCpu] = std::make_shared<op::cpu::CPUOperators>();
 #ifdef LIBLLM_CUDA_ENABLED
     CHECK(!gOperatorsForDevice[Device::kCuda]);
-    gOperatorsForDevice[Device::kCuda] = llynCreateCudaOperators();
+    gOperatorsForDevice[Device::kCuda] = op::cuda::CudaOperators::create();
 #endif
 
     MP::init();
@@ -222,6 +221,16 @@ void initOperators() {
 }
 
 Operators *getOperators(Device::Type deviceType) {
+  if (!gInitialized) throw lut::AbortedError("call getOperators() before initialization");
+  if (!gOperatorsForDevice[deviceType]) {
+    std::string deviceName = Device(deviceType).getName();
+    throw lut::NotImplementedError(lut::sprintf("%s operators not implemented", deviceName));
+  }
+
+  return gOperatorsForDevice[deviceType].get();
+}
+
+std::shared_ptr<Operators> getOperatorsSharedPtr(Device::Type deviceType) {
   if (!gInitialized) throw lut::AbortedError("call getOperators() before initialization");
   if (!gOperatorsForDevice[deviceType]) {
     std::string deviceName = Device(deviceType).getName();
@@ -246,7 +255,6 @@ void destroyOperators() {
 
   if (gInitialized.exchange(false)) {
     for (int i = 0; i < Device::NumDeviceType; ++i) {
-      delete gOperatorsForDevice[i];
       gOperatorsForDevice[i] = nullptr;
     }
   }

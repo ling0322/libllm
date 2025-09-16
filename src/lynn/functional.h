@@ -112,17 +112,8 @@ Tensor tensor(lut::Span<const int> shape, DType dtype, Device device = Device::g
 /// @param shape shape of the tensor to generated.
 /// @param dtype data type of the tensor.
 /// @param device device of the tensor.
-/// @param generator random number generator. nullptr for using a default one,
-/// @param min minimal value for random number generator.
-/// @param max maximum value for random number generator.
 /// @return Generated random tensor.
-Tensor rand(
-    lut::Span<const int> shape,
-    DType dtype,
-    Device device = Device::getCpu(),
-    lut::Random *generator = nullptr,
-    float min = -1.0f,
-    float max = 1.0f);
+Tensor rand(lut::Span<const int> shape, DType dtype, Device device = Device::getCpu());
 
 /// @brief Returns a tensor filled with random numbers from a normal distribution with mean 0 and
 /// variance 1

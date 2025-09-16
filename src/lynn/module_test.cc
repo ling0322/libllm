@@ -22,9 +22,7 @@
 #include "catch2/catch_amalgamated.hpp"
 #include "lutil/random.h"
 #include "lutil/span.h"
-#include "lynn/cpu/fingerprint.h"
 #include "lynn/operators.h"
 #include "lynn/tensor.h"
-#include "lynn/test_helper.h"
 
 namespace ly {}  // namespace ly

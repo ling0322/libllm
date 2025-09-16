@@ -35,6 +35,7 @@ class OperatorBenchmark {
   OperatorBenchmark();
 
   OperatorBenchmark withOperators(Device device) const;
+  OperatorBenchmark withOperators(std::shared_ptr<Operators> op) const;
   OperatorBenchmark withDType(DType dtype) const;
   OperatorBenchmark withLoop(int numLoop) const;
   OperatorBenchmark withWarmUpLoop(int numLoop) const;
@@ -42,6 +43,7 @@ class OperatorBenchmark {
   void benchmarkAdd(lut::Span<const int> shape) const;
   void benchmarkSub(lut::Span<const int> shape) const;
   void benchmarkMul(lut::Span<const int> shape) const;
+  void benchmarkMatMul(int m, int n, int k, bool transA, bool transB) const;
 
   void benchmarkAll();
   void printResult();
@@ -49,8 +51,8 @@ class OperatorBenchmark {
  private:
   enum OpType { OpAdd, OpSub, OpMul };
 
-  Device _device;
   DType _dtype;
+  std::shared_ptr<Operators> _op;
   int _numLoop;
   int _numWarmUpLoop;
   std::shared_ptr<std::vector<std::pair<std::string, double>>> _records;

@@ -96,14 +96,8 @@ Tensor tensorLike(Tensor input) {
   return getOperators(input.getDevice().getType())->tensorLike(input);
 }
 
-Tensor rand(
-    lut::Span<const int> shape,
-    DType dtype,
-    Device device,
-    lut::Random *generator,
-    float min,
-    float max) {
-  return getOperators(device.getType())->rand(shape, dtype, generator, min, max);
+Tensor rand(lut::Span<const int> shape, DType dtype, Device device) {
+  return getOperators(device.getType())->rand(shape, dtype);
 }
 
 Tensor randn(lut::Span<const int> shape, Device device) {

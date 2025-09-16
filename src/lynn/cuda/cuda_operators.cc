@@ -52,9 +52,22 @@ bool CudaOperators::isAvailable() {
   return getCudaDeviceCount() > 0;
 }
 
-Operators *CudaOperators::create() {
-  std::unique_ptr<CudaOperators> op{new CudaOperators()};
-  op->_matmul = MatMul::create();
+std::shared_ptr<Operators> CudaOperators::create(int options) {
+  std::shared_ptr<CudaOperators> op{new CudaOperators()};
+  if (!isAvailable()) {
+    LOG(INFO) << "No CUDA device available.";
+    return nullptr;
+  }
+
+  if (options & OPT_CUBLAS_GEMM) {
+    LOG(INFO) << "Create CUDA operators with CUBLAS only";
+    op->_matmul = MatMul::createCublas();
+  } else if (options & OPT_CUTLASS_GEMM) {
+    LOG(INFO) << "Create CUDA operators with CUTLASS only";
+    op->_matmul = MatMul::createCutlass();
+  } else {
+    op->_matmul = MatMul::create();
+  }
   op->_rand = Rand::newRand();
 
   LOG(INFO) << "cuda numDevices = " << getCudaDeviceCount();
@@ -63,7 +76,7 @@ Operators *CudaOperators::create() {
   LOG(INFO) << "cuda:0 multiProcessorCount = "
             << getCudaDeviceAttribute(cudaDevAttrMultiProcessorCount);
 
-  return op.release();
+  return op;
 }
 
 void CudaOperators::fill(Tensor input, float value) {
@@ -223,6 +236,11 @@ Tensor CudaOperators::randNormal(lut::Span<const int> shape) {
   return _rand->randNormal(shape);
 }
 
+Tensor CudaOperators::rand(lut::Span<const int> shape, DType dtype) {
+  Tensor r = _rand->rand(shape);
+  return cuda::cast(r, dtype);
+}
+
 Tensor CudaOperators::arangeLong(LongType begin, LongType end, LongType step) {
   return cuda::arangeLong(begin, end, step);
 }
@@ -246,12 +264,3 @@ void CudaOperators::manualSeed(uint64_t seed) {
 }  // namespace cuda
 }  // namespace op
 }  // namespace ly
-
-ly::Operators *llynCreateCudaOperators() {
-  if (ly::op::cuda::CudaOperators::isAvailable()) {
-    return ly::op::cuda::CudaOperators::create();
-  } else {
-    LOG(INFO) << "No CUDA device available.";
-    return nullptr;
-  }
-}

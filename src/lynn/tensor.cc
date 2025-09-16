@@ -348,12 +348,20 @@ Tensor Tensor::operator-(const Tensor &rhs) const {
   return getOperators()->sub(*this, rhs);
 }
 
+Tensor Tensor::operator-(float rhs) const {
+  return getOperators()->subFloat(*this, rhs);
+}
+
 Tensor Tensor::operator+(const Tensor &rhs) const {
   return getOperators()->add(*this, rhs);
 }
 
 Tensor Tensor::operator*(const Tensor &rhs) const {
   return getOperators()->mul(*this, rhs);
+}
+
+Tensor Tensor::operator*(float v) const {
+  return getOperators()->mul(*this, v);
 }
 
 Operators *Tensor::getOperators() const {

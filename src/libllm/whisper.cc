@@ -94,11 +94,6 @@ void EncoderAttention::initParameters(const ly::StateMap &stateDict) {
   _outProj->initParameters(stateDict);
 }
 
-void EncoderAttention::initParameters(lut::Random *generator, ly::DType weightType) {
-  _qkvProj->initParameters(generator, weightType);
-  _outProj->initParameters(generator, weightType);
-}
-
 ly::Tensor EncoderAttention::forward(ly::Tensor inputs) {
   CHECK(inputs.getDim() == 3);
   ly::Tensor qkv = _qkvProj->forward(inputs);
@@ -155,14 +150,6 @@ void EncoderLayer::initParameters(const ly::StateMap &stateDict) {
   _attn->initParameters(stateDict);
   _fc1->initParameters(stateDict);
   _fc2->initParameters(stateDict);
-}
-
-void EncoderLayer::initParameters(lut::Random *generator, ly::DType weightType) {
-  _norm1->initParameters(generator, weightType);
-  _norm2->initParameters(generator, weightType);
-  _attn->initParameters(generator, weightType);
-  _fc1->initParameters(generator, weightType);
-  _fc2->initParameters(generator, weightType);
 }
 
 ly::Tensor EncoderLayer::forward(ly::Tensor inputs) {
@@ -234,22 +221,6 @@ void EncoderModel::initParameters(const ly::StateMap &stateDict) {
   _norm->initParameters(stateDict);
 }
 
-void EncoderModel::initParameters(lut::Random *generator, ly::DType weightType) {
-  _conv1->initParameters(generator, weightType);
-  _conv2->initParameters(generator, weightType);
-
-  float r = 0.2f;
-  ly::Device dCpu = ly::Device::getCpu();
-  _posEmbd = ly::F::rand({NumFrames, _hiddenSize}, ly::DType::kFloat, dCpu, generator, -r, r);
-  _posEmbd = moveAndCastFloat(_posEmbd, getCtx());
-
-  for (std::shared_ptr<EncoderLayer> &layer : _layers) {
-    layer->initParameters(generator, weightType);
-  }
-
-  _norm->initParameters(generator, weightType);
-}
-
 ly::Tensor EncoderModel::forward(ly::Tensor wave) {
   CHECK(wave.getDim() == 1 && wave.getShape(-1) <= InputSamples);
 
@@ -313,12 +284,6 @@ std::shared_ptr<DecoderInitModel> DecoderInitModel::fromConfig(
 void DecoderInitModel::initParameters(const ly::StateMap &stateDict) {
   for (std::shared_ptr<ly::Linear> &layer : _kvProjs) {
     layer->initParameters(stateDict);
-  }
-}
-
-void DecoderInitModel::initParameters(lut::Random *generator, ly::DType weightType) {
-  for (std::shared_ptr<ly::Linear> &layer : _kvProjs) {
-    layer->initParameters(generator, weightType);
   }
 }
 
@@ -401,11 +366,6 @@ void Attention::initCommon(WhisperConfig config) {
 void Attention::initParameters(const ly::StateMap &stateDict) {
   _proj->initParameters(stateDict);
   _outProj->initParameters(stateDict);
-}
-
-void Attention::initParameters(lut::Random *generator, ly::DType weightType) {
-  _proj->initParameters(generator, weightType);
-  _outProj->initParameters(generator, weightType);
 }
 
 std::pair<ly::Tensor, ly::Tensor> Attention::getPresentKV(
@@ -552,16 +512,6 @@ void DecoderLayer::initParameters(const ly::StateMap &stateDict) {
   _fc2->initParameters(stateDict);
 }
 
-void DecoderLayer::initParameters(lut::Random *generator, ly::DType weightType) {
-  _norm1->initParameters(generator, weightType);
-  _norm2->initParameters(generator, weightType);
-  _norm3->initParameters(generator, weightType);
-  _selfAttn->initParameters(generator, weightType);
-  _crossAttn->initParameters(generator, weightType);
-  _fc1->initParameters(generator, weightType);
-  _fc2->initParameters(generator, weightType);
-}
-
 ly::Tensor DecoderLayer::forward(ly::StateMap &past, ly::Tensor inputs) {
   ly::Tensor residual = inputs;
 
@@ -634,21 +584,6 @@ void DecoderModel::initParameters(const ly::StateMap &stateDict) {
 
   for (std::shared_ptr<DecoderLayer> &layer : _layers) {
     layer->initParameters(stateDict);
-  }
-}
-
-void DecoderModel::initParameters(lut::Random *generator, ly::DType weightType) {
-  _embd->initParameters(generator, weightType);
-  _norm->initParameters(generator, weightType);
-  _outProj->initParameters(generator, weightType);
-
-  float r = 0.2f;
-  ly::Device dCpu = ly::Device::getCpu();
-  _posEmbd = ly::F::rand({_maxTgtLength, _dModel}, ly::DType::kFloat, dCpu, generator, -r, r);
-  _posEmbd = moveAndCastFloat(_posEmbd, getCtx());
-
-  for (std::shared_ptr<DecoderLayer> &layer : _layers) {
-    layer->initParameters(generator, weightType);
   }
 }
 

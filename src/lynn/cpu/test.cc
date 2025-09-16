@@ -20,7 +20,6 @@
 #include "catch2/catch_amalgamated.hpp"
 #include "lynn/context.h"
 #include "lynn/cpu/common.h"
-#include "lynn/cpu/fingerprint.h"
 #include "lynn/functional.h"
 #include "lynn/operator_tester.h"
 #include "lynn/tensor.h"

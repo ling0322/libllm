@@ -45,8 +45,6 @@ class MatMul {
       const Tensor &sfB);
 
  protected:
-  // _gemmExtLib must be defined before _gemm. Since destruction of _gemm needs the _gemmExtLib.
-  std::shared_ptr<lut::SharedLibrary> _gemmExtLib;
   std::shared_ptr<Gemm> _gemm;
 
   Tensor gemmHalf(Tensor A, Tensor B);

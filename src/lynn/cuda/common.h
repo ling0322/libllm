@@ -143,6 +143,9 @@ int getCudaDeviceAttribute(cudaDeviceAttr attr);
 /// @return cuda device count.
 int getCudaDeviceCount();
 
+/// @brief Get Arch of GPU device, for example sm70 -> return 70.
+int getCudaArch();
+
 /// @brief Get element from a scalar tensor (1D tensor which has only 1 element)
 float elem(const Tensor &tensor);
 bool elemBool(const Tensor &tensor);

@@ -17,17 +17,49 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "catch2/catch_amalgamated.hpp"
+#include "lynn/cuda/cuda_operators.h"
 #include "lynn/operator_benchmark.h"
 
-int main() {
-  ly::initOperators();
+using ly::op::cuda::CudaOperators;
+
+void benchmarkMatmul(int matmulOption) {
   ly::OperatorBenchmark b;
+  b = b.withWarmUpLoop(5).withLoop(10).withDType(ly::DType::kFloat16);
+  b = b.withOperators(CudaOperators::create(matmulOption));
 
-  b = b.withLoop(100);
+  int shapes[][3] = {
+      {4096, 4096, 4096},
+      {1, 4096, 4096},
+      {16, 4096, 4096},
+      {128, 4096, 4096},
+      {256, 4096, 4096},
+      {256, 256, 256},
+      {1, 256, 256},
+      {0}};
 
-  b.benchmarkAll();
+  for (int i = 0; shapes[i][0] != 0; ++i) {
+    int m = shapes[i][0];
+    int n = shapes[i][1];
+    int k = shapes[i][2];
+
+    b.benchmarkMatMul(m, n, k, false, false);
+    b.benchmarkMatMul(m, n, k, false, true);
+  }
+
   b.printResult();
+}
+
+CATCH_TEST_CASE("matmul cublas vs cutlass", "[matmul][cuda]") {
+  benchmarkMatmul(CudaOperators::OPT_CUBLAS_GEMM);
+  benchmarkMatmul(CudaOperators::OPT_CUTLASS_GEMM);
+}
+
+int main(int argc, char **argv) {
+  ly::initOperators();
+
+  int result = Catch::Session().run(argc, argv);
 
   ly::destroyOperators();
-  return 0;
+  return result;
 }

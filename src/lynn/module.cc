@@ -39,10 +39,6 @@ Tensor Module::moveAndCastFloat(const Tensor &tensor, const Context &ctx) {
   return x;
 }
 
-void Module::initParameters(lut::Random *generator, DType quantType) {
-  NOT_IMPL();
-}
-
 // -----------------------------------------------------------------------------------------------+
 //  Embedding                                                                                     |
 // -----------------------------------------------------------------------------------------------+
@@ -64,11 +60,6 @@ void Embedding::initParameters(const StateMap &stateDict) {
 
   _wte = stateDict.getTensor(nameW);
   _wte.throwIfInvalidShape({_vocabSize, _dModel}, nameW);
-  _wte = moveAndCastFloat(_wte, getCtx());
-}
-
-void Embedding::initParameters(lut::Random *generator, DType weightType) {
-  _wte = F::rand({_vocabSize, _dModel}, weightType, Device::getCpu(), generator);
   _wte = moveAndCastFloat(_wte, getCtx());
 }
 
@@ -126,17 +117,6 @@ void Linear::initParameters(const StateMap &stateDict) {
   }
 }
 
-void Linear::initParameters(lut::Random *generator, DType weightType) {
-  float xs = sqrtf(3.0f / _inDim);
-  _w = F::rand({_outDim, _inDim}, weightType, Device::getCpu(), generator, -xs, xs);
-  _w = moveAndCastFloat(_w, getCtx());
-
-  if (_hasBias) {
-    _b = F::rand({_outDim}, DType::kFloat, Device::getCpu(), generator, -0.2f, 0.2f);
-    _b = moveAndCastFloat(_b, getCtx());
-  }
-}
-
 Tensor Linear::forward(const Tensor &input) const {
   Tensor x;
   if (input.getDim() >= 2) {
@@ -176,11 +156,6 @@ void RMSNorm::initParameters(const StateMap &stateDict) {
   _weight = moveAndCastFloat(_weight, getCtx());
 }
 
-void RMSNorm::initParameters(lut::Random *generator, DType _) {
-  _weight = F::rand({_dModel}, DType::kFloat, Device::getCpu(), generator);
-  _weight = moveAndCastFloat(_weight, getCtx());
-}
-
 Tensor RMSNorm::forward(const Tensor &input) const {
   Tensor x = F::rmsNorm(input, _weight, _eps);
 
@@ -210,14 +185,6 @@ std::unique_ptr<LayerNorm> LayerNorm::create(const Context &ctx, int dModel, flo
   layer->_dModel = dModel;
   layer->_eps = eps;
   return layer;
-}
-
-void LayerNorm::initParameters(lut::Random *generator, DType _) {
-  _w = F::rand({_dModel}, DType::kFloat, Device::getCpu(), generator);
-  _w = moveAndCastFloat(_w, getCtx());
-
-  _b = F::rand({_dModel}, DType::kFloat, Device::getCpu(), generator);
-  _b = moveAndCastFloat(_b, getCtx());
 }
 
 void LayerNorm::initParameters(const StateMap &stateDict) {
@@ -298,23 +265,6 @@ void Conv1D::initParameters(const StateMap &stateDict) {
               "In module %s: hasBias=false but bias weight found in state_map.",
               ctx.name()));
     }
-  }
-}
-
-void Conv1D::initParameters(lut::Random *generator, DType weightType) {
-  float xs = sqrtf(3.0f / (_inChannels * _kernelSize));
-  _w = F::rand(
-      {_outChannels, _inChannels * _kernelSize},
-      weightType,
-      Device::getCpu(),
-      generator,
-      -xs,
-      xs);
-  _w = moveAndCastFloat(_w, getCtx());
-
-  if (_hasBias) {
-    _b = F::rand({_outChannels}, DType::kFloat, Device::getCpu(), generator, -0.2f, 0.2f);
-    _b = moveAndCastFloat(_b, getCtx());
   }
 }
 

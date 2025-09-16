@@ -46,6 +46,7 @@ class Operators {
   virtual Tensor softmax(Tensor input);
   virtual Tensor add(Tensor input, Tensor other);
   virtual Tensor sub(Tensor input, Tensor other);
+  virtual Tensor subFloat(Tensor input, float other);
   virtual Tensor sum(Tensor input, int dim);
   virtual Tensor max(Tensor input);
   virtual Tensor melFbank(Tensor input);
@@ -70,21 +71,16 @@ class Operators {
   virtual void repetitionPenalty(Tensor logits, Tensor history, float weight);
   virtual Tensor cast(Tensor tensor, DType dtype);
   virtual Tensor logMelSpectrogram(Tensor wave);
-  virtual Tensor rand(
-      lut::Span<const int> shape,
-      DType dtype,
-      lut::Random *generator,
-      float min,
-      float max);
+  virtual Tensor rand(lut::Span<const int> shape, DType dtype);
   virtual Tensor randNormal(lut::Span<const int> shape);
   virtual void manualSeed(uint64_t seed);
 
   virtual DType getDefaultFloatType();
 };
 
-extern Operators *gOperatorsForDevice[Device::NumDeviceType];
-
 Operators *getOperators(Device::Type deviceType);
+std::shared_ptr<Operators> getOperatorsSharedPtr(Device::Type deviceType);
+
 bool isOperatorsAvailable(Device::Type deviceType);
 void initOperators();
 void destroyOperators();

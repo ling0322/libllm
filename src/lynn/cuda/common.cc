@@ -146,6 +146,13 @@ dim3 getGrid1D(int numel, int blockSize) {
   return grid;
 }
 
+int getCudaArch() {
+  // TODO: too slow
+  cudaDeviceProp prop;
+  LL_CHECK_CUDA_STATUS(cudaGetDeviceProperties(&prop, 0));
+  return prop.major * 10 + prop.minor;
+}
+
 }  // namespace cuda
 }  // namespace op
 }  // namespace ly
