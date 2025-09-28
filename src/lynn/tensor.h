@@ -156,6 +156,7 @@ class Tensor {
   Tensor operator-(float rhs) const;
   Tensor operator*(const Tensor &rhs) const;
   Tensor operator*(float v) const;
+  Tensor operator[](int idx) const;
 
   template<typename T>
   T elem() const;

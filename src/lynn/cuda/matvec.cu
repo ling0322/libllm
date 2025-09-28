@@ -86,19 +86,21 @@ __global__ void mat_vec_kernel(
   if (threadIdx.x == 0) y[row] = (half)sum;
 }
 
-Tensor gemvHalf(const Tensor &A, const Tensor &B) {
-  int n = A.getShape(1);
-  int d = A.getShape(0);
+Tensor gemvHalf(const Tensor &x, const Tensor &B) {
+  int d = x.getShape(0);
+  int n = B.getShape(1);
+  CHECK(1 == x.getDim() && 1 == x.getStride(0));
+  CHECK(2 == B.getDim() && d == B.getShape(0) && B.getStride(0) == 1 && B.getStride(1) == d);
 
-  Tensor C = createCudaTensorHalf({d, 1});
+  Tensor C = createCudaTensorHalf({1, d});
 
   dim3 block_dim(32, 4);
   dim3 grid_dim(divUp(d, 4), 1);
 
   mat_vec_kernel<<<grid_dim, block_dim, 0>>>(
       getDataPtrCuda<half>(C),
+      getDataPtrCuda<half>(x),
       getDataPtrCuda<half>(B),
-      getDataPtrCuda<half>(A),
       n,
       d,
       n);

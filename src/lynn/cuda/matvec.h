@@ -28,8 +28,7 @@ namespace ly {
 namespace op {
 namespace cuda {
 
-Tensor gemvHalf(const Tensor &A, const Tensor &x);
-Tensor gemvQ4(const Tensor &A, const Tensor &x);
+Tensor gemvHalf(const Tensor &x, const Tensor &B);
 
 }  // namespace cuda
 }  // namespace op

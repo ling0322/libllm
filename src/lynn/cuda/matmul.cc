@@ -140,7 +140,11 @@ Tensor MatMul::matmulMxfp4(const Tensor &A, const Tensor &sfA, const Tensor &B, 
 Tensor MatMul::matmulHalf(const Tensor &A, const Tensor &B) {
   CHECK(A.getDType() == B.getDType() && A.getDType() == DType::kFloat16);
   if (A.getDim() == 2 && B.getDim() == 2) {
-    return gemmHalf(A, B);
+    if (A.getShape(0) == 1 && A.getStride(1) == 1 && B.getStride(0) == 1) {
+      return gemvHalf(A[0], B);
+    } else {
+      return gemmHalf(A, B);
+    }
   } else if (A.getDim() > 2 && B.getDim() == 2 && A.isContiguous()) {
     return bmmToGemmHalf(A, B);
   } else if (A.getDim() >= 2 && B.getDim() >= 2 && A.getDim() >= B.getDim()) {

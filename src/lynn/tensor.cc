@@ -368,6 +368,10 @@ Operators *Tensor::getOperators() const {
   return ly::getOperators(getDevice().getType());
 }
 
+Tensor Tensor::operator[](int idx) const {
+  return subtensor(idx);
+}
+
 template<>
 float Tensor::elem<float>() const {
   return getOperators()->elem(*this);
