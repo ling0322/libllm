@@ -25,6 +25,7 @@
 #include "lutil/shared_library.h"
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/gemm.h"
+#include "lynn/cuda/matvec.h"
 #include "lynn/tensor.h"
 
 namespace ly {

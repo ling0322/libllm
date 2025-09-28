@@ -70,7 +70,7 @@ struct Sm80Gemm {
       cutlass::half_t,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      cutlass::gemm::GemmShape<256, 128, 32>,
+      cutlass::gemm::GemmShape<128, 128, 32>,
       cutlass::gemm::GemmShape<64, 64, 32>,
       cutlass::gemm::GemmShape<16, 8, 16>,
       cutlass::epilogue::thread::
