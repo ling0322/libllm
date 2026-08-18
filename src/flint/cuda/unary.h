@@ -25,7 +25,7 @@ namespace fl {
 namespace op {
 namespace cuda {
 
-enum class UnaryOp { SQUARE, GELU };
+enum class UnaryOp { SQUARE };
 
 //
 Tensor applyUnaryOp(UnaryOp op, const Tensor &tensor);

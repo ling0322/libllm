@@ -51,8 +51,6 @@ class CPUOperators : public Operators {
   Tensor causalMask(int max_len) override;
   void copy(Tensor src, Tensor dest) override;
   void fill(Tensor input, float value) override;
-  Tensor gelu(Tensor input) override;
-  Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
   Tensor lookup(Tensor table, Tensor indices) override;
   Tensor matmul(Tensor a, Tensor b) override;
   Tensor max(Tensor inputs) override;
@@ -68,7 +66,6 @@ class CPUOperators : public Operators {
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;
   Tensor tensorLike(Tensor input) override;
   Tensor to(Device device, Tensor tensor) override;
-  Tensor unfold(Tensor input, int kernelSize, int stride) override;
   Tensor zeros(lut::Span<const int> shape, DType dtype) override;
   void manualSeed(uint64_t seed) override;
 

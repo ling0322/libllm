@@ -235,29 +235,12 @@ fl::Tensor Attention::forward(fl::StateMap &past, fl::Tensor input) const {
   past.putTensor(_namePastK, k);
   past.putTensor(_namePastV, v);
 
-  // apply GQA
-  if (_numKeyValueHead != _numHead) {
-    CHECK(_numHead % _numKeyValueHead == 0);
-
-    int groupSize = _numHead / _numKeyValueHead;
-    std::initializer_list<int> expandShape = {N, kvLen, _numKeyValueHead, groupSize, _headDim};
-    std::initializer_list<int> qShape = {N, kvLen, _numHead, _headDim};
-
-    k = fl::F::contiguous(k.unsqueeze(3).expand(expandShape)).view(qShape);
-    v = fl::F::contiguous(v.unsqueeze(3).expand(expandShape)).view(qShape);
-  }
-
   // apply attention.
   // TODO: streaming mode support.
   q = q.transpose(1, 2);
   k = k.transpose(1, 2);
   v = v.transpose(1, 2);
-  fl::Tensor x = qLen == 1 ? fl::F::attention(q, k, v, fl::Tensor())
-                           : fl::F::attention(
-                                 q,
-                                 k,
-                                 v,
-                                 fl::F::causalMask(q.getShape(2), getCtx().getDevice()));
+  fl::Tensor x = fl::F::attention(q, k, v, true);
 
   x = fl::F::contiguous(x.transpose(1, 2)).view({N, qLen, _hiddenSize});
   x = _outProj->forward(x);

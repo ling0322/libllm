@@ -1,0 +1,60 @@
+INFO 2026-08-18T22:59:24Z interface.cc:67] ISA support: AVX2=1 F16C=1 AVX512F=1
+INFO 2026-08-18T22:59:24Z interface.cc:71] Use Avx512 backend.
+INFO 2026-08-18T22:59:24Z matmul.cc:45] Use GEMM from cuBLAS.
+INFO 2026-08-18T22:59:24Z cuda_operators.cc:87] cuda numDevices = 1
+INFO 2026-08-18T22:59:24Z cuda_operators.cc:88] cuda:0 maxThreadsPerMultiProcessor = 1536
+INFO 2026-08-18T22:59:24Z cuda_operators.cc:90] cuda:0 multiProcessorCount = 36
+INFO 2026-08-18T22:59:24Z mp_openmp.cc:36] OMP max_threads = 32
+Filters: [llama32-3b]
+Randomness seeded to: 541471680
+
+Llama 3.2 3B projection benchmarks (FP16)
+decode-1 qkv_proj                                53.730 us      0.59 TFLOP/s
+decode-1 out_proj                                10.754 us      1.76 TFLOP/s
+decode-1 gate_up_proj                           218.264 us      0.46 TFLOP/s
+decode-1 down_proj                              101.722 us      0.49 TFLOP/s
+prefill-128 qkv_proj                             95.398 us     42.21 TFLOP/s
+prefill-128 out_proj                             56.688 us     42.62 TFLOP/s
+prefill-128 gate_up_proj                        297.683 us     43.28 TFLOP/s
+prefill-128 down_proj                           143.658 us     44.85 TFLOP/s
+prefill-512 qkv_proj                            335.712 us     47.98 TFLOP/s
+prefill-512 out_proj                            204.435 us     47.27 TFLOP/s
+prefill-512 gate_up_proj                       1048.077 us     49.18 TFLOP/s
+prefill-512 down_proj                           540.704 us     47.66 TFLOP/s
+decode-1 lm_head                               1836.912 us      0.43 TFLOP/s
+
+Llama 3.2 3B normalization and elementwise benchmarks (FP16)
+rms_norm [1,1,3072]                               3.978 us
+swiglu [1,1,16384]                                8.238 us
+residual_add [1,1,3072]                           4.312 us
+rms_norm [1,128,3072]                             4.386 us
+swiglu [1,128,16384]                              4.957 us
+residual_add [1,128,3072]                         4.232 us
+rms_norm [1,512,3072]                             6.482 us
+swiglu [1,512,16384]                             16.187 us
+residual_add [1,512,3072]                         5.843 us
+
+Llama 3.2 3B attention primitive benchmarks (FP16)
+softmax [1,24,128,128]                           14.654 us
+softmax [1,24,512,512]                           65.704 us
+softmax [1,24,1,512]                              3.829 us
+softmax [1,24,1,2048]                             3.810 us
+attention [24,128,128,128]                       10.154 us
+attention [24,512,512,128]                       68.626 us
+attention [24,1,512,128]                         20.166 us
+attention [24,1,2048,128]                        48.402 us
+
+Llama 3.2 3B layout benchmarks (FP16)
+gqa_copy [1,128,8,3,128]                          5.299 us
+gqa_copy [1,512,8,3,128]                         16.446 us
+causal_mask [128,128]                             3.773 us
+causal_mask [512,512]                             3.808 us
+
+Llama 3.2 3B embedding and generation benchmarks (FP16)
+embedding_lookup [1,3072]                         9.285 us
+embedding_lookup [128,3072]                      13.147 us
+repetition_penalty [1,128256] history=32          3.048 us
+sampling [1,128256] top_k=50 top_p=0.9           54.174 us
+===============================================================================
+test cases: 1 | 1 passed
+assertions: - none -

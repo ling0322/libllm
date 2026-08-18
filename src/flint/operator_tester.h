@@ -30,7 +30,7 @@ class OperatorTester {
   using ShapeType = std::initializer_list<int>;
 
   static constexpr uint32_t MagicNumber = 0x33;
-  enum class OperatorType { Add, Sub, Mul, Softmax, Swiglu, Gelu };
+  enum class OperatorType { Add, Sub, Mul, Softmax, Swiglu };
 
   OperatorTester();
 
@@ -52,9 +52,7 @@ class OperatorTester {
   LUT_CHECK_RETURN bool testBinaryOp(OperatorType op);
   LUT_CHECK_RETURN bool testUnaryOp(OperatorType op, ShapeType shape);
   LUT_CHECK_RETURN bool testRmsNorm(ShapeType shape);
-  LUT_CHECK_RETURN bool testLayerNorm(ShapeType shape);
   LUT_CHECK_RETURN bool testCausalMask();
-  LUT_CHECK_RETURN bool testUnfold();
   LUT_CHECK_RETURN bool testRepetitionPenalty();
 
  private:

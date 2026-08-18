@@ -33,7 +33,6 @@
 #include "flint/cpu/copy.h"
 #include "flint/cpu/cpu_tensor_data.h"
 #include "flint/cpu/fill.h"
-#include "flint/cpu/gelu.h"
 #include "flint/cpu/kernel/interface.h"
 #include "flint/cpu/lookup.h"
 #include "flint/cpu/matmul.h"
@@ -46,7 +45,6 @@
 #include "flint/cpu/swiglu.h"
 #include "flint/cpu/tensor.h"
 #include "flint/cpu/transform.h"
-#include "flint/cpu/unfold.h"
 #include "flint/operators.h"
 #include "flint/tensor.h"
 
@@ -115,10 +113,6 @@ Tensor CPUOperators::lookup(Tensor table, Tensor indices) {
   return cpu::lookup(table, indices);
 }
 
-Tensor CPUOperators::gelu(Tensor input) {
-  return cpu::gelu(input);
-}
-
 void CPUOperators::fill(Tensor input, float value) {
   return cpu::fill(input, value);
 }
@@ -148,10 +142,6 @@ Tensor CPUOperators::causalMask(int max_len) {
   return op::cpu::causalMask(max_len, getDefaultFloatType());
 }
 
-Tensor CPUOperators::layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
-  return cpu::layerNorm(input, weight, bias, eps);
-}
-
 void CPUOperators::copy(Tensor src, Tensor dest) {
   return cpu::copy(src, dest);
 }
@@ -164,10 +154,6 @@ Tensor CPUOperators::to(Device device, Tensor tensor) {
   if (device.getType() == Device::kCpu) return tensor;
 
   NOT_IMPL();
-}
-
-Tensor CPUOperators::unfold(Tensor input, int kernelSize, int stride) {
-  return cpu::unfold(input, kernelSize, stride);
 }
 
 Tensor CPUOperators::cast(Tensor tensor, DType dtype) {

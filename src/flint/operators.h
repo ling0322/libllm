@@ -35,7 +35,6 @@ class Operators {
 
   virtual Tensor arangeLong(LongType begin, LongType end, LongType step);
   virtual Tensor lookup(Tensor table, Tensor indices);
-  virtual Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps);
   virtual Tensor rmsNorm(Tensor input, Tensor weight, float eps);
   virtual Tensor matmul(Tensor A, Tensor B);
   virtual Tensor matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB);
@@ -44,6 +43,11 @@ class Operators {
   virtual Tensor mod(Tensor input, LongType other);
   virtual Tensor mul(Tensor input, Tensor other);
   virtual Tensor softmax(Tensor input);
+
+  /// Scaled dot product attention. q is [batch, numHeads, queryLength, headDim], k and v are
+  /// [batch, numKeyValueHeads, keyValueLength, headDim]. numHeads is a multiple of
+  /// numKeyValueHeads, so grouped-query and multi-query attention need no expanded k and v.
+  virtual Tensor attention(Tensor q, Tensor k, Tensor v, bool causal);
   virtual Tensor sample(Tensor distribution, int topK, float topP);
   virtual Tensor add(Tensor input, Tensor other);
   virtual Tensor sub(Tensor input, Tensor other);
@@ -51,7 +55,6 @@ class Operators {
   virtual Tensor sum(Tensor input, int dim);
   virtual Tensor max(Tensor input);
   virtual Tensor eq(Tensor input, Tensor other);
-  virtual Tensor gelu(Tensor input);
   virtual Tensor square(Tensor input);
   virtual void fill(Tensor input, float value);
   virtual Tensor tensor(lut::Span<const int> shape, DType dtype);
@@ -66,7 +69,6 @@ class Operators {
   virtual Tensor to(Device device, Tensor tensor);
   virtual float elem(Tensor tensor);
   virtual bool elemBool(Tensor tensor);
-  virtual Tensor unfold(Tensor input, int kernelSize, int stride);
   virtual void repetitionPenalty(Tensor logits, Tensor history, float weight);
   virtual Tensor cast(Tensor tensor, DType dtype);
   virtual Tensor rand(lut::Span<const int> shape, DType dtype);

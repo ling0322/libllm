@@ -51,9 +51,7 @@ class CudaOperators : public Operators {
   Tensor causalMask(int max_len) override;
   void copy(Tensor src, Tensor dest) override;
   void fill(Tensor input, float value) override;
-  Tensor gelu(Tensor input) override;
   Tensor square(Tensor input) override;
-  Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
   Tensor lookup(Tensor table, Tensor indices) override;
   Tensor matmul(Tensor a, Tensor b) override;
   Tensor matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB) override;
@@ -68,12 +66,12 @@ class CudaOperators : public Operators {
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor sample(Tensor distribution, int topK, float topP) override;
   Tensor softmax(Tensor input) override;
+  Tensor attention(Tensor q, Tensor k, Tensor v, bool causal) override;
   Tensor sum(Tensor inputs, int dim) override;
   Tensor swiglu(Tensor A) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;
   Tensor tensorLike(Tensor input) override;
   Tensor to(Device device, Tensor tensor) override;
-  Tensor unfold(Tensor input, int kernelSize, int stride) override;
   Tensor zeros(lut::Span<const int> shape, DType dtype) override;
   Tensor randNormal(lut::Span<const int> shape) override;
   Tensor rand(lut::Span<const int> shape, DType dtype) override;

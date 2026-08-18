@@ -15,7 +15,6 @@ set(flint_SOURCES
     "cpu/cpu_operators.cc"
     "cpu/cpu_tensor_data.cc"
     "cpu/fill.cc"
-    "cpu/gelu.cc"
     "cpu/lookup.cc"
     "cpu/matmul.cc"
     "cpu/normalizations.cc"
@@ -27,7 +26,6 @@ set(flint_SOURCES
     "cpu/swiglu.cc"
     "cpu/tensor.cc"
     "cpu/transform.cc"
-    "cpu/unfold.cc"
     "cpu/view.cc"
     "context.cc"
     "device.cc"
@@ -77,7 +75,6 @@ if (WITH_CUDA)
         "cuda/dequant.cu"
         "cuda/fill.cu"
         "cuda/gemm_cublas.cc"
-        "cuda/layer_norm.cu"
         "cuda/lookup.cu"
         "cuda/matmul.cc"
         "cuda/matvec.cu"
@@ -90,8 +87,11 @@ if (WITH_CUDA)
         "cuda/softmax.cu"
         "cuda/swiglu.cu"
         "cuda/to_device.cc"
-        "cuda/unary.cu"
-        "cuda/unfold.cu")
+        "cuda/unary.cu")
+
+    if(WITH_FLASH_ATTN)
+        set(flint_SOURCES ${flint_SOURCES} "cuda/flash_attn.cc")
+    endif()
 
     set(flint_test_SOURCES ${flint_test_SOURCES} "cuda/test.cc")
     set(flint_benchmark_SOURCES "cuda/benchmark.cc")
@@ -144,6 +144,9 @@ endif()
 add_library(flint_static OBJECT ${flint_SOURCES})
 target_compile_options(flint_static PRIVATE "-DLIBLLM_EXPORTS")
 target_include_directories(flint_static PRIVATE ${LIBDWARF_INCLUDE_DIRS})
+if(WITH_FLASH_ATTN)
+    target_link_libraries(flint_static PRIVATE flash_attn)
+endif()
 #set_target_properties(flint_static PROPERTIES CXX_VISIBILITY_PRESET hidden)
 #set_target_properties(flint_static PROPERTIES CUDA_VISIBILITY_PRESET hidden)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr --use_fast_math")

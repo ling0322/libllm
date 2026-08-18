@@ -26,7 +26,6 @@ namespace op {
 namespace cpu {
 
 Tensor rmsNorm(Tensor tensor, Tensor weight, float eps);
-Tensor layerNorm(Tensor tensor, Tensor weight, Tensor bias, float eps);
 
 }  // namespace cpu
 }  // namespace op
