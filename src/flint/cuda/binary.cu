@@ -73,12 +73,15 @@ __global__ void binaryGenericKernel(
     int offsetB = 0;
     int offsetC = idx;
 
-    int i = idx;
+    uint32_t linearIdx = static_cast<uint32_t>(idx);
 #pragma unroll
     for (int d = DIM - 1; d >= 0; --d) {
-      offsetA += (i % A.getShape(d)) * A.getStride(d);
-      offsetB += (i % A.getShape(d)) * B.getStride(d);
-      i /= A.getShape(d);
+      uint32_t quotient;
+      uint32_t remainder;
+      A.getSize()[d].divider.divmod(linearIdx, quotient, remainder);
+      offsetA += static_cast<int>(remainder) * A.getStride(d);
+      offsetB += static_cast<int>(remainder) * B.getStride(d);
+      linearIdx = quotient;
     }
     C[offsetC] = applyBinaryOp<TIn, TOut, OP>(A.getData()[offsetA], B.getData()[offsetB]);
   }
