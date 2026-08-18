@@ -102,7 +102,7 @@ Tensor binaryScalarImpl(const Tensor &tensor, T rhs) {
       NOT_IMPL();
   }
 
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return C;
 }

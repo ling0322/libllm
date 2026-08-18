@@ -68,7 +68,7 @@ Tensor applyRotaryPosEmb4D(const Tensor &tensor, const Tensor &rope) {
   d.x = (tensor.getShape(3) / 2 + blockSize - 1) / blockSize;
 
   applyRotaryPosEmbKernel4D<<<d, blockSize>>>(tensor, rope, C);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return C;
 }

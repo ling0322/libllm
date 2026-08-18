@@ -60,7 +60,7 @@ Tensor lookup2DHalf(const Tensor &embdTable, const Tensor &input) {
   PackedTensorAccessor<half, 3> sC(dst);
 
   lookupHalfKernel2D<<<d, blockSize>>>(sA, sB, sC);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return dst;

@@ -149,8 +149,8 @@ Tensor reduceAllImpl(const Tensor &A) {
       ReduceOp<MR_TYPE, TOut>{},
       0.0);
 
-  // Allocate temp storage
-  cudaMalloc(&tempStorage, tempStorageBytes);
+  lut::c_ptr<std::byte> tempStoragePtr = llynCudaAlloc<std::byte>(tempStorageBytes);
+  tempStorage = tempStoragePtr.get();
 
   // Step 2: Run the reduction
   cub::DeviceReduce::Reduce(
@@ -161,9 +161,6 @@ Tensor reduceAllImpl(const Tensor &A) {
       numel,
       ReduceOp<MR_TYPE, TOut>{},
       getReduceInitial<TOut, MR_TYPE>());
-
-  // Free temp storage
-  cudaFree(tempStorage);
 
   return C;
 }
@@ -199,7 +196,7 @@ Tensor reduceLastDim3DImpl(Tensor A) {
 
   reduce0Kernel3D<TIn, TOut, MR_TYPE, blockSize><<<d, blockSize>>>(A, C);
 
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   switch (origDim) {

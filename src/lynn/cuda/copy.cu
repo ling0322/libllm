@@ -94,7 +94,7 @@ void copy5D(const Tensor &src, Tensor &dest) {
   d.x = (src.getShape(4) + blockSize - 1) / blockSize;
 
   copy5DKernel<T><<<d, blockSize>>>(sA, sC);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
 
@@ -112,7 +112,7 @@ void copy4D(const Tensor &src, Tensor &dest) {
       (src.getShape(1) + block.z - 1) / block.z);
 
   copy4DKernel<T><<<grid, block>>>(sA, sC);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
 
@@ -130,7 +130,7 @@ void copy3D(const Tensor &src, Tensor &dest) {
   d.x = (src.getShape(2) + blockSize - 1) / blockSize;
 
   copy3DKernel<T><<<d, blockSize>>>(sA, sC);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
 

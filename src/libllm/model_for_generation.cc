@@ -67,6 +67,14 @@ const Vocab *ModelForGeneration::getVocab() const {
   return _tokenizer->getVocab();
 }
 
+int ModelForGeneration::getPromptTokenCount(const Prompt &prompt) const {
+  std::vector<ly::LongType> tokenIds;
+  for (const PromptBlock &block : prompt.getBlocks()) {
+    encodePromptBlock(block, tokenIds);
+  }
+  return tokenIds.size();
+}
+
 void ModelForGeneration::encodePromptBlock(
     const PromptBlock &block,
     std::vector<ly::LongType> &tokenIds) const {

@@ -220,7 +220,7 @@ std::pair<Tensor, Tensor> quantHalfToMxfp4(const Tensor &tensor, bool scaleLayou
         numRow,
         numCol);
   }
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return std::make_pair(q, scales);
@@ -251,7 +251,7 @@ Tensor dequandMxfp4ToHalf(const Tensor &fp4, const Tensor &scale) {
       reinterpret_cast<const uint8_t *>(getDataPtrCuda<UInt8>(scale)),
       getDataPtrCuda<half>(C),
       numel);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return C;
@@ -285,7 +285,7 @@ Tensor toSm1xxScaleBlockImpl(const Tensor &scale) {
       numRow,
       numCol);
 
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return C;

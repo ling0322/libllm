@@ -64,7 +64,7 @@ Tensor softmaxHalf3D(Tensor A) {
   d.x = (A.getShape(2) + blockSize - 1) / blockSize;
 
   softmaxKernel3D<half><<<d, blockSize>>>(A, sumExp, C);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return C;

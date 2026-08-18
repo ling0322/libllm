@@ -104,7 +104,7 @@ Tensor gemvHalf(const Tensor &x, const Tensor &B) {
       n,
       d,
       n);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   return C;
 }
 

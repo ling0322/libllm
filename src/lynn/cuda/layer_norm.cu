@@ -85,7 +85,7 @@ Tensor layerNorm3D(Tensor tensor, Tensor weight, Tensor bias, float eps) {
   d.x = (C.getShape(2) + blockSize - 1) / blockSize;
 
   layerNormKernel3D<<<d, blockSize>>>(tensor, mean, sumDiffSquare, weight, bias, C, eps);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return C;
 }
