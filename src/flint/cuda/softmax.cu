@@ -18,52 +18,133 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <cuda_fp16.h>
+#include <cub/block/block_reduce.cuh>
 #include <math.h>
 
 #include "flint/cuda/accessor.h"
-#include "flint/cuda/binary.h"
 #include "flint/cuda/common.h"
-#include "flint/cuda/reduce.h"
 #include "flint/functional.h"
 
 namespace fl {
 namespace op {
 namespace cuda {
 
-template<typename T>
-__global__ void softmaxKernel3D(
-    PackedTensorAccessor<const T, 3> input,
-    PackedTensorAccessor<const float, 2> sumExp,
-    PackedTensorAccessor<T, 3> output) {
-  int x = blockIdx.x * blockDim.x + threadIdx.x;
-  int y = blockIdx.y * blockDim.y + threadIdx.y;
-  int z = blockIdx.z * blockDim.z + threadIdx.z;
+struct MaxFloat {
+  __device__ float operator()(float a, float b) const {
+    return fmaxf(a, b);
+  }
+};
 
-  if (x < input.getShape(2) && y < input.getShape(1) && z < input.getShape(0)) {
-    float el = static_cast<float>(input[z][y][x]);
-    output[z][y][x] = static_cast<T>(expf(el - logf(sumExp[z][y])));
+template<int BLOCK_SIZE, bool VECTORIZED>
+__global__ void softmaxFusedKernel(
+    const half *__restrict__ input,
+    half *__restrict__ output,
+    int width) {
+  int rowOffset = blockIdx.x * width;
+  float threadMax = -INFINITY;
+
+  if constexpr (VECTORIZED) {
+    const half2 *input2 = reinterpret_cast<const half2 *>(input + rowOffset);
+    int width2 = width / 2;
+    for (int i = threadIdx.x; i < width2; i += BLOCK_SIZE) {
+      float2 value = __half22float2(input2[i]);
+      threadMax = fmaxf(threadMax, fmaxf(value.x, value.y));
+    }
+  } else {
+    for (int i = threadIdx.x; i < width; i += BLOCK_SIZE) {
+      threadMax = fmaxf(threadMax, __half2float(input[rowOffset + i]));
+    }
+  }
+
+  using BlockReduce = cub::BlockReduce<float, BLOCK_SIZE>;
+  __shared__ typename BlockReduce::TempStorage tempStorage;
+  __shared__ float rowMax;
+  __shared__ float invSum;
+  threadMax = BlockReduce(tempStorage).Reduce(threadMax, MaxFloat{});
+  if (threadIdx.x == 0) rowMax = threadMax;
+  __syncthreads();
+
+  float threadSum = 0.0f;
+  if constexpr (VECTORIZED) {
+    const half2 *input2 = reinterpret_cast<const half2 *>(input + rowOffset);
+    int width2 = width / 2;
+    for (int i = threadIdx.x; i < width2; i += BLOCK_SIZE) {
+      float2 value = __half22float2(input2[i]);
+      threadSum += expf(value.x - rowMax) + expf(value.y - rowMax);
+    }
+  } else {
+    for (int i = threadIdx.x; i < width; i += BLOCK_SIZE) {
+      threadSum += expf(__half2float(input[rowOffset + i]) - rowMax);
+    }
+  }
+
+  threadSum = BlockReduce(tempStorage).Sum(threadSum);
+  if (threadIdx.x == 0) invSum = 1.0f / threadSum;
+  __syncthreads();
+
+  if constexpr (VECTORIZED) {
+    const half2 *input2 = reinterpret_cast<const half2 *>(input + rowOffset);
+    half2 *output2 = reinterpret_cast<half2 *>(output + rowOffset);
+    int width2 = width / 2;
+    for (int i = threadIdx.x; i < width2; i += BLOCK_SIZE) {
+      float2 value = __half22float2(input2[i]);
+      output2[i] = __floats2half2_rn(
+          expf(value.x - rowMax) * invSum,
+          expf(value.y - rowMax) * invSum);
+    }
+  } else {
+    for (int i = threadIdx.x; i < width; i += BLOCK_SIZE) {
+      output[rowOffset + i] =
+          __float2half(expf(__half2float(input[rowOffset + i]) - rowMax) * invSum);
+    }
   }
 }
 
-Tensor softmaxHalf3D(Tensor A) {
+template<int BLOCK_SIZE>
+__global__ void softmaxStridedKernel(
+    PackedTensorAccessor<const half, 3> input,
+    PackedTensorAccessor<half, 3> output) {
+  int width = input.getShape(2);
+  int y = blockIdx.x % input.getShape(1);
+  int z = blockIdx.x / input.getShape(1);
+
+  float threadMax = -INFINITY;
+  for (int x = threadIdx.x; x < width; x += BLOCK_SIZE) {
+    threadMax = fmaxf(threadMax, __half2float(input[z][y][x]));
+  }
+
+  using BlockReduce = cub::BlockReduce<float, BLOCK_SIZE>;
+  __shared__ typename BlockReduce::TempStorage tempStorage;
+  __shared__ float rowMax;
+  __shared__ float invSum;
+  threadMax = BlockReduce(tempStorage).Reduce(threadMax, MaxFloat{});
+  if (threadIdx.x == 0) rowMax = threadMax;
+  __syncthreads();
+
+  float threadSum = 0.0f;
+  for (int x = threadIdx.x; x < width; x += BLOCK_SIZE) {
+    threadSum += expf(__half2float(input[z][y][x]) - rowMax);
+  }
+
+  threadSum = BlockReduce(tempStorage).Sum(threadSum);
+  if (threadIdx.x == 0) invSum = 1.0f / threadSum;
+  __syncthreads();
+
+  for (int x = threadIdx.x; x < width; x += BLOCK_SIZE) {
+    output[z][y][x] =
+        __float2half(expf(__half2float(input[z][y][x]) - rowMax) * invSum);
+  }
+}
+
+Tensor softmaxHalfStrided3D(Tensor A) {
   CHECK(A.getDType() == DType::kFloat16);
   CHECK(A.getDim() == 3);
 
-  Tensor max = reduceLastDim(A, DType::kFloat16, MapReduceType::MAX);
-  max = max.view({max.getShape(0), max.getShape(1), 1});
-
-  A = cuda::applyBinaryOp(BinaryOp::SUB, A, max);
-
-  Tensor sumExp = reduceLastDim(A, DType::kFloat, MapReduceType::SUM_EXP);
   Tensor C = createCudaTensorHalf(A.getShape());
 
   constexpr int blockSize = 256;
-  dim3 d;
-  d.z = A.getShape(0);
-  d.y = A.getShape(1);
-  d.x = (A.getShape(2) + blockSize - 1) / blockSize;
-
-  softmaxKernel3D<half><<<d, blockSize>>>(A, sumExp, C);
+  int rows = A.getShape(0) * A.getShape(1);
+  softmaxStridedKernel<blockSize><<<rows, blockSize>>>(A, C);
   LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
@@ -72,14 +153,14 @@ Tensor softmaxHalf3D(Tensor A) {
 
 Tensor softmaxHalf1D(Tensor A) {
   Tensor xA = A.view({1, 1, A.getShape(0)});
-  Tensor C = softmaxHalf3D(xA);
+  Tensor C = softmaxHalfStrided3D(xA);
 
   return C.view({C.getShape(2)});
 }
 
 Tensor softmaxHalf2D(Tensor A) {
   Tensor xA = A.view({1, A.getShape(0), A.getShape(1)});
-  Tensor C = softmaxHalf3D(xA);
+  Tensor C = softmaxHalfStrided3D(xA);
 
   return C.view({C.getShape(1), C.getShape(2)});
 }
@@ -88,15 +169,41 @@ Tensor softmaxHalf4D(Tensor A) {
   std::vector<int> shape = A.getShape();
 
   Tensor xA = A.view({-1, A.getShape(2), A.getShape(3)});
-  Tensor C = softmaxHalf3D(xA);
+  Tensor C = softmaxHalfStrided3D(xA);
 
   return C.view(shape);
 }
 
+Tensor softmaxHalfContiguous(Tensor A) {
+  int width = A.getShape(-1);
+  int64_t numel = A.getNumEl();
+  CHECK(numel < std::numeric_limits<int>::max());
+  int rows = static_cast<int>(numel / width);
+
+  Tensor C = createCudaTensorHalf(A.getShape());
+  const half *input = getDataPtrCuda<half>(A);
+  half *output = getDataPtrCuda<half>(C);
+
+  constexpr int blockSize = 256;
+  bool useHalf2 = width % 2 == 0 &&
+                  reinterpret_cast<uintptr_t>(input) % alignof(half2) == 0 &&
+                  reinterpret_cast<uintptr_t>(output) % alignof(half2) == 0;
+  if (useHalf2) {
+    softmaxFusedKernel<blockSize, true><<<rows, blockSize>>>(input, output, width);
+  } else {
+    softmaxFusedKernel<blockSize, false><<<rows, blockSize>>>(input, output, width);
+  }
+
+  LL_CUDA_SYNCHRONIZE();
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+  return C;
+}
+
 Tensor softmaxHalf(Tensor A) {
+  if (A.isContiguous()) return softmaxHalfContiguous(A);
   if (A.getDim() == 1) return softmaxHalf1D(A);
   if (A.getDim() == 2) return softmaxHalf2D(A);
-  if (A.getDim() == 3) return softmaxHalf3D(A);
+  if (A.getDim() == 3) return softmaxHalfStrided3D(A);
   if (A.getDim() == 4) return softmaxHalf4D(A);
 
   NOT_IMPL();

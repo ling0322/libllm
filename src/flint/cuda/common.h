@@ -57,9 +57,48 @@ namespace fl {
 namespace op {
 namespace cuda {
 
+// Invariant division for positive divisors and dividends no greater than INT32_MAX.
+class FastDivmod {
+ public:
+  __host__ explicit FastDivmod(uint32_t divisor = 1)
+      : _divisor(divisor) {
+    CHECK(divisor >= 1 && divisor <= INT32_MAX);
+
+    for (_shift = 0; _shift < 32; ++_shift) {
+      if ((uint32_t{1} << _shift) >= divisor) break;
+    }
+
+    uint64_t magic = ((uint64_t{1} << 32) * ((uint64_t{1} << _shift) - divisor)) /
+                         divisor +
+                     1;
+    _multiplier = static_cast<uint32_t>(magic);
+    CHECK(_multiplier == magic);
+  }
+
+  __forceinline__ __host__ __device__ void divmod(
+      uint32_t dividend,
+      uint32_t &quotient,
+      uint32_t &remainder) const {
+#ifdef __CUDA_ARCH__
+    uint32_t high = __umulhi(dividend, _multiplier);
+    quotient = (high + dividend) >> _shift;
+#else
+    uint64_t high = (static_cast<uint64_t>(dividend) * _multiplier) >> 32;
+    quotient = static_cast<uint32_t>((high + dividend) >> _shift);
+#endif
+    remainder = dividend - quotient * _divisor;
+  }
+
+ private:
+  uint32_t _divisor;
+  uint32_t _multiplier;
+  uint32_t _shift;
+};
+
 struct Size {
   int32_t shape;
   int32_t stride;
+  FastDivmod divider;
 };
 
 template<typename T>
@@ -145,9 +184,13 @@ inline Tensor createCudaTensor<BoolType>(lut::Span<const int> shape) {
 /// @return the dim3 object.
 __device__ inline dim3 splitIndexToDim3(unsigned int index, const Size *size) {
   dim3 d;
-  d.x = index % size[2].shape;
-  d.y = (index / size[2].shape) % size[1].shape;
-  d.z = index / (size[1].shape * size[2].shape);
+  uint32_t quotient;
+  uint32_t remainder;
+  size[2].divider.divmod(index, quotient, remainder);
+  d.x = remainder;
+  size[1].divider.divmod(quotient, index, remainder);
+  d.y = remainder;
+  d.z = index;
 
   return d;
 }

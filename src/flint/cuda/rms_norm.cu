@@ -18,55 +18,150 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <cuda_fp16.h>
+#include <cub/block/block_reduce.cuh>
 
 #include "flint/cuda/accessor.h"
 #include "flint/cuda/common.h"
-#include "flint/cuda/reduce.h"
 #include "flint/cuda/rms_norm.h"
 
 namespace fl {
 namespace op {
 namespace cuda {
 
-__global__ void rmsNormKernel3D(
-    PackedTensorAccessor<const half, 3> inputTensor,
-    PackedTensorAccessor<const float, 2> sumSquare,
-    PackedTensorAccessor<const half, 1> weight,
-    PackedTensorAccessor<half, 3> outputTensor,
+template<int BLOCK_SIZE, bool VECTORIZED>
+__global__ void rmsNormFusedKernel(
+    const half *__restrict__ input,
+    const half *__restrict__ weight,
+    half *__restrict__ output,
+    int hiddenSize,
     float eps) {
-  assert(inputTensor.getShape(0) == outputTensor.getShape(0));
-  assert(inputTensor.getShape(1) == outputTensor.getShape(1));
-  assert(inputTensor.getShape(2) == outputTensor.getShape(2));
-  assert(inputTensor.getShape(0) == sumSquare.getShape(0));
-  assert(inputTensor.getShape(1) == sumSquare.getShape(1));
-  assert(inputTensor.getShape(2) == weight.getShape(0));
+  int row = blockIdx.x;
+  int rowOffset = row * hiddenSize;
+  float sumSquare = 0.0f;
 
-  int x = blockIdx.x * blockDim.x + threadIdx.x;
-  int y = blockIdx.y * blockDim.y + threadIdx.y;
-  int z = blockIdx.z * blockDim.z + threadIdx.z;
+  if constexpr (VECTORIZED) {
+    const half2 *input2 = reinterpret_cast<const half2 *>(input + rowOffset);
+    int width = hiddenSize / 2;
+    for (int i = threadIdx.x; i < width; i += BLOCK_SIZE) {
+      float2 value = __half22float2(input2[i]);
+      sumSquare += value.x * value.x + value.y * value.y;
+    }
+  } else {
+    for (int i = threadIdx.x; i < hiddenSize; i += BLOCK_SIZE) {
+      float value = __half2float(input[rowOffset + i]);
+      sumSquare += value * value;
+    }
+  }
 
-  if (z < inputTensor.getShape(0) && y < inputTensor.getShape(1) && x < inputTensor.getShape(2)) {
-    half rms = __float2half(sqrtf(sumSquare[z][y] / __int2float_rd(weight.getShape(0)) + eps));
-    outputTensor[z][y][x] = inputTensor[z][y][x] * weight[x] / rms;
+  using BlockReduce = cub::BlockReduce<float, BLOCK_SIZE>;
+  __shared__ typename BlockReduce::TempStorage tempStorage;
+  __shared__ float invRms;
+  sumSquare = BlockReduce(tempStorage).Sum(sumSquare);
+  if (threadIdx.x == 0) {
+    invRms = rsqrtf(sumSquare / hiddenSize + eps);
+  }
+  __syncthreads();
+
+  if constexpr (VECTORIZED) {
+    const half2 *input2 = reinterpret_cast<const half2 *>(input + rowOffset);
+    const half2 *weight2 = reinterpret_cast<const half2 *>(weight);
+    half2 *output2 = reinterpret_cast<half2 *>(output + rowOffset);
+    int width = hiddenSize / 2;
+    for (int i = threadIdx.x; i < width; i += BLOCK_SIZE) {
+      float2 value = __half22float2(input2[i]);
+      float2 scale = __half22float2(weight2[i]);
+      output2[i] = __floats2half2_rn(
+          value.x * scale.x * invRms,
+          value.y * scale.y * invRms);
+    }
+  } else {
+    for (int i = threadIdx.x; i < hiddenSize; i += BLOCK_SIZE) {
+      float value = __half2float(input[rowOffset + i]);
+      float scale = __half2float(weight[i]);
+      output[rowOffset + i] = __float2half(value * scale * invRms);
+    }
   }
 }
 
-Tensor rmsNorm3D(const Tensor &tensor, const Tensor &weight, float eps) {
-  Tensor reduceNorm2 = op::cuda::reduceLastDim(tensor, DType::kFloat, MapReduceType::SUM_SQUARE);
-  CHECK(reduceNorm2.getDim() == 2);
+template<int BLOCK_SIZE>
+__global__ void rmsNormStridedKernel(
+    PackedTensorAccessor<const half, 3> inputTensor,
+    PackedTensorAccessor<const half, 1> weight,
+    PackedTensorAccessor<half, 3> outputTensor,
+    float eps) {
+  int hiddenSize = inputTensor.getShape(2);
+  int y = blockIdx.x % inputTensor.getShape(1);
+  int z = blockIdx.x / inputTensor.getShape(1);
 
+  float sumSquare = 0.0f;
+  for (int x = threadIdx.x; x < hiddenSize; x += BLOCK_SIZE) {
+    float value = __half2float(inputTensor[z][y][x]);
+    sumSquare += value * value;
+  }
+
+  using BlockReduce = cub::BlockReduce<float, BLOCK_SIZE>;
+  __shared__ typename BlockReduce::TempStorage tempStorage;
+  __shared__ float invRms;
+  sumSquare = BlockReduce(tempStorage).Sum(sumSquare);
+  if (threadIdx.x == 0) {
+    invRms = rsqrtf(sumSquare / hiddenSize + eps);
+  }
+  __syncthreads();
+
+  for (int x = threadIdx.x; x < hiddenSize; x += BLOCK_SIZE) {
+    float value = __half2float(inputTensor[z][y][x]);
+    float scale = __half2float(weight[x]);
+    outputTensor[z][y][x] = __float2half(value * scale * invRms);
+  }
+}
+
+Tensor rmsNormStrided3D(const Tensor &tensor, const Tensor &weight, float eps) {
   Tensor C = createCudaTensorHalf(tensor.getShape());
 
   constexpr int blockSize = 256;
-  dim3 d;
-  d.z = C.getShape(0);
-  d.y = C.getShape(1);
-  d.x = (C.getShape(2) + blockSize - 1) / blockSize;
-
-  rmsNormKernel3D<<<d, blockSize>>>(tensor, reduceNorm2, weight, C, eps);
+  int rows = tensor.getShape(0) * tensor.getShape(1);
+  rmsNormStridedKernel<blockSize><<<rows, blockSize>>>(tensor, weight, C, eps);
   LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return C;
+}
+
+Tensor rmsNormContiguous3D(const Tensor &tensor, const Tensor &weight, float eps) {
+  int hiddenSize = tensor.getShape(2);
+  int64_t numel = tensor.getNumEl();
+  CHECK(numel < std::numeric_limits<int>::max());
+  int64_t rows64 = numel / hiddenSize;
+  CHECK(rows64 < std::numeric_limits<int>::max());
+  int rows = static_cast<int>(rows64);
+
+  Tensor C = createCudaTensorHalf(tensor.getShape());
+  const half *input = getDataPtrCuda<half>(tensor);
+  const half *weightData = getDataPtrCuda<half>(weight);
+  half *output = getDataPtrCuda<half>(C);
+
+  constexpr int blockSize = 256;
+  bool useHalf2 = hiddenSize % 2 == 0 &&
+                  reinterpret_cast<uintptr_t>(input) % alignof(half2) == 0 &&
+                  reinterpret_cast<uintptr_t>(weightData) % alignof(half2) == 0 &&
+                  reinterpret_cast<uintptr_t>(output) % alignof(half2) == 0;
+  if (useHalf2) {
+    rmsNormFusedKernel<blockSize, true>
+        <<<rows, blockSize>>>(input, weightData, output, hiddenSize, eps);
+  } else {
+    rmsNormFusedKernel<blockSize, false>
+        <<<rows, blockSize>>>(input, weightData, output, hiddenSize, eps);
+  }
+
+  LL_CUDA_SYNCHRONIZE();
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+  return C;
+}
+
+Tensor rmsNorm3D(const Tensor &tensor, const Tensor &weight, float eps) {
+  if (tensor.isContiguous() && weight.isContiguous()) {
+    return rmsNormContiguous3D(tensor, weight, eps);
+  }
+  return rmsNormStrided3D(tensor, weight, eps);
 }
 
 Tensor rmsNorm(const Tensor &tensor, const Tensor &weight, float eps) {
