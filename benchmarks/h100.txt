@@ -1,0 +1,67 @@
+Llama 3.2 3B projection benchmarks (FP16)
+decode-1 qkv_proj                                14.125 us      2.23 TFLOP/s
+decode-1 out_proj                                 9.675 us      1.95 TFLOP/s
+decode-1 gate_up_proj                            48.742 us      2.07 TFLOP/s
+decode-1 down_proj                               17.915 us      2.81 TFLOP/s
+prefill-128 qkv_proj                             13.125 us    306.79 TFLOP/s
+prefill-128 out_proj                             12.592 us    191.86 TFLOP/s
+prefill-128 gate_up_proj                         41.050 us    313.89 TFLOP/s
+prefill-128 down_proj                            23.784 us    270.87 TFLOP/s
+prefill-512 qkv_proj                             26.454 us    608.83 TFLOP/s
+prefill-512 out_proj                             18.616 us    519.11 TFLOP/s
+prefill-512 gate_up_proj                         70.846 us    727.48 TFLOP/s
+prefill-512 down_proj                            36.957 us    697.30 TFLOP/s
+decode-1 lm_head                                270.531 us      2.91 TFLOP/s
+INFO 2026-08-18T07:40:00Z matmul.cc:45] Use GEMM from cuBLAS.
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:86] cuda numDevices = 1
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:87] cuda:0 maxThreadsPerMultiProcessor = 2048
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:89] cuda:0 multiProcessorCount = 132
+
+Llama 3.2 3B normalization and elementwise benchmarks (FP16)
+rms_norm [1,1,3072]                               5.029 us
+swiglu [1,1,16384]                                4.810 us
+residual_add [1,1,3072]                           4.859 us
+rms_norm [1,128,3072]                             5.078 us
+swiglu [1,128,16384]                              4.936 us
+residual_add [1,128,3072]                         5.432 us
+rms_norm [1,512,3072]                             5.566 us
+swiglu [1,512,16384]                              8.514 us
+residual_add [1,512,3072]                         5.397 us
+INFO 2026-08-18T07:40:00Z matmul.cc:45] Use GEMM from cuBLAS.
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:86] cuda numDevices = 1
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:87] cuda:0 maxThreadsPerMultiProcessor = 2048
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:89] cuda:0 multiProcessorCount = 132
+
+Llama 3.2 3B attention primitive benchmarks (FP16)
+softmax [1,24,128,128]                            7.221 us
+softmax [1,24,512,512]                           24.246 us
+softmax [1,24,1,512]                              4.861 us
+softmax [1,24,1,2048]                             4.595 us
+attention_qk [24,128,128,128]                    31.931 us
+attention_pv [24,128,128,128]                    31.216 us
+attention_qk [24,512,512,128]                    36.739 us
+attention_pv [24,512,512,128]                    34.030 us
+attention_qk [24,1,512,128]                      32.074 us
+attention_pv [24,1,512,128]                      31.126 us
+attention_qk [24,1,2048,128]                     36.030 us
+attention_pv [24,1,2048,128]                     34.707 us
+INFO 2026-08-18T07:40:00Z matmul.cc:45] Use GEMM from cuBLAS.
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:86] cuda numDevices = 1
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:87] cuda:0 maxThreadsPerMultiProcessor = 2048
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:89] cuda:0 multiProcessorCount = 132
+
+Llama 3.2 3B layout benchmarks (FP16)
+gqa_copy [1,128,8,3,128]                          4.277 us
+gqa_copy [1,512,8,3,128]                          8.256 us
+causal_mask [128,128]                             4.344 us
+causal_mask [512,512]                             4.432 us
+INFO 2026-08-18T07:40:00Z matmul.cc:45] Use GEMM from cuBLAS.
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:86] cuda numDevices = 1
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:87] cuda:0 maxThreadsPerMultiProcessor = 2048
+INFO 2026-08-18T07:40:00Z cuda_operators.cc:89] cuda:0 multiProcessorCount = 132
+
+Llama 3.2 3B embedding and generation benchmarks (FP16)
+embedding_lookup [1,3072]                        12.968 us
+embedding_lookup [128,3072]                      12.576 us
+repetition_penalty [1,128256] history=32          3.382 us
+sampling [1,128256] top_k=50 top_p=0.9           65.715 us
