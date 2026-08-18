@@ -42,7 +42,11 @@ endif()
 
 add_library(lutil STATIC ${lutil_SOURCES})
 set_target_properties(lutil PROPERTIES CXX_VISIBILITY_PRESET hidden)
-target_include_directories(lutil PRIVATE ".." ${LIBDWARF_INCLUDE_DIR})
+target_include_directories(lutil PRIVATE
+    ".."
+    ${LIBDWARF_INCLUDE_DIR}
+    "${UNWIND_ROOT}/build/include"
+    "${UNWIND_ROOT}/include")
 
 add_library(lutil_test OBJECT ${lut_test_SOURCES})
 target_include_directories(lutil_test PRIVATE "..")
