@@ -114,6 +114,13 @@ int Sampler::sampleTopP(const fl::Tensor &distribution, lut::Span<const int> top
 }
 
 int Sampler::sample(const fl::Tensor &distribution) {
+  if (distribution.getDevice().getType() == fl::Device::kCuda) {
+    fl::Tensor sampled = fl::F::sample(distribution, _topK, _topP);
+    sampled = fl::F::to(fl::Device::getCpu(), sampled);
+    CHECK(sampled.getNumEl() == 1 && sampled.getDType() == fl::DType::kLong);
+    return static_cast<int>(*sampled.getInternalData()->getData<fl::LongType>(
+        sampled.getInternalOffset()));
+  }
   CHECK(distribution.getDim() == 1 && distribution.getDType() == fl::DType::kFloat);
 
   std::vector<int> topK = getTopK(distribution);  // topK is sorted by its prob in x
@@ -197,11 +204,11 @@ int SamplingGenerator::searchToken(const fl::Tensor &logits) {
   }
 
   x = fl::F::softmax(x);
+  if (x.getDevice().getType() == fl::Device::kCuda) {
+    return _sampler.sample(x);
+  }
   if (x.getDType() == fl::DType::kFloat16) {
     x = fl::F::cast(x, fl::DType::kFloat);
-  }
-  if (x.getDevice().getType() == fl::Device::kCuda) {
-    x = fl::F::to(fl::Device::kCpu, x);
   }
 
   return _sampler.sample(x);

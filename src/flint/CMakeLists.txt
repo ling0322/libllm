@@ -89,6 +89,7 @@ if (WITH_CUDA)
         "cuda/reduce.cu"
         "cuda/repetition_penalty.cu"
         "cuda/rms_norm.cu"
+        "cuda/sampling.cu"
         "cuda/softmax.cu"
         "cuda/swiglu.cu"
         "cuda/to_device.cc"

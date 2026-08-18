@@ -44,6 +44,7 @@ class Operators {
   virtual Tensor mod(Tensor input, LongType other);
   virtual Tensor mul(Tensor input, Tensor other);
   virtual Tensor softmax(Tensor input);
+  virtual Tensor sample(Tensor distribution, int topK, float topP);
   virtual Tensor add(Tensor input, Tensor other);
   virtual Tensor sub(Tensor input, Tensor other);
   virtual Tensor subFloat(Tensor input, float other);

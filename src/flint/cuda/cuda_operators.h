@@ -67,6 +67,7 @@ class CudaOperators : public Operators {
   void print(Tensor tensor) override;
   void repetitionPenalty(Tensor logits, Tensor history, float weight) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
+  Tensor sample(Tensor distribution, int topK, float topP) override;
   Tensor softmax(Tensor input) override;
   Tensor sum(Tensor inputs, int dim) override;
   Tensor swiglu(Tensor A) override;

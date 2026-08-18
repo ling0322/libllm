@@ -175,6 +175,20 @@ CATCH_TEST_CASE("benchmark CUDA operators", "[op][cuda][benchmark]") {
     CATCH_REQUIRE(tester.testRmsNorm({2, 256, 4096}));
     CATCH_REQUIRE(tester.testLayerNorm({2, 256, 4096}));
   }
+
+  CATCH_SECTION("benchmark sampling") {
+    Tensor distribution = F::rand({128256}, DType::kFloat);
+    distribution = F::to(Device::getCuda(), distribution);
+    distribution = F::cast(distribution, DType::kFloat16);
+    for (int i = 0; i < 5; ++i) F::sample(distribution, 50, 1.0f);
+    double start = lut::now();
+    Tensor tokens;
+    for (int i = 0; i < 20; ++i) tokens = F::sample(distribution, 50, 1.0f);
+    tokens = F::to(Device::getCpu(), tokens);
+    double milliseconds = (lut::now() - start) * 1000.0 / 20.0;
+    LOG(INFO) << "GPU sample [128256]: " << milliseconds << "ms";
+    CATCH_REQUIRE(tokens.getNumEl() == 1);
+  }
 }
 
 CATCH_TEST_CASE("test softmax (large)", "[fl][op][cuda]") {
@@ -295,6 +309,48 @@ CATCH_TEST_CASE("test attention", "[fl][op][cuda]") {
   x = F::to(Device::getCpu(), x);
 
   CATCH_REQUIRE(F::allClose(x, xr, 5e-3f));
+}
+
+CATCH_TEST_CASE("test CUDA sampling", "[fl][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  Tensor probabilities = Tensor::create<float>(
+      {3, 4},
+      {0.4f, 0.3f, 0.2f, 0.1f, 0.1f, 0.2f, 0.6f, 0.1f, 0.05f, 0.05f, 0.1f, 0.8f});
+  Tensor probabilitiesFloat = F::to(Device::getCuda(), probabilities);
+  Tensor probabilitiesHalf = F::cast(probabilitiesFloat, DType::kFloat16);
+
+  Tensor sampled = F::sample(probabilitiesHalf, 1, 1.0f);
+  CATCH_REQUIRE(sampled.getShape() == std::vector<int>{3});
+  sampled = F::to(Device::getCpu(), sampled);
+  const LongType *sampledData =
+      sampled.getInternalData()->getData<LongType>(sampled.getInternalOffset());
+  CATCH_REQUIRE(sampledData[0] == 0);
+  CATCH_REQUIRE(sampledData[1] == 2);
+  CATCH_REQUIRE(sampledData[2] == 3);
+
+  F::manualSeed(Device::getCuda(), 1234);
+  Tensor first = F::sample(probabilitiesFloat, 4, 0.9f);
+  F::manualSeed(Device::getCuda(), 1234);
+  Tensor second = F::sample(probabilitiesFloat, 4, 0.9f);
+  first = F::to(Device::getCpu(), first);
+  second = F::to(Device::getCpu(), second);
+  const LongType *firstData = first.getInternalData()->getData<LongType>(first.getInternalOffset());
+  const LongType *secondData =
+      second.getInternalData()->getData<LongType>(second.getInternalOffset());
+  for (int row = 0; row < 3; ++row) CATCH_REQUIRE(firstData[row] == secondData[row]);
+
+  std::vector<float> values(2 * 2050, 0.0f);
+  values[2049] = 0.4f;
+  values[2050 + 1100] = 0.7f;
+  Tensor multiBlock = Tensor::create<float>({2, 2050}, values);
+  multiBlock = F::to(Device::getCuda(), multiBlock);
+  multiBlock = F::cast(multiBlock, DType::kFloat16);
+  Tensor multiBlockSampled = F::to(Device::getCpu(), F::sample(multiBlock, 1, 1.0f));
+  const LongType *multiBlockData = multiBlockSampled.getInternalData()->getData<LongType>(
+      multiBlockSampled.getInternalOffset());
+  CATCH_REQUIRE(multiBlockData[0] == 2049);
+  CATCH_REQUIRE(multiBlockData[1] == 1100);
 }
 
 CATCH_TEST_CASE("benchmark gemv", "[fl][op][cuda]") {

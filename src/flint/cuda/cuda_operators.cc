@@ -37,6 +37,7 @@
 #include "flint/cuda/reduce.h"
 #include "flint/cuda/repetition_penalty.h"
 #include "flint/cuda/rms_norm.h"
+#include "flint/cuda/sampling.h"
 #include "flint/cuda/softmax.h"
 #include "flint/cuda/swiglu.h"
 #include "flint/cuda/to_device.h"
@@ -223,6 +224,15 @@ void CudaOperators::print(Tensor tensor) {
 
 Tensor CudaOperators::swiglu(Tensor A) {
   return op::cuda::swiglu(A);
+}
+
+Tensor CudaOperators::sample(Tensor distribution, int topK, float topP) {
+  int vocabSize = distribution.getShape(-1);
+  int64_t rows64 = distribution.getNumEl() / vocabSize;
+  CHECK(rows64 <= std::numeric_limits<int>::max());
+  int rows = static_cast<int>(rows64);
+  Tensor uniformNoise = _rand->rand({rows, topK});
+  return op::cuda::sample(distribution, uniformNoise, topK, topP);
 }
 
 Tensor CudaOperators::to(Device device, Tensor tensor) {

@@ -44,6 +44,10 @@ Tensor rmsNorm(Tensor input, Tensor weight, float eps) {
   return getOperators(input.getDevice().getType())->rmsNorm(input, weight, eps);
 }
 
+Tensor sample(Tensor distribution, int topK, float topP) {
+  return getOperators(distribution.getDevice().getType())->sample(distribution, topK, topP);
+}
+
 Tensor matmul(Tensor A, Tensor B) {
   CHECK(A.getDevice().getType() == B.getDevice().getType());
   CHECK(!A.empty());
