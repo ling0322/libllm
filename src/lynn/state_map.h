@@ -26,7 +26,7 @@
 #include "lutil/reader.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 
 // string -> Tensor dictioary. Usually used to store state-dict or kv-cache for a neural network.
 class StateMap {
@@ -77,4 +77,4 @@ class StateMap {
   std::pair<std::string, Tensor> readTensor(lut::Reader *fp) const;
 };
 
-}  // namespace ly
+}  // namespace fl

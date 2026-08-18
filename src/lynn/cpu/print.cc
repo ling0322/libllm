@@ -24,7 +24,7 @@
 #include "lynn/cpu/accessor.h"
 #include "lynn/cpu/tensor_printer.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -73,4 +73,4 @@ void print(const Tensor &tensor) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

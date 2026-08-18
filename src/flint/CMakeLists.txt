@@ -3,7 +3,7 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-set(lynn_SOURCES
+set(flint_SOURCES
     "cpu/kernel/fallback.cc"
     "cpu/kernel/interface.cc"
     "cpu/kernel/util.cc"
@@ -43,7 +43,7 @@ set(lynn_SOURCES
     "tensor_shape.cc"
     "../../third_party/ruapu/ruapu.cc")
 
-set(lynn_test_SOURCES
+set(flint_test_SOURCES
     "cpu/kernel/benchmark.cc"
     "cpu/kernel/interface_test.cc"
     "cpu/test.cc"
@@ -51,25 +51,25 @@ set(lynn_test_SOURCES
     "operator_tester.cc"
     "tensor_test.cc")
 
-set(lynn_benchmark_SOURCES
+set(flint_benchmark_SOURCES
     "operator_benchmark.cc")
 
-set(lynn_INCDIR ".." "../../third_party")
+set(flint_INCDIR ".." "../../third_party")
 
 if(WITH_OPENMP)
     if(NOT OPENMP_FOUND)
         message(FATAL_ERROR "WITH_OPENMP=ON build OpenMP package not found.")
     endif()
-    set(lynn_SOURCES ${lynn_SOURCES} "mp_openmp.cc")
-    set(lynn_INCDIR ${lynn_INCDIR} ${OpenMP_CXX_INCLUDE_DIRS})
+    set(flint_SOURCES ${flint_SOURCES} "mp_openmp.cc")
+    set(flint_INCDIR ${flint_INCDIR} ${OpenMP_CXX_INCLUDE_DIRS})
 else()
-    set(lynn_SOURCES ${lynn_SOURCES} "mp_thread_pool.cc")
+    set(flint_SOURCES ${flint_SOURCES} "mp_thread_pool.cc")
 endif()
 
 if (WITH_CUDA)
-    set(lynn_INCDIR ${lynn_INCDIR} ${CUDAToolkit_INCLUDE_DIRS})
-    set(lynn_SOURCES
-        ${lynn_SOURCES}
+    set(flint_INCDIR ${flint_INCDIR} ${CUDAToolkit_INCLUDE_DIRS})
+    set(flint_SOURCES
+        ${flint_SOURCES}
         "cuda/arange.cu"
         "cuda/apply_rotary_pos_emb.cu"
         "cuda/binary.cu"
@@ -98,12 +98,12 @@ if (WITH_CUDA)
         "cuda/unary.cu"
         "cuda/unfold.cu")
 
-    set(lynn_test_SOURCES ${lynn_test_SOURCES} "cuda/test.cc")
+    set(flint_test_SOURCES ${flint_test_SOURCES} "cuda/test.cc")
 
     if (WITH_CUTLASS)
-        set(lynn_SOURCES ${lynn_SOURCES}
+        set(flint_SOURCES ${flint_SOURCES}
             "cuda/gemm_cutlass.cu")
-        set(lynn_INCDIR ${lynn_INCDIR}
+        set(flint_INCDIR ${flint_INCDIR}
             "../../third_party/cutlass/include"
             "../../third_party/cutlass/tools/util/include")
     endif(WITH_CUTLASS)
@@ -111,8 +111,8 @@ endif()
 
 # CPU specific code
 if(LIBLLM_KERNEL_X86_64)
-    set(lynn_SOURCES
-        ${lynn_SOURCES}
+    set(flint_SOURCES
+        ${flint_SOURCES}
         "cpu/kernel/avx2.cc"
         "cpu/kernel/avx512.cc")
     if(WIN32)
@@ -131,16 +131,16 @@ if(LIBLLM_KERNEL_X86_64)
             "cpu/kernel/avx2.cc"
             PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mf16c")
     endif(UNIX)
-    set(lynn_test_SOURCES 
-        ${lynn_test_SOURCES}
+    set(flint_test_SOURCES 
+        ${flint_test_SOURCES}
         "cpu/kernel/avx2_test.cc"
         "cpu/kernel/avx512_test.cc")
 endif()
 
 if(LIBLLM_KERNEL_AARCH64)
-    set(lynn_SOURCES ${lynn_SOURCES} "cpu/kernel/asimdhp.cc")
-    set(lynn_test_SOURCES 
-        ${lynn_test_SOURCES}
+    set(flint_SOURCES ${flint_SOURCES} "cpu/kernel/asimdhp.cc")
+    set(flint_test_SOURCES 
+        ${flint_test_SOURCES}
         "cpu/test_float16.cc"
         "cpu/kernel/asimdhp_test.cc")
 endif()
@@ -148,19 +148,19 @@ endif()
 if (WITH_FFMPEG)
     add_library(llmpluginffmpeg_static OBJECT "read_audio_ffmpeg.cc")
     target_compile_options(llmpluginffmpeg_static PRIVATE "-DLIBLLM_EXPORTS")
-    target_include_directories(llmpluginffmpeg_static PRIVATE  ${lynn_INCDIR} "../../third_party/ffmpeg/")
+    target_include_directories(llmpluginffmpeg_static PRIVATE  ${flint_INCDIR} "../../third_party/ffmpeg/")
 endif()
 
-add_library(lynn_static OBJECT ${lynn_SOURCES})
-target_compile_options(lynn_static PRIVATE "-DLIBLLM_EXPORTS")
-target_include_directories(lynn_static PRIVATE ${LIBDWARF_INCLUDE_DIRS})
-#set_target_properties(lynn_static PROPERTIES CXX_VISIBILITY_PRESET hidden)
-#set_target_properties(lynn_static PROPERTIES CUDA_VISIBILITY_PRESET hidden)
+add_library(flint_static OBJECT ${flint_SOURCES})
+target_compile_options(flint_static PRIVATE "-DLIBLLM_EXPORTS")
+target_include_directories(flint_static PRIVATE ${LIBDWARF_INCLUDE_DIRS})
+#set_target_properties(flint_static PROPERTIES CXX_VISIBILITY_PRESET hidden)
+#set_target_properties(flint_static PROPERTIES CUDA_VISIBILITY_PRESET hidden)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr --use_fast_math")
-target_include_directories(lynn_static PRIVATE ${lynn_INCDIR})
+target_include_directories(flint_static PRIVATE ${flint_INCDIR})
 
-add_library(lynn_test OBJECT ${lynn_test_SOURCES})
-target_include_directories(lynn_test PRIVATE ${lynn_INCDIR})
+add_library(flint_test OBJECT ${flint_test_SOURCES})
+target_include_directories(flint_test PRIVATE ${flint_INCDIR})
 
-add_library(lynn_benchmark OBJECT ${lynn_benchmark_SOURCES})
-target_include_directories(lynn_benchmark PRIVATE ${lynn_INCDIR})
+add_library(flint_benchmark OBJECT ${flint_benchmark_SOURCES})
+target_include_directories(flint_benchmark PRIVATE ${flint_INCDIR})

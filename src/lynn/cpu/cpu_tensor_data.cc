@@ -25,7 +25,7 @@
 #include "lynn/device.h"
 #include "lynn/dtype.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -90,4 +90,4 @@ Device CpuTensorData::getDevice() const {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

@@ -34,7 +34,7 @@ namespace qwen {
 class QwenModelForGeneration : public llama::LlamaModelForGeneration {
  public:
   static std::shared_ptr<QwenModelForGeneration> fromPackage(
-      const ly::Context &ctx,
+      const fl::Context &ctx,
       lut::ZipFile *package);
 
   // noncopyable

@@ -20,7 +20,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/fill.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -52,4 +52,4 @@ Tensor arangeLong(LongType begin, LongType end, LongType step) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

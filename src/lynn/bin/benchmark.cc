@@ -21,11 +21,11 @@
 #include "lynn/cuda/cuda_operators.h"
 #include "lynn/operator_benchmark.h"
 
-using ly::op::cuda::CudaOperators;
+using fl::op::cuda::CudaOperators;
 
 void benchmarkMatmul(int matmulOption) {
-  ly::OperatorBenchmark b;
-  b = b.withWarmUpLoop(5).withLoop(10).withDType(ly::DType::kFloat16);
+  fl::OperatorBenchmark b;
+  b = b.withWarmUpLoop(5).withLoop(10).withDType(fl::DType::kFloat16);
   b = b.withOperators(CudaOperators::create(matmulOption));
 
   int shapes[][3] = {
@@ -56,10 +56,10 @@ CATCH_TEST_CASE("matmul cublas vs cutlass", "[matmul][cuda]") {
 }
 
 int main(int argc, char **argv) {
-  ly::initOperators();
+  fl::initOperators();
 
   int result = Catch::Session().run(argc, argv);
 
-  ly::destroyOperators();
+  fl::destroyOperators();
   return result;
 }

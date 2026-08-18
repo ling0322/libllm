@@ -25,7 +25,7 @@
 #include "lynn/device.h"
 #include "lynn/dtype.h"
 
-namespace ly {
+namespace fl {
 
 // context for a module including operator set, device info and the namespace
 class Context {
@@ -79,4 +79,4 @@ class Context {
   bool _debug;
 };
 
-}  // namespace ly
+}  // namespace fl

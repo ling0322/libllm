@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -29,4 +29,4 @@ void repetitionPenalty(Tensor logits, Tensor history, float weight);
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

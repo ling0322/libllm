@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -30,4 +30,4 @@ Tensor applyRotaryPosEmbFp32(const Tensor &input, const Tensor &roPE);
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

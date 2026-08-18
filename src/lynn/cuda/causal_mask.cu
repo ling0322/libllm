@@ -24,7 +24,7 @@
 #include "lynn/cuda/causal_mask.h"
 #include "lynn/cuda/common.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -53,4 +53,4 @@ Tensor causalMask(int size) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

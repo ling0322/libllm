@@ -24,7 +24,7 @@
 #include "lynn/cuda/reduce.h"
 #include "lynn/cuda/rms_norm.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -81,4 +81,4 @@ Tensor rmsNorm(const Tensor &tensor, const Tensor &weight, float eps) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

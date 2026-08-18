@@ -36,9 +36,9 @@
 #include "lynn/operator_tester.h"
 #include "lynn/operators.h"
 
-using OperatorType = ly::OperatorTester::OperatorType;
+using OperatorType = fl::OperatorTester::OperatorType;
 
-namespace ly {
+namespace fl {
 
 OperatorTester getOperatorTester() {
   return OperatorTester()
@@ -153,7 +153,7 @@ CATCH_TEST_CASE("benchmark CUDA operators", "[op][cuda][benchmark]") {
   }
 }
 
-CATCH_TEST_CASE("test softmax (large)", "[ly][op][cuda]") {
+CATCH_TEST_CASE("test softmax (large)", "[fl][op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
   Tensor a = Tensor::create<float>(
@@ -175,7 +175,7 @@ CATCH_TEST_CASE("test softmax (large)", "[ly][op][cuda]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test cat", "[ly][op][cuda]") {
+CATCH_TEST_CASE("test cat", "[fl][op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
   Tensor a = F::rand({2, 10, 16}, DType::kFloat);
@@ -193,7 +193,7 @@ CATCH_TEST_CASE("test cat", "[ly][op][cuda]") {
   CATCH_REQUIRE(F::allClose(x, xr));
 }
 
-CATCH_TEST_CASE("test attention", "[ly][op][cuda]") {
+CATCH_TEST_CASE("test attention", "[fl][op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
   Tensor q = F::rand({1, 16, 8, 16}, DType::kFloat);
@@ -217,7 +217,7 @@ CATCH_TEST_CASE("test attention", "[ly][op][cuda]") {
   CATCH_REQUIRE(F::allClose(x, xr, 5e-3f));
 }
 
-CATCH_TEST_CASE("benchmark gemv", "[ly][op][cuda]") {
+CATCH_TEST_CASE("benchmark gemv", "[fl][op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
   Tensor A = F::rand({8000, 4096}, DType::kFloat, Device::kCpu);
@@ -243,7 +243,7 @@ CATCH_TEST_CASE("benchmark gemv", "[ly][op][cuda]") {
 
 #ifdef LIBLLM_CUTLASS_ENABLED
 
-CATCH_TEST_CASE("test matmul gemm (cutlass)", "[ly][op][cuda][cutlass]") {
+CATCH_TEST_CASE("test matmul gemm (cutlass)", "[fl][op][cuda][cutlass]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
   std::shared_ptr<op::cuda::MatMul> mm = op::cuda::MatMul::createCutlass();
@@ -265,7 +265,7 @@ CATCH_TEST_CASE("test matmul gemm (cutlass)", "[ly][op][cuda][cutlass]") {
   CATCH_REQUIRE(F::allClose(x, xr, 1e-2f));
 }
 
-CATCH_TEST_CASE("test matmul bmm (cutlass)", "[ly][op][cuda][cutlass]") {
+CATCH_TEST_CASE("test matmul bmm (cutlass)", "[fl][op][cuda][cutlass]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
   std::shared_ptr<op::cuda::MatMul> mm = op::cuda::MatMul::createCutlass();
@@ -287,7 +287,7 @@ CATCH_TEST_CASE("test matmul bmm (cutlass)", "[ly][op][cuda][cutlass]") {
   CATCH_REQUIRE(F::allClose(x, xr, 5e-3f));
 }
 
-CATCH_TEST_CASE("benchmark cutlass hgemm", "[ly][op][cuda]") {
+CATCH_TEST_CASE("benchmark cutlass hgemm", "[fl][op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
   std::shared_ptr<op::cuda::MatMul> mmCutlass = op::cuda::MatMul::createCutlass();
@@ -325,4 +325,4 @@ Tensor toSm1xxScaleBlockRef(const Tensor &scale) {
 
 #endif  // LIBLLM_CUTLASS_ENABLED
 
-}  // namespace ly
+}  // namespace fl

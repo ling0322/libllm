@@ -31,7 +31,7 @@
 #include "lynn/dtype.h"
 #include "lynn/functional.h"
 
-namespace ly {
+namespace fl {
 
 // Stores shape and stride of a Tensor.
 class TensorShape {
@@ -95,4 +95,4 @@ class TensorShape {
   TensorShape() = default;
 };
 
-}  // namespace ly
+}  // namespace fl

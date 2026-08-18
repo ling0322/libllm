@@ -28,8 +28,8 @@
 #include "lutil/error.h"
 #include "lutil/ini_config.h"
 #include "lutil/strings.h"
-#include "lynn/functional.h"
-#include "lynn/module.h"
+#include "flint/functional.h"
+#include "flint/module.h"
 
 namespace libllm {
 namespace llama {
@@ -85,7 +85,7 @@ MLP::MLP()
       _intermediateSize(0) {
 }
 
-std::shared_ptr<MLP> MLP::create(const ly::Context &ctx, const LlamaConfig &config) {
+std::shared_ptr<MLP> MLP::create(const fl::Context &ctx, const LlamaConfig &config) {
   std::shared_ptr<MLP> mlp{new MLP()};
   mlp->setCtx(ctx);
 
@@ -94,20 +94,20 @@ std::shared_ptr<MLP> MLP::create(const ly::Context &ctx, const LlamaConfig &conf
 
   int d = config.hiddenSize;
   int di = config.intermediateSize;
-  mlp->_gateUpProj = ly::Linear::create(ctx.withName("gate_up_proj"), d, di * 2, false);
-  mlp->_downProj = ly::Linear::create(ctx.withName("down_proj"), di, d, false);
+  mlp->_gateUpProj = fl::Linear::create(ctx.withName("gate_up_proj"), d, di * 2, false);
+  mlp->_downProj = fl::Linear::create(ctx.withName("down_proj"), di, d, false);
 
   return mlp;
 }
 
-void MLP::initParameters(const ly::StateMap &stateDict) {
+void MLP::initParameters(const fl::StateMap &stateDict) {
   _gateUpProj->initParameters(stateDict);
   _downProj->initParameters(stateDict);
 }
 
-ly::Tensor MLP::forward(ly::Tensor input) const {
-  ly::Tensor x = _gateUpProj->forward(input);
-  x = ly::F::swiglu(x);
+fl::Tensor MLP::forward(fl::Tensor input) const {
+  fl::Tensor x = _gateUpProj->forward(input);
+  x = fl::F::swiglu(x);
   x = _downProj->forward(x);
 
   return x;
@@ -126,7 +126,7 @@ Attention::Attention()
       _hasProjBias(false) {
 }
 
-std::shared_ptr<Attention> Attention::create(const ly::Context &ctx, const LlamaConfig &config) {
+std::shared_ptr<Attention> Attention::create(const fl::Context &ctx, const LlamaConfig &config) {
   std::shared_ptr<Attention> layer{new Attention()};
   layer->setCtx(ctx);
 
@@ -147,14 +147,14 @@ std::shared_ptr<Attention> Attention::create(const ly::Context &ctx, const Llama
 
   int qkvProjDim = headDim * config.numKeyValueHeads * 2 + config.hiddenSize;
   int d = config.hiddenSize;
-  layer->_qkvProj = ly::Linear::create(ctx.withName("qkv_proj"), d, qkvProjDim, config.qkvProjBias);
-  layer->_outProj = ly::Linear::create(ctx.withName("out_proj"), d, d, false);
+  layer->_qkvProj = fl::Linear::create(ctx.withName("qkv_proj"), d, qkvProjDim, config.qkvProjBias);
+  layer->_outProj = fl::Linear::create(ctx.withName("out_proj"), d, d, false);
 
   return layer;
 }
 
-void Attention::initParameters(const ly::StateMap &stateDict) {
-  const ly::Context &ctx = getCtx();
+void Attention::initParameters(const fl::StateMap &stateDict) {
+  const fl::Context &ctx = getCtx();
 
   _qkvProj->initParameters(stateDict);
   _outProj->initParameters(stateDict);
@@ -164,7 +164,7 @@ void Attention::initParameters(const ly::StateMap &stateDict) {
   _roPE = moveAndCastFloat(_roPE, ctx);
 }
 
-int Attention::getCtxLength(const ly::StateMap &past) const {
+int Attention::getCtxLength(const fl::StateMap &past) const {
   if (past.hasValue<int>(_namePastLen)) {
     return past.getValue<int>(_namePastLen);
   } else {
@@ -172,42 +172,42 @@ int Attention::getCtxLength(const ly::StateMap &past) const {
   }
 }
 
-ly::Tensor Attention::rotateHalf(ly::Tensor x) const {
-  ly::Tensor rotated = ly::F::tensorLike(x);
+fl::Tensor Attention::rotateHalf(fl::Tensor x) const {
+  fl::Tensor rotated = fl::F::tensorLike(x);
   int lastDim = x.getDim() - 1;
   int halfShape = x.getShape(lastDim) / 2;
 
-  ly::Tensor x1 = x.slice(lastDim, {0, halfShape});
-  ly::Tensor x2 = x.slice(lastDim, {halfShape, ly::None});
-  x2 = ly::F::mul(x2, -1.0f);
+  fl::Tensor x1 = x.slice(lastDim, {0, halfShape});
+  fl::Tensor x2 = x.slice(lastDim, {halfShape, fl::None});
+  x2 = fl::F::mul(x2, -1.0f);
 
-  ly::F::copy(x1, rotated.slice(lastDim, {halfShape, ly::None}));
-  ly::F::copy(x2, rotated.slice(lastDim, {0, halfShape}));
+  fl::F::copy(x1, rotated.slice(lastDim, {halfShape, fl::None}));
+  fl::F::copy(x2, rotated.slice(lastDim, {0, halfShape}));
 
   return rotated;
 }
 
-ly::Tensor Attention::applyRoPE(ly::Tensor input, ly::Tensor roPE) const {
-  ly::Tensor cos = roPE.subtensor(0);
-  ly::Tensor sin = roPE.subtensor(1);
+fl::Tensor Attention::applyRoPE(fl::Tensor input, fl::Tensor roPE) const {
+  fl::Tensor cos = roPE.subtensor(0);
+  fl::Tensor sin = roPE.subtensor(1);
 
   cos = cos.expand({cos.getShape(0), input.getShape(2), cos.getShape(2)});
   sin = sin.expand({sin.getShape(0), input.getShape(2), sin.getShape(2)});
 
-  return ly::F::add(
-      ly::F::mul(input, ly::F::contiguous(cos)),
-      ly::F::mul(rotateHalf(input), ly::F::contiguous(sin)));
+  return fl::F::add(
+      fl::F::mul(input, fl::F::contiguous(cos)),
+      fl::F::mul(rotateHalf(input), fl::F::contiguous(sin)));
 }
 
-ly::Tensor Attention::forward(ly::StateMap &past, ly::Tensor input) const {
+fl::Tensor Attention::forward(fl::StateMap &past, fl::Tensor input) const {
   CHECK(input.getDim() == 3);
-  ly::Tensor qkv = _qkvProj->forward(input);
+  fl::Tensor qkv = _qkvProj->forward(input);
 
   int kvHiddenSize = _headDim * _numKeyValueHead;
 
-  ly::Tensor q = qkv.slice(-1, {0, _hiddenSize});
-  ly::Tensor k = qkv.slice(-1, {_hiddenSize, _hiddenSize + kvHiddenSize});
-  ly::Tensor v = qkv.slice(-1, {_hiddenSize + kvHiddenSize, _hiddenSize + 2 * kvHiddenSize});
+  fl::Tensor q = qkv.slice(-1, {0, _hiddenSize});
+  fl::Tensor k = qkv.slice(-1, {_hiddenSize, _hiddenSize + kvHiddenSize});
+  fl::Tensor v = qkv.slice(-1, {_hiddenSize + kvHiddenSize, _hiddenSize + 2 * kvHiddenSize});
 
   int N = qkv.getShape(0);
   int qLen = qkv.getShape(1);
@@ -218,15 +218,15 @@ ly::Tensor Attention::forward(ly::StateMap &past, ly::Tensor input) const {
   q = q.view({N, qLen, _numHead, _headDim});
   k = k.view({N, qLen, _numKeyValueHead, _headDim});
   v = v.view({N, qLen, _numKeyValueHead, _headDim});
-  ly::Tensor roPE = _roPE.slice(1, {kvLen - qLen, kvLen});
+  fl::Tensor roPE = _roPE.slice(1, {kvLen - qLen, kvLen});
 
   q = applyRoPE(q, roPE);
   k = applyRoPE(k, roPE);
 
   // concat past for k and v.
   if (past.hasTensor(_namePastK) && past.hasTensor(_namePastV)) {
-    k = ly::F::cat(past.getTensor(_namePastK), k, 1);
-    v = ly::F::cat(past.getTensor(_namePastV), v, 1);
+    k = fl::F::cat(past.getTensor(_namePastK), k, 1);
+    v = fl::F::cat(past.getTensor(_namePastV), v, 1);
 
     CHECK(k.getShape(1) == v.getShape(1) && k.getShape(1) == kvLen);
   }
@@ -243,8 +243,8 @@ ly::Tensor Attention::forward(ly::StateMap &past, ly::Tensor input) const {
     std::initializer_list<int> expandShape = {N, kvLen, _numKeyValueHead, groupSize, _headDim};
     std::initializer_list<int> qShape = {N, kvLen, _numHead, _headDim};
 
-    k = ly::F::contiguous(k.unsqueeze(3).expand(expandShape)).view(qShape);
-    v = ly::F::contiguous(v.unsqueeze(3).expand(expandShape)).view(qShape);
+    k = fl::F::contiguous(k.unsqueeze(3).expand(expandShape)).view(qShape);
+    v = fl::F::contiguous(v.unsqueeze(3).expand(expandShape)).view(qShape);
   }
 
   // apply attention.
@@ -252,14 +252,14 @@ ly::Tensor Attention::forward(ly::StateMap &past, ly::Tensor input) const {
   q = q.transpose(1, 2);
   k = k.transpose(1, 2);
   v = v.transpose(1, 2);
-  ly::Tensor x = qLen == 1 ? ly::F::attention(q, k, v, ly::Tensor())
-                           : ly::F::attention(
+  fl::Tensor x = qLen == 1 ? fl::F::attention(q, k, v, fl::Tensor())
+                           : fl::F::attention(
                                  q,
                                  k,
                                  v,
-                                 ly::F::causalMask(q.getShape(2), getCtx().getDevice()));
+                                 fl::F::causalMask(q.getShape(2), getCtx().getDevice()));
 
-  x = ly::F::contiguous(x.transpose(1, 2)).view({N, qLen, _hiddenSize});
+  x = fl::F::contiguous(x.transpose(1, 2)).view({N, qLen, _hiddenSize});
   x = _outProj->forward(x);
 
   return x;
@@ -270,18 +270,18 @@ ly::Tensor Attention::forward(ly::StateMap &past, ly::Tensor input) const {
 // -----------------------------------------------------------------------------------------------+
 
 std::shared_ptr<DecodeLayer> DecodeLayer::create(
-    const ly::Context &ctx,
+    const fl::Context &ctx,
     const LlamaConfig &config) {
   std::shared_ptr<DecodeLayer> layer{new DecodeLayer()};
   layer->setCtx(ctx);
 
   layer->_attn = Attention::create(ctx.withName("attn"), config);
   layer->_mlp = MLP::create(ctx.withName("mlp"), config);
-  layer->_inputNorm = ly::RMSNorm::create(
+  layer->_inputNorm = fl::RMSNorm::create(
       ctx.withName("input_norm"),
       config.hiddenSize,
       config.normEps);
-  layer->_postAttnNorm = ly::RMSNorm::create(
+  layer->_postAttnNorm = fl::RMSNorm::create(
       ctx.withName("post_attn_norm"),
       config.hiddenSize,
       config.normEps);
@@ -289,28 +289,28 @@ std::shared_ptr<DecodeLayer> DecodeLayer::create(
   return layer;
 }
 
-void DecodeLayer::initParameters(const ly::StateMap &stateDict) {
+void DecodeLayer::initParameters(const fl::StateMap &stateDict) {
   _attn->initParameters(stateDict);
   _mlp->initParameters(stateDict);
   _inputNorm->initParameters(stateDict);
   _postAttnNorm->initParameters(stateDict);
 }
 
-ly::Tensor DecodeLayer::forward(ly::StateMap &past, ly::Tensor input) const {
-  ly::Tensor residual = input;
+fl::Tensor DecodeLayer::forward(fl::StateMap &past, fl::Tensor input) const {
+  fl::Tensor residual = input;
 
   // norm + attn
-  ly::Tensor x = _inputNorm->forward(input);
+  fl::Tensor x = _inputNorm->forward(input);
 
   x = _attn->forward(past, x);
-  x = ly::F::add(x, residual);
+  x = fl::F::add(x, residual);
 
   // norm + mlp
   residual = x;
   x = _postAttnNorm->forward(x);
   x = _mlp->forward(x);
 
-  x = ly::F::add(x, residual);
+  x = fl::F::add(x, residual);
   return x;
 }
 
@@ -318,27 +318,27 @@ ly::Tensor DecodeLayer::forward(ly::StateMap &past, ly::Tensor input) const {
 // class LlamaModel                                                                               |
 // -----------------------------------------------------------------------------------------------+
 
-std::shared_ptr<LlamaModel> LlamaModel::create(const ly::Context &fromCtx, LlamaConfig config) {
+std::shared_ptr<LlamaModel> LlamaModel::create(const fl::Context &fromCtx, LlamaConfig config) {
   std::shared_ptr<LlamaModel> model{new LlamaModel()};
 
-  ly::Context ctx = fromCtx;
+  fl::Context ctx = fromCtx;
   ctx.set(RoPECtxKey, ctx.name("rope"));
   model->setCtx(ctx);
 
   int dh = config.hiddenSize;
   model->_config = config;
-  model->_embedding = ly::Embedding::create(ctx.withName("embd"), dh, config.vocabSize);
-  model->_norm = ly::RMSNorm::create(ctx.withName("norm"), dh, config.normEps);
+  model->_embedding = fl::Embedding::create(ctx.withName("embd"), dh, config.vocabSize);
+  model->_norm = fl::RMSNorm::create(ctx.withName("norm"), dh, config.normEps);
   for (int i = 0; i < config.numLayers; ++i) {
     model->_layers.emplace_back(
         DecodeLayer::create(ctx.withName(lut::sprintf("block%d", i)), config));
   }
 
-  model->_outProj = ly::Linear::create(ctx.withName("out_proj"), dh, config.vocabSize, false);
+  model->_outProj = fl::Linear::create(ctx.withName("out_proj"), dh, config.vocabSize, false);
   return model;
 }
 
-void LlamaModel::initParameters(const ly::StateMap &stateDict) {
+void LlamaModel::initParameters(const fl::StateMap &stateDict) {
   _embedding->initParameters(stateDict);
   _norm->initParameters(stateDict);
   _outProj->initParameters(stateDict);
@@ -348,8 +348,8 @@ void LlamaModel::initParameters(const ly::StateMap &stateDict) {
   }
 }
 
-ly::Tensor LlamaModel::forward(ly::StateMap &past, ly::Tensor input) const {
-  ly::Tensor x = _embedding->forward(input);
+fl::Tensor LlamaModel::forward(fl::StateMap &past, fl::Tensor input) const {
+  fl::Tensor x = _embedding->forward(input);
 
   for (int i = 0; i < _config.numLayers; ++i) {
     x = _layers[i]->forward(past, x);
@@ -359,8 +359,8 @@ ly::Tensor LlamaModel::forward(ly::StateMap &past, ly::Tensor input) const {
   return x;
 }
 
-ly::Tensor LlamaModel::forwardLmHead(ly::Tensor hidden) const {
-  ly::Tensor logits = _outProj->forward(hidden);
+fl::Tensor LlamaModel::forwardLmHead(fl::Tensor hidden) const {
+  fl::Tensor logits = _outProj->forward(hidden);
   return logits;
 }
 
@@ -377,7 +377,7 @@ LlamaModelForGeneration::LlamaModelForGeneration()
 }
 
 std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
-    const ly::Context &ctx,
+    const fl::Context &ctx,
     lut::ZipFile *package) {
   std::shared_ptr<lut::Reader> reader = package->open(ModelConfig);
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(reader.get());
@@ -390,7 +390,7 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
   std::shared_ptr<LlamaModelForGeneration> model{new LlamaModelForGeneration()};
   LlamaConfig llamaConfig = LlamaConfig::loadConfig(llamaIni);
 
-  ly::StateMap stateMap;
+  fl::StateMap stateMap;
 
   stateMap.read(package->open(modelFile).get());
   model->_model = LlamaModel::create(ctx, llamaConfig);
@@ -402,29 +402,29 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
   return model;
 }
 
-ly::Tensor LlamaModelForGeneration::prefill(ly::StateMap &past, const Prompt &prompt) const {
-  ly::Tensor x = _model->forward(past, buildInput(prompt));
+fl::Tensor LlamaModelForGeneration::prefill(fl::StateMap &past, const Prompt &prompt) const {
+  fl::Tensor x = _model->forward(past, buildInput(prompt));
   CHECK(x.getDim() == 3);
 
-  x = x.slice(1, {-1, ly::None});
+  x = x.slice(1, {-1, fl::None});
   x = _model->forwardLmHead(x);
 
   return x;
 }
 
-ly::Tensor LlamaModelForGeneration::decode(ly::StateMap &past, ly::LongType inputToken) const {
-  std::array<ly::LongType, 1> inputData{inputToken};
-  ly::Tensor inputs = ly::Tensor::create<ly::LongType>({1, 1}, inputData);
-  inputs = ly::F::to(getDevice(), inputs);
+fl::Tensor LlamaModelForGeneration::decode(fl::StateMap &past, fl::LongType inputToken) const {
+  std::array<fl::LongType, 1> inputData{inputToken};
+  fl::Tensor inputs = fl::Tensor::create<fl::LongType>({1, 1}, inputData);
+  inputs = fl::F::to(getDevice(), inputs);
 
-  ly::Tensor x = _model->forward(past, inputs);
+  fl::Tensor x = _model->forward(past, inputs);
   x = _model->forwardLmHead(x);
 
   return x;
 }
 
-ly::Tensor LlamaModelForGeneration::buildInput(const Prompt &prompt) const {
-  std::vector<ly::LongType> inputData{};
+fl::Tensor LlamaModelForGeneration::buildInput(const Prompt &prompt) const {
+  std::vector<fl::LongType> inputData{};
   for (const PromptBlock &block : prompt.getBlocks()) {
     if (block.blockType == PromptBlock::ControlToken || block.blockType == PromptBlock::Text) {
       encodePromptBlock(block, inputData);
@@ -438,8 +438,8 @@ ly::Tensor LlamaModelForGeneration::buildInput(const Prompt &prompt) const {
   }
 
   int len = inputData.size();
-  ly::Tensor inputs = ly::Tensor::create<ly::LongType>({1, len}, inputData);
-  inputs = ly::F::to(_model->getCtx().getDevice(), inputs);
+  fl::Tensor inputs = fl::Tensor::create<fl::LongType>({1, len}, inputData);
+  inputs = fl::F::to(_model->getCtx().getDevice(), inputs);
   return inputs;
 }
 
@@ -451,7 +451,7 @@ const char *LlamaModelForGeneration::getName() const {
   return _modelName.c_str();
 }
 
-ly::Device LlamaModelForGeneration::getDevice() const {
+fl::Device LlamaModelForGeneration::getDevice() const {
   return _model->getCtx().getDevice();
 }
 

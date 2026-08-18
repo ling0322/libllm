@@ -27,7 +27,7 @@
 #include "lynn/operators.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -83,4 +83,4 @@ class CPUOperators : public Operators {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

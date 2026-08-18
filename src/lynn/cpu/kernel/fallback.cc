@@ -31,7 +31,7 @@
 #include "lynn/cpu/kernel/abstract.h"
 #include "lynn/cpu/kernel/util.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -119,4 +119,4 @@ void hgemm12x16FallbackKernel(
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

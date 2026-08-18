@@ -22,7 +22,7 @@
 
 #include "lynn/cpu/kernel/abstract.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -197,4 +197,4 @@ void sgemm12x32Avx512Kernel(int64_t kc, const float *a, const float *b, float *c
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

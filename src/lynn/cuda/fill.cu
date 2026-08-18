@@ -21,7 +21,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/fill.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -84,4 +84,4 @@ void fill(Tensor A, float value) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

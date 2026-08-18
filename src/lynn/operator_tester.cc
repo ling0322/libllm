@@ -28,7 +28,7 @@
 #include "lynn/functional.h"
 #include "lynn/operators.h"
 
-namespace ly {
+namespace fl {
 
 OperatorTester::OperatorTester()
     : _printBenchmarkInfo(false),
@@ -395,4 +395,4 @@ bool OperatorTester::testUnfold() {
   return F::allClose(x, xr, _rtol, _atol);
 }
 
-}  // namespace ly
+}  // namespace fl

@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "libllm/wave.h"
-#include "lynn/dtype.h"
+#include "flint/dtype.h"
 
 namespace libllm {
 
@@ -38,7 +38,7 @@ struct PromptBlock {
   };
 
   std::string text;
-  std::vector<ly::Byte> data;
+  std::vector<fl::Byte> data;
   WaveFormat waveFormat;
   Type blockType;
 

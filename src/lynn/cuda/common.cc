@@ -24,7 +24,7 @@
 #include "lynn/cuda/cuda_tensor_data.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -155,4 +155,4 @@ int getCudaArch() {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

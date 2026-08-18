@@ -23,7 +23,7 @@
 #include "lynn/cpu/cpu_tensor_data.h"
 #include "lynn/cpu/print.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -112,4 +112,4 @@ Tensor causalMask(int length, DType dtype) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

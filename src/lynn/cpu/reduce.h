@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -31,4 +31,4 @@ Tensor reduce(const Tensor &A, MapReduceType reduceType);
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

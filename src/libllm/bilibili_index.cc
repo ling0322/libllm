@@ -23,7 +23,7 @@ namespace libllm {
 namespace index {
 
 std::shared_ptr<IndexModelForGeneration> IndexModelForGeneration::fromPackage(
-    const ly::Context &ctx,
+    const fl::Context &ctx,
     lut::ZipFile *package) {
   std::shared_ptr<lut::Reader> reader = package->open(ModelConfig);
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(reader.get());
@@ -37,7 +37,7 @@ std::shared_ptr<IndexModelForGeneration> IndexModelForGeneration::fromPackage(
   std::shared_ptr<IndexModelForGeneration> model{new IndexModelForGeneration()};
   llama::LlamaConfig llamaConfig = llama::LlamaConfig::loadConfig(indexIni);
 
-  ly::StateMap stateMap;
+  fl::StateMap stateMap;
   stateMap.read(package->open(modelFile).get());
 
   model->_model = llama::LlamaModel::create(ctx, llamaConfig);

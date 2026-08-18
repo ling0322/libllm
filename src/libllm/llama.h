@@ -25,8 +25,8 @@
 #include "libllm/model_for_generation.h"
 #include "lutil/error.h"
 #include "lutil/ini_config.h"
-#include "lynn/functional.h"
-#include "lynn/module.h"
+#include "flint/functional.h"
+#include "flint/module.h"
 
 namespace libllm {
 namespace llama {
@@ -47,16 +47,16 @@ struct LlamaConfig {
   static LlamaConfig loadConfig(const lut::IniSection &section);
 };
 
-class MLP : public ly::Module {
+class MLP : public fl::Module {
  public:
-  static std::shared_ptr<MLP> create(const ly::Context &ctx, const LlamaConfig &config);
+  static std::shared_ptr<MLP> create(const fl::Context &ctx, const LlamaConfig &config);
 
-  void initParameters(const ly::StateMap &stateDict) override;
-  ly::Tensor forward(ly::Tensor input) const;
+  void initParameters(const fl::StateMap &stateDict) override;
+  fl::Tensor forward(fl::Tensor input) const;
 
  private:
-  std::shared_ptr<ly::Linear> _gateUpProj;
-  std::shared_ptr<ly::Linear> _downProj;
+  std::shared_ptr<fl::Linear> _gateUpProj;
+  std::shared_ptr<fl::Linear> _downProj;
 
   int _hiddenSize;
   int _intermediateSize;
@@ -64,17 +64,17 @@ class MLP : public ly::Module {
   MLP();
 };
 
-class Attention : public ly::Module {
+class Attention : public fl::Module {
  public:
-  static std::shared_ptr<Attention> create(const ly::Context &ctx, const LlamaConfig &config);
+  static std::shared_ptr<Attention> create(const fl::Context &ctx, const LlamaConfig &config);
 
-  void initParameters(const ly::StateMap &stateDict) override;
-  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
+  void initParameters(const fl::StateMap &stateDict) override;
+  fl::Tensor forward(fl::StateMap &past, fl::Tensor input) const;
 
  private:
-  std::shared_ptr<ly::Linear> _qkvProj;
-  std::shared_ptr<ly::Linear> _outProj;
-  ly::Tensor _roPE;
+  std::shared_ptr<fl::Linear> _qkvProj;
+  std::shared_ptr<fl::Linear> _outProj;
+  fl::Tensor _roPE;
 
   std::string _namePastK;
   std::string _namePastV;
@@ -89,45 +89,45 @@ class Attention : public ly::Module {
 
   Attention();
 
-  // get past ly::Context length.
-  int getCtxLength(const ly::StateMap &past) const;
-  ly::Tensor applyRoPE(ly::Tensor x, ly::Tensor roPE) const;
-  ly::Tensor rotateHalf(ly::Tensor x) const;
+  // get past fl::Context length.
+  int getCtxLength(const fl::StateMap &past) const;
+  fl::Tensor applyRoPE(fl::Tensor x, fl::Tensor roPE) const;
+  fl::Tensor rotateHalf(fl::Tensor x) const;
 };
 
-class DecodeLayer : public ly::Module {
+class DecodeLayer : public fl::Module {
  public:
-  static std::shared_ptr<DecodeLayer> create(const ly::Context &ctx, const LlamaConfig &config);
+  static std::shared_ptr<DecodeLayer> create(const fl::Context &ctx, const LlamaConfig &config);
 
-  void initParameters(const ly::StateMap &stateDict) override;
-  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
+  void initParameters(const fl::StateMap &stateDict) override;
+  fl::Tensor forward(fl::StateMap &past, fl::Tensor input) const;
 
  private:
-  std::shared_ptr<ly::RMSNorm> _inputNorm;
-  std::shared_ptr<ly::RMSNorm> _postAttnNorm;
+  std::shared_ptr<fl::RMSNorm> _inputNorm;
+  std::shared_ptr<fl::RMSNorm> _postAttnNorm;
   std::shared_ptr<Attention> _attn;
   std::shared_ptr<MLP> _mlp;
 
   DecodeLayer() = default;
 };
 
-class LlamaModel : public ly::Module {
+class LlamaModel : public fl::Module {
  public:
   static constexpr char RoPECtxKey[] = "rope_name";
 
-  static std::shared_ptr<LlamaModel> create(const ly::Context &ctx, LlamaConfig config);
-  void initParameters(const ly::StateMap &stateDict) override;
+  static std::shared_ptr<LlamaModel> create(const fl::Context &ctx, LlamaConfig config);
+  void initParameters(const fl::StateMap &stateDict) override;
 
-  ly::Tensor forward(ly::StateMap &past, ly::Tensor input) const;
-  ly::Tensor forwardLmHead(ly::Tensor hidden) const;
+  fl::Tensor forward(fl::StateMap &past, fl::Tensor input) const;
+  fl::Tensor forwardLmHead(fl::Tensor hidden) const;
   int getOutputDim() const;
 
  private:
   LlamaConfig _config;
-  std::shared_ptr<ly::Embedding> _embedding;
-  std::shared_ptr<ly::RMSNorm> _norm;
+  std::shared_ptr<fl::Embedding> _embedding;
+  std::shared_ptr<fl::RMSNorm> _norm;
   std::vector<std::shared_ptr<DecodeLayer>> _layers;
-  std::shared_ptr<ly::Linear> _outProj;
+  std::shared_ptr<fl::Linear> _outProj;
 
   LlamaModel() = default;
 };
@@ -135,15 +135,15 @@ class LlamaModel : public ly::Module {
 class LlamaModelForGeneration : public ModelForGeneration {
  public:
   static std::shared_ptr<LlamaModelForGeneration> fromPackage(
-      const ly::Context &ctx,
+      const fl::Context &ctx,
       lut::ZipFile *package);
 
-  ly::Tensor prefill(ly::StateMap &past, const Prompt &prompt) const override;
-  ly::Tensor decode(ly::StateMap &past, ly::LongType inputToken) const override;
+  fl::Tensor prefill(fl::StateMap &past, const Prompt &prompt) const override;
+  fl::Tensor decode(fl::StateMap &past, fl::LongType inputToken) const override;
 
   bool isStopToken(int tokenId) const override;
   const char *getName() const override;
-  ly::Device getDevice() const override;
+  fl::Device getDevice() const override;
   int getOutputDim() const override;
   Prompt buildPrompt(lut::Span<const Message> history) const override;
 
@@ -153,7 +153,7 @@ class LlamaModelForGeneration : public ModelForGeneration {
   int _eotId;
 
   LlamaModelForGeneration();
-  ly::Tensor buildInput(const Prompt &prompt) const;
+  fl::Tensor buildInput(const Prompt &prompt) const;
 };
 
 }  // namespace llama

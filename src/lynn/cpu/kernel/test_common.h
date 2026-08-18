@@ -32,7 +32,7 @@
 #include "lynn/cpu/kernel/fallback.h"
 #include "lynn/cpu/kernel/util.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -262,4 +262,4 @@ struct DotKernelTester {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

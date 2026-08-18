@@ -19,7 +19,7 @@
 
 #include "lynn/cpu/common.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -72,4 +72,4 @@ bool isLooselyContiguous(const Tensor &tensor) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

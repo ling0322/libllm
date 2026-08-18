@@ -23,7 +23,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/swiglu.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -72,4 +72,4 @@ Tensor swiglu(const Tensor &tensor) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

@@ -21,7 +21,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/copy.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -161,4 +161,4 @@ void copyContig(const Tensor &src, Tensor &dest) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

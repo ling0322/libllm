@@ -25,4 +25,4 @@
 #include "lynn/operators.h"
 #include "lynn/tensor.h"
 
-namespace ly {}  // namespace ly
+namespace fl {}  // namespace fl

@@ -23,7 +23,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/lookup.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -60,7 +60,7 @@ Tensor lookup2DHalf(const Tensor &embdTable, const Tensor &input) {
   PackedTensorAccessor<half, 3> sC(dst);
 
   lookupHalfKernel2D<<<d, blockSize>>>(sA, sB, sC);
-  LL_CUDA_SYNCHRONIZE();
+  cudaDeviceSynchronize();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return dst;
@@ -81,4 +81,4 @@ Tensor lookup(const Tensor &embdTable, const Tensor &input) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

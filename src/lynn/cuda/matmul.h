@@ -28,7 +28,7 @@
 #include "lynn/cuda/matvec.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -65,4 +65,4 @@ class MatMul {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

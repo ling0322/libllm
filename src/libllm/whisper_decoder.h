@@ -49,10 +49,10 @@ class WhisperChunkGreedySearchDecoder {
 
   /// @brief decode one token.
   /// @return the whole decode result.
-  std::vector<RecognitionResult> decode(ly::Tensor wave);
+  std::vector<RecognitionResult> decode(fl::Tensor wave);
 
  private:
-  ly::StateMap _kvCache;
+  fl::StateMap _kvCache;
   float _temperature;
 
   int _noSpeechToken;
@@ -73,16 +73,16 @@ class WhisperChunkGreedySearchDecoder {
   float _noSpeechProb;
   lut::Duration _audioLength;
 
-  std::vector<ly::LongType> _history;
+  std::vector<fl::LongType> _history;
   std::shared_ptr<WhisperModel> _model;
 
-  void processLogits(ly::Tensor logits);
+  void processLogits(fl::Tensor logits);
   std::string parseLangToken(int tokenId) const;
   lut::Duration parseTimestampToken(int tokenId) const;
   bool isTimestampToken(int tokenId) const;
   void updateHistory(int tokenId);
 
-  ly::Tensor applySoftmax(ly::Tensor logits);
+  fl::Tensor applySoftmax(fl::Tensor logits);
   void inferLang();
   void setTranscribeMode();
 

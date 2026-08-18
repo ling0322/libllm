@@ -31,7 +31,7 @@
 #include "lynn/cuda/cuda_tensor_data.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -175,4 +175,4 @@ class PackedTensorAccessor<T, 1> : public PackedTensorAccessorBase<T, 1> {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

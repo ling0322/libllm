@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -32,4 +32,4 @@ Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op);
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

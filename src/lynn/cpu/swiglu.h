@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -30,4 +30,4 @@ Tensor swigluFp32(const Tensor &A);
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

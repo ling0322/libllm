@@ -23,7 +23,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/cuda/repetition_penalty.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -79,4 +79,4 @@ void repetitionPenalty(Tensor logits, Tensor history, float weight) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

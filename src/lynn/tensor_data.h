@@ -31,7 +31,7 @@
 #include "lynn/dtype.h"
 #include "lynn/functional.h"
 
-namespace ly {
+namespace fl {
 
 /// @brief holds the internal data of a Tensor.
 class TensorData {
@@ -85,4 +85,4 @@ class TensorData {
   }
 };
 
-}  // namespace ly
+}  // namespace fl

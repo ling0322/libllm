@@ -24,7 +24,7 @@
 #include "lynn/operator_tester.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -192,4 +192,4 @@ CATCH_TEST_CASE("float32 GEMV BVT", "[core][nn][gemv]") {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

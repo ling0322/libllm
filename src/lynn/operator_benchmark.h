@@ -28,7 +28,7 @@
 #include "lynn/device.h"
 #include "lynn/operators.h"
 
-namespace ly {
+namespace fl {
 
 class OperatorBenchmark {
  public:
@@ -64,4 +64,4 @@ class OperatorBenchmark {
   void benchmarkBinaryOperators(lut::Span<const int> shape, std::string_view name) const;
 };
 
-}  // namespace ly
+}  // namespace fl

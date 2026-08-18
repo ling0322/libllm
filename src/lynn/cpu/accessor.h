@@ -25,7 +25,7 @@
 #include "lynn/cpu/common.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -246,4 +246,4 @@ TensorList<T, DIM> TensorList<T, DIM>::fromTensor(Tensor &src) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl
