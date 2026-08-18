@@ -26,7 +26,7 @@
 #include "lynn/device.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 
 // base functional interface to apply operators for Tensor
 class Operators {
@@ -85,4 +85,4 @@ bool isOperatorsAvailable(Device::Type deviceType);
 void initOperators();
 void destroyOperators();
 
-}  // namespace ly
+}  // namespace fl

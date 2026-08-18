@@ -32,7 +32,7 @@
 #include "lynn/cuda/matvec.h"
 #include "lynn/dtype.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -278,4 +278,4 @@ Tensor MatMul::gemmHalf(Tensor A, Tensor B) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

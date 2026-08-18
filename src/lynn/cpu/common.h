@@ -23,7 +23,7 @@
 #include "lynn/cpu/kernel/interface.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -47,4 +47,4 @@ inline T *getDataPtrCpu(const Tensor &input) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

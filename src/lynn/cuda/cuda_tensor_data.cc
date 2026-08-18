@@ -29,7 +29,7 @@
 #include "lynn/device.h"
 #include "lynn/dtype.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -74,4 +74,4 @@ std::byte *CudaTensorData::getRawData() const {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

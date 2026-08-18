@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -32,4 +32,4 @@ Tensor toSm1xxScaleBlock(const Tensor &scale);
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

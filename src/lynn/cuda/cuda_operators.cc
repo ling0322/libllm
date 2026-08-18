@@ -44,7 +44,7 @@
 #include "lynn/cuda/unfold.h"
 #include "lynn/functional.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -276,4 +276,4 @@ void CudaOperators::manualSeed(uint64_t seed) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

@@ -24,7 +24,7 @@
 #include "lynn/cuda/common.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -110,4 +110,4 @@ Tensor gemvHalf(const Tensor &x, const Tensor &B) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

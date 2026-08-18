@@ -21,7 +21,7 @@
 
 #include "lutil/error.h"
 
-namespace ly {
+namespace fl {
 
 TensorShape::TensorShape(const TensorShape &size)
     : _data(size._data.copy()) {
@@ -223,4 +223,4 @@ std::string TensorShape::toString() const {
   return os.str();
 }
 
-}  // namespace ly
+}  // namespace fl

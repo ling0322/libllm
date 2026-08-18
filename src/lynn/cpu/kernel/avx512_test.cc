@@ -28,7 +28,7 @@
 #include "lynn/cpu/kernel/util.h"
 #include "ruapu/ruapu.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -54,4 +54,4 @@ CATCH_TEST_CASE("test sgemm6x16Avx2Kernel", "[cpu_kernel][kernel][avx512]") {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

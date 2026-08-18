@@ -26,7 +26,7 @@
 #include "libllm/test_helper.h"
 #include "lutil/random.h"
 #include "lutil/span.h"
-#include "lynn/tensor.h"
+#include "flint/tensor.h"
 
 namespace libllm {
 namespace llama {}  // namespace llama

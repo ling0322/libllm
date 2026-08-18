@@ -22,7 +22,7 @@
 #include "lutil/strings.h"
 #include "lynn/cpu/cpu_operators.h"
 
-namespace ly {
+namespace fl {
 
 OperatorBenchmark::OperatorBenchmark()
     : _op(std::make_shared<op::cpu::CPUOperators>()),
@@ -155,4 +155,4 @@ void OperatorBenchmark::benchmarkAll() {
   benchmarkMul({4096, 4096});
 }
 
-}  // namespace ly
+}  // namespace fl

@@ -28,10 +28,10 @@
 #include "lutil/flags.h"
 #include "lutil/time.h"
 #include "lutil/zip_file.h"
-#include "lynn/context.h"
-#include "lynn/functional.h"
-#include "lynn/operators.h"
-#include "lynn/state_map.h"
+#include "flint/context.h"
+#include "flint/functional.h"
+#include "flint/operators.h"
+#include "flint/state_map.h"
 
 constexpr double MaxWait = 10;
 
@@ -54,13 +54,13 @@ float benchmarkPrefill(
     const std::shared_ptr<ModelForGeneration> &model,
     const Prompt &prompt,
     int promptTokenCount) {
-  ly::StateMap past;
+  fl::StateMap past;
   model->prefill(past, prompt);
 
   double start = lut::now();
   int loops = 0;
   while (lut::now() - start < MaxWait) {
-    ly::StateMap loopPast;
+    fl::StateMap loopPast;
     model->prefill(loopPast, prompt);
     ++loops;
   }
@@ -69,16 +69,16 @@ float benchmarkPrefill(
 }
 
 float benchmarkDecode(const std::shared_ptr<ModelForGeneration> &model, const Prompt &prompt) {
-  ly::StateMap past;
+  fl::StateMap past;
   model->prefill(past, prompt);
 
-  ly::StateMap warmupPast = past.clone();
+  fl::StateMap warmupPast = past.clone();
   model->decode(warmupPast, 0);
 
   double start = lut::now();
   int loops = 0;
   while (lut::now() - start < MaxWait) {
-    ly::StateMap loopPast = past.clone();
+    fl::StateMap loopPast = past.clone();
     model->decode(loopPast, 0);
     ++loops;
   }
@@ -86,12 +86,12 @@ float benchmarkDecode(const std::shared_ptr<ModelForGeneration> &model, const Pr
   return loops / elapsed;
 }
 
-int benchmarkMain(ly::Device device, const std::string &modelPath, int promptRepeatCount) {
-  ly::initOperators();
+int benchmarkMain(fl::Device device, const std::string &modelPath, int promptRepeatCount) {
+  fl::initOperators();
 
-  ly::Context ctx;
+  fl::Context ctx;
   ctx.setDevice(device);
-  ctx.setFloatDType(ly::F::getDefaultFloatType(device));
+  ctx.setFloatDType(fl::F::getDefaultFloatType(device));
 
   std::shared_ptr<lut::ZipFile> package = lut::ZipFile::fromFile(modelPath);
   std::shared_ptr<ModelForGeneration> model = ModelForGeneration::fromPackage(ctx, package.get());
@@ -116,7 +116,7 @@ int benchmarkMain(ly::Device device, const std::string &modelPath, int promptRep
 
   model.reset();
   package.reset();
-  ly::destroyOperators();
+  fl::destroyOperators();
   return 0;
 }
 
@@ -143,9 +143,9 @@ int main(int argc, char **argv) {
 
   int promptRepeatCount = std::stoi(promptRepeatCountString);
   if (deviceType == "cpu") {
-    return libllm::benchmarkMain(ly::Device::getCpu(), modelPath, promptRepeatCount);
+    return libllm::benchmarkMain(fl::Device::getCpu(), modelPath, promptRepeatCount);
   } else if (deviceType == "cuda") {
-    return libllm::benchmarkMain(ly::Device::getCuda(), modelPath, promptRepeatCount);
+    return libllm::benchmarkMain(fl::Device::getCuda(), modelPath, promptRepeatCount);
   }
 
   fprintf(stderr, "unexpected device %s\n", deviceType.c_str());

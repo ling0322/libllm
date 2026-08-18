@@ -25,7 +25,7 @@
 #include "lutil/strings.h"
 #include "lynn/functional.h"
 
-namespace ly {
+namespace fl {
 
 // -----------------------------------------------------------------------------------------------+
 //  Module                                                                                        |
@@ -283,4 +283,4 @@ Tensor Conv1D::forward(const Tensor &input) const {
   return x;
 }
 
-}  // namespace ly
+}  // namespace fl

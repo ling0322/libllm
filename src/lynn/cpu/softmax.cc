@@ -25,7 +25,7 @@
 #include "lynn/cpu/tensor.h"
 #include "lynn/mp.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -69,4 +69,4 @@ Tensor softmax(Tensor A) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

@@ -33,7 +33,7 @@
 #include "lynn/tensor_data.h"
 #include "lynn/tensor_shape.h"
 
-namespace ly {
+namespace fl {
 
 class TensorData;
 class Operators;
@@ -171,4 +171,4 @@ inline DType Tensor::getDType() const {
   return _data ? _data->getDType() : DType(DType::kUnknown);
 }
 
-}  // namespace ly
+}  // namespace fl

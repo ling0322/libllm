@@ -24,7 +24,7 @@
 #include "libllm/constants.h"
 #include "lutil/error.h"
 #include "lutil/strings.h"
-#include "lynn/functional.h"
+#include "flint/functional.h"
 
 namespace libllm {
 namespace whisper {
@@ -67,7 +67,7 @@ EncoderAttention::~EncoderAttention() {
 }
 
 std::shared_ptr<EncoderAttention> EncoderAttention::fromConfig(
-    const ly::Context &ctx,
+    const fl::Context &ctx,
     WhisperConfig config) {
   std::shared_ptr<EncoderAttention> model{new EncoderAttention()};
   model->setCtx(ctx);
@@ -76,11 +76,11 @@ std::shared_ptr<EncoderAttention> EncoderAttention::fromConfig(
     throw lut::AbortedError("invalid hiddenSize and numHeads");
   }
 
-  model->_qkvProj = ly::Linear::create(
+  model->_qkvProj = fl::Linear::create(
       ctx.withName("qkv_proj"),
       config.hiddenSize,
       config.hiddenSize * 3);
-  model->_outProj = ly::Linear::create(
+  model->_outProj = fl::Linear::create(
       ctx.withName("out_proj"),
       config.hiddenSize,
       config.hiddenSize);
@@ -89,18 +89,18 @@ std::shared_ptr<EncoderAttention> EncoderAttention::fromConfig(
   return model;
 }
 
-void EncoderAttention::initParameters(const ly::StateMap &stateDict) {
+void EncoderAttention::initParameters(const fl::StateMap &stateDict) {
   _qkvProj->initParameters(stateDict);
   _outProj->initParameters(stateDict);
 }
 
-ly::Tensor EncoderAttention::forward(ly::Tensor inputs) {
+fl::Tensor EncoderAttention::forward(fl::Tensor inputs) {
   CHECK(inputs.getDim() == 3);
-  ly::Tensor qkv = _qkvProj->forward(inputs);
+  fl::Tensor qkv = _qkvProj->forward(inputs);
 
-  ly::Tensor q = qkv.slice(-1, {0, _hiddenSize});
-  ly::Tensor k = qkv.slice(-1, {_hiddenSize, _hiddenSize * 2});
-  ly::Tensor v = qkv.slice(-1, {_hiddenSize * 2, _hiddenSize * 3});
+  fl::Tensor q = qkv.slice(-1, {0, _hiddenSize});
+  fl::Tensor k = qkv.slice(-1, {_hiddenSize, _hiddenSize * 2});
+  fl::Tensor v = qkv.slice(-1, {_hiddenSize * 2, _hiddenSize * 3});
 
   int bsz = inputs.getShape(0);
   int len = inputs.getShape(1);
@@ -112,9 +112,9 @@ ly::Tensor EncoderAttention::forward(ly::Tensor inputs) {
   q = q.transpose(1, 2);
   k = k.transpose(1, 2);
   v = v.transpose(1, 2);
-  ly::Tensor x = ly::F::attention(q, k, v, ly::Tensor());
+  fl::Tensor x = fl::F::attention(q, k, v, fl::Tensor());
 
-  x = ly::F::contiguous(x.transpose(1, 2)).view({bsz, len, _hiddenSize});
+  x = fl::F::contiguous(x.transpose(1, 2)).view({bsz, len, _hiddenSize});
   x = _outProj->forward(x);
 
   return x;
@@ -131,20 +131,20 @@ EncoderLayer::~EncoderLayer() {
 }
 
 std::shared_ptr<EncoderLayer> EncoderLayer::fromConfig(
-    const ly::Context &ctx,
+    const fl::Context &ctx,
     WhisperConfig config) {
   std::shared_ptr<EncoderLayer> model{new EncoderLayer()};
   model->setCtx(ctx);
 
-  model->_norm1 = ly::LayerNorm::create(ctx.withName("norm1"), config.hiddenSize);
-  model->_norm2 = ly::LayerNorm::create(ctx.withName("norm2"), config.hiddenSize);
+  model->_norm1 = fl::LayerNorm::create(ctx.withName("norm1"), config.hiddenSize);
+  model->_norm2 = fl::LayerNorm::create(ctx.withName("norm2"), config.hiddenSize);
   model->_attn = EncoderAttention::fromConfig(ctx.withName("attn"), config);
-  model->_fc1 = ly::Linear::create(ctx.withName("fc1"), config.hiddenSize, config.encoderFfnDim);
-  model->_fc2 = ly::Linear::create(ctx.withName("fc2"), config.encoderFfnDim, config.hiddenSize);
+  model->_fc1 = fl::Linear::create(ctx.withName("fc1"), config.hiddenSize, config.encoderFfnDim);
+  model->_fc2 = fl::Linear::create(ctx.withName("fc2"), config.encoderFfnDim, config.hiddenSize);
   return model;
 }
 
-void EncoderLayer::initParameters(const ly::StateMap &stateDict) {
+void EncoderLayer::initParameters(const fl::StateMap &stateDict) {
   _norm1->initParameters(stateDict);
   _norm2->initParameters(stateDict);
   _attn->initParameters(stateDict);
@@ -152,22 +152,22 @@ void EncoderLayer::initParameters(const ly::StateMap &stateDict) {
   _fc2->initParameters(stateDict);
 }
 
-ly::Tensor EncoderLayer::forward(ly::Tensor inputs) {
-  ly::Tensor residual = inputs;
+fl::Tensor EncoderLayer::forward(fl::Tensor inputs) {
+  fl::Tensor residual = inputs;
 
-  ly::Tensor x = _norm1->forward(inputs);
+  fl::Tensor x = _norm1->forward(inputs);
 
   x = _attn->forward(x);
-  x = ly::F::add(x, residual);
+  x = fl::F::add(x, residual);
 
   residual = x;
   x = _norm2->forward(x);
 
   x = _fc1->forward(x);
-  x = ly::F::gelu(x);
+  x = fl::F::gelu(x);
 
   x = _fc2->forward(x);
-  x = ly::F::add(x, residual);
+  x = fl::F::add(x, residual);
 
   return x;
 }
@@ -184,13 +184,13 @@ EncoderModel::~EncoderModel() {
 }
 
 std::shared_ptr<EncoderModel> EncoderModel::fromConfig(
-    const ly::Context &ctx,
+    const fl::Context &ctx,
     WhisperConfig config) {
   std::shared_ptr<EncoderModel> model{new EncoderModel()};
   model->setCtx(ctx);
 
-  model->_conv1 = ly::Conv1D::create(ctx.withName("conv1"), FeatDim, config.hiddenSize, 3);
-  model->_conv2 = ly::Conv1D::create(
+  model->_conv1 = fl::Conv1D::create(ctx.withName("conv1"), FeatDim, config.hiddenSize, 3);
+  model->_conv2 = fl::Conv1D::create(
       ctx.withName("conv2"),
       config.hiddenSize,
       config.hiddenSize,
@@ -201,12 +201,12 @@ std::shared_ptr<EncoderModel> EncoderModel::fromConfig(
     model->_layers.emplace_back(
         EncoderLayer::fromConfig(ctx.withName(lut::sprintf("layer%d", i)), config));
   }
-  model->_norm = ly::LayerNorm::create(ctx.withName("norm"), config.hiddenSize);
+  model->_norm = fl::LayerNorm::create(ctx.withName("norm"), config.hiddenSize);
   return model;
 }
 
-void EncoderModel::initParameters(const ly::StateMap &stateDict) {
-  ly::Context ctx = getCtx();
+void EncoderModel::initParameters(const fl::StateMap &stateDict) {
+  fl::Context ctx = getCtx();
 
   _conv1->initParameters(stateDict);
   _conv2->initParameters(stateDict);
@@ -221,28 +221,28 @@ void EncoderModel::initParameters(const ly::StateMap &stateDict) {
   _norm->initParameters(stateDict);
 }
 
-ly::Tensor EncoderModel::forward(ly::Tensor wave) {
+fl::Tensor EncoderModel::forward(fl::Tensor wave) {
   CHECK(wave.getDim() == 1 && wave.getShape(-1) <= InputSamples);
 
   // pad wave.
   if (wave.getShape(-1) < InputSamples) {
-    ly::Tensor pad = ly::F::zeros({InputSamples}, wave.getDType(), wave.getDevice());
-    ly::F::copy(wave, pad.slice({0, wave.getShape(-1)}));
+    fl::Tensor pad = fl::F::zeros({InputSamples}, wave.getDType(), wave.getDevice());
+    fl::F::copy(wave, pad.slice({0, wave.getShape(-1)}));
     wave = pad;
   }
 
-  ly::Tensor features = ly::F::logMelSpectrogram(wave);
+  fl::Tensor features = fl::F::logMelSpectrogram(wave);
   features = moveAndCastFloat(features, getCtx());
 
   CHECK(features.getDim() == 2);
   features = features.unsqueeze(0);
 
-  ly::Tensor x = _conv1->forward(features);
-  x = ly::F::gelu(x);
+  fl::Tensor x = _conv1->forward(features);
+  x = fl::F::gelu(x);
 
   x = _conv2->forward(x);
-  x = ly::F::gelu(x);
-  x = ly::F::add(x, _posEmbd);
+  x = fl::F::gelu(x);
+  x = fl::F::add(x, _posEmbd);
 
   for (const std::shared_ptr<EncoderLayer> &layer : _layers) {
     x = layer->forward(x);
@@ -265,38 +265,38 @@ DecoderInitModel::~DecoderInitModel() {
 }
 
 std::shared_ptr<DecoderInitModel> DecoderInitModel::fromConfig(
-    const ly::Context &ctx,
+    const fl::Context &ctx,
     WhisperConfig config) {
   std::shared_ptr<DecoderInitModel> model{new DecoderInitModel()};
   model->setCtx(ctx);
 
   int dModel = config.hiddenSize;
   for (int i = 0; i < config.encoderNumLayers; ++i) {
-    ly::Context ctxLayer = ctx.withName(lut::sprintf("layer%d", i))
+    fl::Context ctxLayer = ctx.withName(lut::sprintf("layer%d", i))
                                .withName(DecoderLayer::CrossAttn);
     model->_kvProjs.emplace_back(
-        ly::Linear::create(ctxLayer.withName("kv_proj"), dModel, dModel * 2));
+        fl::Linear::create(ctxLayer.withName("kv_proj"), dModel, dModel * 2));
   }
   model->_dModel = dModel;
   return model;
 }
 
-void DecoderInitModel::initParameters(const ly::StateMap &stateDict) {
-  for (std::shared_ptr<ly::Linear> &layer : _kvProjs) {
+void DecoderInitModel::initParameters(const fl::StateMap &stateDict) {
+  for (std::shared_ptr<fl::Linear> &layer : _kvProjs) {
     layer->initParameters(stateDict);
   }
 }
 
-void DecoderInitModel::forward(ly::StateMap &past, ly::Tensor encoderHidden) {
+void DecoderInitModel::forward(fl::StateMap &past, fl::Tensor encoderHidden) {
   CHECK(encoderHidden.getDim() == 3);
 
   for (int i = 0; i < _kvProjs.size(); ++i) {
-    ly::Context ctxLayer = getCtx().withName(lut::sprintf("layer%d", i));
-    ly::Context ctxAttn = ctxLayer.withName(DecoderLayer::CrossAttn);
+    fl::Context ctxLayer = getCtx().withName(lut::sprintf("layer%d", i));
+    fl::Context ctxAttn = ctxLayer.withName(DecoderLayer::CrossAttn);
 
-    ly::Tensor x = _kvProjs[i]->forward(encoderHidden);
-    ly::Tensor cacheK = x.slice(2, {0, _dModel});
-    ly::Tensor cacheV = x.slice(2, {_dModel, 2 * _dModel});
+    fl::Tensor x = _kvProjs[i]->forward(encoderHidden);
+    fl::Tensor cacheK = x.slice(2, {0, _dModel});
+    fl::Tensor cacheV = x.slice(2, {_dModel, 2 * _dModel});
 
     past.putTensor(ctxAttn.name("k"), cacheK);
     past.putTensor(ctxAttn.name("v"), cacheV);
@@ -315,12 +315,12 @@ Attention::Attention()
 Attention::~Attention() {
 }
 
-std::shared_ptr<Attention> Attention::selfAttn(const ly::Context &ctx, WhisperConfig config) {
+std::shared_ptr<Attention> Attention::selfAttn(const fl::Context &ctx, WhisperConfig config) {
   std::shared_ptr<Attention> model{new Attention()};
   model->setCtx(ctx);
   model->initCommon(config);
 
-  model->_proj = ly::Linear::create(
+  model->_proj = fl::Linear::create(
       ctx.withName("qkv_proj"),
       config.hiddenSize,
       config.hiddenSize * 3);
@@ -328,17 +328,17 @@ std::shared_ptr<Attention> Attention::selfAttn(const ly::Context &ctx, WhisperCo
   return model;
 }
 
-std::shared_ptr<Attention> Attention::crossAttn(const ly::Context &ctx, WhisperConfig config) {
+std::shared_ptr<Attention> Attention::crossAttn(const fl::Context &ctx, WhisperConfig config) {
   std::shared_ptr<Attention> model{new Attention()};
   model->setCtx(ctx);
   model->initCommon(config);
 
-  model->_proj = ly::Linear::create(ctx.withName("q_proj"), config.hiddenSize, config.hiddenSize);
+  model->_proj = fl::Linear::create(ctx.withName("q_proj"), config.hiddenSize, config.hiddenSize);
   model->_selfAttn = false;
   return model;
 }
 
-int Attention::getCtxLength(const ly::StateMap &past) const {
+int Attention::getCtxLength(const fl::StateMap &past) const {
   if (past.hasValue<int>(_namePastLen)) {
     return past.getValue<int>(_namePastLen);
   } else {
@@ -351,7 +351,7 @@ void Attention::initCommon(WhisperConfig config) {
     throw lut::AbortedError("invalid hiddenSize and numHeads");
   }
 
-  _outProj = ly::Linear::create(
+  _outProj = fl::Linear::create(
       getCtx().withName("out_proj"),
       config.hiddenSize,
       config.hiddenSize);
@@ -363,16 +363,16 @@ void Attention::initCommon(WhisperConfig config) {
   _namePastLen = getCtx().name("len");
 }
 
-void Attention::initParameters(const ly::StateMap &stateDict) {
+void Attention::initParameters(const fl::StateMap &stateDict) {
   _proj->initParameters(stateDict);
   _outProj->initParameters(stateDict);
 }
 
-std::pair<ly::Tensor, ly::Tensor> Attention::getPresentKV(
-    ly::StateMap &past,
-    ly::Tensor k,
-    ly::Tensor v) {
-  ly::Tensor pastK, pastV;
+std::pair<fl::Tensor, fl::Tensor> Attention::getPresentKV(
+    fl::StateMap &past,
+    fl::Tensor k,
+    fl::Tensor v) {
+  fl::Tensor pastK, pastV;
 
   int pastLen = getCtxLength(past);
   int presentLen = pastLen + k.getShape(1);
@@ -404,12 +404,12 @@ std::pair<ly::Tensor, ly::Tensor> Attention::getPresentKV(
       d0 = k.getShape(0);
       d2 = k.getShape(2);
     }
-    ly::Tensor nextK = ly::F::zeros({d0, nextLen, d2}, k.getDType(), k.getDevice());
-    ly::Tensor nextV = ly::F::zeros({d0, nextLen, d2}, v.getDType(), v.getDevice());
+    fl::Tensor nextK = fl::F::zeros({d0, nextLen, d2}, k.getDType(), k.getDevice());
+    fl::Tensor nextV = fl::F::zeros({d0, nextLen, d2}, v.getDType(), v.getDevice());
 
     if (pastLen) {
-      ly::F::copy(pastK.slice(1, {0, pastLen}), nextK.slice(1, {0, pastLen}));
-      ly::F::copy(pastV.slice(1, {0, pastLen}), nextV.slice(1, {0, pastLen}));
+      fl::F::copy(pastK.slice(1, {0, pastLen}), nextK.slice(1, {0, pastLen}));
+      fl::F::copy(pastV.slice(1, {0, pastLen}), nextV.slice(1, {0, pastLen}));
     }
 
     past.putTensor(_namePastK, nextK);
@@ -419,22 +419,22 @@ std::pair<ly::Tensor, ly::Tensor> Attention::getPresentKV(
     pastV = nextV;
   }
 
-  ly::F::copy(k, pastK.slice(1, {pastLen, presentLen}));
-  ly::F::copy(v, pastV.slice(1, {pastLen, presentLen}));
+  fl::F::copy(k, pastK.slice(1, {pastLen, presentLen}));
+  fl::F::copy(v, pastV.slice(1, {pastLen, presentLen}));
 
-  ly::Tensor presentK = pastK.slice(1, {0, presentLen});
-  ly::Tensor presentV = pastV.slice(1, {0, presentLen});
+  fl::Tensor presentK = pastK.slice(1, {0, presentLen});
+  fl::Tensor presentV = pastV.slice(1, {0, presentLen});
   past.putValue<int>(_namePastLen, presentLen);
 
   return std::make_pair(presentK, presentV);
 }
 
-ly::Tensor Attention::forward(ly::StateMap &past, ly::Tensor inputs) {
+fl::Tensor Attention::forward(fl::StateMap &past, fl::Tensor inputs) {
   CHECK(inputs.getDim() == 3);
 
-  ly::Tensor q, k, v;
+  fl::Tensor q, k, v;
   if (_selfAttn) {
-    ly::Tensor qkv = _proj->forward(inputs);
+    fl::Tensor qkv = _proj->forward(inputs);
     q = qkv.slice(-1, {0, _hiddenSize});
     k = qkv.slice(-1, {_hiddenSize, _hiddenSize * 2});
     v = qkv.slice(-1, {_hiddenSize * 2, _hiddenSize * 3});
@@ -460,14 +460,14 @@ ly::Tensor Attention::forward(ly::StateMap &past, ly::Tensor inputs) {
   k = k.transpose(1, 2);
   v = v.transpose(1, 2);
 
-  ly::Tensor x;
+  fl::Tensor x;
   if (_selfAttn && inputs.getShape(1) > 1) {
-    x = ly::F::attention(q, k, v, ly::F::causalMask(q.getShape(2), getCtx().getDevice()));
+    x = fl::F::attention(q, k, v, fl::F::causalMask(q.getShape(2), getCtx().getDevice()));
   } else {
-    x = ly::F::attention(q, k, v, ly::Tensor());
+    x = fl::F::attention(q, k, v, fl::Tensor());
   }
 
-  x = ly::F::contiguous(x.transpose(1, 2)).view({bsz, len, _hiddenSize});
+  x = fl::F::contiguous(x.transpose(1, 2)).view({bsz, len, _hiddenSize});
   x = _outProj->forward(x);
 
   return x;
@@ -487,22 +487,22 @@ DecoderLayer::~DecoderLayer() {
 }
 
 std::shared_ptr<DecoderLayer> DecoderLayer::fromConfig(
-    const ly::Context &ctx,
+    const fl::Context &ctx,
     WhisperConfig config) {
   std::shared_ptr<DecoderLayer> model{new DecoderLayer()};
   model->setCtx(ctx);
 
-  model->_norm1 = ly::LayerNorm::create(ctx.withName("norm1"), config.hiddenSize);
-  model->_norm2 = ly::LayerNorm::create(ctx.withName("norm2"), config.hiddenSize);
-  model->_norm3 = ly::LayerNorm::create(ctx.withName("norm3"), config.hiddenSize);
+  model->_norm1 = fl::LayerNorm::create(ctx.withName("norm1"), config.hiddenSize);
+  model->_norm2 = fl::LayerNorm::create(ctx.withName("norm2"), config.hiddenSize);
+  model->_norm3 = fl::LayerNorm::create(ctx.withName("norm3"), config.hiddenSize);
   model->_selfAttn = Attention::selfAttn(ctx.withName(SelfAttn), config);
   model->_crossAttn = Attention::crossAttn(ctx.withName(CrossAttn), config);
-  model->_fc1 = ly::Linear::create(ctx.withName("fc1"), config.hiddenSize, config.decoderFfnDim);
-  model->_fc2 = ly::Linear::create(ctx.withName("fc2"), config.decoderFfnDim, config.hiddenSize);
+  model->_fc1 = fl::Linear::create(ctx.withName("fc1"), config.hiddenSize, config.decoderFfnDim);
+  model->_fc2 = fl::Linear::create(ctx.withName("fc2"), config.decoderFfnDim, config.hiddenSize);
   return model;
 }
 
-void DecoderLayer::initParameters(const ly::StateMap &stateDict) {
+void DecoderLayer::initParameters(const fl::StateMap &stateDict) {
   _norm1->initParameters(stateDict);
   _norm2->initParameters(stateDict);
   _norm3->initParameters(stateDict);
@@ -512,25 +512,25 @@ void DecoderLayer::initParameters(const ly::StateMap &stateDict) {
   _fc2->initParameters(stateDict);
 }
 
-ly::Tensor DecoderLayer::forward(ly::StateMap &past, ly::Tensor inputs) {
-  ly::Tensor residual = inputs;
+fl::Tensor DecoderLayer::forward(fl::StateMap &past, fl::Tensor inputs) {
+  fl::Tensor residual = inputs;
 
-  ly::Tensor x = _norm1->forward(inputs);
+  fl::Tensor x = _norm1->forward(inputs);
   x = _selfAttn->forward(past, x);
-  x = ly::F::add(x, residual);
+  x = fl::F::add(x, residual);
 
   residual = x;
   x = _norm2->forward(x);
   x = _crossAttn->forward(past, x);
-  x = ly::F::add(x, residual);
+  x = fl::F::add(x, residual);
 
   residual = x;
   x = _norm3->forward(x);
   x = _fc1->forward(x);
-  x = ly::F::gelu(x);
+  x = fl::F::gelu(x);
 
   x = _fc2->forward(x);
-  x = ly::F::add(x, residual);
+  x = fl::F::add(x, residual);
   return x;
 }
 
@@ -548,18 +548,18 @@ DecoderModel::~DecoderModel() {
 }
 
 std::shared_ptr<DecoderModel> DecoderModel::fromConfig(
-    const ly::Context &ctx,
+    const fl::Context &ctx,
     WhisperConfig config) {
   std::shared_ptr<DecoderModel> model{new DecoderModel()};
   model->setCtx(ctx);
 
-  model->_embd = ly::Embedding::create(ctx.withName("embd"), config.hiddenSize, config.vocabSize);
+  model->_embd = fl::Embedding::create(ctx.withName("embd"), config.hiddenSize, config.vocabSize);
   for (int i = 0; i < config.decoderNumLayers; ++i) {
     model->_layers.emplace_back(
         DecoderLayer::fromConfig(ctx.withName(lut::sprintf("layer%d", i)), config));
   }
-  model->_norm = ly::LayerNorm::create(ctx.withName("norm"), config.hiddenSize);
-  model->_outProj = ly::Linear::create(
+  model->_norm = fl::LayerNorm::create(ctx.withName("norm"), config.hiddenSize);
+  model->_outProj = fl::Linear::create(
       ctx.withName("out_proj"),
       config.hiddenSize,
       config.vocabSize,
@@ -571,8 +571,8 @@ std::shared_ptr<DecoderModel> DecoderModel::fromConfig(
   return model;
 }
 
-void DecoderModel::initParameters(const ly::StateMap &stateDict) {
-  ly::Context ctx = getCtx();
+void DecoderModel::initParameters(const fl::StateMap &stateDict) {
+  fl::Context ctx = getCtx();
 
   _embd->initParameters(stateDict);
   _norm->initParameters(stateDict);
@@ -587,7 +587,7 @@ void DecoderModel::initParameters(const ly::StateMap &stateDict) {
   }
 }
 
-int DecoderModel::getCtxLength(const ly::StateMap &past) const {
+int DecoderModel::getCtxLength(const fl::StateMap &past) const {
   if (past.hasValue<int>(_namePastLen)) {
     return past.getValue<int>(_namePastLen);
   } else {
@@ -595,13 +595,13 @@ int DecoderModel::getCtxLength(const ly::StateMap &past) const {
   }
 }
 
-ly::Tensor DecoderModel::forward(ly::StateMap &past, ly::Tensor inputs) {
-  ly::Tensor x = _embd->forward(inputs);
+fl::Tensor DecoderModel::forward(fl::StateMap &past, fl::Tensor inputs) {
+  fl::Tensor x = _embd->forward(inputs);
 
   // positional embedding.
   int pastLen = getCtxLength(past);
   int presentLen = pastLen + inputs.getShape(1);
-  x = ly::F::add(x, _posEmbd.slice({pastLen, presentLen}));
+  x = fl::F::add(x, _posEmbd.slice({pastLen, presentLen}));
   past.putValue<int>(_namePastLen, presentLen);
 
   for (const std::shared_ptr<DecoderLayer> &layer : _layers) {
@@ -612,7 +612,7 @@ ly::Tensor DecoderModel::forward(ly::StateMap &past, ly::Tensor inputs) {
   return x;
 }
 
-ly::Tensor DecoderModel::forwardLmHead(ly::Tensor inputs) {
+fl::Tensor DecoderModel::forwardLmHead(fl::Tensor inputs) {
   return _outProj->forward(inputs);
 }
 
@@ -628,7 +628,7 @@ WhisperModel::WhisperModel() {
 }
 
 std::shared_ptr<WhisperModel> WhisperModel::fromPackage(
-    const ly::Context &ctx,
+    const fl::Context &ctx,
     lut::ZipFile *package) {
   std::shared_ptr<lut::Reader> reader = package->open(ModelForGeneration::ModelConfig);
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(reader.get());
@@ -641,7 +641,7 @@ std::shared_ptr<WhisperModel> WhisperModel::fromPackage(
   std::shared_ptr<WhisperModel> model{new WhisperModel()};
   WhisperConfig llamaConfig = WhisperConfig::loadConfig(llamaIni);
 
-  ly::StateMap stateMap;
+  fl::StateMap stateMap;
 
   stateMap.read(package->open(modelFile).get());
   model->_encoder = EncoderModel::fromConfig(ctx.withName("encoder"), llamaConfig);
@@ -656,25 +656,25 @@ std::shared_ptr<WhisperModel> WhisperModel::fromPackage(
   return model;
 }
 
-void WhisperModel::prefillAudio(ly::StateMap &past, ly::Tensor wave) const {
-  ly::Tensor x = _encoder->forward(wave);
+void WhisperModel::prefillAudio(fl::StateMap &past, fl::Tensor wave) const {
+  fl::Tensor x = _encoder->forward(wave);
   _decoderInit->forward(past, x);
 }
 
-ly::Tensor WhisperModel::prefillPrompt(ly::StateMap &past, ly::Tensor inputs) const {
-  ly::Tensor x = _decoder->forward(past, inputs);
+fl::Tensor WhisperModel::prefillPrompt(fl::StateMap &past, fl::Tensor inputs) const {
+  fl::Tensor x = _decoder->forward(past, inputs);
 
-  x = x.slice(1, {-1, ly::None});
+  x = x.slice(1, {-1, fl::None});
   x = _decoder->forwardLmHead(x);
   return x;
 }
 
-ly::Tensor WhisperModel::decode(ly::StateMap &past, ly::LongType inputToken) const {
-  std::array<ly::LongType, 1> inputData{inputToken};
-  ly::Tensor inputs = ly::Tensor::create<ly::LongType>({1, 1}, inputData);
-  inputs = ly::F::to(getDevice(), inputs);
+fl::Tensor WhisperModel::decode(fl::StateMap &past, fl::LongType inputToken) const {
+  std::array<fl::LongType, 1> inputData{inputToken};
+  fl::Tensor inputs = fl::Tensor::create<fl::LongType>({1, 1}, inputData);
+  inputs = fl::F::to(getDevice(), inputs);
 
-  ly::Tensor x = _decoder->forward(past, inputs);
+  fl::Tensor x = _decoder->forward(past, inputs);
   x = _decoder->forwardLmHead(x);
   return x;
 }
@@ -683,7 +683,7 @@ const char *WhisperModel::getName() const {
   return _modelName.c_str();
 }
 
-ly::Device WhisperModel::getDevice() const {
+fl::Device WhisperModel::getDevice() const {
   return _decoder->getCtx().getDevice();
 }
 

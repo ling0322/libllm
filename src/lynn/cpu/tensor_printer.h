@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -106,4 +106,4 @@ class TensorPrinter {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

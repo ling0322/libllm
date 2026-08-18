@@ -23,7 +23,7 @@
 
 #include "lynn/cpu/kernel/abstract.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -233,4 +233,4 @@ void hscvtAvx2Kernel(int64_t n, const Float16 *x, float *y) {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

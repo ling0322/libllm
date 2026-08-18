@@ -49,7 +49,7 @@
     }                                                                                        \
   }
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -276,4 +276,4 @@ std::shared_ptr<Gemm> CutlassGemm::create() {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

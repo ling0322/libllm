@@ -21,7 +21,7 @@
 
 #include "lynn/cuda/gemm.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -64,4 +64,4 @@ class CutlassGemm : public Gemm {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

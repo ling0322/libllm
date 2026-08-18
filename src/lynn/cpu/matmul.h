@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -57,4 +57,4 @@ Tensor matmulFp32Aarch64(const Tensor &A, const Tensor &B);
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

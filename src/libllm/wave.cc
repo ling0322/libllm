@@ -20,7 +20,7 @@
 #include "libllm/wave.h"
 
 #include "lutil/error.h"
-#include "lynn/functional.h"
+#include "flint/functional.h"
 
 namespace libllm {
 
@@ -37,7 +37,7 @@ Wave::Wave(std::shared_ptr<WaveStream> waveStream)
       _eof(false) {
 }
 
-ly::Tensor Wave::toTensor(lut::Span<const ly::Byte> data) {
+fl::Tensor Wave::toTensor(lut::Span<const fl::Byte> data) {
   int numSamples = static_cast<int>(data.size() / 2);
   if (data.size() % 2 != 0) {
     throw lut::AbortedError("Wave: invalid size of data");
@@ -49,16 +49,16 @@ ly::Tensor Wave::toTensor(lut::Span<const ly::Byte> data) {
     wave[i] = static_cast<float>(phData[i]) / 32768.0f;
   }
 
-  return ly::Tensor::create({numSamples}, lut::makeConstSpan(wave));
+  return fl::Tensor::create({numSamples}, lut::makeConstSpan(wave));
 }
 
 void Wave::readBlock() {
-  std::vector<ly::Byte> data(BlockSize);
+  std::vector<fl::Byte> data(BlockSize);
   int64_t nb = _waveStream->read(lut::makeSpan(data));
   _buffer.insert(_buffer.end(), data.begin(), data.begin() + nb);
 }
 
-ly::Tensor Wave::read(lut::Duration duration) {
+fl::Tensor Wave::read(lut::Duration duration) {
   CHECK(_waveStream->getBytesPerSample() == 2);
 
   int64_t nbTotalSize = durationToNumBytes(duration);
@@ -66,7 +66,7 @@ ly::Tensor Wave::read(lut::Duration duration) {
     readBlock();
   }
 
-  std::vector<ly::Byte> data;
+  std::vector<fl::Byte> data;
   CHECK(_readOffset >= _bufferOffset && _readOffset < _bufferOffset + _buffer.size());
   auto it = _buffer.begin() + (_readOffset - _bufferOffset);
   data.insert(data.end(), it, std::min(it + nbTotalSize, _buffer.end()));
@@ -80,7 +80,7 @@ ly::Tensor Wave::read(lut::Duration duration) {
   if (!data.empty()) {
     return toTensor(data);
   } else {
-    return ly::Tensor();
+    return fl::Tensor();
   }
 }
 

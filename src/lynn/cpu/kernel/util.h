@@ -28,7 +28,7 @@
 #include "lutil/span.h"
 #include "lynn/cpu/kernel/abstract.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -76,4 +76,4 @@ inline Float16 cvtf(Float16 v) {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

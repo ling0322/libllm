@@ -56,7 +56,7 @@ CATCH_TEST_CASE("string functions works", "[core][util]") {
   CATCH_REQUIRE(toUtf8(ws_ref) == s_ref);
 }
 
-CATCH_TEST_CASE("sprintf works", "[ly][strings]") {
+CATCH_TEST_CASE("sprintf works", "[fl][strings]") {
   // BVT
   CATCH_REQUIRE(lut::sprintf("%d", 22) == "22");
   CATCH_REQUIRE(lut::sprintf("foo_%d", 22) == "foo_22");

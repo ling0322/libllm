@@ -23,7 +23,7 @@
 #include "lynn/device.h"
 #include "lynn/operators.h"
 
-namespace ly {
+namespace fl {
 
 class OperatorTester {
  public:
@@ -69,4 +69,4 @@ class OperatorTester {
   DType _testFloatType;
 };
 
-}  // namespace ly
+}  // namespace fl

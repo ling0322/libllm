@@ -31,7 +31,7 @@
 #include "lynn/mp.h"
 #include "pocketfft/pocketfft_hdronly.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -265,4 +265,4 @@ Tensor logMelSpectrogram(Tensor inputs) {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

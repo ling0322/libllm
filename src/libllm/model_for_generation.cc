@@ -34,7 +34,7 @@ namespace libllm {
 constexpr char ModelForGeneration::ModelConfig[];
 
 std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
-    const ly::Context &fromCtx,
+    const fl::Context &fromCtx,
     lut::ZipFile *package) {
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(
       package->open(ModelConfig).get());
@@ -44,7 +44,7 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
   LOG(INFO) << "model_type = " << modelType;
   LOG(INFO) << "device = " << fromCtx.getDevice().getName();
 
-  ly::Context ctx = fromCtx.withName(modelType);
+  fl::Context ctx = fromCtx.withName(modelType);
   std::shared_ptr<ModelForGeneration> model;
   if (modelType == "llama") {
     model = llama::LlamaModelForGeneration::fromPackage(ctx, package);
@@ -68,7 +68,7 @@ const Vocab *ModelForGeneration::getVocab() const {
 }
 
 int ModelForGeneration::getPromptTokenCount(const Prompt &prompt) const {
-  std::vector<ly::LongType> tokenIds;
+  std::vector<fl::LongType> tokenIds;
   for (const PromptBlock &block : prompt.getBlocks()) {
     encodePromptBlock(block, tokenIds);
   }
@@ -77,7 +77,7 @@ int ModelForGeneration::getPromptTokenCount(const Prompt &prompt) const {
 
 void ModelForGeneration::encodePromptBlock(
     const PromptBlock &block,
-    std::vector<ly::LongType> &tokenIds) const {
+    std::vector<fl::LongType> &tokenIds) const {
   int tokenId;
   switch (block.blockType) {
     case PromptBlock::ControlToken:

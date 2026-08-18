@@ -21,10 +21,10 @@
 #include "lutil/log.h"
 #include "lutil/strings.h"
 #include "lutil/zip_file.h"
-#include "lynn/context.h"
-#include "lynn/dtype.h"
-#include "lynn/functional.h"
-#include "lynn/operators.h"
+#include "flint/context.h"
+#include "flint/dtype.h"
+#include "flint/functional.h"
+#include "flint/operators.h"
 
 using libllm::GenerationConfig;
 using libllm::Generator;
@@ -35,8 +35,8 @@ using libllm::whisper::RecognitionResult;
 using libllm::whisper::WhisperDecoder;
 using libllm::whisper::WhisperModel;
 using lut::IniConfig;
-using ly::Context;
-using ly::LongType;
+using fl::Context;
+using fl::LongType;
 using json = nlohmann::json;
 
 std::once_flag gLlmInitOnce;
@@ -168,16 +168,16 @@ int32_t llmErrorSetEOF() {
   return LLM_ERROR_EOF;
 }
 
-ly::Device parseDevice(const std::string &device) {
+fl::Device parseDevice(const std::string &device) {
   if (device == "cpu") {
-    return ly::Device::getCpu();
+    return fl::Device::getCpu();
   } else if (device == "cuda") {
-    return ly::Device::getCuda();
+    return fl::Device::getCuda();
   } else if (device == "auto") {
-    if (ly::Device::isCudaAvailable()) {
-      return ly::Device::getCuda();
+    if (fl::Device::isCudaAvailable()) {
+      return fl::Device::getCuda();
     } else {
-      return ly::Device::getCpu();
+      return fl::Device::getCpu();
     }
   } else {
     throw lut::AbortedError("invalid device: " + device);
@@ -196,7 +196,7 @@ void llm_init() {
   std::call_once(gLlmInitOnce, []() {
     try {
       lut::setLogLevel(lut::LogSeverity::kINFO);
-      ly::initOperators();
+      fl::initOperators();
     } catch (const lut::Error &e) {
       LOG(ERROR) << "initialize libllm failed: " << e.what();
     }
@@ -222,7 +222,7 @@ int32_t llm_model_destroy(llm_model_t *m) {
 
 int32_t llm_model_load(llm_model_t *m, llm_json_t *kwargs) {
   try {
-    ly::Device device;
+    fl::Device device;
     std::shared_ptr<lut::ZipFile> package;
     json object = (*kwargs)->jsonObject;
     for (auto &[key, value] : object.items()) {
@@ -236,13 +236,13 @@ int32_t llm_model_load(llm_model_t *m, llm_json_t *kwargs) {
     }
 
     if (!package) return llmErrorSetAborted("options.filename undefined");
-    if (device.getType() == ly::Device::kUnknown) {
+    if (device.getType() == fl::Device::kUnknown) {
       return llmErrorSetAborted("options.device undefined");
     }
 
-    ly::Context ctx;
+    fl::Context ctx;
     ctx.setDevice(device);
-    ctx.setFloatDType(ly::F::getDefaultFloatType(device));
+    ctx.setFloatDType(fl::F::getDefaultFloatType(device));
     std::shared_ptr<ModelForGeneration> model = ModelForGeneration::fromPackage(ctx, package.get());
 
     (*m)->model = model;
@@ -380,11 +380,11 @@ int32_t llm_asr_model_load(llm_asr_model_t *m, llm_json_t *options) {
     checkJsonKeys(object, {{"filename", true}, {"device", true}});
 
     std::shared_ptr<lut::ZipFile> package = lut::ZipFile::fromFile(object["filename"]);
-    ly::Device device = parseDevice(object["device"]);
+    fl::Device device = parseDevice(object["device"]);
 
-    ly::Context ctx = Context().withName("whisper");
+    fl::Context ctx = Context().withName("whisper");
     ctx.setDevice(device);
-    ctx.setFloatDType(ly::F::getDefaultFloatType(device));
+    ctx.setFloatDType(fl::F::getDefaultFloatType(device));
     std::shared_ptr<WhisperModel> whisperModel = WhisperModel::fromPackage(ctx, package.get());
 
     (*m)->model = whisperModel;

@@ -31,7 +31,7 @@
 #include "lynn/cuda/cuda_operators.h"
 #include "lynn/mp.h"
 
-namespace ly {
+namespace fl {
 
 Tensor Operators::arangeLong(LongType begin, LongType end, LongType step) {
   NOT_IMPL();
@@ -260,4 +260,4 @@ void destroyOperators() {
   }
 }
 
-}  // namespace ly
+}  // namespace fl

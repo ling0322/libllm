@@ -28,7 +28,7 @@
 #include "lynn/cpu/kernel/test_common.h"
 #include "lynn/cpu/kernel/util.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -190,4 +190,4 @@ CATCH_TEST_CASE("test hgemm", "[cpu_kernel][interface][hgemm]") {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

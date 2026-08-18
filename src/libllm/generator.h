@@ -73,18 +73,18 @@ class BaseGenerator : public Generator {
 
  protected:
   Prompt _prompt;
-  ly::StateMap _past;
+  fl::StateMap _past;
   std::shared_ptr<ModelForGeneration> _model;
   int _currentToken;
 
-  virtual int searchToken(const ly::Tensor &logits) = 0;
+  virtual int searchToken(const fl::Tensor &logits) = 0;
 };
 
 class Sampler {
  public:
   Sampler(int topK, float topP);
 
-  int sample(const ly::Tensor &distribution);
+  int sample(const fl::Tensor &distribution);
 
  private:
   lut::Random _random;
@@ -92,9 +92,9 @@ class Sampler {
   float _topP;
   std::vector<std::pair<int, float>> _topBuffer;
 
-  std::vector<int> getTopK(const ly::Tensor &distribution);
-  std::vector<int> getTopP(const ly::Tensor &distribution, lut::Span<const int> topK);
-  int sampleTopP(const ly::Tensor &distribution, lut::Span<const int> topP);
+  std::vector<int> getTopK(const fl::Tensor &distribution);
+  std::vector<int> getTopP(const fl::Tensor &distribution, lut::Span<const int> topK);
+  int sampleTopP(const fl::Tensor &distribution, lut::Span<const int> topP);
 };
 
 // generator by sampling.
@@ -106,7 +106,7 @@ class SamplingGenerator : public BaseGenerator {
   ~SamplingGenerator() = default;
 
  protected:
-  int searchToken(const ly::Tensor &logits) override;
+  int searchToken(const fl::Tensor &logits) override;
 
  private:
   Sampler _sampler;

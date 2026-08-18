@@ -25,7 +25,7 @@
 #include "lynn/device.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -45,4 +45,4 @@ class CudaTensorData : public TensorData {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

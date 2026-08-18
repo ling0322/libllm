@@ -52,7 +52,7 @@
 #include "lynn/operators.h"
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -194,4 +194,4 @@ DType CPUOperators::getDefaultFloatType() {
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

@@ -24,7 +24,7 @@
 #include "lynn/device.h"
 #include "lynn/dtype.h"
 
-namespace ly {
+namespace fl {
 class Tensor;
 
 namespace F {
@@ -258,4 +258,4 @@ bool all(Tensor tensor);
 void manualSeed(Device device, uint64_t seed);
 
 }  // namespace F
-}  // namespace ly
+}  // namespace fl

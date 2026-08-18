@@ -23,7 +23,7 @@
 
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -45,4 +45,4 @@ class Rand {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

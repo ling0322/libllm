@@ -53,7 +53,7 @@
 #define LL_CUDA_SYNCHRONIZE() ((void)0)
 #endif
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -178,4 +178,4 @@ inline T *getDataPtrCuda(const Tensor &input) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

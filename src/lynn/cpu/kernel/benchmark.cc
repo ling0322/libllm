@@ -34,7 +34,7 @@
 #include "lynn/cpu/kernel/gemm.h"
 #include "lynn/cpu/kernel/interface.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -65,7 +65,7 @@ double benchmarkSgemm(int M, int K, int N, int numLoops = 2) {
 
   double t0 = lut::now();
   for (int i = 0; i < numLoops; ++i)
-    ly::op::cpu::kernel::gemmFloat(
+    fl::op::cpu::kernel::gemmFloat(
         false,
         true,
         M,
@@ -90,7 +90,7 @@ double benchmarkHgemm(int M, int K, int N, int numLoops = 2) {
 
   double t0 = lut::now();
   for (int i = 0; i < numLoops; ++i)
-    ly::op::cpu::kernel::gemmHalf(
+    fl::op::cpu::kernel::gemmHalf(
         false,
         true,
         M,
@@ -203,4 +203,4 @@ CATCH_TEST_CASE("benchmark HGEMM", "[benchmark][cpu][cpu_kernel][hgemm]") {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

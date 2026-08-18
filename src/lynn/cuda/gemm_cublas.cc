@@ -82,7 +82,7 @@ typedef CUBLASAPI cublasStatus_t CUBLASWINAPI (*cublasGemmExFunc_t)(
 typedef CUBLASAPI cublasStatus_t CUBLASWINAPI (*cublasCreateFunc_t)(cublasHandle_t *handle);
 typedef CUBLASAPI cublasStatus_t CUBLASWINAPI (*cublasDestroyFunc_t)(cublasHandle_t handle);
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -239,4 +239,4 @@ void CublasGemm::hgemmArray(
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

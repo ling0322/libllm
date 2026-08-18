@@ -31,7 +31,7 @@
 #include "lynn/functional.h"
 #include "lynn/operators.h"
 
-namespace ly {
+namespace fl {
 
 template<typename T>
 Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const T> data) {
@@ -365,7 +365,7 @@ Tensor Tensor::operator*(float v) const {
 }
 
 Operators *Tensor::getOperators() const {
-  return ly::getOperators(getDevice().getType());
+  return fl::getOperators(getDevice().getType());
 }
 
 Tensor Tensor::operator[](int idx) const {
@@ -385,4 +385,4 @@ bool Tensor::elem<bool>() const {
 template float Tensor::elem<float>() const;
 template bool Tensor::elem<bool>() const;
 
-}  // namespace ly
+}  // namespace fl

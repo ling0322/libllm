@@ -108,7 +108,7 @@ endif()
 
 add_subdirectory("src")
 
-set(libllm_LIBADD lutil lynn_static ${CMAKE_DL_LIBS} ${UNWIND_ARCH_LIB} ${UNWIND_LIB} )
+set(libllm_LIBADD lutil flint_static ${CMAKE_DL_LIBS} ${UNWIND_ARCH_LIB} ${UNWIND_LIB} )
 
 if(WITH_OPENMP)
     set(libllm_LIBADD ${libllm_LIBADD} OpenMP::OpenMP_CXX)
@@ -128,7 +128,7 @@ endif()
 
 set(unittest_LIBADD
     libllm_static
-    lynn_test
+    flint_test
     lutil_test
     ${libllm_LIBADD}
     catch2)
@@ -143,19 +143,19 @@ if (WITH_MKL)
 endif()
 
 set(benchmark_LIBADD
-    lynn_benchmark
+    flint_benchmark
     ${libllm_LIBADD}
     catch2)
 
 
 add_library(catch2 STATIC  "../third_party/catch2/catch_amalgamated.cpp")
 
-add_executable(unittest "src/lynn/bin/unittest.cc")
+add_executable(unittest "src/flint/bin/unittest.cc")
 target_include_directories(unittest PRIVATE "src" "third_party")
 
 target_link_libraries(unittest ${unittest_LIBADD})
 
-add_executable(benchmark "src/lynn/bin/benchmark.cc")
+add_executable(benchmark "src/flint/bin/benchmark.cc")
 target_include_directories(benchmark PRIVATE "src" "third_party")
 target_link_libraries(benchmark ${benchmark_LIBADD})
 

@@ -21,7 +21,7 @@
 
 #include "lynn/tensor.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 
@@ -30,4 +30,4 @@ void fill(Tensor tensor, float value);
 
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

@@ -28,7 +28,7 @@
 #include "lynn/cuda/reduce.h"
 #include "lynn/functional.h"
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cuda {
 
@@ -103,4 +103,4 @@ Tensor layerNorm(Tensor tensor, Tensor weight, Tensor bias, float eps) {
 
 }  // namespace cuda
 }  // namespace op
-}  // namespace ly
+}  // namespace fl

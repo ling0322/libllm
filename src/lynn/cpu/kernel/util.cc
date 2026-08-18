@@ -31,7 +31,7 @@
 #include <arm_neon.h>
 #endif
 
-namespace ly {
+namespace fl {
 namespace op {
 namespace cpu {
 namespace kernel {
@@ -59,4 +59,4 @@ Float16 cvt_s2h(float vf) {
 }  // namespace kernel
 }  // namespace cpu
 }  // namespace op
-}  // namespace ly
+}  // namespace fl
