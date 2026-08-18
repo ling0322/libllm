@@ -132,7 +132,7 @@ Tensor MatMul::matmulMxfp4(const Tensor &A, const Tensor &sfA, const Tensor &B, 
       getDataPtrCuda<UInt8>(sfB),
       getDataPtrCuda<Float16>(C));
 
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
 
   return C;
 }
@@ -209,10 +209,6 @@ Tensor MatMul::bmmHalf(Tensor A, Tensor B) {
   Tensor C = createCudaTensorHalf(shapeC);
 
   int nBatchDim = A.getDim() - 2;
-  CHECK(
-      A.getDType().getTotalSize(A.getStride(-3)) % 16 == 0 &&
-      B.getDType().getTotalSize(A.getStride(-3)) % 16 == 0)
-      << "bmm Half: stride should be 16 byte align";
 
   op::cpu::GEMMArgs gemmArgs = op::cpu::generateGemmArgs(A, xB, C);
   std::vector<const half *> batchA = getBatch(A, nBatchDim);
@@ -232,6 +228,7 @@ Tensor MatMul::bmmHalf(Tensor A, Tensor B) {
 
   float alpha = 1.0;
   float beta = 0.0;
+
   _gemm->hgemmArray(
       gemmArgs.transA,
       gemmArgs.transB,
@@ -248,7 +245,7 @@ Tensor MatMul::bmmHalf(Tensor A, Tensor B) {
       gemmArgs.ldc,
       nb);
 
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   return C;
 }
 
@@ -274,7 +271,7 @@ Tensor MatMul::gemmHalf(Tensor A, Tensor B) {
       0.0f,
       getDataPtrCuda<half>(C),
       gemmArgs.ldc);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
 
   return C;
 }

@@ -72,7 +72,7 @@ std::shared_ptr<TensorData> CpuTensorData::read(lut::Reader *fp) {
   if (fp->readString(4) != "tdat") throw lut::AbortedError("bad tensor data format.");
 
   int32_t numSlot = fp->readValue<int32_t>();
-  CHECK(numSlot == 0);
+  CHECK(numSlot == 1);
 
   // slot 0
   tensorData->readSlot(fp);

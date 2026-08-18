@@ -70,7 +70,7 @@ void fillImpl(Tensor &tensor, T v) {
       NOT_IMPL();
   }
 
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
 void fill(Tensor A, float value) {

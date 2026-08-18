@@ -19,157 +19,103 @@
 
 #include <stdio.h>
 
-#include <iostream>
+#include <memory>
 #include <string>
 
-#include "libllm/llama.h"
-#include "libllm/llm.h"
 #include "libllm/model_for_generation.h"
+#include "libllm/prompt.h"
 #include "lutil/error.h"
 #include "lutil/flags.h"
-#include "lutil/random.h"
 #include "lutil/time.h"
-#include "lynn/dtype.h"
+#include "lutil/zip_file.h"
+#include "lynn/context.h"
 #include "lynn/functional.h"
 #include "lynn/operators.h"
+#include "lynn/state_map.h"
 
-constexpr int MagicNumber = 0x55aa;
 constexpr double MaxWait = 10;
-
-enum class LlamaType { Llama2_7B };
 
 namespace libllm {
 
-ly::Tensor randomLongTensor(lut::Random *r, int length, int vocabSize, ly::Device device) {
-  std::vector<ly::LongType> prompt(length);
-  r->fill(lut::makeSpan(prompt), 0, vocabSize);
+Prompt makePrompt(int repeatCount) {
+  CHECK(repeatCount > 0);
 
-  ly::Tensor inputs = ly::Tensor::create<ly::LongType>({1, length}, prompt);
-  inputs = ly::F::to(device, inputs);
+  std::string text;
+  for (int i = 0; i < repeatCount; ++i) {
+    text += "The quick brown fox jumps over the lazy dog. ";
+  }
 
-  return inputs;
+  Prompt prompt;
+  prompt.appendText(text);
+  return prompt;
 }
 
-/// @brief Benchmark the prompt forwarding time.
-/// @param model The model to benchmark.
-/// @param vocabSize Vocabulary size of the model.
-/// @param promptLen length of the prompt to evaluate.
-/// @return number of tokens per second.
-float benchmarkPromptForward(
-    lut::Random *r,
-    std::shared_ptr<llama::LlamaModel> model,
-    int vocabSize,
-    int promptLen) {
-  // first run.
+float benchmarkPrefill(
+    const std::shared_ptr<ModelForGeneration> &model,
+    const Prompt &prompt,
+    int promptTokenCount) {
   ly::StateMap past;
-  ly::Tensor inputs = randomLongTensor(r, promptLen, vocabSize, model->getCtx().getDevice());
-  ly::Tensor x = model->forward(past, inputs);
+  model->prefill(past, prompt);
 
-  double t0 = lut::now();
-  int nLoop = 0;
-  while (lut::now() - t0 < MaxWait) {
-    ly::StateMap past;
-    x = model->forward(past, inputs);
-    ++nLoop;
+  double start = lut::now();
+  int loops = 0;
+  while (lut::now() - start < MaxWait) {
+    ly::StateMap loopPast;
+    model->prefill(loopPast, prompt);
+    ++loops;
   }
-  double t1 = lut::now();
-  int numToken = promptLen * nLoop;
-  float tokenPerSec = numToken / (t1 - t0);
-
-  return tokenPerSec;
+  double elapsed = lut::now() - start;
+  return promptTokenCount * loops / elapsed;
 }
 
-float benchmarkTokenGeneration(
-    lut::Random *r,
-    std::shared_ptr<llama::LlamaModel> model,
-    int vocabSize,
-    int contextLen) {
-  // get kv_cache for the given ly::Context size.
+float benchmarkDecode(const std::shared_ptr<ModelForGeneration> &model, const Prompt &prompt) {
   ly::StateMap past;
-  ly::Tensor inputs = randomLongTensor(r, contextLen, vocabSize, model->getCtx().getDevice());
-  ly::Tensor x = model->forward(past, inputs);
+  model->prefill(past, prompt);
 
-  // first run.
-  ly::StateMap pastClone = past.clone();
-  std::array<ly::LongType, 1> inputData{1024};
-  ly::Tensor inputToken = ly::Tensor::create<ly::LongType>({1, 1}, inputData);
-  inputToken = ly::F::to(model->getCtx().getDevice(), inputToken);
+  ly::StateMap warmupPast = past.clone();
+  model->decode(warmupPast, 0);
 
-  x = model->forward(pastClone, inputToken);
-  x = model->forwardLmHead(x);
-
-  double t0 = lut::now();
-  int nLoop = 0;
-  while (lut::now() - t0 < MaxWait) {
-    ly::StateMap pastClone = past.clone();
-    x = model->forward(pastClone, inputToken);
-    x = model->forwardLmHead(x);
-    ++nLoop;
+  double start = lut::now();
+  int loops = 0;
+  while (lut::now() - start < MaxWait) {
+    ly::StateMap loopPast = past.clone();
+    model->decode(loopPast, 0);
+    ++loops;
   }
-  double t1 = lut::now();
-  int numToken = nLoop;
-  float tokenPerSec = numToken / (t1 - t0);
-
-  return tokenPerSec;
+  double elapsed = lut::now() - start;
+  return loops / elapsed;
 }
 
-llama::LlamaConfig getLlamaConfig(LlamaType type) {
-  llama::LlamaConfig config;
-  if (type == LlamaType::Llama2_7B) {
-    config.hiddenSize = 4096;
-    config.intermediateSize = 11008;
-    config.maxContextLength = 4096;
-    config.normEps = 1e-5;
-    config.numHeads = 32;
-    config.numKeyValueHeads = 32;
-    config.numLayers = 32;
-    config.qkvProjBias = false;
-    config.vocabSize = 32000;
+int benchmarkMain(ly::Device device, const std::string &modelPath, int promptRepeatCount) {
+  ly::initOperators();
 
-    return config;
-  }
-
-  NOT_IMPL();
-}
-
-std::shared_ptr<llama::LlamaModel> getLlamaModel(
-    lut::Random *r,
-    LlamaType type,
-    ly::Device device,
-    ly::DType weightType) {
   ly::Context ctx;
   ctx.setDevice(device);
   ctx.setFloatDType(ly::F::getDefaultFloatType(device));
 
-  llama::LlamaConfig config = getLlamaConfig(type);
-  std::shared_ptr<llama::LlamaModel> model = llama::LlamaModel::create(ctx, config);
-  model->initParameters(r, weightType);
+  std::shared_ptr<lut::ZipFile> package = lut::ZipFile::fromFile(modelPath);
+  std::shared_ptr<ModelForGeneration> model = ModelForGeneration::fromPackage(ctx, package.get());
+  Prompt prompt = makePrompt(promptRepeatCount);
+  int promptTokenCount = model->getPromptTokenCount(prompt);
 
-  return model;
-}
-
-void benchmarkLlama(std::shared_ptr<llama::LlamaModel> model, int ctxLength, ly::DType weightType) {
-  lut::Random r(MagicNumber);
-
-  float tokenPerSec = benchmarkPromptForward(&r, model, 32000, ctxLength);
+  float prefillTokensPerSecond = benchmarkPrefill(model, prompt, promptTokenCount);
   printf(
-      "llama2_7B   %-8s %-8s prefill@len:%-5d  %-7.1f\n",
-      model->getCtx().getDevice().getName().c_str(),
-      weightType.toString().c_str(),
-      ctxLength,
-      tokenPerSec);
+      "%-12s %-8s prefill@len:%-5d  %-7.1f tokens/s\n",
+      model->getName(),
+      device.getName().c_str(),
+      promptTokenCount,
+      prefillTokensPerSecond);
 
-  tokenPerSec = benchmarkTokenGeneration(&r, model, 32000, ctxLength);
+  float decodeTokensPerSecond = benchmarkDecode(model, prompt);
   printf(
-      "llama2_7B   %-8s %-8s decode@ctx:%-5d   %-7.1f\n",
-      model->getCtx().getDevice().getName().c_str(),
-      weightType.toString().c_str(),
-      ctxLength,
-      tokenPerSec);
-}
+      "%-12s %-8s decode@ctx:%-5d   %-7.1f tokens/s\n",
+      model->getName(),
+      device.getName().c_str(),
+      promptTokenCount,
+      decodeTokensPerSecond);
 
-int benchmarkMain(ly::Device device) {
-  ly::initOperators();
+  model.reset();
+  package.reset();
   ly::destroyOperators();
   return 0;
 }
@@ -178,22 +124,30 @@ int benchmarkMain(ly::Device device) {
 
 int main(int argc, char **argv) {
   const char *usage =
-      "Command line interface for benchmarking libllm.\n"
-      "Usage: benchmark [-d (cpu|cuda)]";
+      "Benchmark model prefill and decode throughput.\n"
+      "Usage: llm_benchmark -m <model.llmpkg> [-d (cpu|cuda)] [-l prompt-repeat-count]";
 
   std::string deviceType = "cuda";
+  std::string modelPath;
+  std::string promptRepeatCountString = "16";
   lut::Flags flags(usage);
   flags.define("-d", &deviceType, "device of the model. (cpu|cuda)");
+  flags.define("-m", &modelPath, "path to the model package.");
+  flags.define("-l", &promptRepeatCountString, "number of prompt sentence repetitions.");
   flags.parse(argc, argv);
 
-  if (deviceType == "cpu") {
-    libllm::benchmarkMain(ly::Device::getCpu());
-    return 0;
-  } else if (deviceType == "cuda") {
-    libllm::benchmarkMain(ly::Device::getCuda());
-    return 0;
-  } else {
-    fprintf(stderr, "unexpected ly::Device %s\n", deviceType.c_str());
+  if (modelPath.empty()) {
+    flags.printUsage();
     return 1;
   }
+
+  int promptRepeatCount = std::stoi(promptRepeatCountString);
+  if (deviceType == "cpu") {
+    return libllm::benchmarkMain(ly::Device::getCpu(), modelPath, promptRepeatCount);
+  } else if (deviceType == "cuda") {
+    return libllm::benchmarkMain(ly::Device::getCuda(), modelPath, promptRepeatCount);
+  }
+
+  fprintf(stderr, "unexpected device %s\n", deviceType.c_str());
+  return 1;
 }

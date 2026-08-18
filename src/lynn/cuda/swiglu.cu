@@ -56,7 +56,7 @@ Tensor swiglu3D(const Tensor &tensor) {
   d.x = (C.getShape(2) + blockSize - 1) / blockSize;
 
   swigluKernel3D<<<d, blockSize>>>(tensor, C);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return C;
 }

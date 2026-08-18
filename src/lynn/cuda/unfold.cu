@@ -71,7 +71,7 @@ Tensor unfold(const Tensor &src, int kernelSize, int stride) {
   d.x = (C.getShape(2) + blockSize - 1) / blockSize;
 
   unfold1DKernel3D<<<d, blockSize>>>(src, C, kernelSize, stride);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return C;

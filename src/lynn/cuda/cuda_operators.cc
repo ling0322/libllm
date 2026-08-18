@@ -59,6 +59,19 @@ std::shared_ptr<Operators> CudaOperators::create(int options) {
     return nullptr;
   }
 
+#ifdef LIBLLM_CUDA_MALLOC_ASYNC_ENABLED
+  int memoryPoolsSupported = 0;
+  LL_CHECK_CUDA_STATUS(
+      cudaDeviceGetAttribute(&memoryPoolsSupported, cudaDevAttrMemoryPoolsSupported, 0));
+  CHECK(memoryPoolsSupported) << "CUDA device does not support stream-ordered memory allocation";
+
+  cudaMemPool_t memoryPool;
+  uint64_t releaseThreshold = UINT64_MAX;
+  LL_CHECK_CUDA_STATUS(cudaDeviceGetDefaultMemPool(&memoryPool, 0));
+  LL_CHECK_CUDA_STATUS(
+      cudaMemPoolSetAttribute(memoryPool, cudaMemPoolAttrReleaseThreshold, &releaseThreshold));
+#endif
+
   if (options & OPT_CUBLAS_GEMM) {
     LOG(INFO) << "Create CUDA operators with CUBLAS only";
     op->_matmul = MatMul::createCublas();

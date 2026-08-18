@@ -5,7 +5,7 @@ set -euo pipefail
 
 VERSION=1.6.2
 TARBALL="libunwind-${VERSION}.tar.gz"
-URL="https://download.savannah.nongnu.org/releases/libunwind/${TARBALL}"
+URL="https://github.com/libunwind/libunwind/releases/download/v1.6.2/libunwind-1.6.2.tar.gz"
 WORKDIR="$(pwd)/libunwind"
 
 mkdir -p "${WORKDIR}"

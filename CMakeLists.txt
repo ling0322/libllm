@@ -3,6 +3,8 @@ project(libllm LANGUAGES CXX C)
 include(CheckTypeSize)
 
 option(WITH_CUDA "CUDA compute support." OFF)
+option(WITH_CUDA_SYNC "Synchronize after each CUDA operator." OFF)
+option(WITH_CUDA_MALLOC_ASYNC "Use the CUDA stream-ordered memory allocator." ON)
 option(WITH_MKL "MKL support (only for reference)." OFF)
 option(WITH_OPENMP "Build with OpenMP." ON)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
@@ -16,6 +18,12 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 if(WITH_CUDA)
     add_definitions("-DLIBLLM_CUDA_ENABLED")
+    if(WITH_CUDA_SYNC)
+        add_compile_definitions(LIBLLM_CUDA_SYNC_ENABLED)
+    endif()
+    if(WITH_CUDA_MALLOC_ASYNC)
+        add_compile_definitions(LIBLLM_CUDA_MALLOC_ASYNC_ENABLED)
+    endif()
     find_package(CUDAToolkit REQUIRED)
     include_directories(${CUDAToolkit_INCLUDE_DIRS}) 
     set(CMAKE_CUDA_ARCHITECTURES 120a)
@@ -150,6 +158,12 @@ target_link_libraries(unittest ${unittest_LIBADD})
 add_executable(benchmark "src/lynn/bin/benchmark.cc")
 target_include_directories(benchmark PRIVATE "src" "third_party")
 target_link_libraries(benchmark ${benchmark_LIBADD})
+
+add_executable(llm_benchmark
+    "src/libllm/benchmark_main.cc"
+    $<TARGET_OBJECTS:libllm_static>)
+target_include_directories(llm_benchmark PRIVATE "src" "third_party")
+target_link_libraries(llm_benchmark ${libllm_LIBADD})
 
 
 if (WITH_FFMPEG)

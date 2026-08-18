@@ -124,7 +124,7 @@ Tensor binaryImpl(const Tensor &A, const Tensor &B) {
       NOT_IMPL();
   }
 
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return C;
 }

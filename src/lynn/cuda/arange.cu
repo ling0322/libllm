@@ -44,7 +44,7 @@ Tensor arangeLong(LongType begin, LongType end, LongType step) {
   dim3 grid = getGrid1D(numel, blockSize);
 
   arangeKernel<LongType><<<grid, blockSize>>>(getDataPtrCuda<LongType>(tensor), numel, begin, step);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
   return tensor;

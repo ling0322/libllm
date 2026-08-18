@@ -60,7 +60,7 @@ void repetitionPenalty2D(Tensor logits, Tensor history, float weight) {
   CHECK(history.getShape(1) < MaxHistory);
 
   repetitionPenalty2DKernel<<<logits.getShape(0), MaxHistory>>>(logits, history, weight);
-  cudaDeviceSynchronize();
+  LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
 

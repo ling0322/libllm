@@ -47,6 +47,12 @@
     }                                                                                    \
   }
 
+#ifdef LIBLLM_CUDA_SYNC_ENABLED
+#define LL_CUDA_SYNCHRONIZE() cudaDeviceSynchronize()
+#else
+#define LL_CUDA_SYNCHRONIZE() ((void)0)
+#endif
+
 namespace ly {
 namespace op {
 namespace cuda {
@@ -68,11 +74,23 @@ static_assert(sizeof(PackedOWORD<half2>) == 16, "invalid size of PackedOWORD<hal
 template<typename T>
 using auto_handle = lut::c_ptr<typename std::remove_pointer<T>::type>;
 
+inline cudaError_t llynCudaMalloc(void **ptr, size_t size) {
+#ifdef LIBLLM_CUDA_MALLOC_ASYNC_ENABLED
+  return cudaMallocAsync(ptr, size, 0);
+#else
+  return cudaMalloc(ptr, size);
+#endif
+}
+
 inline void llynCudaFree(void *ptr) {
+#ifdef LIBLLM_CUDA_MALLOC_ASYNC_ENABLED
+  cudaError_t err = cudaFreeAsync(ptr, 0);
+#else
   cudaError_t err = cudaFree(ptr);
+#endif
   // TODO: remove
   if (err != cudaSuccess) {
-    LOG(ERROR) << "Error while calling cudaFree(): " << cudaGetErrorString(err);
+    LOG(ERROR) << "Error while freeing CUDA memory: " << cudaGetErrorString(err);
   }
   CHECK(err == cudaSuccess);
 }
@@ -80,7 +98,7 @@ inline void llynCudaFree(void *ptr) {
 template<typename T>
 lut::c_ptr<T> llynCudaAlloc(int64_t n) {
   T *p = nullptr;
-  LL_CHECK_CUDA_STATUS(cudaMalloc(&p, n * sizeof(T)));
+  LL_CHECK_CUDA_STATUS(llynCudaMalloc(reinterpret_cast<void **>(&p), n * sizeof(T)));
   return {p, llynCudaFree};
 }
 

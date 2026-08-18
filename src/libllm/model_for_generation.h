@@ -94,6 +94,9 @@ class ModelForGeneration {
   /// @return The vocabulary.
   const Vocab *getVocab() const;
 
+  /// @brief Return the number of tokens produced when encoding a prompt.
+  int getPromptTokenCount(const Prompt &prompt) const;
+
  protected:
   std::shared_ptr<Tokenizer> _tokenizer;
 

@@ -39,7 +39,7 @@ std::shared_ptr<TensorData> CudaTensorData::create(int64_t numel, DType dtype) {
   CHECK(numel > 0);
   int64_t size = dtype.getTotalSize(numel);
   void *data = nullptr;
-  cudaError_t err = cudaMalloc(&data, size);
+  cudaError_t err = llynCudaMalloc(&data, size);
   if (err != cudaSuccess) {
     throw lut::AbortedError(cudaGetErrorString(err));
   }
