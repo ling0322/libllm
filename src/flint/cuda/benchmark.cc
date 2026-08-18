@@ -182,6 +182,13 @@ void benchmarkLookup(const std::shared_ptr<Operators> &operators, int sequenceLe
 			milliseconds);
 }
 
+void benchmarkSampling(const std::shared_ptr<Operators> &operators) {
+	Tensor logits = randHalf(operators, {BatchSize, VocabSize});
+	Tensor distribution = operators->softmax(logits);
+	float milliseconds = benchmarkCuda([&] { operators->sample(distribution, 50, 0.9f); });
+	printLatency("sampling [1,128256] top_k=50 top_p=0.9", milliseconds);
+}
+
 }  // namespace
 
 CATCH_TEST_CASE("Llama 3.2 3B projection benchmarks", "[benchmark][cuda][llama32-3b][matmul]") {
@@ -260,6 +267,7 @@ CATCH_TEST_CASE("Llama 3.2 3B generation benchmarks", "[benchmark][cuda][llama32
 	Tensor history = createTokenIds(operators, 32);
 	float milliseconds = benchmarkCuda([&] { operators->repetitionPenalty(logits, history, 1.1f); });
 	printLatency("repetition_penalty [1,128256] history=32", milliseconds);
+	benchmarkSampling(operators);
 }
 
 }  // namespace fl
