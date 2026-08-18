@@ -27,6 +27,7 @@
 #include "lutil/random.h"
 #include "lutil/time.h"
 #include "flint/cpu/cpu_tensor_data.h"
+#include "flint/cuda/common.h"
 #include "flint/cuda/cuda_operators.h"
 #include "flint/cuda/dequant.h"
 #include "flint/cuda/matmul.h"
@@ -39,6 +40,24 @@
 using OperatorType = fl::OperatorTester::OperatorType;
 
 namespace fl {
+
+CATCH_TEST_CASE("test CUDA FastDivmod", "[fl][cuda]") {
+  constexpr uint32_t divisors[] = {1, 2, 3, 7, 16, 255, 65535, INT32_MAX};
+
+  for (uint32_t divisor : divisors) {
+    op::cuda::FastDivmod divider(divisor);
+    uint32_t dividends[] = {
+        0, 1, divisor - 1, divisor, std::min(divisor + 1, uint32_t{INT32_MAX}), INT32_MAX};
+
+    for (uint32_t dividend : dividends) {
+      uint32_t quotient;
+      uint32_t remainder;
+      divider.divmod(dividend, quotient, remainder);
+      CATCH_REQUIRE(quotient == dividend / divisor);
+      CATCH_REQUIRE(remainder == dividend % divisor);
+    }
+  }
+}
 
 OperatorTester getOperatorTester() {
   return OperatorTester()
@@ -105,8 +124,10 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
     CATCH_REQUIRE(tester.testToDevice({100, 200}));
     CATCH_REQUIRE(tester.testCast({100, 200}));
 
+    CATCH_REQUIRE(tester.testCopy({10, 50}, true));
     CATCH_REQUIRE(tester.testCopy({2, 10, 50}, false));
     CATCH_REQUIRE(tester.testCopy({2, 10, 50}, true));
+    CATCH_REQUIRE(tester.testCopy({2, 3, 10, 50}, true));
     CATCH_REQUIRE(tester.testCopyLongType());
     CATCH_REQUIRE(tester.testCopy5D());
 
@@ -115,12 +136,15 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
 
   CATCH_SECTION("test activations") {
     CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Softmax, {2, 5, 150}));
+    CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Softmax, {2, 5, 151}));
     CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Swiglu, {2, 5, 150}));
+    CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Swiglu, {2, 5, 152}));
     CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Gelu, {2, 5, 150}));
   }
 
   CATCH_SECTION("test normalizations") {
     CATCH_REQUIRE(tester.testRmsNorm({2, 5, 10}));
+    CATCH_REQUIRE(tester.testRmsNorm({2, 5, 11}));
   }
 
   CATCH_SECTION("test positional embeddings") {
@@ -187,6 +211,62 @@ CATCH_TEST_CASE("test softmax (large)", "[fl][op][cuda]") {
   x = F::to(Device::getCpu(), x);
 
   CATCH_REQUIRE(F::allClose(x, xr));
+}
+
+CATCH_TEST_CASE("test softmax (strided)", "[fl][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  Tensor a = F::rand({2, 3, 5}, DType::kFloat);
+  Tensor xr = F::softmax(a.transpose(1, 2));
+
+  Tensor x = F::to(Device::getCuda(), a);
+  x = F::cast(x, DType::kFloat16);
+  x = F::softmax(x.transpose(1, 2));
+  x = F::cast(x, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+
+  CATCH_REQUIRE(F::allClose(x, xr, 5e-3));
+}
+
+CATCH_TEST_CASE("test swiglu (strided)", "[fl][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  Tensor a = F::rand({2, 3, 152}, DType::kFloat);
+  Tensor xr = F::swiglu(a.transpose(0, 1));
+  Tensor b = F::rand({2, 152, 3}, DType::kFloat);
+  Tensor yr = F::swiglu(b.transpose(1, 2));
+
+  Tensor x = F::to(Device::getCuda(), a);
+  x = F::cast(x, DType::kFloat16);
+  x = F::swiglu(x.transpose(0, 1));
+  x = F::cast(x, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+  Tensor y = F::to(Device::getCuda(), b);
+  y = F::cast(y, DType::kFloat16);
+  y = F::swiglu(y.transpose(1, 2));
+  y = F::cast(y, DType::kFloat);
+  y = F::to(Device::getCpu(), y);
+
+  CATCH_REQUIRE(F::allClose(x, xr, 5e-3));
+  CATCH_REQUIRE(F::allClose(y, yr, 5e-3));
+}
+
+CATCH_TEST_CASE("test rms norm (strided)", "[fl][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  Tensor a = F::rand({2, 3, 11}, DType::kFloat);
+  Tensor weight = F::rand({11}, DType::kFloat);
+  Tensor xr = F::rmsNorm(a.transpose(0, 1), weight, 1e-5);
+
+  Tensor x = F::to(Device::getCuda(), a);
+  Tensor y = F::to(Device::getCuda(), weight);
+  x = F::cast(x, DType::kFloat16);
+  y = F::cast(y, DType::kFloat16);
+  x = F::rmsNorm(x.transpose(0, 1), y, 1e-5);
+  x = F::cast(x, DType::kFloat);
+  x = F::to(Device::getCpu(), x);
+
+  CATCH_REQUIRE(F::allClose(x, xr, 5e-3));
 }
 
 CATCH_TEST_CASE("test cat", "[fl][op][cuda]") {

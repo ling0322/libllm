@@ -93,7 +93,9 @@ class PackedTensorAccessorBase {
     CHECK(tensor.getDim() == DIM);
     _data = getDataPtrCuda<T>(tensor);
     for (int i = 0; i < DIM; ++i) {
-      _size[i] = Size{tensor.getShape(i), tensor.getStride(i)};
+      CHECK(tensor.getShape(i) > 0);
+      _size[i] = Size{
+          tensor.getShape(i), tensor.getStride(i), FastDivmod(tensor.getShape(i))};
     }
   }
 
@@ -101,7 +103,9 @@ class PackedTensorAccessorBase {
     CHECK(tensor.getDim() == DIM);
     _data = getDataPtrCuda<T>(tensor);
     for (int i = 0; i < DIM; ++i) {
-      _size[i] = Size{tensor.getShape(i), tensor.getStride(i)};
+      CHECK(tensor.getShape(i) > 0);
+      _size[i] = Size{
+          tensor.getShape(i), tensor.getStride(i), FastDivmod(tensor.getShape(i))};
     }
   }
 
@@ -120,10 +124,14 @@ class PackedTensorAccessorBase {
 
   __forceinline__ __device__ T &getElemByIndex(int idx) const {
     int stridedIdx = 0;
+    uint32_t linearIdx = static_cast<uint32_t>(idx);
 #pragma unroll
     for (int d = DIM - 1; d >= 0; --d) {
-      stridedIdx += (idx % this->_size[d].shape) * this->_size[d].stride;
-      idx /= this->_size[d].shape;
+      uint32_t quotient;
+      uint32_t remainder;
+      this->_size[d].divider.divmod(linearIdx, quotient, remainder);
+      stridedIdx += static_cast<int>(remainder) * this->_size[d].stride;
+      linearIdx = quotient;
     }
     return _data[stridedIdx];
   }

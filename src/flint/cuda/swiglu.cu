@@ -19,7 +19,6 @@
 
 #include <cuda_fp16.h>
 
-#include "flint/cuda/accessor.h"
 #include "flint/cuda/common.h"
 #include "flint/cuda/swiglu.h"
 
@@ -27,20 +26,72 @@ namespace fl {
 namespace op {
 namespace cuda {
 
-__global__ void swigluKernel3D(
-    PackedTensorAccessor<const half, 3> A,
-    PackedTensorAccessor<half, 3> C) {
+template<bool VECTORIZED>
+__global__ void swigluContiguousKernel(
+    const half *__restrict__ input,
+    half *__restrict__ output,
+    int inputWidth,
+    int outputWidth) {
+  int row = blockIdx.z * gridDim.y + blockIdx.y;
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if constexpr (VECTORIZED) {
+    int x2 = x * 2;
+    if (x2 >= outputWidth) return;
+
+    int inputOffset = row * inputWidth + x2;
+    int outputOffset = row * outputWidth + x2;
+    float2 gate = __half22float2(*reinterpret_cast<const half2 *>(input + inputOffset));
+    float2 value =
+        __half22float2(*reinterpret_cast<const half2 *>(input + inputOffset + outputWidth));
+    *reinterpret_cast<half2 *>(output + outputOffset) = __floats2half2_rn(
+        value.x * gate.x / (1.0f + expf(-gate.x)),
+        value.y * gate.y / (1.0f + expf(-gate.y)));
+  } else {
+    if (x >= outputWidth) return;
+
+    int inputOffset = row * inputWidth + x;
+    float gate = __half2float(input[inputOffset]);
+    float value = __half2float(input[inputOffset + outputWidth]);
+    output[row * outputWidth + x] =
+        __float2half(value * gate / (1.0f + expf(-gate)));
+  }
+}
+
+template<bool VECTORIZED>
+__global__ void swigluStridedKernel(
+    const half *__restrict__ input,
+    half *__restrict__ output,
+    int inputStride0,
+    int inputStride1,
+    int inputStride2,
+    int outputWidth) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
+  int inputOffset = z * inputStride0 + y * inputStride1;
+  int outputOffset = (z * gridDim.y + y) * outputWidth;
 
-  if (z >= C.getShape(0) || y >= C.getShape(1) || x >= C.getShape(2)) return;
+  if constexpr (VECTORIZED) {
+    int x2 = x * 2;
+    if (x2 >= outputWidth) return;
 
-  float g = __half2float(A[z][y][x]);
-  float a = __half2float(A[z][y][x + C.getShape(2)]);  // C.getShape(2) == A.getShape(2) / 2
-  float c = a * g / (1.0f + expf(-g));
+    float2 gate = __half22float2(
+        *reinterpret_cast<const half2 *>(input + inputOffset + x2));
+    float2 value = __half22float2(
+        *reinterpret_cast<const half2 *>(input + inputOffset + outputWidth + x2));
+    *reinterpret_cast<half2 *>(output + outputOffset + x2) = __floats2half2_rn(
+        value.x * gate.x / (1.0f + expf(-gate.x)),
+        value.y * gate.y / (1.0f + expf(-gate.y)));
+  } else {
+    if (x >= outputWidth) return;
 
-  C[z][y][x] = __float2half(c);
+    int gateOffset = inputOffset + x * inputStride2;
+    float gate = __half2float(input[gateOffset]);
+    float value = __half2float(input[gateOffset + outputWidth * inputStride2]);
+    output[outputOffset + x] =
+        __float2half(value * gate / (1.0f + expf(-gate)));
+  }
 }
 
 Tensor swiglu3D(const Tensor &tensor) {
@@ -53,9 +104,42 @@ Tensor swiglu3D(const Tensor &tensor) {
   dim3 d;
   d.z = C.getShape(0);
   d.y = C.getShape(1);
-  d.x = (C.getShape(2) + blockSize - 1) / blockSize;
-
-  swigluKernel3D<<<d, blockSize>>>(tensor, C);
+  if (tensor.isContiguous()) {
+    const half *input = getDataPtrCuda<half>(tensor);
+    half *output = getDataPtrCuda<half>(C);
+    int inputWidth = tensor.getShape(2);
+    int outputWidth = C.getShape(2);
+    bool useHalf2 = outputWidth % 2 == 0 &&
+                    reinterpret_cast<uintptr_t>(input) % alignof(half2) == 0 &&
+                    reinterpret_cast<uintptr_t>(output) % alignof(half2) == 0;
+    if (useHalf2) {
+      d.x = (outputWidth / 2 + blockSize - 1) / blockSize;
+      swigluContiguousKernel<true><<<d, blockSize>>>(input, output, inputWidth, outputWidth);
+    } else {
+      d.x = (outputWidth + blockSize - 1) / blockSize;
+      swigluContiguousKernel<false><<<d, blockSize>>>(input, output, inputWidth, outputWidth);
+    }
+  } else {
+    const half *input = getDataPtrCuda<half>(tensor);
+    half *output = getDataPtrCuda<half>(C);
+    int inputStride0 = tensor.getStride(0);
+    int inputStride1 = tensor.getStride(1);
+    int inputStride2 = tensor.getStride(2);
+    int outputWidth = C.getShape(2);
+    bool useHalf2 = inputStride2 == 1 && outputWidth % 2 == 0 && inputStride0 % 2 == 0 &&
+                    inputStride1 % 2 == 0 &&
+                    reinterpret_cast<uintptr_t>(input) % alignof(half2) == 0 &&
+                    reinterpret_cast<uintptr_t>(output) % alignof(half2) == 0;
+    if (useHalf2) {
+      d.x = (outputWidth / 2 + blockSize - 1) / blockSize;
+      swigluStridedKernel<true><<<d, blockSize>>>(
+          input, output, inputStride0, inputStride1, inputStride2, outputWidth);
+    } else {
+      d.x = (outputWidth + blockSize - 1) / blockSize;
+      swigluStridedKernel<false><<<d, blockSize>>>(
+          input, output, inputStride0, inputStride1, inputStride2, outputWidth);
+    }
+  }
   LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
   return C;

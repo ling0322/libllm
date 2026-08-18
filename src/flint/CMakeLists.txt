@@ -51,9 +51,6 @@ set(flint_test_SOURCES
     "operator_tester.cc"
     "tensor_test.cc")
 
-set(flint_benchmark_SOURCES
-    "operator_benchmark.cc")
-
 set(flint_INCDIR ".." "../../third_party")
 
 if(WITH_OPENMP)
@@ -100,6 +97,7 @@ if (WITH_CUDA)
         "cuda/unfold.cu")
 
     set(flint_test_SOURCES ${flint_test_SOURCES} "cuda/test.cc")
+    set(flint_benchmark_SOURCES "cuda/benchmark.cc")
 
     if (WITH_CUTLASS)
         set(flint_SOURCES ${flint_SOURCES}
@@ -163,5 +161,7 @@ target_include_directories(flint_static PRIVATE ${flint_INCDIR})
 add_library(flint_test OBJECT ${flint_test_SOURCES})
 target_include_directories(flint_test PRIVATE ${flint_INCDIR})
 
-add_library(flint_benchmark OBJECT ${flint_benchmark_SOURCES})
-target_include_directories(flint_benchmark PRIVATE ${flint_INCDIR})
+if(WITH_CUDA)
+    add_library(flint_benchmark OBJECT ${flint_benchmark_SOURCES})
+    target_include_directories(flint_benchmark PRIVATE ${flint_INCDIR})
+endif()
