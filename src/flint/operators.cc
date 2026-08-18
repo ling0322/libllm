@@ -145,6 +145,10 @@ Tensor Operators::rmsNorm(Tensor input, Tensor weight, float eps) {
   NOT_IMPL();
 }
 
+Tensor Operators::sample(Tensor distribution, int topK, float topP) {
+  NOT_IMPL();
+}
+
 Tensor Operators::causalMask(int max_len) {
   NOT_IMPL();
 }

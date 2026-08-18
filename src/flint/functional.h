@@ -79,6 +79,9 @@ Tensor mod(Tensor input, LongType other);
 // Apply softmax on the last dimension of input
 Tensor softmax(Tensor input);
 
+// Sample one label per row from a probability distribution using top-k and nucleus filtering.
+Tensor sample(Tensor distribution, int topK, float topP);
+
 // Apply x^2
 Tensor square(Tensor input);
 
