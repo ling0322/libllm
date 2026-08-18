@@ -8,6 +8,7 @@ option(WITH_CUDA_MALLOC_ASYNC "Use the CUDA stream-ordered memory allocator." ON
 option(WITH_MKL "MKL support (only for reference)." OFF)
 option(WITH_OPENMP "Build with OpenMP." ON)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
+option(WITH_FLASH_ATTN "Link the prebuilt FlashAttention forward kernels." OFF)
 option(CUDA_ARCH_NATIVE "Build CUDA kernels only for the GPUs in this machine." OFF)
 option(MKL_PREFIX "Prefix for MKL headers and libraries." "/opt/intel/mkl")
 
@@ -127,9 +128,35 @@ if(HAVE_FP16)
     add_compile_definitions(LIBLLM_HAVE_FP16)
 endif()
 
+if(WITH_FLASH_ATTN)
+    if(NOT WITH_CUDA)
+        message(FATAL_ERROR "WITH_FLASH_ATTN requires WITH_CUDA=ON")
+    endif()
+
+    set(FLASH_ATTN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/flash-attention")
+    set(FLASH_ATTN_LIB
+        "${FLASH_ATTN_ROOT}/build/${CMAKE_STATIC_LIBRARY_PREFIX}flash_attn${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    if(NOT EXISTS "${FLASH_ATTN_LIB}")
+        message(FATAL_ERROR
+          "unable to find \"${FLASH_ATTN_LIB}\", please "
+          "call install_flash_attn.sh in third_party first.")
+    endif()
+
+    add_definitions("-DLIBLLM_FLASH_ATTN_ENABLED")
+    add_library(flash_attn STATIC IMPORTED)
+    set_target_properties(flash_attn PROPERTIES
+        IMPORTED_LOCATION "${FLASH_ATTN_LIB}"
+        INTERFACE_COMPILE_DEFINITIONS FLASHATTENTION_DISABLE_DROPOUT
+        INTERFACE_INCLUDE_DIRECTORIES "${FLASH_ATTN_ROOT}/csrc/flash_attn/src")
+endif()
+
 add_subdirectory("src")
 
 set(libllm_LIBADD lutil flint_static ${CMAKE_DL_LIBS} ${UNWIND_ARCH_LIB} ${UNWIND_LIB} )
+
+if(WITH_FLASH_ATTN)
+    set(libllm_LIBADD ${libllm_LIBADD} flash_attn)
+endif()
 
 if(WITH_OPENMP)
     set(libllm_LIBADD ${libllm_LIBADD} OpenMP::OpenMP_CXX)

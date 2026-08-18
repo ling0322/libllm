@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2024 Xiaoyang Chen
+// Copyright (c) 2023-2025 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -19,15 +19,16 @@
 
 #pragma once
 
-#include "lutil/span.h"
 #include "flint/tensor.h"
 
 namespace fl {
 namespace op {
-namespace cpu {
+namespace cuda {
 
-Tensor unfold(const Tensor &src, int kernelSize, int stride);
+/// Runs FlashAttention on q [b, nHead, L, D] and k, v [b, nKvHead, S, D]. Returns an empty tensor
+/// if no compiled kernel matches the inputs.
+Tensor flashAttention(Tensor q, Tensor k, Tensor v, bool causal);
 
-}  // namespace cpu
+}  // namespace cuda
 }  // namespace op
 }  // namespace fl

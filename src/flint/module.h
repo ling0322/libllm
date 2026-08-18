@@ -60,31 +60,6 @@ class Module {
   Context _ctx;
 };
 
-// layer-norm layer.
-class LayerNorm : public Module {
- public:
-  static std::unique_ptr<LayerNorm> create(const Context &ctx, int d_model, float eps = 1e-5);
-
-  // implement interface Module
-  void initParameters(const StateMap &state_dict) override;
-
-  // forward input and return the output.
-  Tensor forward(const Tensor &input) const;
-
- private:
-  // tensor names.
-  static constexpr char kWeight[] = "weight";
-  static constexpr char kBias[] = "bias";
-
-  Tensor _w;
-  Tensor _b;
-
-  int _dModel;
-  float _eps;
-
-  LayerNorm();
-};
-
 class RMSNorm : public Module {
  public:
   static constexpr char Weight[] = "weight";
@@ -159,42 +134,6 @@ class Linear : public Module {
   bool _hasBias;
 
   Linear();
-};
-
-/// @brief Apply 1D Convolution to the input tensor. Unlike Conv1D in pytorch, it use (N, L, C) as
-/// input format.
-class Conv1D : public Module {
- public:
-  // create Linear module from context.
-  static std::shared_ptr<Conv1D> create(
-      const Context &ctx,
-      int inChennels,
-      int outChannels,
-      int kernelSize,
-      int stride = 1,
-      bool bias = true);
-
-  // implement interface Module
-  void initParameters(const StateMap &stateDict) override;
-
-  // forward input and return the output.
-  Tensor forward(const Tensor &input) const;
-
- private:
-  // tensor names.
-  static constexpr char kWeight[] = "weight";
-  static constexpr char kBias[] = "bias";
-
-  Tensor _w;
-  Tensor _b;
-
-  int _inChannels;
-  int _outChannels;
-  int _kernelSize;
-  int _stride;
-  bool _hasBias;
-
-  Conv1D();
 };
 
 }  // namespace fl

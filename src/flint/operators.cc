@@ -20,6 +20,7 @@
 #include "flint/operators.h"
 
 #include <atomic>
+#include <cmath>
 #include <mutex>
 #include <thread>
 
@@ -32,6 +33,25 @@
 #include "flint/mp.h"
 
 namespace fl {
+
+namespace {
+
+Tensor expandKeyValueHeads(Operators *op, Tensor input, int numHeads) {
+  int batchSize = input.getShape(0);
+  int numKeyValueHeads = input.getShape(1);
+  int length = input.getShape(2);
+  int headDim = input.getShape(3);
+  int groupSize = numHeads / numKeyValueHeads;
+
+  Tensor expanded =
+      input.unsqueeze(2).expand({batchSize, numKeyValueHeads, groupSize, length, headDim});
+  Tensor output = op->tensorLike(expanded);
+  op->copy(expanded, output);
+
+  return output.view({batchSize, numHeads, length, headDim});
+}
+
+}  // namespace
 
 Tensor Operators::arangeLong(LongType begin, LongType end, LongType step) {
   NOT_IMPL();
@@ -73,15 +93,40 @@ Tensor Operators::softmax(Tensor input) {
   NOT_IMPL();
 }
 
+Tensor Operators::attention(Tensor q, Tensor k, Tensor v, bool causal) {
+  CHECK(q.getDim() == 4 && k.getDim() == 4 && v.getDim() == 4);
+
+  int numHeads = q.getShape(1);
+  int numKeyValueHeads = k.getShape(1);
+  int queryLength = q.getShape(2);
+  int keyValueLength = k.getShape(2);
+  int headDim = q.getShape(3);
+  CHECK(numHeads % numKeyValueHeads == 0);
+
+  if (numHeads != numKeyValueHeads) {
+    k = expandKeyValueHeads(this, k, numHeads);
+    v = expandKeyValueHeads(this, v, numHeads);
+  }
+
+  // Scaling both q and k keeps the scores in range for half precision.
+  float scale = sqrtf(1.0f / sqrtf(1.0f * headDim));
+  Tensor scores = matmul(mul(q, scale), mul(k, scale).transpose(-2, -1));
+
+  // A single query attends to the whole history, so it needs no mask.
+  if (causal && queryLength > 1) {
+    Tensor mask =
+        causalMask(keyValueLength).slice(0, {keyValueLength - queryLength, keyValueLength});
+    scores = add(scores, mask);
+  }
+
+  return matmul(softmax(scores), v);
+}
+
 Tensor Operators::sum(Tensor input, int dim) {
   NOT_IMPL();
 }
 
 Tensor Operators::max(Tensor input) {
-  NOT_IMPL();
-}
-
-Tensor Operators::gelu(Tensor input) {
   NOT_IMPL();
 }
 
@@ -137,10 +182,6 @@ void Operators::print(Tensor tensor) {
   NOT_IMPL();
 }
 
-Tensor Operators::layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
-  NOT_IMPL();
-}
-
 Tensor Operators::rmsNorm(Tensor input, Tensor weight, float eps) {
   NOT_IMPL();
 }
@@ -162,10 +203,6 @@ Tensor Operators::swiglu(Tensor A) {
 }
 
 Tensor Operators::to(Device device, Tensor tensor) {
-  NOT_IMPL();
-}
-
-Tensor Operators::unfold(Tensor input, int kernelSize, int stride) {
   NOT_IMPL();
 }
 

@@ -20,6 +20,7 @@
 #include <cuda_fp16.h>
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 #include "catch2/catch_amalgamated.hpp"
@@ -71,20 +72,6 @@ CATCH_TEST_CASE("test CUDA lookup", "[op][cuda]") {
 
   OperatorTester tester = getOperatorTester();
   CATCH_REQUIRE(tester.testLookup());
-}
-
-CATCH_TEST_CASE("test CUDA unfold", "[op][cuda]") {
-  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
-
-  OperatorTester tester = getOperatorTester();
-  CATCH_REQUIRE(tester.withTol(2e-3).testUnfold());
-}
-
-CATCH_TEST_CASE("test CUDA layerNorm", "[op][cuda]") {
-  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
-
-  OperatorTester tester = getOperatorTester();
-  CATCH_REQUIRE(tester.withTol(5e-3).testLayerNorm({1, 1, 160}));
 }
 
 CATCH_TEST_CASE("test CUDA repetitionPenalty", "[op][cuda]") {
@@ -139,7 +126,7 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
     CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Softmax, {2, 5, 151}));
     CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Swiglu, {2, 5, 150}));
     CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Swiglu, {2, 5, 152}));
-    CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Gelu, {2, 5, 150}));
+    CATCH_REQUIRE(tester.withTol(5e-3).testUnaryOp(OperatorType::Softmax, {2, 5, 150}));
   }
 
   CATCH_SECTION("test normalizations") {
@@ -172,7 +159,6 @@ CATCH_TEST_CASE("benchmark CUDA operators", "[op][cuda][benchmark]") {
 
   CATCH_SECTION("benchmark normalizations") {
     CATCH_REQUIRE(tester.testRmsNorm({2, 256, 4096}));
-    CATCH_REQUIRE(tester.testLayerNorm({2, 256, 4096}));
   }
 
   CATCH_SECTION("benchmark sampling") {
@@ -292,7 +278,7 @@ CATCH_TEST_CASE("test attention", "[fl][op][cuda]") {
   Tensor q = F::rand({1, 16, 8, 16}, DType::kFloat);
   Tensor k = F::rand({1, 16, 8, 16}, DType::kFloat);
   Tensor v = F::rand({1, 16, 8, 16}, DType::kFloat);
-  Tensor xr = F::attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), Tensor());
+  Tensor xr = F::attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), false);
 
   Tensor x = F::to(Device::getCuda(), q);
   Tensor y = F::to(Device::getCuda(), k);
@@ -303,11 +289,61 @@ CATCH_TEST_CASE("test attention", "[fl][op][cuda]") {
   x = x.transpose(1, 2);
   y = y.transpose(1, 2);
   z = z.transpose(1, 2);
-  x = F::attention(x, y, z, Tensor());
+  x = F::attention(x, y, z, false);
   x = F::cast(x, DType::kFloat);
   x = F::to(Device::getCpu(), x);
 
   CATCH_REQUIRE(F::allClose(x, xr, 5e-3f));
+}
+
+CATCH_TEST_CASE("test attention operator", "[fl][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  constexpr int numHeads = 8;
+  constexpr int headDim = 128;
+
+  auto runCase = [](int numKeyValueHeads, bool causal, int queryLength, int keyValueLength) {
+    int groupSize = numHeads / numKeyValueHeads;
+    Tensor q = F::rand({1, numHeads, queryLength, headDim}, DType::kFloat);
+    Tensor k = F::rand({1, numKeyValueHeads, keyValueLength, headDim}, DType::kFloat);
+    Tensor v = F::rand({1, numKeyValueHeads, keyValueLength, headDim}, DType::kFloat);
+
+    auto expandHeads = [&](Tensor input) {
+      Tensor expanded = input.unsqueeze(2).expand(
+          {1, numKeyValueHeads, groupSize, keyValueLength, headDim});
+      return F::contiguous(expanded).view({1, numHeads, keyValueLength, headDim});
+    };
+
+    Tensor scores = F::matmul(q, expandHeads(k).transpose(-2, -1));
+    scores = F::mul(scores, 1.0f / sqrtf(1.0f * headDim));
+    if (causal && queryLength > 1) {
+      // The mask is aligned to the bottom right of the score matrix.
+      Tensor mask =
+          F::causalMask(keyValueLength).slice(0, {keyValueLength - queryLength, keyValueLength});
+      scores = F::add(scores, mask);
+    }
+    Tensor xr = F::matmul(F::softmax(scores), expandHeads(v));
+
+    Tensor x = F::cast(F::to(Device::getCuda(), q), DType::kFloat16);
+    Tensor y = F::cast(F::to(Device::getCuda(), k), DType::kFloat16);
+    Tensor z = F::cast(F::to(Device::getCuda(), v), DType::kFloat16);
+    x = getOperators(Device::kCuda)->attention(x, y, z, causal);
+    x = F::cast(x, DType::kFloat);
+    x = F::to(Device::getCpu(), x);
+
+    return F::allClose(x, xr, 5e-3f);
+  };
+
+  CATCH_CHECK(runCase(numHeads, false, 8, 8));
+  CATCH_CHECK(runCase(numHeads, false, 128, 128));
+  CATCH_CHECK(runCase(numHeads, true, 8, 8));
+  CATCH_CHECK(runCase(2, false, 8, 8));
+  CATCH_CHECK(runCase(2, true, 6, 10));
+  CATCH_CHECK(runCase(2, true, 1, 10));
+
+  // Long enough to make the operator split the keys.
+  CATCH_CHECK(runCase(2, true, 1, 2048));
+  CATCH_CHECK(runCase(2, true, 4, 1024));
 }
 
 CATCH_TEST_CASE("test CUDA sampling", "[fl][op][cuda]") {

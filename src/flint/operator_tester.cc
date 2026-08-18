@@ -264,9 +264,6 @@ bool OperatorTester::testUnaryOp(OperatorTester::OperatorType op, ShapeType shap
     case OperatorType::Swiglu:
       xr = F::swiglu(a);
       break;
-    case OperatorType::Gelu:
-      xr = F::gelu(a);
-      break;
     default:
       NOT_IMPL();
   }
@@ -279,7 +276,6 @@ bool OperatorTester::testUnaryOp(OperatorTester::OperatorType op, ShapeType shap
   }
   if (op == OperatorType::Softmax && !_printBenchmarkInfo) x = _op->softmax(x);
   if (op == OperatorType::Swiglu) x = _op->swiglu(x);
-  if (op == OperatorType::Gelu) x = _op->gelu(x);
 
   x = _op->cast(x, DType::kFloat);
   x = _op->to(Device::getCpu(), x);
@@ -309,34 +305,6 @@ bool OperatorTester::testRmsNorm(ShapeType shape) {
   return F::allClose(x, xr, 5e-3f);
 }
 
-bool OperatorTester::testLayerNorm(ShapeType shape) {
-  Tensor a = F::rand(shape, DType::kFloat, Device::kCpu);
-  a = (a * 100) - 1;
-
-  Tensor mean = F::rand({a.getShape(-1)}, DType::kFloat, Device::kCpu);
-  Tensor var = F::rand({a.getShape(-1)}, DType::kFloat, Device::kCpu);
-  Tensor xr = F::layerNorm(a, mean, var, 1e-5);
-
-  Tensor x = _op->to(_testDevice, a);
-  x = _op->cast(x, _testFloatType);
-  mean = _op->to(_testDevice, mean);
-  mean = _op->cast(mean, _testFloatType);
-  var = _op->to(_testDevice, var);
-  var = _op->cast(var, _testFloatType);
-
-  if (_printBenchmarkInfo) {
-    LOG_TIME(
-        x = _op->layerNorm(x, mean, var, 1e-5),
-        lut::sprintf("shape=%s OP::layerNorm", a.getShapeString()));
-  } else {
-    x = _op->layerNorm(x, mean, var, 1e-5);
-  };
-  x = _op->cast(x, DType::kFloat);
-  x = _op->to(Device::getCpu(), x);
-
-  return F::allClose(x, xr, _rtol, _atol);
-}
-
 bool OperatorTester::testCausalMask() {
   constexpr int DIM = 129;
   Tensor xr = F::softmax(F::causalMask(DIM));
@@ -362,21 +330,6 @@ bool OperatorTester::testRepetitionPenalty() {
 
   F::repetitionPenalty(a, h, 1.5);
   return F::allClose(x, a, _rtol, _atol);
-}
-
-bool OperatorTester::testUnfold() {
-  constexpr int DIM = 129;
-
-  Tensor a = F::rand({2, 5, DIM}, DType::kFloat, Device::getCpu());
-  Tensor xr = F::unfold(a, 5, 2);
-
-  Tensor x = _op->to(_testDevice, a);
-  x = _op->cast(x, _testFloatType);
-  x = _op->unfold(x, 5, 2);
-  x = _op->cast(x, DType::kFloat);
-  x = _op->to(Device::getCpu(), x);
-
-  return F::allClose(x, xr, _rtol, _atol);
 }
 
 }  // namespace fl

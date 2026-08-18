@@ -36,10 +36,6 @@ Tensor lookup(Tensor table, Tensor indices) {
   return getOperators(table.getDevice().getType())->lookup(table, indices);
 }
 
-Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
-  return getOperators(input.getDevice().getType())->layerNorm(input, weight, bias, eps);
-}
-
 Tensor rmsNorm(Tensor input, Tensor weight, float eps) {
   return getOperators(input.getDevice().getType())->rmsNorm(input, weight, eps);
 }
@@ -86,10 +82,6 @@ Tensor sub(Tensor input, Tensor other) {
 
 Tensor mod(Tensor input, LongType other) {
   return getOperators(input.getDevice().getType())->mod(input, other);
-}
-
-Tensor gelu(Tensor input) {
-  return getOperators(input.getDevice().getType())->gelu(input);
 }
 
 Tensor tensor(lut::Span<const int> shape, DType dtype, Device device) {
@@ -186,30 +178,13 @@ void fill(Tensor tensor, float value) {
   getOperators(tensor.getDevice().getType())->fill(tensor, value);
 }
 
-Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
-  float dK = 1.0f / sqrtf(1.0f * q.getShape(-1));
-  q = F::mul(q, sqrtf(dK));
-  k = F::mul(k, sqrtf(dK));
-  Tensor scores = F::matmul(q, k.transpose(-2, -1));
-
-  if (!mask.empty()) {
-    scores = F::add(scores, mask);
-  }
-
-  scores = F::softmax(scores);
-  Tensor outputs = F::matmul(scores, v);
-
-  return outputs;
+Tensor attention(Tensor q, Tensor k, Tensor v, bool causal) {
+  return getOperators(q.getDevice().getType())->attention(q, k, v, causal);
 }
 
 Tensor swiglu(Tensor inputs) {
   return getOperators(inputs.getDevice().getType())->swiglu(inputs);
 }
-
-Tensor unfold(Tensor input, int kernelSize, int stride) {
-  return getOperators(input.getDevice().getType())->unfold(input, kernelSize, stride);
-}
-
 Tensor to(Device device, Tensor tensor) {
   Device::Type src = tensor.getDevice().getType();
   Device::Type tgt = device.getType();

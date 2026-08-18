@@ -41,16 +41,6 @@ Tensor arange(LongType begin, LongType end, LongType step = 1, Device device = D
 Tensor lookup(Tensor table, Tensor indices);
 
 // apply layer normalization over the last dimension of inputs.
-//   y_ij = (x_ij - E[x]) / sqrt(Var[X] + eps)
-//   y_ij = y_ij * weight_j + bias_j
-// Args:
-//   input <float>(..., D): input tensor.
-//   weight <float>(D): weight tensor.
-//   bias <float>(D): bias tensor.
-// Return:
-//   <float>(..., D): layer normalized.
-Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps);
-
 // apply root mean square layer normalization over the last dimension of inputs.
 // Args:
 //   input <float>(..., D): input tensor.
@@ -93,15 +83,6 @@ Tensor sub(Tensor input, Tensor other);
 
 // return input - other.
 Tensor div(Tensor input, float other);
-
-// Applies the Gaussian Error Linear Units function for `input`. Here it use the approximate
-// version of GELU:
-//   GELU(x) = 0.5 * x * (1 + tanh(sqrt(2.0 / pi) * (x + 0.044715 * x^3)))
-// Args:
-//   input <float>(..., D): input tensor.
-// Returns:
-//   <float>(..., D): outpur tensor.
-Tensor gelu(Tensor input);
 
 // create a tensor with specified shape and dtype. Data in this tensor is uninitialize.
 // Args:
@@ -159,15 +140,16 @@ Tensor cat(Tensor A, Tensor B, int dim);
 // Copy elements from src to dest. Shapes of `src` and `dest` should be the same.
 void copy(Tensor src, Tensor dest);
 
-// Compute the scaled dot product attention for given QKV and mask.
+// Compute the scaled dot product attention for given QKV. k and v may carry fewer heads than q,
+// grouped-query and multi-query attention need no expanded k and v.
 // Args:
 //   q <float>(N, nHead, L, D): the query.
-//   k <float>(N, nHead, S, D): the key.
-//   v <float>(N, nHead, S, D): the value.
-//   mask <float>(L, S):  A float mask added to the attention score.
+//   k <float>(N, nKvHead, S, D): the key.
+//   v <float>(N, nKvHead, S, D): the value.
+//   causal: mask the future positions, aligned to the bottom right of the score matrix.
 // Returns:
 //   <float>(N, nHead, L, D): the output tensor.
-Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask);
+Tensor attention(Tensor q, Tensor k, Tensor v, bool causal);
 
 // Applies the Swish-Gated Linear Unit function SwiGLU(a, b) = swish(a) * b.  Where a is the first
 // half of input (input[..., :input.shape[-1] / 2]) and b is the second half of input
@@ -177,13 +159,6 @@ Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask);
 // Returns:
 //   <float>(..., D / 2): the output tensor.
 Tensor swiglu(Tensor input);
-
-/// @brief Apply Gaussian error linear unit (GELU) activation to the inputs. it applies
-/// element-wise the function GELU(x) = x * Phi(x) where Phi(x) is  the Cumulative Distribution. In
-/// the implementation, it did not use the approximate version. Function for Gaussian Distribution.
-/// @param inputs: <float>(..., D): the input tensor.
-/// @return <float>(..., D): the output tensor.
-Tensor gelu(Tensor inputs);
 
 /// @brief fill tensor with value.
 /// @param tensor the tensor to fill.
@@ -200,15 +175,6 @@ Tensor sum(Tensor tensor, int dim = -1);
 /// @param tensor <float>(d1, d2, ..., dn) the input tensor.
 /// @return <float>(d1, d2, ..., dn-1): the output tensor.
 Tensor max(Tensor tensor, int dim = -1);
-
-/// @brief (im2col) Extracts sliding local blocks from the input tensor. To make
-/// sure the input and output shape are the same after Conv, it will also pad the input tensor with
-/// zero.
-/// @param input <float>(N, L, C): the input tensor.
-/// @param kernelSize: the kernel size.
-/// @param stride: the stride.
-/// @return  <float>(N, L / stride, D * kernelSize): the output tensor.
-Tensor unfold(Tensor input, int kernelSize, int stride);
 
 /// @brief Apply repetition penalty to the logits tensor according to the history tensor.
 /// @param logits <float>(N, vocab_size): the logits tensor to apply repetition penalty.

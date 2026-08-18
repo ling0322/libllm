@@ -33,10 +33,6 @@ template<typename T, UnaryOp OP>
 __forceinline__ __device__ T applyUnaryOp(T x) {
   if constexpr (OP == UnaryOp::SQUARE) {
     return x * x;
-  } else if constexpr (OP == UnaryOp::GELU && std::is_same_v<T, float>) {
-    return x * 0.5f * (1.0f + erf(x / Sqrt2));
-  } else if constexpr (OP == UnaryOp::GELU && std::is_same_v<T, half>) {
-    return __float2half(float(x) * 0.5f * (1.0f + erf(float(x) / Sqrt2)));
   } else {
     __trap();
   }
@@ -106,11 +102,8 @@ Tensor applyUnaryOp(UnaryOp op, const Tensor &tensor) {
   CHECK(tensor.getDevice().getType() == Device::kCuda);
   DType dtype = tensor.getDType();
 
-  if (op == UnaryOp::GELU && dtype == DType::kFloat16)
-    return unaryImpl<half, UnaryOp::GELU>(tensor);
   if (op == UnaryOp::SQUARE && dtype == DType::kFloat16)
     return unaryImpl<half, UnaryOp::SQUARE>(tensor);
-  if (op == UnaryOp::GELU && dtype == DType::kFloat) return unaryImpl<float, UnaryOp::GELU>(tensor);
   if (op == UnaryOp::SQUARE && dtype == DType::kFloat)
     return unaryImpl<float, UnaryOp::SQUARE>(tensor);
 

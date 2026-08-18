@@ -14,7 +14,6 @@ ReturnTypeBreakingStyle: Automatic
 DerivePointerAlignment: false
 PointerAlignment: Right
 IndentPragmas: true
-BreakBeforeParameters: true
 PenaltyBreakParameter: 0
 PenaltyBreakBeforeFirstCallParameter: 0
 PenaltyReturnTypeOnItsOwnLine: 100000

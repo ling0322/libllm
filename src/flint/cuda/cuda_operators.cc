@@ -28,7 +28,7 @@
 #include "flint/cuda/causal_mask.h"
 #include "flint/cuda/copy.h"
 #include "flint/cuda/fill.h"
-#include "flint/cuda/layer_norm.h"
+#include "flint/cuda/flash_attn.h"
 #include "flint/cuda/lookup.h"
 #include "flint/cuda/matmul.h"
 #include "flint/cuda/print.h"
@@ -41,7 +41,6 @@
 #include "flint/cuda/swiglu.h"
 #include "flint/cuda/to_device.h"
 #include "flint/cuda/unary.h"
-#include "flint/cuda/unfold.h"
 #include "flint/functional.h"
 
 namespace fl {
@@ -94,10 +93,6 @@ std::shared_ptr<Operators> CudaOperators::create(int options) {
 
 void CudaOperators::fill(Tensor input, float value) {
   return op::cuda::fill(input, value);
-}
-
-Tensor CudaOperators::gelu(Tensor input) {
-  return op::cuda::applyUnaryOp(UnaryOp::GELU, input);
 }
 
 Tensor CudaOperators::square(Tensor input) {
@@ -177,12 +172,17 @@ Tensor CudaOperators::rmsNorm(Tensor input, Tensor weight, float eps) {
   return op::cuda::rmsNorm(input, weight, eps);
 }
 
-Tensor CudaOperators::layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
-  return op::cuda::layerNorm(input, weight, bias, eps);
-}
-
 Tensor CudaOperators::causalMask(int max_len) {
   return op::cuda::causalMask(max_len);
+}
+
+Tensor CudaOperators::attention(Tensor q, Tensor k, Tensor v, bool causal) {
+#ifdef LIBLLM_FLASH_ATTN_ENABLED
+  Tensor output = op::cuda::flashAttention(q, k, v, causal);
+  if (!output.empty()) return output;
+#endif
+
+  return Operators::attention(q, k, v, causal);
 }
 
 Tensor CudaOperators::tensor(lut::Span<const int> shape, DType dtype) {
@@ -190,10 +190,6 @@ Tensor CudaOperators::tensor(lut::Span<const int> shape, DType dtype) {
   if (dtype == DType::kUInt8) return createCudaTensorUInt8(shape);
 
   NOT_IMPL();
-}
-
-Tensor CudaOperators::unfold(Tensor input, int kernelSize, int stride) {
-  return op::cuda::unfold(input, kernelSize, stride);
 }
 
 Tensor CudaOperators::tensorLike(Tensor input) {
