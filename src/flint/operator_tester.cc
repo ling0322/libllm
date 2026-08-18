@@ -349,22 +349,6 @@ bool OperatorTester::testCausalMask() {
   return F::allClose(x, xr, 1e-3, 1e-4);
 }
 
-bool OperatorTester::testRoPE() {
-  Tensor a = F::rand({2, 5, 2, 16}, DType::kFloat, Device::getCpu());
-  Tensor b = F::rand({5, 1, 16}, DType::kFloat, Device::getCpu());
-  Tensor xr = F::applyRotaryPosEmb(a, b);
-
-  Tensor x = _op->to(_testDevice, a);
-  Tensor y = _op->to(_testDevice, b);
-  x = _op->cast(x, _testFloatType);
-  y = _op->cast(y, _testFloatType);
-  x = _op->applyRotaryPosEmb(x, y);
-  x = _op->cast(x, DType::kFloat);
-  x = _op->to(Device::getCpu(), x);
-
-  return F::allClose(x, xr, 5e-3f);
-}
-
 bool OperatorTester::testRepetitionPenalty() {
   Tensor a = F::rand({2, 16}, DType::kFloat, Device::getCpu());
   Tensor h = Tensor::create<LongType>({2, 4}, {1, 0, 1, 3, 0, 0, 0, 1});

@@ -27,7 +27,6 @@
 
 #include "lutil/random.h"
 #include "flint/cpu/all_close.h"
-#include "flint/cpu/apply_rotary_pos_emb.h"
 #include "flint/cpu/binary_op.h"
 #include "flint/cpu/cast.h"
 #include "flint/cpu/common.h"
@@ -36,7 +35,6 @@
 #include "flint/cpu/fill.h"
 #include "flint/cpu/gelu.h"
 #include "flint/cpu/kernel/interface.h"
-#include "flint/cpu/log_mel_spectrogram.h"
 #include "flint/cpu/lookup.h"
 #include "flint/cpu/matmul.h"
 #include "flint/cpu/normalizations.h"
@@ -150,10 +148,6 @@ Tensor CPUOperators::causalMask(int max_len) {
   return op::cpu::causalMask(max_len, getDefaultFloatType());
 }
 
-Tensor CPUOperators::applyRotaryPosEmb(Tensor A, Tensor roPE) {
-  return cpu::applyRotaryPosEmb(A, roPE);
-}
-
 Tensor CPUOperators::layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) {
   return cpu::layerNorm(input, weight, bias, eps);
 }
@@ -170,10 +164,6 @@ Tensor CPUOperators::to(Device device, Tensor tensor) {
   if (device.getType() == Device::kCpu) return tensor;
 
   NOT_IMPL();
-}
-
-Tensor CPUOperators::logMelSpectrogram(Tensor wave) {
-  return cpu::logMelSpectrogram(wave);
 }
 
 Tensor CPUOperators::unfold(Tensor input, int kernelSize, int stride) {

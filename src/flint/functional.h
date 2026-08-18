@@ -156,15 +156,6 @@ Tensor causalMask(int max_len, Device device = Device::getCpu());
 //   C: concatenated tensor.
 Tensor cat(Tensor A, Tensor B, int dim);
 
-// Apply rotary position embedding to tensor A.
-// Args:
-//   A <float>(N, L, nHead, D): the input tensor.
-//   roPE <float>(L, 1, D): the tensor of rotary position embedding. [..., ::0] is the values of
-//       cos(m*theta), [..., ::1] is the values of sin(m*theta).
-// Returns:
-//   <float>(N, L, nHead, D): the output tensor.
-Tensor applyRotaryPosEmb(Tensor A, Tensor roPE);
-
 // Copy elements from src to dest. Shapes of `src` and `dest` should be the same.
 void copy(Tensor src, Tensor dest);
 
@@ -218,11 +209,6 @@ Tensor max(Tensor tensor, int dim = -1);
 /// @param stride: the stride.
 /// @return  <float>(N, L / stride, D * kernelSize): the output tensor.
 Tensor unfold(Tensor input, int kernelSize, int stride);
-
-/// @brief Extract the log mel spectrogram feature from input wave.
-/// @param wave <float>(wave_len, ): the input wave.
-/// @return <float>(feature_len, FeatDim=80): the logMelSpectrogram feature.
-Tensor logMelSpectrogram(Tensor wave);
 
 /// @brief Apply repetition penalty to the logits tensor according to the history tensor.
 /// @param logits <float>(N, vocab_size): the logits tensor to apply repetition penalty.

@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-#include "libllm/wave.h"
+#include "lutil/span.h"
 #include "flint/dtype.h"
 
 namespace libllm {
@@ -33,13 +33,10 @@ struct PromptBlock {
   enum Type {
     Text,
     ControlToken,
-    Wave,
     Unknown,
   };
 
   std::string text;
-  std::vector<fl::Byte> data;
-  WaveFormat waveFormat;
   Type blockType;
 
   PromptBlock();

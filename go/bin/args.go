@@ -22,23 +22,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"strings"
-
-	"github.com/ling0322/libllm/go/skill"
 )
 
 type binArgs struct {
 	fs *flag.FlagSet
 
-	models     modelList
-	device     string
-	inputFile  string
-	outputFile string
-	lang       string
-	targetLang string
+	models modelList
+	device string
 }
 
 type modelList []string
@@ -77,9 +70,7 @@ func (a *binArgs) getDevice() string {
 
 func (a *binArgs) addModelFlag() {
 	a.fs.Var(&a.models, "m", "the libllm model, it could be model name or model file,"+
-		" model files are with suffix \".llmpkg\". "+
-		"\nFor some specific tasks like transcription-translation, it could be a list of"+
-		" models, seperated by \",\".")
+		" model files are with suffix \".llmpkg\".")
 }
 
 func (a *binArgs) getModel() string {
@@ -97,97 +88,4 @@ func (a *binArgs) getModel() string {
 	}
 
 	return a.models[0]
-}
-
-func (a *binArgs) getModels() []string {
-	for _, model := range a.models {
-		if model == "" {
-			slog.Error("invalid model name (-m).")
-			a.fs.Usage()
-			os.Exit(1)
-		}
-	}
-
-	return a.models
-}
-
-func (a *binArgs) getNumModels() int {
-	return len(a.models)
-}
-
-func (a *binArgs) addInputFlag() {
-	a.fs.StringVar(&a.inputFile, "i", "", "the input file.")
-}
-
-func (a *binArgs) getInput() string {
-	if a.inputFile == "" {
-		slog.Error("input file (-i) is empty.")
-		a.fs.Usage()
-		os.Exit(1)
-	}
-
-	return a.inputFile
-}
-
-func (a *binArgs) tryGetInput() string {
-	return a.inputFile
-}
-
-func (a *binArgs) addOutputFlag() {
-	a.fs.StringVar(&a.outputFile, "o", "", "the output file.")
-}
-
-func (a *binArgs) getOutput() string {
-	if a.outputFile == "" {
-		slog.Error("output file (-o) is empty.")
-		a.fs.Usage()
-		os.Exit(1)
-	}
-
-	return a.outputFile
-}
-
-func (a *binArgs) tryGetOutput() string {
-	return a.outputFile
-}
-
-func (a *binArgs) addLangFlag() {
-	a.fs.StringVar(&a.lang, "lang", "", "the language of input.")
-}
-
-func (a *binArgs) getLang() skill.Lang {
-	if a.lang == "" {
-		slog.Error("language (-lang) is empty.")
-		a.fs.Usage()
-		os.Exit(1)
-	}
-
-	lang, err := skill.ParseLang(a.lang)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return lang
-}
-
-func (a *binArgs) getRawLang() string {
-	return a.lang
-}
-
-func (a *binArgs) addTargetLangFlag() {
-	a.fs.StringVar(&a.targetLang, "targetlang", "", "the target language.")
-}
-
-func (a *binArgs) getTargetLang() skill.Lang {
-	if a.targetLang == "" {
-		return skill.UnknownLanguage
-	}
-
-	lang, err := skill.ParseLang(a.targetLang)
-	if err != nil {
-		slog.Error("unsupported target language (-targetlang).")
-		return skill.UnknownLanguage
-	}
-
-	return lang
 }

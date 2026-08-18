@@ -8,7 +8,6 @@ option(WITH_CUDA_MALLOC_ASYNC "Use the CUDA stream-ordered memory allocator." ON
 option(WITH_MKL "MKL support (only for reference)." OFF)
 option(WITH_OPENMP "Build with OpenMP." ON)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
-option(WITH_FFMPEG "build the ffmpeg read audio plugin." OFF)
 option(MKL_PREFIX "Prefix for MKL headers and libraries." "/opt/intel/mkl")
 
 find_package(OpenMP)
@@ -161,24 +160,6 @@ add_executable(llm_benchmark
 target_include_directories(llm_benchmark PRIVATE "src" "third_party")
 target_link_libraries(llm_benchmark ${libllm_LIBADD})
 
-
-if (WITH_FFMPEG)
-    add_library(llmpluginffmpeg SHARED $<TARGET_OBJECTS:llmpluginffmpeg_static>)
-    target_include_directories(llmpluginffmpeg PRIVATE ${libllm_INCDIR})
-
-    set(ffmpeg_ROOT "third_party/ffmpeg")
-    target_link_directories(llmpluginffmpeg PUBLIC
-        "${ffmpeg_ROOT}/libavformat"
-        "${ffmpeg_ROOT}/libavcodec"
-        "${ffmpeg_ROOT}/libavfilter"
-        "${ffmpeg_ROOT}/libavutil"
-        "${ffmpeg_ROOT}/libswresample")
-    target_link_libraries(
-        llmpluginffmpeg avformat avcodec avfilter avutil swresample ${CMAKE_THREAD_LIBS_INIT}) 
-    if(UNIX AND NOT APPLE)
-        target_link_options(llmpluginffmpeg PUBLIC "-Wl,--no-undefined")
-    endif()
-endif()
 
 enable_testing()
 add_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)

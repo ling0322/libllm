@@ -40,8 +40,6 @@ struct GenerationConfig {
 /// @brief Given model and the generation config, generate tokens.
 class Generator {
  public:
-  enum { Sampling, Whisper };
-
   virtual ~Generator() = default;
 
   /// @brief set the prompt to prefill.

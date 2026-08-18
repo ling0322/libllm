@@ -8,7 +8,6 @@ set(flint_SOURCES
     "cpu/kernel/interface.cc"
     "cpu/kernel/util.cc"
     "cpu/all_close.cc"
-    "cpu/apply_rotary_pos_emb.cc"
     "cpu/binary_op.cc"
     "cpu/cast.cc"
     "cpu/common.cc"
@@ -17,7 +16,6 @@ set(flint_SOURCES
     "cpu/cpu_tensor_data.cc"
     "cpu/fill.cc"
     "cpu/gelu.cc"
-    "cpu/log_mel_spectrogram.cc"
     "cpu/lookup.cc"
     "cpu/matmul.cc"
     "cpu/normalizations.cc"
@@ -68,7 +66,6 @@ if (WITH_CUDA)
     set(flint_SOURCES
         ${flint_SOURCES}
         "cuda/arange.cu"
-        "cuda/apply_rotary_pos_emb.cu"
         "cuda/binary.cu"
         "cuda/binary_scalar.cu"
         "cuda/cast.cu"
@@ -142,12 +139,6 @@ if(LIBLLM_KERNEL_AARCH64)
         ${flint_test_SOURCES}
         "cpu/test_float16.cc"
         "cpu/kernel/asimdhp_test.cc")
-endif()
-
-if (WITH_FFMPEG)
-    add_library(llmpluginffmpeg_static OBJECT "read_audio_ffmpeg.cc")
-    target_compile_options(llmpluginffmpeg_static PRIVATE "-DLIBLLM_EXPORTS")
-    target_include_directories(llmpluginffmpeg_static PRIVATE  ${flint_INCDIR} "../../third_party/ffmpeg/")
 endif()
 
 add_library(flint_static OBJECT ${flint_SOURCES})

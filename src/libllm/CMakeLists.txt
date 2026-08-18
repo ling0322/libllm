@@ -5,7 +5,6 @@ endif()
 
 
 set(libllm_SOURCES
-    "bilibili_index.cc"
     "bpe_config.cc"
     "bpe_encoder.cc"
     "bpe_model.cc"
@@ -14,20 +13,9 @@ set(libllm_SOURCES
     "llm.cc"
     "model_for_generation.cc"
     "prompt.cc"
-    "qwen.cc"
-    "tokenizer.cc"
-    "wave.cc"
-    "wave_stream.cc"
-    "whisper.cc"
-    "whisper_decoder.cc")
+    "tokenizer.cc")
 
 set(libllm_INCDIR ".." "../../third_party")
-
-if (WITH_FFMPEG)
-    add_library(llmpluginffmpeg_static OBJECT "read_audio_ffmpeg.cc")
-    target_compile_options(llmpluginffmpeg_static PRIVATE "-DLIBLLM_EXPORTS")
-    target_include_directories(llmpluginffmpeg_static PRIVATE  ${libllm_INCDIR} "../../third_party/ffmpeg/")
-endif()
 
 add_library(libllm_static OBJECT ${libllm_SOURCES})
 target_compile_options(libllm_static PRIVATE "-DLIBLLM_EXPORTS")

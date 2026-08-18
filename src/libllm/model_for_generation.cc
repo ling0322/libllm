@@ -19,11 +19,8 @@
 
 #include "libllm/model_for_generation.h"
 
-#include "libllm/bilibili_index.h"
 #include "libllm/constants.h"
 #include "libllm/llama.h"
-#include "libllm/qwen.h"
-#include "libllm/whisper.h"
 #include "lutil/error.h"
 #include "lutil/path.h"
 #include "lutil/strings.h"
@@ -48,10 +45,6 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
   std::shared_ptr<ModelForGeneration> model;
   if (modelType == "llama") {
     model = llama::LlamaModelForGeneration::fromPackage(ctx, package);
-  } else if (modelType == "index") {
-    model = index::IndexModelForGeneration::fromPackage(ctx, package);
-  } else if (modelType == "qwen") {
-    model = qwen::QwenModelForGeneration::fromPackage(ctx, package);
   } else {
     throw lut::AbortedError(lut::sprintf("unexpected model type: %s", modelType));
   }
