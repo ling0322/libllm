@@ -102,11 +102,11 @@ class LlamaExporter(ModelExporter):
         return config
 
     @classmethod
-    def export(cls, llama_model, fp, quant: Quant):
+    def export(cls, llama_model, fp):
         model = llama_model
         config = llama_model.config
 
-        ctx = Context("llama", quant=quant)
+        ctx = Context("llama")
         with TensorWriter(fp) as writer:
             exporter = LlamaExporter(writer)
             exporter._export(ctx, model)
@@ -154,7 +154,6 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='export llama model from huggingface to libllm format.')
     parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default=MODEL_NAME)
-    parser.add_argument('-quant', type=Quant.parse, help='quantization type, "q4" or "none"', default=Quant.Q4)
     parser.add_argument('-output', type=str, help='output file name.', default="llama.llmpkg")
     parser.add_argument('-llama_version', type=int, help='llama model version.', default=3)
     parser.add_argument('-run', action="store_true")
@@ -175,7 +174,7 @@ if __name__ == '__main__':
             libllm_tokenizer = read_spm_model(args.huggingface_name)
 
         with package.open(MODEL_BIN, "w", force_zip64=True) as fp:
-            config = LlamaExporter.export(model, fp, args.quant)
+            config = LlamaExporter.export(model, fp)
 
         if args.llama_version == 3:
             config["llama"]["bot_token_id"] = str(tokenizer.bos_token_id)

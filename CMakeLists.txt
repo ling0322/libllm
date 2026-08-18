@@ -8,6 +8,7 @@ option(WITH_CUDA_MALLOC_ASYNC "Use the CUDA stream-ordered memory allocator." ON
 option(WITH_MKL "MKL support (only for reference)." OFF)
 option(WITH_OPENMP "Build with OpenMP." ON)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
+option(CUDA_ARCH_NATIVE "Build CUDA kernels only for the GPUs in this machine." OFF)
 option(MKL_PREFIX "Prefix for MKL headers and libraries." "/opt/intel/mkl")
 
 find_package(OpenMP)
@@ -24,8 +25,28 @@ if(WITH_CUDA)
         add_compile_definitions(LIBLLM_CUDA_MALLOC_ASYNC_ENABLED)
     endif()
     find_package(CUDAToolkit REQUIRED)
-    include_directories(${CUDAToolkit_INCLUDE_DIRS}) 
-    set(CMAKE_CUDA_ARCHITECTURES 120a)
+    include_directories(${CUDAToolkit_INCLUDE_DIRS})
+    if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+        if(CUDA_ARCH_NATIVE)
+            set(CMAKE_CUDA_ARCHITECTURES native)
+        else()
+            # Volta through Ada. Kernels needing newer hardware are guarded by __CUDA_ARCH__.
+            set(CMAKE_CUDA_ARCHITECTURES 70-real 75-real 80-real 86-real 89-real)
+            # PTX for the newest non arch-conditional target, so future GPUs can JIT.
+            set(_libllm_ptx_arch 89-virtual)
+            if(CUDAToolkit_VERSION VERSION_GREATER_EQUAL 11.8)
+                list(APPEND CMAKE_CUDA_ARCHITECTURES 90-real)
+                set(_libllm_ptx_arch 90-virtual)
+            endif()
+            if(CUDAToolkit_VERSION VERSION_GREATER_EQUAL 12.8)
+                # 120a (not 120): the mxfp4 kernels use sm_120a-only PTX.
+                list(APPEND CMAKE_CUDA_ARCHITECTURES 100-real 120a-real)
+                set(_libllm_ptx_arch 100-virtual)
+            endif()
+            list(APPEND CMAKE_CUDA_ARCHITECTURES ${_libllm_ptx_arch})
+        endif()
+    endif()
+    message(STATUS "libllm CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -DCUTE_ARCH_TCGEN05_TMEM_ENABLED -O3 -Xptxas -v")
     enable_language(CUDA)
 endif()
@@ -72,6 +93,7 @@ if(UNIX)
 endif(UNIX)
 
 
+set(UNWIND_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/libunwind/libunwind-1.6.2")
 set(UNWIND_ARCH_LIB_NAME "")
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
   set(UNWIND_ARCH_LIB_NAME unwind-x86_64)
@@ -80,9 +102,9 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
 else()
   message(FATAL_ERROR "Unknown arch '${CMAKE_SYSTEM_PROCESSOR}', will try generic libunwind only.")
 endif()
-find_library(UNWIND_LIB NAMES libunwind.a REQUIRED PATHS "third_party/libunwind/libunwind-1.6.2/build/src/.libs/"
+find_library(UNWIND_LIB NAMES libunwind.a REQUIRED PATHS "${UNWIND_ROOT}/build/src/.libs/"
              NO_DEFAULT_PATH)
-find_library(UNWIND_ARCH_LIB NAMES lib${UNWIND_ARCH_LIB_NAME}.a REQUIRED PATHS "third_party/libunwind/libunwind-1.6.2/build/src/.libs/"
+find_library(UNWIND_ARCH_LIB NAMES lib${UNWIND_ARCH_LIB_NAME}.a REQUIRED PATHS "${UNWIND_ROOT}/build/src/.libs/"
              NO_DEFAULT_PATH)
 
 

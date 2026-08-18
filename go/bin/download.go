@@ -12,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	"github.com/ling0322/libllm/go/llm"
 	"github.com/schollz/progressbar/v3"
@@ -22,26 +21,17 @@ var ErrInvalidModelName = errors.New("invalid model name")
 var ModelCacheDir = getModelCacheDir()
 
 var modelUrls = map[string]string{
-	"llama3.2:1b:q4": "https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-1b-instruct-q4.llmpkg",
-	"llama3.2:3b:q4": "https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-3b-instruct-q4.llmpkg",
-}
-
-var modelMsUrls = map[string]string{
-	"llama3.2:1b:q4": "https://modelscope.cn/models/ling0322/llama3.2-libllm/resolve/master/llama3.2-1b-instruct-q4.llmpkg",
-	"llama3.2:3b:q4": "https://modelscope.cn/models/ling0322/llama3.2-libllm/resolve/master/llama3.2-3b-instruct-q4.llmpkg",
+	"llama3.2:3b:fp16": "https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-3b-instruct-fp16.llmpkg",
 }
 
 var modelFilenames = map[string]string{
-	"llama3.2:3b:q4": "llama3.2-3b-instruct-q4.llmpkg",
-	"llama3.2:1b:q4": "llama3.2-1b-instruct-q4.llmpkg",
+	"llama3.2:3b:fp16": "llama3.2-3b-instruct-fp16.llmpkg",
 }
 
 var defaultModelNames = map[string]string{
-	"llama3.2":       "llama3.2:3b:q4",
-	"llama3.2:3b":    "llama3.2:3b:q4",
-	"llama3.2:3b:q4": "llama3.2:3b:q4",
-	"llama3.2:1b":    "llama3.2:1b:q4",
-	"llama3.2:1b:q4": "llama3.2:1b:q4",
+	"llama3.2":         "llama3.2:3b:fp16",
+	"llama3.2:3b":      "llama3.2:3b:fp16",
+	"llama3.2:3b:fp16": "llama3.2:3b:fp16",
 }
 
 func resolveModelName(name string) (resolvedName string, err error) {
@@ -104,20 +94,6 @@ func downloadFile(url, localPath, filename string) error {
 	return nil
 }
 
-func isInChina() bool {
-	client := http.Client{
-		Timeout: 5 * time.Second,
-	}
-
-	resp, err := client.Get("https://www.google.com")
-	if err != nil {
-		return true
-	}
-	defer resp.Body.Close()
-
-	return false
-}
-
 func downloadModel(name string) (modelPath string, err error) {
 	slog.Info("download model", "name", name)
 
@@ -126,14 +102,7 @@ func downloadModel(name string) (modelPath string, err error) {
 		return
 	}
 
-	var url string
-	var ok bool
-	if isInChina() {
-		url, ok = modelMsUrls[name]
-	} else {
-		url, ok = modelUrls[name]
-	}
-
+	url, ok := modelUrls[name]
 	if !ok {
 		log.Fatal("invalid model name")
 	}

@@ -1,17 +1,14 @@
 # libLLM: Efficient inference of large language models.
 
-[![Linux](https://github.com/ling0322/libllm/actions/workflows/cmake-linux.yml/badge.svg?branch=main)](https://github.com/ling0322/libllm/actions/workflows/cmake-linux.yml) [![Windows](https://github.com/ling0322/libllm/actions/workflows/cmake-windows.yml/badge.svg?branch=main)](https://github.com/ling0322/libllm/actions/workflows/cmake-windows.yml) [![macOS](https://github.com/ling0322/libllm/actions/workflows/cmake-darwin.yml/badge.svg?branch=main)](https://github.com/ling0322/libllm/actions/workflows/cmake-darwin.yml)
-
 Welcome to libLLM, an open-source project designed for efficient inference of large language models (LLM) on ordinary personal computers and mobile devices. The core is implemented in C++14, without any third-party dependencies (such as BLAS or SentencePiece), enabling seamless operation across a variety of devices.
 
 ## Model download:
 
 | Model       | Download       |  llm Command  |
 |-------------|----------------|---------------|
-| Llama3.2-1B-Instruct | [🤗[HF](https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-1b-instruct-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/llama3.2-libllm/file/view/master?fileName=llama3.2-1b-instruct-q4.llmpkg&status=2)] | llm chat -m llama3.2:1b |
-| Llama3.2-3B-Instruct | [🤗[HF](https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-3b-instruct-q4.llmpkg)] [[MS](https://modelscope.cn/models/ling0322/llama3.2-libllm/file/view/master?fileName=llama3.2-3b-instruct-q4.llmpkg&status=2)] | llm chat -m llama3.2 |
+| Llama3.2-3B-Instruct | [🤗[HF](https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-3b-instruct-fp16.llmpkg)] | llm chat -m llama3.2 |
 
-`HF` = HuggingFace, `MS` = ModelScope
+`HF` = HuggingFace
 
 ## Kernel support matrix
 
@@ -33,7 +30,7 @@ To run and chat with Llama 3.2 3B Instruct:
 $ llm chat -m llama3.2
 ```
 
-It will automatically download the model from Huggingface or ModelScope (in China), and start the chat CLI in llm.
+It will automatically download the model from Huggingface, and start the chat CLI in llm.
 
 ## llm command line
 
