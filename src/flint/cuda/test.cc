@@ -148,7 +148,6 @@ CATCH_TEST_CASE("test CUDA operators", "[op][cuda]") {
   }
 
   CATCH_SECTION("test positional embeddings") {
-    CATCH_REQUIRE(tester.testRoPE());
   }
 }
 

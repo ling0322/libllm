@@ -48,7 +48,6 @@ class CudaOperators : public Operators {
   Tensor cast(Tensor tensor, DType dtype) override;
   Tensor add(Tensor a, Tensor b) override;
   Tensor sub(Tensor input, Tensor other) override;
-  Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) override;
   Tensor causalMask(int max_len) override;
   void copy(Tensor src, Tensor dest) override;
   void fill(Tensor input, float value) override;

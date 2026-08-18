@@ -23,7 +23,6 @@
 
 #include <algorithm>
 
-#include "libllm/whisper.h"
 #include "lutil/error.h"
 #include "lutil/strings.h"
 #include "flint/functional.h"

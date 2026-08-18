@@ -19,11 +19,12 @@
 
 #include "libllm/prompt.h"
 
+#include "lutil/error.h"
+
 namespace libllm {
 
 PromptBlock::PromptBlock()
-    : waveFormat(WaveFormat::Unknown),
-      blockType(Type::Unknown) {
+  : blockType(Type::Unknown) {
 }
 
 std::string PromptBlock::typeToString(Type blockType) {
@@ -32,8 +33,6 @@ std::string PromptBlock::typeToString(Type blockType) {
       return "controlToken";
     case Type::Text:
       return "text";
-    case Type::Wave:
-      return "wave";
     case Type::Unknown:
       return "unknown";
     default:

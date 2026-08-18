@@ -47,8 +47,6 @@ extern "C" {
 typedef struct llm_model_impl_t *llm_model_t;
 typedef struct llm_completion_impl_t *llm_completion_t;
 typedef struct llm_json_impl_t *llm_json_t;
-typedef struct llm_asr_recognition_impl_t *llm_asr_recognition_t;
-typedef struct llm_asr_model_impl_t *llm_asr_model_t;
 
 // global state
 LLMAPI void llm_init();
@@ -72,22 +70,6 @@ LLMAPI int32_t llm_model_complete(llm_model_t *m, llm_json_t *kwargs, llm_comple
 LLMAPI int32_t llm_completion_init(llm_completion_t *c);
 LLMAPI int32_t llm_completion_destroy(llm_completion_t *c);
 LLMAPI int32_t llm_completion_get_next_chunk(llm_completion_t *c, llm_json_t *chunk);
-
-// ASR
-
-LLMAPI int32_t llm_asr_model_init(llm_asr_model_t *m);
-LLMAPI int32_t llm_asr_model_load(llm_asr_model_t *m, llm_json_t *options);
-LLMAPI int32_t llm_asr_model_destroy(llm_asr_model_t *m);
-
-LLMAPI int32_t llm_asr_recognition_init(llm_asr_recognition_t *r);
-LLMAPI int32_t llm_asr_recognition_destroy(llm_asr_recognition_t *r);
-LLMAPI int32_t llm_asr_recognition_get_next_result(llm_asr_recognition_t *r, llm_json_t *result);
-
-LLMAPI
-int32_t llm_asr_recognize_media_file(
-    llm_asr_model_t *model,
-    llm_json_t *options,
-    llm_asr_recognition_t *recognition);
 
 #ifdef __cplusplus
 }  // extern "C"

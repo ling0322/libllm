@@ -21,7 +21,6 @@
 
 #include <math.h>
 
-#include "flint/cuda/apply_rotary_pos_emb.h"
 #include "flint/cuda/arange.h"
 #include "flint/cuda/binary.h"
 #include "flint/cuda/binary_scalar.h"
@@ -184,10 +183,6 @@ Tensor CudaOperators::layerNorm(Tensor input, Tensor weight, Tensor bias, float 
 
 Tensor CudaOperators::causalMask(int max_len) {
   return op::cuda::causalMask(max_len);
-}
-
-Tensor CudaOperators::applyRotaryPosEmb(Tensor A, Tensor roPE) {
-  return op::cuda::applyRotaryPosEmb(A, roPE);
 }
 
 Tensor CudaOperators::tensor(lut::Span<const int> shape, DType dtype) {

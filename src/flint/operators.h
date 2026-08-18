@@ -50,7 +50,6 @@ class Operators {
   virtual Tensor subFloat(Tensor input, float other);
   virtual Tensor sum(Tensor input, int dim);
   virtual Tensor max(Tensor input);
-  virtual Tensor melFbank(Tensor input);
   virtual Tensor eq(Tensor input, Tensor other);
   virtual Tensor gelu(Tensor input);
   virtual Tensor square(Tensor input);
@@ -62,7 +61,6 @@ class Operators {
   virtual bool allClose(Tensor A, Tensor B, float rtol, float atol);
   virtual void print(Tensor tensor);
   virtual Tensor causalMask(int max_len);
-  virtual Tensor applyRotaryPosEmb(Tensor A, Tensor roPE);
   virtual void copy(Tensor src, Tensor dest);
   virtual Tensor swiglu(Tensor A);
   virtual Tensor to(Device device, Tensor tensor);
@@ -71,7 +69,6 @@ class Operators {
   virtual Tensor unfold(Tensor input, int kernelSize, int stride);
   virtual void repetitionPenalty(Tensor logits, Tensor history, float weight);
   virtual Tensor cast(Tensor tensor, DType dtype);
-  virtual Tensor logMelSpectrogram(Tensor wave);
   virtual Tensor rand(lut::Span<const int> shape, DType dtype);
   virtual Tensor randNormal(lut::Span<const int> shape);
   virtual void manualSeed(uint64_t seed);

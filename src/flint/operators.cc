@@ -153,19 +153,11 @@ Tensor Operators::causalMask(int max_len) {
   NOT_IMPL();
 }
 
-Tensor Operators::applyRotaryPosEmb(Tensor A, Tensor roPE) {
-  NOT_IMPL();
-}
-
 void Operators::copy(Tensor src, Tensor dest) {
   NOT_IMPL();
 }
 
 Tensor Operators::swiglu(Tensor A) {
-  NOT_IMPL();
-}
-
-Tensor Operators::melFbank(Tensor A) {
   NOT_IMPL();
 }
 
@@ -186,10 +178,6 @@ Tensor Operators::cast(Tensor tensor, DType dtype) {
 }
 
 DType Operators::getDefaultFloatType() {
-  NOT_IMPL();
-}
-
-Tensor Operators::logMelSpectrogram(Tensor wave) {
   NOT_IMPL();
 }
 

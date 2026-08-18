@@ -107,20 +107,6 @@ void benchmarkResidualAdd(const std::shared_ptr<Operators> &operators, int seque
 	printLatency("residual_add [1," + std::to_string(sequenceLength) + ",3072]", milliseconds);
 }
 
-void benchmarkRoPE(
-		const std::shared_ptr<Operators> &operators,
-		int sequenceLength,
-		int numHeads,
-		const char *name) {
-	Tensor input = randHalf(operators, {BatchSize, sequenceLength, numHeads, HeadDim});
-	Tensor rope = randHalf(operators, {sequenceLength, 1, HeadDim});
-	float milliseconds = benchmarkCuda([&] { operators->applyRotaryPosEmb(input, rope); });
-	printLatency(
-			std::string(name) + " [1," + std::to_string(sequenceLength) + "," +
-					std::to_string(numHeads) + ",128]",
-			milliseconds);
-}
-
 void benchmarkSoftmax(
 		const std::shared_ptr<Operators> &operators,
 		int queryLength,
@@ -226,10 +212,6 @@ CATCH_TEST_CASE("Llama 3.2 3B attention benchmarks", "[benchmark][cuda][llama32-
 	std::shared_ptr<Operators> operators = createCudaOperators();
 
 	std::printf("\nLlama 3.2 3B attention primitive benchmarks (FP16)\n");
-	for (int sequenceLength : {1, 128, 512}) {
-		benchmarkRoPE(operators, sequenceLength, NumHeads, "rope_q");
-		benchmarkRoPE(operators, sequenceLength, NumKeyValueHeads, "rope_k");
-	}
 	benchmarkSoftmax(operators, 128, 128);
 	benchmarkSoftmax(operators, 512, 512);
 	benchmarkSoftmax(operators, 1, 512);

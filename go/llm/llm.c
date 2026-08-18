@@ -63,19 +63,6 @@ int32_t (*p_llm_json_destroy)(llm_json_t *j);
 int32_t (*p_llm_json_parse)(llm_json_t *j, const char *json_str);
 int32_t (*p_llm_json_dump)(llm_json_t *j, char *buf, int64_t buf_size);
 
-// asr
-
-int32_t (*p_llm_asr_model_init)(llm_asr_model_t *m);
-int32_t (*p_llm_asr_model_load)(llm_asr_model_t *m, llm_json_t *options);
-int32_t (*p_llm_asr_model_destroy)(llm_asr_model_t *m);
-int32_t (*p_llm_asr_recognition_init)(llm_asr_recognition_t *r);
-int32_t (*p_llm_asr_recognition_destroy)(llm_asr_recognition_t *r);
-int32_t (*p_llm_asr_recognition_get_next_result)(llm_asr_recognition_t *r, llm_json_t *result);
-int32_t (*p_llm_asr_recognize_media_file)(
-    llm_asr_model_t *model,
-    llm_json_t *options,
-    llm_asr_recognition_t *recognition);
-
 // load the libllm shared library.
 void *llm_load_library(const char *library_path) {
   // first try to load the dll from same folder as current module.
@@ -116,13 +103,6 @@ int32_t llm_load_symbols(void *pDll) {
   LOAD_SYMBOL(hDll, llm_json_destroy);
   LOAD_SYMBOL(hDll, llm_json_parse);
   LOAD_SYMBOL(hDll, llm_json_dump);
-  LOAD_SYMBOL(hDll, llm_asr_model_init);
-  LOAD_SYMBOL(hDll, llm_asr_model_load);
-  LOAD_SYMBOL(hDll, llm_asr_model_destroy);
-  LOAD_SYMBOL(hDll, llm_asr_recognition_init);
-  LOAD_SYMBOL(hDll, llm_asr_recognition_destroy);
-  LOAD_SYMBOL(hDll, llm_asr_recognition_get_next_result);
-  LOAD_SYMBOL(hDll, llm_asr_recognize_media_file);
 
   return 0;
 }
@@ -181,35 +161,4 @@ int32_t llm_json_parse(llm_json_t *j, const char *json_str) {
 
 int32_t llm_json_dump(llm_json_t *j, char *buf, int64_t buf_size) {
   return p_llm_json_dump(j, buf, buf_size);
-}
-
-int32_t llm_asr_model_init(llm_asr_model_t *m) {
-  return p_llm_asr_model_init(m);
-}
-
-int32_t llm_asr_model_load(llm_asr_model_t *m, llm_json_t *options) {
-  return p_llm_asr_model_load(m, options);
-}
-
-int32_t llm_asr_model_destroy(llm_asr_model_t *m) {
-  return p_llm_asr_model_destroy(m);
-}
-
-int32_t llm_asr_recognition_init(llm_asr_recognition_t *r) {
-  return p_llm_asr_recognition_init(r);
-}
-
-int32_t llm_asr_recognition_destroy(llm_asr_recognition_t *r) {
-  return p_llm_asr_recognition_destroy(r);
-}
-
-int32_t llm_asr_recognition_get_next_result(llm_asr_recognition_t *r, llm_json_t *result) {
-  return p_llm_asr_recognition_get_next_result(r, result);
-}
-
-int32_t llm_asr_recognize_media_file(
-    llm_asr_model_t *model,
-    llm_json_t *options,
-    llm_asr_recognition_t *recognition) {
-  return p_llm_asr_recognize_media_file(model, options, recognition);
 }

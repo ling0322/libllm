@@ -22,54 +22,26 @@ var ErrInvalidModelName = errors.New("invalid model name")
 var ModelCacheDir = getModelCacheDir()
 
 var modelUrls = map[string]string{
-	"index:chat:q4":       "https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/resolve/main/bilibili-index-1.9b-chat-q4.llmpkg",
-	"index:character:q4":  "https://huggingface.co/ling0322/bilibili-index-1.9b-libllm/resolve/main/bilibili-index-1.9b-character-q4.llmpkg",
-	"whisper:large-v3:q4": "https://huggingface.co/ling0322/whisper-libllm/resolve/main/whisper-large-v3-q4.llmpkg",
-	"qwen:7b:q4":          "https://huggingface.co/ling0322/qwen-libllm/resolve/main/qwen2-7b-instruct-q4.llmpkg",
-	"qwen:1.5b:q4":        "https://huggingface.co/ling0322/qwen-libllm/resolve/main/qwen2-1.5b-instruct-q4.llmpkg",
-	"llama3.2:1b:q4":      "https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-1b-instruct-q4.llmpkg",
-	"llama3.2:3b:q4":      "https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-3b-instruct-q4.llmpkg",
+	"llama3.2:1b:q4": "https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-1b-instruct-q4.llmpkg",
+	"llama3.2:3b:q4": "https://huggingface.co/ling0322/llama3.2-libllm/resolve/main/llama3.2-3b-instruct-q4.llmpkg",
 }
 
 var modelMsUrls = map[string]string{
-	"index:chat:q4":       "https://modelscope.cn/models/ling0322/bilibili-index-libllm/resolve/master/bilibili-index-1.9b-chat-q4.llmpkg",
-	"index:character:q4":  "https://modelscope.cn/models/ling0322/bilibili-index-libllm/resolve/master/bilibili-index-1.9b-character-q4.llmpkg",
-	"whisper:large-v3:q4": "https://modelscope.cn/models/ling0322/whisper-libllm/resolve/master/whisper-large-v3-q4.llmpkg",
-	"qwen:7b:q4":          "https://modelscope.cn/models/ling0322/qwen2-libllm/resolve/master/qwen2-7b-instruct-q4.llmpkg",
-	"qwen:1.5b:q4":        "https://modelscope.cn/models/ling0322/qwen2-libllm/resolve/master/qwen2-1.5b-instruct-q4.llmpkg",
-	"llama3.2:1b:q4":      "https://modelscope.cn/models/ling0322/llama3.2-libllm/resolve/master/llama3.2-1b-instruct-q4.llmpkg",
-	"llama3.2:3b:q4":      "https://modelscope.cn/models/ling0322/llama3.2-libllm/resolve/master/llama3.2-3b-instruct-q4.llmpkg",
+	"llama3.2:1b:q4": "https://modelscope.cn/models/ling0322/llama3.2-libllm/resolve/master/llama3.2-1b-instruct-q4.llmpkg",
+	"llama3.2:3b:q4": "https://modelscope.cn/models/ling0322/llama3.2-libllm/resolve/master/llama3.2-3b-instruct-q4.llmpkg",
 }
 
 var modelFilenames = map[string]string{
-	"index:chat:q4":       "bilibili-index-1.9b-chat-q4.llmpkg",
-	"index:character:q4":  "bilibili-index-1.9b-character-q4.llmpkg",
-	"whisper:large-v3:q4": "whisper-large-v3-q4.llmpkg",
-	"qwen:7b:q4":          "qwen2-7b-instruct-q4.llmpkg",
-	"qwen:1.5b:q4":        "qwen2-1.5b-instruct-q4.llmpkg",
-	"llama3.2:3b:q4":      "llama3.2-3b-instruct-q4.llmpkg",
-	"llama3.2:1b:q4":      "llama3.2-1b-instruct-q4.llmpkg",
+	"llama3.2:3b:q4": "llama3.2-3b-instruct-q4.llmpkg",
+	"llama3.2:1b:q4": "llama3.2-1b-instruct-q4.llmpkg",
 }
 
 var defaultModelNames = map[string]string{
-	"index":               "index:chat:q4",
-	"index:chat":          "index:chat:q4",
-	"index:chat:q4":       "index:chat:q4",
-	"index:character":     "index:character:q4",
-	"index:character:q4":  "index:character:q4",
-	"whisper":             "whisper:large-v3:q4",
-	"whisper:large-v3":    "whisper:large-v3:q4",
-	"whisper:large-v3:q4": "whisper:large-v3:q4",
-	"qwen":                "qwen:7b:q4",
-	"qwen:7b":             "qwen:7b:q4",
-	"qwen:7b:q4":          "qwen:7b:q4",
-	"qwen:1.5b":           "qwen:1.5b:q4",
-	"qwen:1.5b:q4":        "qwen:1.5b:q4",
-	"llama3.2":            "llama3.2:3b:q4",
-	"llama3.2:3b":         "llama3.2:3b:q4",
-	"llama3.2:3b:q4":      "llama3.2:3b:q4",
-	"llama3.2:1b":         "llama3.2:1b:q4",
-	"llama3.2:1b:q4":      "llama3.2:1b:q4",
+	"llama3.2":       "llama3.2:3b:q4",
+	"llama3.2:3b":    "llama3.2:3b:q4",
+	"llama3.2:3b:q4": "llama3.2:3b:q4",
+	"llama3.2:1b":    "llama3.2:1b:q4",
+	"llama3.2:1b:q4": "llama3.2:1b:q4",
 }
 
 func resolveModelName(name string) (resolvedName string, err error) {
@@ -250,15 +222,6 @@ func createModelAutoDownload(nameOrPath, device string) (*llm.Model, error) {
 	}
 
 	return llm.NewModel(modelPath, device)
-}
-
-func createASRModelAutoDownload(nameOrPath, device string) (*llm.ASRModel, error) {
-	modelPath, err := autoDownloadModel(nameOrPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return llm.NewASRModel(modelPath, device)
 }
 
 func printDownloadUsage(fs *flag.FlagSet) {

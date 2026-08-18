@@ -151,10 +151,6 @@ Tensor cat(Tensor A, Tensor B, int dim) {
   return C;
 }
 
-Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) {
-  return getOperators(A.getDevice().getType())->applyRotaryPosEmb(A, roPE);
-}
-
 void copy(Tensor src, Tensor dest) {
   CHECK(src.getDType() == dest.getDType());
   src.throwIfInvalidShape(dest.getShape(), "F::copy");
@@ -208,10 +204,6 @@ Tensor attention(Tensor q, Tensor k, Tensor v, Tensor mask) {
 
 Tensor swiglu(Tensor inputs) {
   return getOperators(inputs.getDevice().getType())->swiglu(inputs);
-}
-
-Tensor logMelSpectrogram(Tensor wave) {
-  return getOperators(wave.getDevice().getType())->logMelSpectrogram(wave);
 }
 
 Tensor unfold(Tensor input, int kernelSize, int stride) {

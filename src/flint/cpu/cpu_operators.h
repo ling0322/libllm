@@ -43,7 +43,6 @@ class CPUOperators : public Operators {
   static std::unique_ptr<Operators> createFp32Only();
 
   // implement interface Operators
-  Tensor applyRotaryPosEmb(Tensor A, Tensor roPE) override;
   Tensor add(Tensor a, Tensor b) override;
   Tensor sub(Tensor a, Tensor b) override;
   Tensor subFloat(Tensor input, float other) override;
@@ -54,7 +53,6 @@ class CPUOperators : public Operators {
   void fill(Tensor input, float value) override;
   Tensor gelu(Tensor input) override;
   Tensor layerNorm(Tensor input, Tensor weight, Tensor bias, float eps) override;
-  Tensor logMelSpectrogram(Tensor wave) override;
   Tensor lookup(Tensor table, Tensor indices) override;
   Tensor matmul(Tensor a, Tensor b) override;
   Tensor max(Tensor inputs) override;

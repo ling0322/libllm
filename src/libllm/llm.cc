@@ -14,8 +14,6 @@
 #include "libllm/model_for_generation.h"
 #include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
-#include "libllm/whisper.h"
-#include "libllm/whisper_decoder.h"
 #include "lutil/error.h"
 #include "lutil/ini_config.h"
 #include "lutil/log.h"
@@ -31,9 +29,6 @@ using libllm::Generator;
 using libllm::ModelForGeneration;
 using libllm::Prompt;
 using libllm::Tokenizer;
-using libllm::whisper::RecognitionResult;
-using libllm::whisper::WhisperDecoder;
-using libllm::whisper::WhisperModel;
 using lut::IniConfig;
 using fl::Context;
 using fl::LongType;
@@ -45,9 +40,7 @@ thread_local std::string gJsonString;
 thread_local std::string gJsonErrorMessage;
 
 constexpr char LlmConfigKey_GeneratorType[] = "generator.type";
-constexpr char LlmConfigKey_WhisperLang[] = "whisper.language";
 constexpr char LlmConfigValue_Sampler[] = "sampler";
-constexpr char LlmConfigValue_Whisper[] = "whisper";
 
 struct llm_model_impl_t {
   std::shared_ptr<ModelForGeneration> model;
@@ -61,14 +54,6 @@ struct llm_completion_impl_t {
 
 struct llm_json_impl_t {
   json jsonObject;
-};
-
-struct llm_asr_model_impl_t {
-  std::shared_ptr<WhisperModel> model;
-};
-
-struct llm_asr_recognition_impl_t {
-  std::shared_ptr<WhisperDecoder> decoder;
 };
 
 namespace libllm {
@@ -363,109 +348,5 @@ int32_t llm_json_dump(llm_json_t *j, char *buf, int64_t buf_size) {
   }
 
   snprintf(buf, buf_size, "%s", jsonStr.c_str());
-  return 0;
-}
-
-int32_t llm_asr_model_init(llm_asr_model_t *m) {
-  *m = new llm_asr_model_impl_t();
-  return 0;
-}
-
-int32_t llm_asr_model_load(llm_asr_model_t *m, llm_json_t *options) {
-  if (!m) return llmErrorSetInvalidArg("m");
-  if (!options) return llmErrorSetInvalidArg("options");
-
-  try {
-    json object = (*options)->jsonObject;
-    checkJsonKeys(object, {{"filename", true}, {"device", true}});
-
-    std::shared_ptr<lut::ZipFile> package = lut::ZipFile::fromFile(object["filename"]);
-    fl::Device device = parseDevice(object["device"]);
-
-    fl::Context ctx = Context().withName("whisper");
-    ctx.setDevice(device);
-    ctx.setFloatDType(fl::F::getDefaultFloatType(device));
-    std::shared_ptr<WhisperModel> whisperModel = WhisperModel::fromPackage(ctx, package.get());
-
-    (*m)->model = whisperModel;
-  } catch (std::exception &e) {
-    return llmErrorSetAborted(e.what());
-  }
-
-  return 0;
-}
-
-int32_t llm_asr_model_destroy(llm_asr_model_t *m) {
-  delete *m;
-  *m = nullptr;
-
-  return 0;
-}
-
-int32_t llm_asr_recognition_init(llm_asr_recognition_t *r) {
-  *r = new llm_asr_recognition_impl_t();
-  return 0;
-}
-
-int32_t llm_asr_recognition_destroy(llm_asr_recognition_t *r) {
-  delete *r;
-  *r = nullptr;
-
-  return 0;
-}
-
-int32_t llm_asr_recognize_media_file(
-    llm_asr_model_t *model,
-    llm_json_t *options,
-    llm_asr_recognition_t *recognition) {
-  if (!recognition) return llmErrorSetInvalidArg("r");
-  if ((!model) || !(*model)->model) return llmErrorSetInvalidArg("model");
-  if (!options) return llmErrorSetInvalidArg("options");
-
-  try {
-    std::string mediaFile;
-    json object = (*options)->jsonObject;
-    for (auto &[key, value] : object.items()) {
-      if (key == "media_file") {
-        mediaFile = value;
-      } else {
-        throw lut::AbortedError("invalid key in options: " + key);
-      }
-    }
-
-    std::shared_ptr<WaveStream> stream = FFmpegWaveStream::open(mediaFile);
-    std::shared_ptr<WhisperModel> whisperModel = (*model)->model;
-    std::shared_ptr<Wave> wave = std::make_shared<Wave>(stream);
-    std::shared_ptr<WhisperDecoder> decoder = WhisperDecoder::create(whisperModel, wave);
-
-    (*recognition)->decoder = decoder;
-  } catch (std::exception &e) {
-    return llmErrorSetAborted(e.what());
-  }
-
-  return 0;
-}
-
-int32_t llm_asr_recognition_get_next_result(llm_asr_recognition_t *r, llm_json_t *result) {
-  if ((!r) || !(*r)->decoder) return llmErrorSetInvalidArg("r");
-  if (!result) return llmErrorSetInvalidArg("result");
-
-  try {
-    std::optional<RecognitionResult> recoResult = (*r)->decoder->nextResult();
-    if (recoResult) {
-      json resultJson;
-      resultJson["text"] = recoResult->text;
-      resultJson["language"] = recoResult->language;
-      resultJson["begin"] = recoResult->begin.totalNanoseconds() / 1000000;
-      resultJson["end"] = recoResult->end.totalNanoseconds() / 1000000;
-
-      (*result)->jsonObject = resultJson;
-    } else {
-      return llmErrorSetEOF();
-    }
-  } catch (std::exception &e) {
-    return llmErrorSetAborted(e.what());
-  }
-
   return 0;
 }
