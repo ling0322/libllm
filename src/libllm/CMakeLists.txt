@@ -5,9 +5,7 @@ endif()
 
 
 set(libllm_SOURCES
-    "bpe_config.cc"
-    "bpe_encoder.cc"
-    "bpe_model.cc"
+    "bpe.cc"
     "generator.cc"
     "kv_cache.cc"
     "layers.cc"

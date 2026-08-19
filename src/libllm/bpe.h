@@ -19,12 +19,39 @@
 
 #pragma once
 
+#include <array>
+#include <memory>
+#include <queue>
+#include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "libllm/vocab.h"
+#include "lutil/ini_config.h"
+#include "lutil/noncopyable.h"
+#include "lutil/pool.h"
 #include "lutil/reader.h"
 
 namespace libllm {
+
+// config for BPE tokenizer.
+struct BPEConfig {
+  // path of the BPE model.
+  std::string modelFile;
+
+  // true if add a space into the begining of text.
+  bool addPrefixSpace;
+
+  // true if split by unicode characters before merging. false if split by byte.
+  bool splitByUnicode;
+
+  // create the BPE config from ini config.
+  static BPEConfig fromIni(const lut::IniSection &config);
+
+  // contructor for the default config.
+  BPEConfig();
+};
 
 // Store tne data from sentence-piece BPE model.
 class BPEModel : public Vocab, private lut::NonCopyable {
@@ -107,6 +134,69 @@ struct BPEModel::TokenInfo {
   constexpr bool isSpecialToken() const {
     return flag != 0;
   }
+};
+
+// String to BPE token-ids encoder.
+class BPEEncoder : private lut::NonCopyable {
+ public:
+  BPEEncoder(const BPEModel *model, const BPEConfig &config);
+
+  // encode string to token ids.
+  std::vector<int> encode(const std::string &s);
+
+ private:
+  static constexpr int kSymbolPoolBlockSize = 256;
+
+  // symbol linked list
+  struct Symbol {
+    Symbol *prev;
+    Symbol *next;
+    int tokenId;
+
+    bool valid() const {
+      return tokenId != Vocab::kInvalidToken;
+    }
+  };
+
+  struct Bigram {
+    Symbol *left;
+    Symbol *right;
+    float cost;
+    int mergedTokenId;
+
+    bool operator>(const Bigram &rhs) const {
+      return cost > rhs.cost;
+    }
+  };
+
+  const BPEModel *_model;
+  const BPEConfig *_config;
+  lut::Pool<Symbol, kSymbolPoolBlockSize> _symbolPool;
+  Symbol *_header;
+  std::priority_queue<Bigram, std::vector<Bigram>, std::greater<Bigram>> _queue;
+
+  // initialize the symbol linked list from string `s` and store the pointer of header node to
+  // `header_`.
+  void initSymbolList(const std::string &s);
+
+  // initialize the queue by putting all possible two-bytes bigram to queue
+  void initQueue();
+
+  // append a token to the tail of symbol linked-list. Returns the new tail pointer.
+  Symbol *appendToken(Symbol *tail, int token_id);
+
+  // split string `s` into a list of single-byte strings.
+  std::vector<std::string> splitBytes(const std::string &s);
+
+  // add bigram (left, right) to queue if token left+right exists
+  void addBigramIfExist(Symbol *left, Symbol *right);
+
+  // merge bigram (left, right) into one symbol, then clear original left and right symbols and
+  // return pointer to the merged one.
+  Symbol *mergeBigram(const Bigram &bigram);
+
+  // get the final symbol list from linked list pointered by header_
+  std::vector<int> getSymbolList();
 };
 
 }  // namespace libllm
