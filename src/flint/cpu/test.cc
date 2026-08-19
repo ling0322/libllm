@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "catch2/catch_amalgamated.hpp"
-#include "flint/context.h"
 #include "flint/cpu/common.h"
 #include "flint/functional.h"
 #include "flint/operator_tester.h"
@@ -101,8 +100,6 @@ int gemmTestShapes[][3] = {
 int gemvTestShapes[][2] = {{2, 8}, {50, 10}, {1, 1}, {1024, 3}, {0, 0}};
 
 CATCH_TEST_CASE("test embedding lookup", "[core][nn][operators]") {
-  Context ctx = Context::getCpu();
-
   Tensor wte = Tensor::create<float>(
       {5, 2},
       {
@@ -148,8 +145,6 @@ CATCH_TEST_CASE("test embedding lookup", "[core][nn][operators]") {
 }
 
 CATCH_TEST_CASE("test softmax", "[core][nn][operators]") {
-  Context ctx = Context::getCpu();
-
   Tensor input = Tensor::create<float>({3}, {0.1f, 0.2f, 0.3f});
   Tensor output = Tensor::create<float>({3}, {0.3006f, 0.3322f, 0.3672f});
   CATCH_REQUIRE(F::allClose(F::softmax(input), output));

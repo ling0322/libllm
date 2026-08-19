@@ -31,7 +31,7 @@ namespace libllm {
 constexpr char ModelForGeneration::ModelConfig[];
 
 std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
-    const fl::Context &fromCtx,
+    const fl::Device &device,
     lut::ZipFile *package) {
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(
       package->open(ModelConfig).get());
@@ -39,12 +39,11 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
   std::string modelType = ini->getSection(ModelSection).getString(ModelTypeField);
 
   LOG(INFO) << "model_type = " << modelType;
-  LOG(INFO) << "device = " << fromCtx.getDevice().getName();
+  LOG(INFO) << "device = " << device.getName();
 
-  fl::Context ctx = fromCtx.withName(modelType);
   std::shared_ptr<ModelForGeneration> model;
   if (modelType == "llama") {
-    model = llama::LlamaModelForGeneration::fromPackage(ctx, package);
+    model = llama::LlamaModelForGeneration::fromPackage(device, package);
   } else {
     throw lut::AbortedError(lut::sprintf("unexpected model type: %s", modelType));
   }

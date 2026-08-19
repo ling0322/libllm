@@ -24,17 +24,15 @@
 #include <memory>
 
 #include "libllm/constants.h"
+#include "libllm/layers.h"
 #include "libllm/model_for_generation.h"
 #include "lutil/error.h"
 #include "lutil/ini_config.h"
 #include "lutil/strings.h"
 #include "flint/functional.h"
-#include "flint/module.h"
 
 namespace libllm {
 namespace llama {
-
-constexpr char LlamaModel::RoPECtxKey[];
 
 // -----------------------------------------------------------------------------------------------+
 // class LlamaConfig                                                                              |
@@ -80,29 +78,15 @@ LlamaConfig LlamaConfig::loadConfig(const lut::IniSection &section) {
 // class MLP                                                                                      |
 // -----------------------------------------------------------------------------------------------+
 
-MLP::MLP()
-    : _hiddenSize(0),
-      _intermediateSize(0) {
-}
-
-std::shared_ptr<MLP> MLP::create(const fl::Context &ctx, const LlamaConfig &config) {
+std::shared_ptr<MLP> MLP::build(const LlamaConfig &config, const VarBuilder &vb) {
   std::shared_ptr<MLP> mlp{new MLP()};
-  mlp->setCtx(ctx);
-
-  mlp->_hiddenSize = config.hiddenSize;
-  mlp->_intermediateSize = config.intermediateSize;
 
   int d = config.hiddenSize;
   int di = config.intermediateSize;
-  mlp->_gateUpProj = fl::Linear::create(ctx.withName("gate_up_proj"), d, di * 2, false);
-  mlp->_downProj = fl::Linear::create(ctx.withName("down_proj"), di, d, false);
+  mlp->_gateUpProj = Linear::build(d, di * 2, false, vb.withName("gate_up_proj"));
+  mlp->_downProj = Linear::build(di, d, false, vb.withName("down_proj"));
 
   return mlp;
-}
-
-void MLP::initParameters(const fl::StateMap &stateDict) {
-  _gateUpProj->initParameters(stateDict);
-  _downProj->initParameters(stateDict);
 }
 
 fl::Tensor MLP::forward(fl::Tensor input) const {
@@ -121,14 +105,14 @@ Attention::Attention()
     : _hiddenSize(0),
       _numHead(0),
       _numKeyValueHead(0),
-      _headDim(0),
-      _maxCtxLen(0),
-      _hasProjBias(false) {
+      _headDim(0) {
 }
 
-std::shared_ptr<Attention> Attention::create(const fl::Context &ctx, const LlamaConfig &config) {
+std::shared_ptr<Attention> Attention::build(
+    const LlamaConfig &config,
+    const VarBuilder &vb,
+    fl::Tensor roPE) {
   std::shared_ptr<Attention> layer{new Attention()};
-  layer->setCtx(ctx);
 
   if (config.hiddenSize % config.numHeads != 0)
     throw lut::AbortedError("invalid hidden_size and num_heads");
@@ -138,35 +122,27 @@ std::shared_ptr<Attention> Attention::create(const fl::Context &ctx, const Llama
   layer->_numHead = config.numHeads;
   layer->_numKeyValueHead = config.numKeyValueHeads;
   layer->_headDim = headDim;
-  layer->_maxCtxLen = config.maxContextLength;
-  layer->_hasProjBias = config.qkvProjBias;
+  layer->_roPE = roPE;
 
-  layer->_namePastK = ctx.name("k");
-  layer->_namePastV = ctx.name("v");
-  layer->_namePastLen = ctx.name("len");
+  layer->_namePastK = vb.name("k");
+  layer->_namePastV = vb.name("v");
+  layer->_namePastLen = vb.name("len");
 
   int qkvProjDim = headDim * config.numKeyValueHeads * 2 + config.hiddenSize;
   int d = config.hiddenSize;
-  layer->_qkvProj = fl::Linear::create(ctx.withName("qkv_proj"), d, qkvProjDim, config.qkvProjBias);
-  layer->_outProj = fl::Linear::create(ctx.withName("out_proj"), d, d, false);
+  layer->_qkvProj = Linear::build(
+      d,
+      qkvProjDim,
+      config.qkvProjBias,
+      vb.withName("qkv_proj"));
+  layer->_outProj = Linear::build(d, d, false, vb.withName("out_proj"));
 
   return layer;
 }
 
-void Attention::initParameters(const fl::StateMap &stateDict) {
-  const fl::Context &ctx = getCtx();
-
-  _qkvProj->initParameters(stateDict);
-  _outProj->initParameters(stateDict);
-
-  _roPE = stateDict.getTensor(ctx.get(LlamaModel::RoPECtxKey));
-  _roPE = _roPE.view({2, _maxCtxLen, 1, _headDim});
-  _roPE = moveAndCastFloat(_roPE, ctx);
-}
-
-int Attention::getCtxLength(const fl::StateMap &past) const {
-  if (past.hasValue<int>(_namePastLen)) {
-    return past.getValue<int>(_namePastLen);
+int Attention::getCtxLength(const KVCache &past) const {
+  if (past.hasValue(_namePastLen)) {
+    return past.getValue(_namePastLen);
   } else {
     return 0;
   }
@@ -199,7 +175,7 @@ fl::Tensor Attention::applyRoPE(fl::Tensor input, fl::Tensor roPE) const {
       fl::F::mul(rotateHalf(input), fl::F::contiguous(sin)));
 }
 
-fl::Tensor Attention::forward(fl::StateMap &past, fl::Tensor input) const {
+fl::Tensor Attention::forward(KVCache &past, fl::Tensor input) const {
   CHECK(input.getDim() == 3);
   fl::Tensor qkv = _qkvProj->forward(input);
 
@@ -213,7 +189,7 @@ fl::Tensor Attention::forward(fl::StateMap &past, fl::Tensor input) const {
   int qLen = qkv.getShape(1);
   int kvLen = qLen + getCtxLength(past);
 
-  past.putValue<int>(_namePastLen, kvLen);
+  past.putValue(_namePastLen, kvLen);
 
   q = q.view({N, qLen, _numHead, _headDim});
   k = k.view({N, qLen, _numKeyValueHead, _headDim});
@@ -252,34 +228,27 @@ fl::Tensor Attention::forward(fl::StateMap &past, fl::Tensor input) const {
 // class DecodeLayer                                                                              |
 // -----------------------------------------------------------------------------------------------+
 
-std::shared_ptr<DecodeLayer> DecodeLayer::create(
-    const fl::Context &ctx,
-    const LlamaConfig &config) {
+std::shared_ptr<DecodeLayer> DecodeLayer::build(
+    const LlamaConfig &config,
+    const VarBuilder &vb,
+    fl::Tensor roPE) {
   std::shared_ptr<DecodeLayer> layer{new DecodeLayer()};
-  layer->setCtx(ctx);
 
-  layer->_attn = Attention::create(ctx.withName("attn"), config);
-  layer->_mlp = MLP::create(ctx.withName("mlp"), config);
-  layer->_inputNorm = fl::RMSNorm::create(
-      ctx.withName("input_norm"),
+  layer->_attn = Attention::build(config, vb.withName("attn"), roPE);
+  layer->_mlp = MLP::build(config, vb.withName("mlp"));
+  layer->_inputNorm = RMSNorm::build(
       config.hiddenSize,
-      config.normEps);
-  layer->_postAttnNorm = fl::RMSNorm::create(
-      ctx.withName("post_attn_norm"),
+      config.normEps,
+      vb.withName("input_norm"));
+  layer->_postAttnNorm = RMSNorm::build(
       config.hiddenSize,
-      config.normEps);
+      config.normEps,
+      vb.withName("post_attn_norm"));
 
   return layer;
 }
 
-void DecodeLayer::initParameters(const fl::StateMap &stateDict) {
-  _attn->initParameters(stateDict);
-  _mlp->initParameters(stateDict);
-  _inputNorm->initParameters(stateDict);
-  _postAttnNorm->initParameters(stateDict);
-}
-
-fl::Tensor DecodeLayer::forward(fl::StateMap &past, fl::Tensor input) const {
+fl::Tensor DecodeLayer::forward(KVCache &past, fl::Tensor input) const {
   fl::Tensor residual = input;
 
   // norm + attn
@@ -301,37 +270,28 @@ fl::Tensor DecodeLayer::forward(fl::StateMap &past, fl::Tensor input) const {
 // class LlamaModel                                                                               |
 // -----------------------------------------------------------------------------------------------+
 
-std::shared_ptr<LlamaModel> LlamaModel::create(const fl::Context &fromCtx, LlamaConfig config) {
+std::shared_ptr<LlamaModel> LlamaModel::build(const LlamaConfig &config, const VarBuilder &vb) {
   std::shared_ptr<LlamaModel> model{new LlamaModel()};
 
-  fl::Context ctx = fromCtx;
-  ctx.set(RoPECtxKey, ctx.name("rope"));
-  model->setCtx(ctx);
-
   int dh = config.hiddenSize;
+  int headDim = config.hiddenSize / config.numHeads;
   model->_config = config;
-  model->_embedding = fl::Embedding::create(ctx.withName("embd"), dh, config.vocabSize);
-  model->_norm = fl::RMSNorm::create(ctx.withName("norm"), dh, config.normEps);
+  model->_embedding = Embedding::build(dh, config.vocabSize, vb.withName("embd"));
+  model->_norm = RMSNorm::build(dh, config.normEps, vb.withName("norm"));
+
+  fl::Tensor roPE = vb.get("rope", {2, 1, config.maxContextLength, headDim});
+  roPE = roPE.view({2, config.maxContextLength, 1, headDim});
+
   for (int i = 0; i < config.numLayers; ++i) {
     model->_layers.emplace_back(
-        DecodeLayer::create(ctx.withName(lut::sprintf("block%d", i)), config));
+        DecodeLayer::build(config, vb.withName(lut::sprintf("block%d", i)), roPE));
   }
 
-  model->_outProj = fl::Linear::create(ctx.withName("out_proj"), dh, config.vocabSize, false);
+  model->_outProj = Linear::build(dh, config.vocabSize, false, vb.withName("out_proj"));
   return model;
 }
 
-void LlamaModel::initParameters(const fl::StateMap &stateDict) {
-  _embedding->initParameters(stateDict);
-  _norm->initParameters(stateDict);
-  _outProj->initParameters(stateDict);
-
-  for (int i = 0; i < _config.numLayers; ++i) {
-    _layers[i]->initParameters(stateDict);
-  }
-}
-
-fl::Tensor LlamaModel::forward(fl::StateMap &past, fl::Tensor input) const {
+fl::Tensor LlamaModel::forward(KVCache &past, fl::Tensor input) const {
   fl::Tensor x = _embedding->forward(input);
 
   for (int i = 0; i < _config.numLayers; ++i) {
@@ -360,7 +320,7 @@ LlamaModelForGeneration::LlamaModelForGeneration()
 }
 
 std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
-    const fl::Context &ctx,
+    const fl::Device &device,
     lut::ZipFile *package) {
   std::shared_ptr<lut::Reader> reader = package->open(ModelConfig);
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(reader.get());
@@ -373,11 +333,12 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
   std::shared_ptr<LlamaModelForGeneration> model{new LlamaModelForGeneration()};
   LlamaConfig llamaConfig = LlamaConfig::loadConfig(llamaIni);
 
-  fl::StateMap stateMap;
-
-  stateMap.read(package->open(modelFile).get());
-  model->_model = LlamaModel::create(ctx, llamaConfig);
-  model->_model->initParameters(stateMap);
+  VarBuilder vb = VarBuilder::fromStream(
+      package->open(modelFile).get(),
+      device,
+      fl::F::getDefaultFloatType(device));
+  model->_model = LlamaModel::build(llamaConfig, vb.withName(modelType));
+  model->_device = device;
   model->_eotId = llamaIni.getInt("eot_token_id");
   model->_modelName = modelType;
 
@@ -385,7 +346,7 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
   return model;
 }
 
-fl::Tensor LlamaModelForGeneration::prefill(fl::StateMap &past, const Prompt &prompt) const {
+fl::Tensor LlamaModelForGeneration::prefill(KVCache &past, const Prompt &prompt) const {
   fl::Tensor x = _model->forward(past, buildInput(prompt));
   CHECK(x.getDim() == 3);
 
@@ -395,7 +356,7 @@ fl::Tensor LlamaModelForGeneration::prefill(fl::StateMap &past, const Prompt &pr
   return x;
 }
 
-fl::Tensor LlamaModelForGeneration::decode(fl::StateMap &past, fl::LongType inputToken) const {
+fl::Tensor LlamaModelForGeneration::decode(KVCache &past, fl::LongType inputToken) const {
   std::array<fl::LongType, 1> inputData{inputToken};
   fl::Tensor inputs = fl::Tensor::create<fl::LongType>({1, 1}, inputData);
   inputs = fl::F::to(getDevice(), inputs);
@@ -422,7 +383,7 @@ fl::Tensor LlamaModelForGeneration::buildInput(const Prompt &prompt) const {
 
   int len = inputData.size();
   fl::Tensor inputs = fl::Tensor::create<fl::LongType>({1, len}, inputData);
-  inputs = fl::F::to(_model->getCtx().getDevice(), inputs);
+  inputs = fl::F::to(_device, inputs);
   return inputs;
 }
 
@@ -435,7 +396,7 @@ const char *LlamaModelForGeneration::getName() const {
 }
 
 fl::Device LlamaModelForGeneration::getDevice() const {
-  return _model->getCtx().getDevice();
+  return _device;
 }
 
 int LlamaModelForGeneration::getOutputDim() const {

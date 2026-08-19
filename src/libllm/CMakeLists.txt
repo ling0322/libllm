@@ -9,11 +9,14 @@ set(libllm_SOURCES
     "bpe_encoder.cc"
     "bpe_model.cc"
     "generator.cc"
+    "kv_cache.cc"
+    "layers.cc"
     "llama.cc"
     "llm.cc"
     "model_for_generation.cc"
     "prompt.cc"
-    "tokenizer.cc")
+    "tokenizer.cc"
+    "var_builder.cc")
 
 set(libllm_INCDIR ".." "../../third_party")
 

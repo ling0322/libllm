@@ -22,16 +22,15 @@
 #include <memory>
 #include <string>
 
+#include "libllm/kv_cache.h"
 #include "libllm/model_for_generation.h"
 #include "libllm/prompt.h"
 #include "lutil/error.h"
 #include "lutil/flags.h"
 #include "lutil/time.h"
 #include "lutil/zip_file.h"
-#include "flint/context.h"
 #include "flint/functional.h"
 #include "flint/operators.h"
-#include "flint/state_map.h"
 
 constexpr double MaxWait = 10;
 
@@ -54,13 +53,13 @@ float benchmarkPrefill(
     const std::shared_ptr<ModelForGeneration> &model,
     const Prompt &prompt,
     int promptTokenCount) {
-  fl::StateMap past;
+  KVCache past;
   model->prefill(past, prompt);
 
   double start = lut::now();
   int loops = 0;
   while (lut::now() - start < MaxWait) {
-    fl::StateMap loopPast;
+    KVCache loopPast;
     model->prefill(loopPast, prompt);
     ++loops;
   }
@@ -69,16 +68,16 @@ float benchmarkPrefill(
 }
 
 float benchmarkDecode(const std::shared_ptr<ModelForGeneration> &model, const Prompt &prompt) {
-  fl::StateMap past;
+  KVCache past;
   model->prefill(past, prompt);
 
-  fl::StateMap warmupPast = past.clone();
+  KVCache warmupPast = past.clone();
   model->decode(warmupPast, 0);
 
   double start = lut::now();
   int loops = 0;
   while (lut::now() - start < MaxWait) {
-    fl::StateMap loopPast = past.clone();
+    KVCache loopPast = past.clone();
     model->decode(loopPast, 0);
     ++loops;
   }
@@ -89,12 +88,10 @@ float benchmarkDecode(const std::shared_ptr<ModelForGeneration> &model, const Pr
 int benchmarkMain(fl::Device device, const std::string &modelPath, int promptRepeatCount) {
   fl::initOperators();
 
-  fl::Context ctx;
-  ctx.setDevice(device);
-  ctx.setFloatDType(fl::F::getDefaultFloatType(device));
-
   std::shared_ptr<lut::ZipFile> package = lut::ZipFile::fromFile(modelPath);
-  std::shared_ptr<ModelForGeneration> model = ModelForGeneration::fromPackage(ctx, package.get());
+  std::shared_ptr<ModelForGeneration> model = ModelForGeneration::fromPackage(
+      device,
+      package.get());
   Prompt prompt = makePrompt(promptRepeatCount);
   int promptTokenCount = model->getPromptTokenCount(prompt);
 

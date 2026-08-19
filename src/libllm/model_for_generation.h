@@ -22,8 +22,8 @@
 #include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
 #include "lutil/zip_file.h"
-#include "flint/context.h"
-#include "flint/state_map.h"
+#include "flint/device.h"
+#include "libllm/kv_cache.h"
 #include "flint/tensor.h"
 
 namespace libllm {
@@ -49,24 +49,24 @@ class ModelForGeneration {
 
   // Cretae instance of ModelForGeneration from local package file (.llmpkg).
   static std::shared_ptr<ModelForGeneration> fromPackage(
-      const fl::Context &ctx,
+      const fl::Device &device,
       lut::ZipFile *package);
 
   virtual ~ModelForGeneration() = default;
 
   /// @brief Used in the prefill phase. Forward the input prompt through this language model, update
   /// the `past` state and return the logits for the next token.
-  /// @param past (StateMap): key-value cache.
+  /// @param past (KVCache): key-value cache.
   /// @param prompt (Prompt): the input prompt for prefill.
   /// @return  <float>(N, 1, V): hidden state from last layer.
-  virtual fl::Tensor prefill(fl::StateMap &past, const Prompt &prompt) const = 0;
+  virtual fl::Tensor prefill(KVCache &past, const Prompt &prompt) const = 0;
 
   /// @brief Used in the decodeing phase. Forward input token ids through this language model,
   /// update the `past` state and return the logits for the next token.
-  /// @param past (StateMap): key-value cache.
+  /// @param past (KVCache): key-value cache.
   /// @param inputToken (LongType): the input token.
   /// @return  <float>(N, 1, V): hidden state from last layer.
-  virtual fl::Tensor decode(fl::StateMap &past, fl::LongType inputToken) const = 0;
+  virtual fl::Tensor decode(KVCache &past, fl::LongType inputToken) const = 0;
 
   /// @brief Return true if tokenId is a stop token. (stop generating texts)
   /// @param tokenId the token id.

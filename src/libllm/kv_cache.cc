@@ -17,12 +17,53 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <array>
+#include "libllm/kv_cache.h"
 
-#include "catch2/catch_amalgamated.hpp"
-#include "lutil/random.h"
-#include "lutil/span.h"
-#include "flint/operators.h"
-#include "flint/tensor.h"
+#include "lutil/error.h"
+#include "lutil/strings.h"
 
-namespace fl {}  // namespace fl
+namespace libllm {
+
+KVCache KVCache::clone() const {
+  KVCache cache;
+  cache._dict = _dict;
+  cache._intDict = _intDict;
+
+  return cache;
+}
+
+fl::Tensor KVCache::getTensor(const std::string &name) const {
+  auto it = _dict.find(name);
+  if (it == _dict.end()) {
+    throw lut::AbortedError(lut::sprintf("tensor \"%s\" not found in kv cache.", name));
+  }
+
+  return it->second;
+}
+
+void KVCache::putTensor(const std::string &name, fl::Tensor tensor) {
+  _dict[name] = tensor;
+}
+
+bool KVCache::hasTensor(const std::string &name) const {
+  return _dict.find(name) != _dict.end();
+}
+
+int KVCache::getValue(const std::string &name) const {
+  auto it = _intDict.find(name);
+  if (it == _intDict.end()) {
+    throw lut::AbortedError(lut::sprintf("value \"%s\" not found in kv cache.", name));
+  }
+
+  return it->second;
+}
+
+void KVCache::putValue(const std::string &name, int value) {
+  _intDict[name] = value;
+}
+
+bool KVCache::hasValue(const std::string &name) const {
+  return _intDict.find(name) != _intDict.end();
+}
+
+}  // namespace libllm
