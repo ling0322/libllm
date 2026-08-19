@@ -21,7 +21,6 @@
 
 #include "flint/cpu/accessor.h"
 #include "flint/cpu/tensor.h"
-#include "flint/mp.h"
 #include "flint/tensor.h"
 
 namespace fl {
@@ -37,9 +36,11 @@ void repetitionPenalty2DKernel(Tensor logits, Tensor history, float weight) {
   TensorList<const LongType, 1> vH = TensorList<const LongType, 1>::fromTensor(history);
   CHECK(vA.getLength() == vH.getLength());
 
-  MP::parallelFor(vA.getLength(), [&vA, &vH, weight](MP::Context ctx) {
-    TensorAccessor<T, 1> a = vA.getTensor(ctx.getBlockIdx());
-    TensorAccessor<const LongType, 1> h = vH.getTensor(ctx.getBlockIdx());
+  int numRows = vA.getLength();
+#pragma omp parallel for schedule(dynamic, 1)
+  for (int j = 0; j < numRows; ++j) {
+    TensorAccessor<T, 1> a = vA.getTensor(j);
+    TensorAccessor<const LongType, 1> h = vH.getTensor(j);
 
     // gather. Avoid the same logit penalizing twice.
     std::vector<T> scores(h.getShape(0));
@@ -62,7 +63,7 @@ void repetitionPenalty2DKernel(Tensor logits, Tensor history, float weight) {
       LongType logitsIdx = h[i];
       a[logitsIdx] = scores[i];
     };
-  });
+  }
 }
 
 void repetitionPenalty(Tensor logits, Tensor history, float weight) {

@@ -22,7 +22,6 @@
 #include "flint/cpu/accessor.h"
 #include "flint/cpu/common.h"
 #include "flint/cpu/tensor.h"
-#include "flint/mp.h"
 #include "flint/tensor.h"
 
 namespace fl {
@@ -32,13 +31,15 @@ namespace cpu {
 template<typename T>
 void fillKernel(Tensor A, float value) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(A);
-  MP::parallelFor(vC.getLength(), [&vC, value](MP::Context ctx) {
-    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
+  int numRows = vC.getLength();
+#pragma omp parallel for schedule(dynamic, 1)
+  for (int j = 0; j < numRows; ++j) {
+    TensorAccessor<T, 1> c = vC.getTensor(j);
 
     for (int i = 0; i < c.getShape(0); ++i) {
       c[i] = value;
     }
-  });
+  }
 }
 
 void fill(Tensor src, float value) {

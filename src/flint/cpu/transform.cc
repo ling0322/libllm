@@ -22,7 +22,6 @@
 #include "flint/cpu/accessor.h"
 #include "flint/cpu/common.h"
 #include "flint/cpu/tensor.h"
-#include "flint/mp.h"
 #include "flint/tensor.h"
 
 namespace fl {
@@ -37,14 +36,16 @@ Tensor transformKernel(const Tensor &A, float alpha, float beta) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
-  MP::parallelFor(vA.getLength(), [&vA, &vC, alpha, beta](MP::Context ctx) {
-    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
-    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
+  int numRows = vA.getLength();
+#pragma omp parallel for schedule(dynamic, 1)
+  for (int j = 0; j < numRows; ++j) {
+    TensorAccessor<const T, 1> a = vA.getTensor(j);
+    TensorAccessor<T, 1> c = vC.getTensor(j);
 
     for (int i = 0; i < a.getShape(0); ++i) {
       c[i] = a[i] * static_cast<T>(alpha) + static_cast<T>(beta);
     }
-  });
+  }
 
   return C;
 }

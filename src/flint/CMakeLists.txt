@@ -32,7 +32,6 @@ set(flint_SOURCES
     "dtype.cc"
     "functional.cc"
     "module.cc"
-    "mp.cc"
     "operators.cc"
     "state_map.cc"
     "tensor.cc"
@@ -47,16 +46,16 @@ set(flint_test_SOURCES
     "operator_tester.cc"
     "tensor_test.cc")
 
+set(flint_benchmark_SOURCES
+    "cpu/benchmark.cc")
+
 set(flint_INCDIR ".." "../../third_party")
 
 if(WITH_OPENMP)
     if(NOT OPENMP_FOUND)
         message(FATAL_ERROR "WITH_OPENMP=ON build OpenMP package not found.")
     endif()
-    set(flint_SOURCES ${flint_SOURCES} "mp_openmp.cc")
     set(flint_INCDIR ${flint_INCDIR} ${OpenMP_CXX_INCLUDE_DIRS})
-else()
-    set(flint_SOURCES ${flint_SOURCES} "mp_thread_pool.cc")
 endif()
 
 if (WITH_CUDA)
@@ -94,7 +93,7 @@ if (WITH_CUDA)
     endif()
 
     set(flint_test_SOURCES ${flint_test_SOURCES} "cuda/test.cc")
-    set(flint_benchmark_SOURCES "cuda/benchmark.cc")
+    set(flint_benchmark_SOURCES ${flint_benchmark_SOURCES} "cuda/benchmark.cc")
 
     if (WITH_CUTLASS)
         set(flint_SOURCES ${flint_SOURCES}
@@ -155,7 +154,5 @@ target_include_directories(flint_static PRIVATE ${flint_INCDIR})
 add_library(flint_test OBJECT ${flint_test_SOURCES})
 target_include_directories(flint_test PRIVATE ${flint_INCDIR})
 
-if(WITH_CUDA)
-    add_library(flint_benchmark OBJECT ${flint_benchmark_SOURCES})
-    target_include_directories(flint_benchmark PRIVATE ${flint_INCDIR})
-endif()
+add_library(flint_benchmark OBJECT ${flint_benchmark_SOURCES})
+target_include_directories(flint_benchmark PRIVATE ${flint_INCDIR})

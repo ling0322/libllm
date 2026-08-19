@@ -22,6 +22,10 @@
 #include <math.h>
 #include <string.h>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #include <algorithm>
 
 #include "lutil/half.h"
@@ -30,7 +34,6 @@
 #include "flint/cpu/cast.h"
 #include "flint/cpu/common.h"
 #include "flint/cpu/tensor.h"
-#include "flint/mp.h"
 #include "flint/tensor.h"
 
 namespace fl {
@@ -47,21 +50,29 @@ Tensor randFp32(lut::Span<const int> shape, lut::Random *generator, float min, f
     // if no generator specified, we could go parallel.
     std::vector<lut::Random> rs;
     lut::Random rseed;
-    for (int i = 0; i < MP::getMaxThreads(); ++i) {
+    int numThreads = 1;
+#ifdef _OPENMP
+    numThreads = omp_get_max_threads();
+#endif
+    for (int i = 0; i < numThreads; ++i) {
       rs.emplace_back(rseed.nextInt());
     }
 
     int blockSize = 1024;
     int nb = static_cast<int>((tensorData.size() + blockSize - 1) / blockSize);
-    MP::parallelFor(nb, [&tensorData, &rs, min, max, blockSize](MP::Context ctx) {
-      int64_t b = ctx.getBlockIdx();
-      int64_t begin = b * blockSize;
-      int64_t end = std::min(b * blockSize + blockSize, static_cast<int64_t>(tensorData.size()));
-      for (int i = begin; i < end; ++i) {
-        float nextR = rs[ctx.getAttachedThreadIdx()].nextFloat();
+#pragma omp parallel for schedule(dynamic, 1)
+    for (int b = 0; b < nb; ++b) {
+      int threadIdx = 0;
+#ifdef _OPENMP
+      threadIdx = omp_get_thread_num();
+#endif
+      int64_t begin = static_cast<int64_t>(b) * blockSize;
+      int64_t end = std::min(begin + blockSize, static_cast<int64_t>(tensorData.size()));
+      for (int64_t i = begin; i < end; ++i) {
+        float nextR = rs[threadIdx].nextFloat();
         tensorData[i] = min + (max - min) * nextR;
       }
-    });
+    }
   }
 
   return x;

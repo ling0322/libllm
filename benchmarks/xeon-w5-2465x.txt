@@ -1,0 +1,51 @@
+INFO 2026-08-18T23:55:48Z interface.cc:67] ISA support: AVX2=1 F16C=1 AVX512F=1
+INFO 2026-08-18T23:55:48Z interface.cc:71] Use Avx512 backend.
+INFO 2026-08-18T23:55:48Z operators.cc:245] OMP max_threads = 32
+INFO 2026-08-18T23:55:48Z matmul.cc:45] Use GEMM from cuBLAS.
+INFO 2026-08-18T23:55:48Z cuda_operators.cc:85] cuda numDevices = 1
+INFO 2026-08-18T23:55:48Z cuda_operators.cc:86] cuda:0 maxThreadsPerMultiProcessor = 1536
+INFO 2026-08-18T23:55:48Z cuda_operators.cc:88] cuda:0 multiProcessorCount = 36
+Filters: [cpu] [llama32-3b]
+Randomness seeded to: 1184961337
+
+Llama 3.2 3B projection benchmarks (FP32, 32 threads)
+decode-1 qkv_proj                                 0.297 ms    105.90 GFLOP/s
+decode-1 out_proj                                 0.233 ms     80.95 GFLOP/s
+decode-1 gate_up_proj                             2.963 ms     33.97 GFLOP/s
+decode-1 down_proj                                1.080 ms     46.61 GFLOP/s
+prefill-128 qkv_proj                              3.413 ms   1179.69 GFLOP/s
+prefill-128 out_proj                              1.845 ms   1309.30 GFLOP/s
+prefill-128 gate_up_proj                         11.331 ms   1137.11 GFLOP/s
+prefill-128 down_proj                             7.791 ms    826.95 GFLOP/s
+prefill-512 qkv_proj                             14.889 ms   1081.75 GFLOP/s
+prefill-512 out_proj                              5.511 ms   1753.51 GFLOP/s
+prefill-512 gate_up_proj                         93.877 ms    549.01 GFLOP/s
+prefill-512 down_proj                            77.212 ms    333.76 GFLOP/s
+decode-1 lm_head                                 23.603 ms     33.39 GFLOP/s
+
+Llama 3.2 3B normalization and elementwise benchmarks (FP32)
+rms_norm [1,1,3072]                               0.013 ms
+swiglu [1,1,16384]                                0.051 ms
+residual_add [1,1,3072]                           0.007 ms
+rms_norm [1,128,3072]                             0.054 ms
+swiglu [1,128,16384]                              0.238 ms
+residual_add [1,128,3072]                         0.029 ms
+rms_norm [1,512,3072]                             0.184 ms
+swiglu [1,512,16384]                              0.759 ms
+residual_add [1,512,3072]                         0.093 ms
+
+Llama 3.2 3B attention benchmarks (FP32)
+attention [24,128,128,128]                        1.164 ms
+attention [24,512,512,128]                       33.523 ms
+attention [24,1,512,128]                          1.337 ms
+attention [24,1,2048,128]                        24.020 ms
+
+Llama 3.2 3B embedding and generation benchmarks (FP32)
+embedding_lookup [1,3072]                         0.000 ms
+embedding_lookup [128,3072]                       0.084 ms
+repetition_penalty [1,128256] history=32          0.794 ms
+softmax [1,128256]                                1.547 ms
+===============================================================================
+test cases: 1 | 1 passed
+assertions: - none -
+

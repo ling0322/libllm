@@ -22,7 +22,6 @@
 #include "flint/cpu/accessor.h"
 #include "flint/cpu/common.h"
 #include "flint/cpu/tensor.h"
-#include "flint/mp.h"
 
 namespace fl {
 namespace op {
@@ -34,12 +33,14 @@ void copyKernel(const Tensor &src, Tensor &dest) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(dest);
   CHECK(vA.getLength() == vC.getLength());
 
-  MP::parallelFor(vA.getLength(), [&vA, &vC](MP::Context ctx) {
-    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
-    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
+  int numRows = vA.getLength();
+#pragma omp parallel for schedule(dynamic, 1)
+  for (int j = 0; j < numRows; ++j) {
+    TensorAccessor<const T, 1> a = vA.getTensor(j);
+    TensorAccessor<T, 1> c = vC.getTensor(j);
 
     copyVector(c, a);
-  });
+  }
 }
 
 void copy(const Tensor &src, Tensor &dest) {
