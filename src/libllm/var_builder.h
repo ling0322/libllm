@@ -47,6 +47,9 @@ class VarBuilder {
   // mismatches `shape`.
   fl::Tensor get(const std::string &name, lut::Span<const int> shape) const;
 
+  // same as get(), but for tensors whose shape is not known by the caller.
+  fl::Tensor getUnchecked(const std::string &name) const;
+
   // return true if the tensor `name` exists in current namespace.
   bool has(const std::string &name) const;
 

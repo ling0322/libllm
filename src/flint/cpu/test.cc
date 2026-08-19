@@ -20,7 +20,6 @@
 #include "catch2/catch_amalgamated.hpp"
 #include "flint/cpu/common.h"
 #include "flint/functional.h"
-#include "flint/operator_tester.h"
 #include "flint/tensor.h"
 
 namespace fl {
@@ -153,6 +152,23 @@ CATCH_TEST_CASE("test softmax", "[core][nn][operators]") {
   input = Tensor::create<float>({3}, {0.1f, 0.2f, -inf});
   output = Tensor::create<float>({3}, {0.4750f, 0.5250f, 0.0f});
   CATCH_REQUIRE(F::allClose(F::softmax(input), output));
+}
+
+CATCH_TEST_CASE("test CPU reductions", "[core][nn][operators]") {
+  Tensor a = Tensor::create<float>({2, 3}, {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f});
+
+  CATCH_REQUIRE(F::allClose(F::sum(a), Tensor::create<float>({2}, {0.6f, 1.5f})));
+  CATCH_REQUIRE(F::allClose(F::max(a), Tensor::create<float>({2}, {0.3f, 0.6f})));
+}
+
+CATCH_TEST_CASE("test CPU tensor creation", "[core][nn][operators]") {
+  Tensor zeros = F::zeros({2, 3}, DType::kFloat);
+  CATCH_REQUIRE(F::allClose(zeros, Tensor::create<float>({2, 3}, {0, 0, 0, 0, 0, 0})));
+
+  Tensor filled = F::tensor({2, 3}, DType::kFloat);
+  F::fill(filled, 1.5f);
+  CATCH_REQUIRE(
+      F::allClose(filled, Tensor::create<float>({2, 3}, {1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f})));
 }
 
 #if defined(LUT_CPU_ARCH) && LUT_CPU_ARCH == LUT_AMD64

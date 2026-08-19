@@ -104,6 +104,13 @@ VarBuilder VarBuilder::withName(const std::string &name) const {
 }
 
 fl::Tensor VarBuilder::get(const std::string &name, lut::Span<const int> shape) const {
+  fl::Tensor tensor = getUnchecked(name);
+  tensor.throwIfInvalidShape(shape, this->name(name));
+
+  return tensor;
+}
+
+fl::Tensor VarBuilder::getUnchecked(const std::string &name) const {
   std::string fullName = this->name(name);
 
   auto it = _params->find(fullName);
@@ -111,10 +118,7 @@ fl::Tensor VarBuilder::get(const std::string &name, lut::Span<const int> shape) 
     throw lut::AbortedError(lut::sprintf("tensor \"%s\" not found in model.", fullName));
   }
 
-  fl::Tensor tensor = it->second;
-  tensor.throwIfInvalidShape(shape, fullName);
-
-  tensor = fl::F::to(_device, tensor);
+  fl::Tensor tensor = fl::F::to(_device, it->second);
   if (tensor.getDType().isFloat()) tensor = fl::F::cast(tensor, _floatType);
 
   return tensor;
