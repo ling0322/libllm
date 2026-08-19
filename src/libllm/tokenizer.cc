@@ -19,9 +19,7 @@
 
 #include "libllm/tokenizer.h"
 
-#include "libllm/bpe_config.h"
-#include "libllm/bpe_encoder.h"
-#include "libllm/bpe_model.h"
+#include "libllm/bpe.h"
 #include "lutil/error.h"
 #include "lutil/strings.h"
 
