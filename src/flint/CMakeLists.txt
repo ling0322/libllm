@@ -35,7 +35,6 @@ set(flint_SOURCES
     "operators.cc"
     "state_map.cc"
     "tensor.cc"
-    "tensor_shape.cc"
     "../../third_party/ruapu/ruapu.cc")
 
 set(flint_test_SOURCES

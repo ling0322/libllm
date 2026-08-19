@@ -30,15 +30,126 @@
 #include "flint/device.h"
 #include "flint/dtype.h"
 #include "flint/functional.h"
-#include "flint/tensor_data.h"
-#include "flint/tensor_shape.h"
 
 namespace fl {
 
-class TensorData;
 class Operators;
 
 constexpr int None = std::numeric_limits<int>::min();
+
+/// @brief holds the internal data of a Tensor.
+class TensorData {
+ public:
+  static constexpr int64_t MaxNumEl = 1073741824;
+
+  virtual ~TensorData() = default;
+
+  // get the device of tensor data.
+  virtual Device getDevice() const = 0;
+
+  // get the pointer of raw data
+  virtual std::byte *getRawData() const = 0;
+
+  /// @brief Get data pointer of n-th element in slot[0] as type `T`.
+  /// @tparam T the type of underlying data.
+  /// @param offset the offset `n`.
+  /// @return the pointer of type `T`.
+  template<typename T>
+  T *getData(int64_t offset) const {
+    DType dtype = getDType();
+    CHECK((std::is_same_v<T, void> || DType::getType<T>() == dtype));
+    return reinterpret_cast<T *>(getRawData() + dtype.getTotalSize(offset));
+  }
+
+  /// @brief Get data type from slot[0]
+  /// @return slot[0] data type.
+  DType getDType() const {
+    return _dtype;
+  }
+
+  /// @brief Get number of elements in slot[0]
+  /// @return number of elements in slot[0].
+  int64_t getNumEl() const {
+    return _numel;
+  }
+
+  /// @brief Get total size in bytes of slot[0]
+  /// @return slot[0] size in bytes.
+  int64_t getSizeInBytes() const {
+    return getDType().getTotalSize(getNumEl());
+  }
+
+ protected:
+  int64_t _numel;
+  DType _dtype;
+
+  TensorData()
+      : _numel(0),
+        _dtype(DType::kUnknown) {
+  }
+};
+
+// Stores shape and stride of a Tensor.
+class TensorShape {
+ public:
+  typedef int32_t ShapeType;
+  struct Elem {
+    ShapeType shape;
+    ShapeType stride;
+  };
+
+  // read tensor shape from file.
+  static std::shared_ptr<TensorShape> read(lut::Reader *fp);
+
+  // from shape.
+  TensorShape(lut::Span<const ShapeType> shape);
+  TensorShape(lut::Span<const Elem> shape);
+
+  TensorShape(const TensorShape &size);
+  TensorShape(TensorShape &&size) noexcept;
+  TensorShape &operator=(const TensorShape &size);
+  TensorShape &operator=(TensorShape &&size) noexcept;
+
+  bool empty() const;
+  int getDim() const;
+  ShapeType getShape(int index) const;
+  ShapeType getStride(int index) const;
+  int64_t getNumEl() const;
+
+  // Returns a sub-Size starting at specified dimension.
+  std::shared_ptr<TensorShape> subsize(int d) const;
+
+  // Returns a Size that is a transposed version of current size. The given
+  // dimensions dim0 and dim1 are swapped.
+  std::shared_ptr<TensorShape> transpose(int dim0, int dim1) const;
+
+  // add or remove one shape=1 dimension at specified dimension.
+  std::shared_ptr<TensorShape> unsqueeze(int dim) const;
+  std::shared_ptr<TensorShape> squeeze(int dim) const;
+
+  // set the value of shape(dim). Negative dim is allowed. new `shape` should be less or equal to
+  // current size.
+  void setShape(int dim, ShapeType shape);
+
+  // return a new shape that expand singleton dimensions to a larger size.
+  std::shared_ptr<TensorShape> expand(lut::Span<const int> shape) const;
+
+  // convert negative dimension or index (in specific `dim`) to positive.
+  int getRealDim(int dim) const;
+  int getRealIndex(int dim, int index) const;
+
+  lut::Span<const Elem> getData_() const {
+    return lut::makeConstSpan(_data);
+  }
+
+  std::string toString() const;
+
+ private:
+  lut::FixedArray<Elem> _data;
+
+  // an empty Tensor.
+  TensorShape() = default;
+};
 
 class Tensor {
  public:
@@ -136,30 +247,6 @@ class Tensor {
   std::shared_ptr<TensorShape> getInternalShape() const;
   std::shared_ptr<TensorData> getInternalData() const;
   int64_t getInternalOffset() const;
-
-  // ----------------- functional operators -----------------
-  static Tensor randn(lut::Span<const int> shape, Device device = Device::getCpu());
-  static Tensor arange(
-      LongType begin,
-      LongType end,
-      LongType step = 1,
-      Device device = Device::getCpu());
-  Tensor div(float rhs) const;
-  Tensor square() const;
-  Tensor sum(int dim = None) const;
-  Tensor mod(LongType rhs) const;
-  Tensor eq(const Tensor &rhs) const;
-  Tensor to(DType dtype) const;
-  Tensor operator==(const Tensor &rhs) const;
-  Tensor operator+(const Tensor &rhs) const;
-  Tensor operator-(const Tensor &rhs) const;
-  Tensor operator-(float rhs) const;
-  Tensor operator*(const Tensor &rhs) const;
-  Tensor operator*(float v) const;
-  Tensor operator[](int idx) const;
-
-  template<typename T>
-  T elem() const;
 
  protected:
   std::shared_ptr<TensorData> _data;

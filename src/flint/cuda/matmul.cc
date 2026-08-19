@@ -141,7 +141,7 @@ Tensor MatMul::matmulHalf(const Tensor &A, const Tensor &B) {
   CHECK(A.getDType() == B.getDType() && A.getDType() == DType::kFloat16);
   if (A.getDim() == 2 && B.getDim() == 2) {
     if (A.getShape(0) == 1 && A.getStride(1) == 1 && B.getStride(0) == 1) {
-      return gemvHalf(A[0], B);
+      return gemvHalf(A.subtensor(0), B);
     } else {
       return gemmHalf(A, B);
     }
