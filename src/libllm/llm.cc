@@ -19,7 +19,6 @@
 #include "lutil/log.h"
 #include "lutil/strings.h"
 #include "lutil/zip_file.h"
-#include "flint/context.h"
 #include "flint/dtype.h"
 #include "flint/functional.h"
 #include "flint/operators.h"
@@ -30,7 +29,6 @@ using libllm::ModelForGeneration;
 using libllm::Prompt;
 using libllm::Tokenizer;
 using lut::IniConfig;
-using fl::Context;
 using fl::LongType;
 using json = nlohmann::json;
 
@@ -225,10 +223,9 @@ int32_t llm_model_load(llm_model_t *m, llm_json_t *kwargs) {
       return llmErrorSetAborted("options.device undefined");
     }
 
-    fl::Context ctx;
-    ctx.setDevice(device);
-    ctx.setFloatDType(fl::F::getDefaultFloatType(device));
-    std::shared_ptr<ModelForGeneration> model = ModelForGeneration::fromPackage(ctx, package.get());
+    std::shared_ptr<ModelForGeneration> model = ModelForGeneration::fromPackage(
+        device,
+        package.get());
 
     (*m)->model = model;
   } catch (std::exception &e) {

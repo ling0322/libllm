@@ -71,7 +71,7 @@ class BaseGenerator : public Generator {
 
  protected:
   Prompt _prompt;
-  fl::StateMap _past;
+  KVCache _past;
   std::shared_ptr<ModelForGeneration> _model;
   int _currentToken;
 

@@ -21,60 +21,41 @@
 
 #include <string>
 #include <unordered_map>
-#include <utility>
 
-#include "lutil/reader.h"
 #include "flint/tensor.h"
 
-namespace fl {
+namespace libllm {
 
-// string -> Tensor dictioary. Usually used to store state-dict or kv-cache for a neural network.
-class StateMap {
+// the past key-value tensors of a generation session, as well as the past length of each attention
+// layer.
+class KVCache {
  public:
-  StateMap() = default;
-  ~StateMap();
+  KVCache() = default;
 
-  StateMap(StateMap &) = delete;
-  StateMap &operator=(StateMap &) = delete;
+  KVCache(const KVCache &) = delete;
+  KVCache &operator=(const KVCache &) = delete;
 
-  StateMap(StateMap &&rhs)
-      : _dict(std::move(rhs._dict)),
-        _intDict(std::move(rhs._intDict)) {
-  }
-  StateMap &operator=(StateMap &&rhs) {
-    _dict = std::move(rhs._dict);
-    _intDict = std::move(rhs._intDict);
+  KVCache(KVCache &&rhs) = default;
+  KVCache &operator=(KVCache &&rhs) = default;
 
-    return *this;
-  }
-
-  /// @brief Create a copy of current state map. It's only a shallow copy and the content of Tensor
+  /// @brief Create a copy of current cache. It's only a shallow copy and the content of Tensor
   /// will not be copied (original and copied Tensor still point to the same address of memory).
-  /// @return Copied StateMap.
-  StateMap clone() const;
-
-  /// @brief Read the state map from stream.
-  /// @param reader the stream.
-  void read(lut::Reader *reader);
+  /// @return Copied KVCache.
+  KVCache clone() const;
 
   // for tensors.
-  Tensor getTensor(const std::string &name) const;
-  void putTensor(const std::string &name, Tensor tensor);
+  fl::Tensor getTensor(const std::string &name) const;
+  void putTensor(const std::string &name, fl::Tensor tensor);
   bool hasTensor(const std::string &name) const;
 
-  // for numeric values. (currently, only int is supported)
-  template<typename T>
-  T getValue(const std::string &name) const;
-  template<typename T>
-  void putValue(const std::string &name, T value);
-  template<typename T>
+  // for lengths.
+  int getValue(const std::string &name) const;
+  void putValue(const std::string &name, int value);
   bool hasValue(const std::string &name) const;
 
  private:
-  std::unordered_map<std::string, Tensor> _dict;
+  std::unordered_map<std::string, fl::Tensor> _dict;
   std::unordered_map<std::string, int> _intDict;
-
-  std::pair<std::string, Tensor> readTensor(lut::Reader *fp) const;
 };
 
-}  // namespace fl
+}  // namespace libllm

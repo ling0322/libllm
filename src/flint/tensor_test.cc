@@ -20,7 +20,6 @@
 #include "flint/tensor.h"
 
 #include "../../third_party/catch2/catch_amalgamated.hpp"
-#include "flint/context.h"
 #include "flint/functional.h"
 
 namespace fl {

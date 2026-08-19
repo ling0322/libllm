@@ -17,7 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "flint/module.h"
+#include "libllm/layers.h"
 
 #include <math.h>
 
@@ -25,19 +25,7 @@
 #include "lutil/strings.h"
 #include "flint/functional.h"
 
-namespace fl {
-
-// -----------------------------------------------------------------------------------------------+
-//  Module                                                                                        |
-// -----------------------------------------------------------------------------------------------+
-
-Tensor Module::moveAndCastFloat(const Tensor &tensor, const Context &ctx) {
-  Tensor x = tensor;
-  x = F::to(ctx.getDevice(), x);
-
-  if (x.getDType().isFloat()) x = F::cast(x, ctx.getFloatDType());
-  return x;
-}
+namespace libllm {
 
 // -----------------------------------------------------------------------------------------------+
 //  Embedding                                                                                     |
@@ -45,26 +33,15 @@ Tensor Module::moveAndCastFloat(const Tensor &tensor, const Context &ctx) {
 
 constexpr char Embedding::kWeight[];
 
-std::unique_ptr<Embedding> Embedding::create(const Context &ctx, int dModel, int vocabSize) {
+std::unique_ptr<Embedding> Embedding::build(int dModel, int vocabSize, const VarBuilder &vb) {
   std::unique_ptr<Embedding> layer{new Embedding()};
-  layer->setCtx(ctx);
-
-  layer->_dModel = dModel;
-  layer->_vocabSize = vocabSize;
+  layer->_wte = vb.get(kWeight, {vocabSize, dModel});
 
   return layer;
 }
 
-void Embedding::initParameters(const StateMap &stateDict) {
-  std::string nameW = getCtx().name(kWeight);
-
-  _wte = stateDict.getTensor(nameW);
-  _wte.throwIfInvalidShape({_vocabSize, _dModel}, nameW);
-  _wte = moveAndCastFloat(_wte, getCtx());
-}
-
-Tensor Embedding::forward(const Tensor &input) const {
-  Tensor x = F::lookup(_wte, input);
+fl::Tensor Embedding::forward(const fl::Tensor &input) const {
+  fl::Tensor x = fl::F::lookup(_wte, input);
 
   return x;
 }
@@ -77,56 +54,38 @@ constexpr char Linear::kWeight[];
 constexpr char Linear::kBias[];
 
 Linear::Linear()
-    : _inDim(0),
-      _outDim(0),
-      _hasBias(true) {
+    : _hasBias(true) {
 }
 
-std::unique_ptr<Linear> Linear::create(const Context &ctx, int inDim, int outDim, bool hasBias) {
+std::unique_ptr<Linear> Linear::build(int inDim, int outDim, bool hasBias, const VarBuilder &vb) {
   if (inDim <= 0 || outDim <= 0) throw lut::AbortedError("invalid d_model");
 
   std::unique_ptr<Linear> linear{new Linear()};
-  linear->setCtx(ctx);
-  linear->_inDim = inDim;
-  linear->_outDim = outDim;
   linear->_hasBias = hasBias;
+  linear->_w = vb.get(kWeight, {outDim, inDim});
+
+  if (hasBias) {
+    linear->_b = vb.get(kBias, {outDim});
+  } else if (vb.has(kBias)) {
+    throw lut::AbortedError(
+        lut::sprintf(
+            "In module %s: hasBias=false but bias weight found in model.",
+            vb.name()));
+  }
+
   return linear;
 }
 
-void Linear::initParameters(const StateMap &stateDict) {
-  const Context &ctx = getCtx();
-
-  std::string nameW = getCtx().name(kWeight);
-  std::string nameB = ctx.name(kBias);
-
-  _w = stateDict.getTensor(nameW);
-  _w.throwIfInvalidShape({_outDim, _inDim}, nameW);
-  _w = moveAndCastFloat(_w, ctx);
-
-  if (_hasBias) {
-    _b = stateDict.getTensor(nameB);
-    _b.throwIfInvalidShape({_outDim}, nameB);
-    _b = moveAndCastFloat(_b, ctx);
-  } else {
-    if (stateDict.hasTensor(nameB)) {
-      throw lut::AbortedError(
-          lut::sprintf(
-              "In module %s: hasBias=false but bias weight found in state_map.",
-              ctx.name()));
-    }
-  }
-}
-
-Tensor Linear::forward(const Tensor &input) const {
-  Tensor x;
+fl::Tensor Linear::forward(const fl::Tensor &input) const {
+  fl::Tensor x;
   if (input.getDim() >= 2) {
-    x = F::matmul(input, _w.transpose(0, 1));
+    x = fl::F::matmul(input, _w.transpose(0, 1));
   } else {
     NOT_IMPL();
   }
 
   if (_hasBias) {
-    x = F::add(x, _b);
+    x = fl::F::add(x, _b);
   }
 
   return x;
@@ -138,28 +97,18 @@ Tensor Linear::forward(const Tensor &input) const {
 
 constexpr char RMSNorm::Weight[];
 
-std::unique_ptr<RMSNorm> RMSNorm::create(const Context &ctx, int dModel, float eps) {
+std::unique_ptr<RMSNorm> RMSNorm::build(int dModel, float eps, const VarBuilder &vb) {
   std::unique_ptr<RMSNorm> layer{new RMSNorm()};
-  layer->setCtx(ctx);
-
-  layer->_dModel = dModel;
   layer->_eps = eps;
+  layer->_weight = vb.get(Weight, {dModel});
 
   return layer;
 }
 
-void RMSNorm::initParameters(const StateMap &stateDict) {
-  std::string nameW = getCtx().name(Weight);
-
-  _weight = stateDict.getTensor(nameW);
-  _weight.throwIfInvalidShape({_dModel}, nameW);
-  _weight = moveAndCastFloat(_weight, getCtx());
-}
-
-Tensor RMSNorm::forward(const Tensor &input) const {
-  Tensor x = F::rmsNorm(input, _weight, _eps);
+fl::Tensor RMSNorm::forward(const fl::Tensor &input) const {
+  fl::Tensor x = fl::F::rmsNorm(input, _weight, _eps);
 
   return x;
 }
 
-}  // namespace fl
+}  // namespace libllm

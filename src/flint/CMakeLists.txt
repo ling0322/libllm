@@ -27,21 +27,18 @@ set(flint_SOURCES
     "cpu/tensor.cc"
     "cpu/transform.cc"
     "cpu/view.cc"
-    "context.cc"
     "device.cc"
     "dtype.cc"
     "functional.cc"
-    "module.cc"
     "operators.cc"
-    "state_map.cc"
     "tensor.cc"
+    "var_builder.cc"
     "../../third_party/ruapu/ruapu.cc")
 
 set(flint_test_SOURCES
     "cpu/kernel/benchmark.cc"
     "cpu/kernel/interface_test.cc"
     "cpu/test.cc"
-    "module_test.cc"
     "operator_tester.cc"
     "tensor_test.cc")
 

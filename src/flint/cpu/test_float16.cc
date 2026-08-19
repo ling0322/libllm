@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "catch2/catch_amalgamated.hpp"
-#include "flint/context.h"
 #include "flint/cpu/fingerprint.h"
 #include "flint/functional.h"
 #include "flint/operator_tester.h"
