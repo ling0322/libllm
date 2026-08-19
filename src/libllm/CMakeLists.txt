@@ -12,6 +12,7 @@ set(libllm_SOURCES
     "llama.cc"
     "llm.cc"
     "model_for_generation.cc"
+    "packed_batch.cc"
     "prompt.cc"
     "tokenizer.cc"
     "var_builder.cc")

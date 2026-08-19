@@ -25,6 +25,7 @@
 #include "libllm/kv_cache.h"
 #include "libllm/layers.h"
 #include "libllm/model_for_generation.h"
+#include "libllm/packed_batch.h"
 #include "lutil/error.h"
 #include "lutil/ini_config.h"
 #include "flint/functional.h"
@@ -69,7 +70,14 @@ class Attention {
       const VarBuilder &vb,
       fl::Tensor roPE);
 
-  fl::Tensor forward(KVCache &past, fl::Tensor input) const;
+  // `batch` describes how `input` decomposes into sequences. For today's callers it is always
+  // `PackedBatch::single(...)`, i.e. a single contiguous sequence; multi-sequence packing is
+  // wired up in a later phase.
+  fl::Tensor forward(KVCache &past, fl::Tensor input, const PackedBatch &batch) const;
+
+  // get past length of this attention layer. Exposed so callers building a `PackedBatch` for the
+  // single-sequence case know the correct starting rotary position.
+  int getCtxLength(const KVCache &past) const;
 
  private:
   std::shared_ptr<Linear> _qkvProj;
@@ -87,8 +95,6 @@ class Attention {
 
   Attention();
 
-  // get past length of this attention layer.
-  int getCtxLength(const KVCache &past) const;
   fl::Tensor applyRoPE(fl::Tensor x, fl::Tensor roPE) const;
   fl::Tensor rotateHalf(fl::Tensor x) const;
 };
@@ -100,7 +106,8 @@ class DecodeLayer {
       const VarBuilder &vb,
       fl::Tensor roPE);
 
-  fl::Tensor forward(KVCache &past, fl::Tensor input) const;
+  fl::Tensor forward(KVCache &past, fl::Tensor input, const PackedBatch &batch) const;
+  int getCtxLength(const KVCache &past) const;
 
  private:
   std::shared_ptr<RMSNorm> _inputNorm;
@@ -115,7 +122,10 @@ class LlamaModel {
  public:
   static std::shared_ptr<LlamaModel> build(const LlamaConfig &config, const VarBuilder &vb);
 
+  // convenience overload for the single-sequence case (every caller today): builds a
+  // `PackedBatch::single(...)` internally from `past`'s current length and `input`'s length.
   fl::Tensor forward(KVCache &past, fl::Tensor input) const;
+  fl::Tensor forward(KVCache &past, fl::Tensor input, const PackedBatch &batch) const;
   fl::Tensor forwardLmHead(fl::Tensor hidden) const;
   int getOutputDim() const;
 

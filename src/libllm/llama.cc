@@ -175,7 +175,9 @@ fl::Tensor Attention::applyRoPE(fl::Tensor input, fl::Tensor roPE) const {
       fl::F::mul(rotateHalf(input), fl::F::contiguous(sin)));
 }
 
-fl::Tensor Attention::forward(KVCache &past, fl::Tensor input) const {
+fl::Tensor Attention::forward(KVCache &past, fl::Tensor input, const PackedBatch &batch) const {
+  // multi-sequence packing lands in a later phase; every caller today packs a single sequence.
+  CHECK(batch.numSequences() == 1);
   CHECK(input.getDim() == 3);
   fl::Tensor qkv = _qkvProj->forward(input);
 
@@ -248,13 +250,13 @@ std::shared_ptr<DecodeLayer> DecodeLayer::build(
   return layer;
 }
 
-fl::Tensor DecodeLayer::forward(KVCache &past, fl::Tensor input) const {
+fl::Tensor DecodeLayer::forward(KVCache &past, fl::Tensor input, const PackedBatch &batch) const {
   fl::Tensor residual = input;
 
   // norm + attn
   fl::Tensor x = _inputNorm->forward(input);
 
-  x = _attn->forward(past, x);
+  x = _attn->forward(past, x, batch);
   x = fl::F::add(x, residual);
 
   // norm + mlp
@@ -264,6 +266,10 @@ fl::Tensor DecodeLayer::forward(KVCache &past, fl::Tensor input) const {
 
   x = fl::F::add(x, residual);
   return x;
+}
+
+int DecodeLayer::getCtxLength(const KVCache &past) const {
+  return _attn->getCtxLength(past);
 }
 
 // -----------------------------------------------------------------------------------------------+
@@ -292,10 +298,18 @@ std::shared_ptr<LlamaModel> LlamaModel::build(const LlamaConfig &config, const V
 }
 
 fl::Tensor LlamaModel::forward(KVCache &past, fl::Tensor input) const {
+  CHECK(input.getDim() == 2);
+  int qLen = input.getShape(1);
+  int pastLen = _config.numLayers > 0 ? _layers[0]->getCtxLength(past) : 0;
+
+  return forward(past, input, PackedBatch::single(qLen, pastLen));
+}
+
+fl::Tensor LlamaModel::forward(KVCache &past, fl::Tensor input, const PackedBatch &batch) const {
   fl::Tensor x = _embedding->forward(input);
 
   for (int i = 0; i < _config.numLayers; ++i) {
-    x = _layers[i]->forward(past, x);
+    x = _layers[i]->forward(past, x, batch);
   }
 
   x = _norm->forward(x);
