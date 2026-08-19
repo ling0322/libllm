@@ -86,11 +86,16 @@ __global__ void mat_vec_kernel(
   if (threadIdx.x == 0) y[row] = (half)sum;
 }
 
+// computes C = x^T B, where B is a transposed weight (its buffer holds d rows of n elements).
 Tensor gemvHalf(const Tensor &x, const Tensor &B) {
-  int d = x.getShape(0);
-  int n = B.getShape(1);
   CHECK(1 == x.getDim() && 1 == x.getStride(0));
-  CHECK(2 == B.getDim() && d == B.getShape(0) && B.getStride(0) == 1 && B.getStride(1) == d);
+
+  int n = x.getShape(0);
+  int d = B.getShape(1);
+  CHECK(2 == B.getDim() && n == B.getShape(0) && B.getStride(0) == 1 && B.getStride(1) == n);
+
+  // the kernel reads 8 half values per thread.
+  CHECK(n % 8 == 0);
 
   Tensor C = createCudaTensorHalf({1, d});
 

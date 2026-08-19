@@ -176,6 +176,7 @@ endif()
 
 set(unittest_LIBADD
     libllm_static
+    libllm_test
     flint_test
     lutil_test
     ${libllm_LIBADD}

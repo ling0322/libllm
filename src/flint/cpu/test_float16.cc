@@ -18,55 +18,82 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "catch2/catch_amalgamated.hpp"
-#include "flint/cpu/fingerprint.h"
 #include "flint/functional.h"
-#include "flint/operator_tester.h"
 #include "flint/tensor.h"
 
 namespace fl {
 namespace op {
 namespace cpu {
 
-OperatorTester getOperatorTester() {
-  return OperatorTester()
-      .withOperators(getOperators(Device::kCpu))
-      .withDevice(Device::getCpu())
-      .withFloatType(DType::kFloat16);
+namespace {
+
+// the CPU fp16 kernels are checked against the fp32 kernels on the same device.
+Tensor toFp16(const Tensor &a) {
+  return F::cast(a, DType::kFloat16);
 }
 
+Tensor toFp32(const Tensor &a) {
+  return F::cast(a, DType::kFloat);
+}
+
+}  // namespace
+
 CATCH_TEST_CASE("test CPU fp16 binary operators", "[op][cpu][float16]") {
-  OperatorTester tester = getOperatorTester().withTol(5e-3);
-  CATCH_REQUIRE(tester.testBinaryOp(OperatorTester::OperatorType::Add));
-  CATCH_REQUIRE(tester.testBinaryOp(OperatorTester::OperatorType::Mul));
+  Tensor a = F::rand({2, 5, 10}, DType::kFloat);
+  Tensor b = F::rand({5}, DType::kFloat);
+  Tensor at = a.transpose(2, 1).slice(1, {1, 9});
+  Tensor xt = toFp16(a).transpose(2, 1).slice(1, {1, 9});
+  Tensor y = toFp16(b);
+
+  CATCH_REQUIRE(F::allClose(toFp32(F::add(xt, y)), F::add(at, b), 5e-3));
+  CATCH_REQUIRE(F::allClose(toFp32(F::mul(xt, y)), F::mul(at, b), 5e-3));
 }
 
 CATCH_TEST_CASE("test CPU fp16 copy operators", "[op][cpu][float16]") {
-  OperatorTester tester = getOperatorTester();
-  CATCH_REQUIRE(tester.testCopy({2, 10, 50}, true));
-  CATCH_REQUIRE(tester.testCopy5D());
+  Tensor a = F::rand({2, 10, 50}, DType::kFloat);
+  Tensor x = toFp16(a).transpose(1, 0);
+  Tensor dest = F::tensorLike(x);
+  F::copy(x, dest);
+  CATCH_REQUIRE(F::allClose(toFp32(dest).transpose(1, 0), a));
+
+  Tensor b = F::rand({10, 2, 5, 20}, DType::kFloat);
+  Tensor expanded = toFp16(b).unsqueeze(1).expand({10, 4, 2, 5, 20});
+  Tensor dest5d = F::tensorLike(expanded);
+  F::copy(expanded, dest5d);
+  CATCH_REQUIRE(
+      F::allClose(toFp32(dest5d), F::contiguous(b.unsqueeze(1).expand({10, 4, 2, 5, 20}))));
 }
 
 CATCH_TEST_CASE("test CPU fp16 matmul operators", "[op][cpu][float16]") {
-  OperatorTester tester = getOperatorTester().withTol(5e-2);
-  CATCH_REQUIRE(tester.testMatmulSlice({10, 20}, {40, 30}));
-  CATCH_REQUIRE(tester.testMatmulSlice({5, 10, 20}, {40, 30}));
-  CATCH_REQUIRE(tester.testMatmulSlice({5, 10, 5, 20}, {10, 40, 30}));
+  auto runCase = [](std::initializer_list<int> shapeA, std::initializer_list<int> shapeB) {
+    Tensor a = F::rand(shapeA, DType::kFloat);
+    Tensor b = F::rand(shapeB, DType::kFloat);
+    Tensor xr = F::matmul(a, b.slice(-1, {8, 32}).transpose(-1, -2));
+
+    Tensor y = toFp16(b).slice(-1, {8, 32}).transpose(-1, -2);
+    Tensor x = F::matmul(toFp16(a), y);
+
+    return F::allClose(toFp32(x), xr, 5e-2);
+  };
+
+  CATCH_REQUIRE(runCase({10, 20}, {40, 30}));
+  CATCH_REQUIRE(runCase({5, 10, 20}, {40, 30}));
+  CATCH_REQUIRE(runCase({5, 10, 5, 20}, {10, 40, 30}));
 }
 
 CATCH_TEST_CASE("test CPU fp16 rmsNorm operator", "[op][cpu][float16]") {
-  OperatorTester tester = getOperatorTester().withTol(5e-2);
-  CATCH_REQUIRE(tester.testRmsNorm({2, 5, 10}));
+  Tensor a = F::rand({2, 5, 10}, DType::kFloat);
+  Tensor w = F::rand({10}, DType::kFloat);
+  Tensor x = F::rmsNorm(toFp16(a), toFp16(w), 1e-5);
+
+  CATCH_REQUIRE(F::allClose(toFp32(x), F::rmsNorm(a, w, 1e-5), 5e-2));
 }
 
 CATCH_TEST_CASE("test CPU fp16 activation operators", "[op][cpu][float16]") {
-  OperatorTester tester = getOperatorTester().withTol(5e-2);
-  CATCH_REQUIRE(tester.testUnaryOp(OperatorTester::OperatorType::Softmax, {2, 5, 150}));
-  CATCH_REQUIRE(tester.testUnaryOp(OperatorTester::OperatorType::Swiglu, {2, 5, 150}));
-}
+  Tensor a = F::rand({2, 5, 150}, DType::kFloat);
 
-CATCH_TEST_CASE("test CPU fp16 tensor operators", "[op][cpu][float16]") {
-  OperatorTester tester = getOperatorTester().withTol(5e-2);
-  CATCH_REQUIRE(tester.testCausalMask());
+  CATCH_REQUIRE(F::allClose(toFp32(F::softmax(toFp16(a))), F::softmax(a), 5e-2));
+  CATCH_REQUIRE(F::allClose(toFp32(F::swiglu(toFp16(a))), F::swiglu(a), 5e-2));
 }
 
 }  // namespace cpu

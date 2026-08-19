@@ -4,7 +4,7 @@ transformers
 /data
 /build
 /run
-/model
+/models
 /third_party/ffmpeg
 /third_party/cutlass
 /third_party/flash-attention/build

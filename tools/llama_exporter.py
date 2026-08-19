@@ -146,6 +146,26 @@ MODEL_BIN = "model.bin"
 MODEL_INI = "model.ini"
 TOKENIZER_BIN = "tokenizer.bin"
 TOKENIZER_INI = "tokenizer.ini"
+TEST_CASE_BIN = "test_case.bin"
+
+# reference input_ids and logits for these sentences are exported alongside the model, so libllm
+# can be checked end-to-end against huggingface.
+TEST_SENTENCES = [
+    "The quick brown fox jumps over the lazy dog.",
+    "Marisa Kirisame (霧雨 魔理沙) is an ordinary human magician who specializes in light and heat magic and currently resides in the Forest of Magic. She is considered to be the deuteragonist of the Touhou Project series along with the main protagonist, Reimu Hakurei.",
+]
+
+def export_test_cases(model, tokenizer, fp):
+    ctx = Context("test_case")
+    with TensorWriter(fp) as writer:
+        for idx, sentence in enumerate(TEST_SENTENCES):
+            input_ids = tokenizer(sentence, return_tensors="pt").input_ids
+            with torch.no_grad():
+                logits = model(input_ids).logits
+
+            case_ctx = ctx.with_subname(str(idx)).with_quant(Quant.NONE)
+            writer.write_tensor(case_ctx.with_subname("input_ids"), input_ids[0])
+            writer.write_tensor(case_ctx.with_subname("logits"), logits[0])
 
 if __name__ == '__main__':
     from transformers import AutoTokenizer
@@ -155,6 +175,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='export llama model from huggingface to libllm format.')
     parser.add_argument('-huggingface_name', type=str, help='the llama model name in huggingface.', default=MODEL_NAME)
     parser.add_argument('-output', type=str, help='output file name.', default="llama.llmpkg")
+    parser.add_argument(
+        '-test_output',
+        type=str,
+        help='output file name of the end-to-end test cases.',
+        default="llama3.2-3b-instruct-fp16_test.llmpkg")
     parser.add_argument('-llama_version', type=int, help='llama model version.', default=3)
     parser.add_argument('-run', action="store_true")
     args = parser.parse_args()
@@ -189,3 +214,7 @@ if __name__ == '__main__':
         
         with package.open(TOKENIZER_INI, "w", force_zip64=True) as fp:
             libllm_tokenizer.get_config().to_ini(TOKENIZER_BIN).write(io.TextIOWrapper(fp))
+
+    with zipfile.ZipFile(args.test_output, "w", compression=zipfile.ZIP_STORED) as package:
+        with package.open(TEST_CASE_BIN, "w", force_zip64=True) as fp:
+            export_test_cases(model, tokenizer, fp)

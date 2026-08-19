@@ -18,6 +18,12 @@ set(libllm_SOURCES
 
 set(libllm_INCDIR ".." "../../third_party")
 
+set(libllm_test_SOURCES
+    "llama_test.cc")
+
+add_library(libllm_test OBJECT ${libllm_test_SOURCES})
+target_include_directories(libllm_test PRIVATE ${libllm_INCDIR})
+
 add_library(libllm_static OBJECT ${libllm_SOURCES})
 target_compile_options(libllm_static PRIVATE "-DLIBLLM_EXPORTS")
 target_include_directories(libllm_static PRIVATE ${LIBDWARF_INCLUDE_DIRS})

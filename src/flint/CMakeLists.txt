@@ -32,14 +32,12 @@ set(flint_SOURCES
     "functional.cc"
     "operators.cc"
     "tensor.cc"
-    "var_builder.cc"
     "../../third_party/ruapu/ruapu.cc")
 
 set(flint_test_SOURCES
     "cpu/kernel/benchmark.cc"
     "cpu/kernel/interface_test.cc"
     "cpu/test.cc"
-    "operator_tester.cc"
     "tensor_test.cc")
 
 set(flint_benchmark_SOURCES

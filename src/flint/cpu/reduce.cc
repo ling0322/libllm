@@ -67,6 +67,7 @@ T getReduceInitial() {
 template<typename T, ReduceType REDUCE_TYPE>
 Tensor reduceKernel(Tensor A) {
   std::vector<int> shape = A.getShape();
+  shape.back() = 1;
   Tensor C = tensor(shape, A.getDType());
 
   TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(A);
@@ -93,7 +94,10 @@ Tensor reduceKernel(Tensor A) {
     c[0] = accumulator;
   }
 
-  return C;
+  shape.pop_back();
+  if (shape.empty()) return C;
+
+  return C.view(shape);
 }
 
 Tensor reduce(const Tensor &A, MapReduceType reduceType) {

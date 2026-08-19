@@ -59,6 +59,9 @@ Tensor Rand::Impl::rand(lut::Span<const int> shape) {
 
 void Rand::Impl::setSeed(uint64_t seed) {
   curandSetPseudoRandomGeneratorSeed(gen, seed);
+
+  // setting the seed alone keeps the current position in the sequence.
+  curandSetGeneratorOffset(gen, 0);
 }
 
 Rand::Impl::~Impl() {
