@@ -22,7 +22,6 @@
 #include "lutil/log.h"
 #include "lutil/time.h"
 #include "flint/cpu/kernel/abstract.h"
-#include "flint/mp.h"
 
 namespace fl {
 namespace op {
@@ -63,19 +62,11 @@ PackedBlock<T> Pack(Block<T> src, Block<T> buf, int pack_size) {
   PackedBlock<T> tgt{buf.data, pack_size, kc, numBlock};
   CHECK(pack_size * numBlock * kc <= buf.numCols * buf.numRows);
 
-  auto closure = [src, tgt, pack_size](MP::Context ctx) {
-    int b = ctx.getBlockIdx();
+#pragma omp parallel for if (MODE == Mode::OMP) schedule(dynamic, 1)
+  for (int b = 0; b < numBlock; ++b) {
     Block<T> srcBlock = src.sliceCol(b * pack_size, pack_size);
     Block<T> tgtBlock = tgt.block(b);
     srcBlock.copyTo(tgtBlock);
-  };
-
-  if (MODE == Mode::OMP) {
-    MP::parallelFor(numBlock, closure);
-  } else {
-    for (int i = 0; i < numBlock; ++i) {
-      closure(MP::Context(i, numBlock, 0));
-    }
   }
 
   int nc = src.numCols % pack_size;

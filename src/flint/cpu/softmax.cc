@@ -23,7 +23,6 @@
 
 #include "flint/cpu/accessor.h"
 #include "flint/cpu/tensor.h"
-#include "flint/mp.h"
 
 namespace fl {
 namespace op {
@@ -36,9 +35,11 @@ Tensor softmaxKernel(Tensor A) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
-  MP::parallelFor({vA.getLength()}, [&vA, &vC](MP::Context ctx) {
-    TensorAccessor<const T, 1> a = vA.getTensor(ctx.getBlockIdx());
-    TensorAccessor<T, 1> c = vC.getTensor(ctx.getBlockIdx());
+  int numRows = vA.getLength();
+#pragma omp parallel for schedule(dynamic, 1)
+  for (int j = 0; j < numRows; ++j) {
+    TensorAccessor<const T, 1> a = vA.getTensor(j);
+    TensorAccessor<T, 1> c = vC.getTensor(j);
 
     std::vector<float> m(a.getShape(0) + 1);
     std::vector<float> d(a.getShape(0) + 1);
@@ -53,7 +54,7 @@ Tensor softmaxKernel(Tensor A) {
       float x = a[i];
       c[i] = static_cast<T>(expf(x - m[a.getShape(0)]) / d[a.getShape(0)]);
     }
-  });
+  }
 
   return C;
 }

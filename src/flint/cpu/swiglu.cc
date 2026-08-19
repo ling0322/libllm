@@ -24,7 +24,6 @@
 #include "lutil/thread_pool.h"
 #include "flint/cpu/accessor.h"
 #include "flint/cpu/tensor.h"
-#include "flint/mp.h"
 
 namespace fl {
 namespace op {
@@ -40,8 +39,9 @@ Tensor swigluKernel(const Tensor &A) {
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
   CHECK(vA.getLength() == vC.getLength());
 
-  MP::parallelFor(vA.getLength(), [&vA, &vC](MP::Context ctx) {
-    int j = ctx.getBlockIdx();
+  int numRows = vA.getLength();
+#pragma omp parallel for schedule(dynamic, 1)
+  for (int j = 0; j < numRows; ++j) {
     TensorAccessor<const T, 1> a = vA.getTensor(j);
     TensorAccessor<T, 1> c = vC.getTensor(j);
 
@@ -52,7 +52,7 @@ Tensor swigluKernel(const Tensor &A) {
       x *= a[i + n];
       c[i] = x;
     }
-  });
+  }
 
   return C;
 }

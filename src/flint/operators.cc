@@ -24,13 +24,17 @@
 #include <mutex>
 #include <thread>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #include "lutil/error.h"
+#include "lutil/log.h"
 #include "lutil/strings.h"
 #include "lutil/thread_pool.h"
 #include "flint/cpu/cpu_operators.h"
 #include "flint/cpu/kernel/interface.h"
 #include "flint/cuda/cuda_operators.h"
-#include "flint/mp.h"
 
 namespace fl {
 
@@ -237,6 +241,10 @@ static std::atomic<bool> gInitialized{false};
 void initOperators() {
   op::cpu::kernel::init();
 
+#ifdef _OPENMP
+  LOG(INFO) << "OMP max_threads = " << omp_get_max_threads();
+#endif
+
   if (!gInitialized.exchange(true)) {
     CHECK(!gOperatorsForDevice[Device::kCpu]);
     gOperatorsForDevice[Device::kCpu] = std::make_shared<op::cpu::CPUOperators>();
@@ -244,8 +252,6 @@ void initOperators() {
     CHECK(!gOperatorsForDevice[Device::kCuda]);
     gOperatorsForDevice[Device::kCuda] = op::cuda::CudaOperators::create();
 #endif
-
-    MP::init();
   }
 }
 
@@ -280,7 +286,6 @@ bool isOperatorsAvailable(Device::Type deviceType) {
 
 void destroyOperators() {
   op::cpu::kernel::destroy();
-  MP::destroy();
 
   if (gInitialized.exchange(false)) {
     for (int i = 0; i < Device::NumDeviceType; ++i) {

@@ -22,12 +22,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #include <type_traits>
 
 #include "lutil/c_ptr.h"
 #include "flint/cpu/kernel/abstract.h"
 #include "flint/cpu/kernel/util.h"
-#include "flint/mp.h"
 
 namespace fl {
 namespace op {
@@ -45,13 +48,14 @@ void gemvContigousN(const GemvArgs<ElementA, ElementB, ElementC> &args) {
           m * args.lda);
     }
   } else if (MODE == Mode::OMP) {
-    MP::parallelFor(args.M, [args](MP::Context ctx) {
-      args.y[ctx.getBlockIdx()] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
+#pragma omp parallel for schedule(dynamic, 1)
+    for (int m = 0; m < args.M; ++m) {
+      args.y[m] += dotKernel<ElementC, ElementB, ElementA, TYPE>(
           args.N,
           args.x,
           args.A,
-          ctx.getBlockIdx() * args.lda);
-    });
+          m * args.lda);
+    }
   } else {
     NOT_IMPL();
   }
@@ -72,19 +76,27 @@ void gemvContigousT(const GemvArgs<ElementA, ElementB, ElementC> &args) {
   } else if (MODE == Mode::OMP) {
     // initialize numThreads y buffers.
     // TODO: sfill
-    lut::c_ptr<float> ys = alignedAlloc<float>(args.N * MP::getMaxThreads());
-    memset(ys.get(), 0, args.N * MP::getMaxThreads() * sizeof(float));
+    int numThreads = 1;
+#ifdef _OPENMP
+    numThreads = omp_get_max_threads();
+#endif
+    lut::c_ptr<float> ys = alignedAlloc<float>(args.N * numThreads);
+    memset(ys.get(), 0, args.N * numThreads * sizeof(float));
 
     // compute axpy.
-    MP::parallelFor(args.M, [args, &ys](MP::Context ctx) {
-      int m = ctx.getBlockIdx();
-      float *py = ys.get() + ctx.getAttachedThreadIdx() * args.N;
+#pragma omp parallel for schedule(dynamic, 1)
+    for (int m = 0; m < args.M; ++m) {
+      int threadIdx = 0;
+#ifdef _OPENMP
+      threadIdx = omp_get_thread_num();
+#endif
+      float *py = ys.get() + threadIdx * args.N;
       axpyKernel<ElementB, ElementA, float, TYPE>(args.N, args.x[m], args.A, m * args.lda, py);
-    });
+    }
 
     // accumulate ys.
     // TODO: vAdd.
-    for (int p = 0; p < MP::getMaxThreads(); ++p) {
+    for (int p = 0; p < numThreads; ++p) {
       float *py = ys.get() + p * args.N;
       for (int i = 0; i < args.N; ++i) {
         args.y[i] += py[i];

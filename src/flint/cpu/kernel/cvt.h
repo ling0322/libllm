@@ -21,7 +21,6 @@
 
 #include "lutil/log.h"
 #include "flint/cpu/kernel/abstract.h"
-#include "flint/mp.h"
 
 namespace fl {
 namespace op {
@@ -34,10 +33,9 @@ void cvt(int64_t n, const ElementA *x, int64_t offsetX, ElementC *y, int64_t off
 
   if (MODE == Mode::OMP && nb > 1) {
     int nr = (n - 1) % CvtMinElemPerThread + 1;
-    int numThreads = std::min(nb, MP::getMaxThreads());
 
-    MP::parallelFor(nb, [nb, nr, x, offsetX, y, offsetY](MP::Context ctx) {
-      int i = ctx.getBlockIdx();
+#pragma omp parallel for schedule(dynamic, 1)
+    for (int i = 0; i < nb; ++i) {
       int ne = (i == nb - 1) ? nr : CvtMinElemPerThread;
       cvtKernel<ElementA, ElementC, TYPE>(
           ne,
@@ -45,7 +43,7 @@ void cvt(int64_t n, const ElementA *x, int64_t offsetX, ElementC *y, int64_t off
           offsetX + i * CvtMinElemPerThread,
           y,
           offsetY + i * CvtMinElemPerThread);
-    });
+    }
   } else {
     cvtKernel<ElementA, ElementC, TYPE>(n, x, offsetX, y, offsetY);
   }

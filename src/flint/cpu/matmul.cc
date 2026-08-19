@@ -24,7 +24,6 @@
 #include "flint/cpu/common.h"
 #include "flint/cpu/kernel/interface.h"
 #include "flint/cpu/tensor.h"
-#include "flint/mp.h"
 
 namespace fl {
 namespace op {
@@ -210,8 +209,9 @@ Tensor bmm(const Tensor &A, const Tensor &B) {
   const T *const *mBp = mB.getDataPtrList().data();
   T *const *mCp = mC.getDataPtrList().data();
 
-  MP::parallelFor(mA.getLength(), [mAp, mBp, mCp, gemmArgs](MP::Context ctx) {
-    int i = ctx.getBlockIdx();
+  int numMatrices = mA.getLength();
+#pragma omp parallel for schedule(dynamic, 1)
+  for (int i = 0; i < numMatrices; ++i) {
     callGemm<T>(
         gemmArgs.transA,
         gemmArgs.transB,
@@ -225,7 +225,7 @@ Tensor bmm(const Tensor &A, const Tensor &B) {
         mCp[i],
         gemmArgs.ldc,
         kernel::Mode::SingleThread);
-  });
+  }
 
   return C;
 }

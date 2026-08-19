@@ -25,7 +25,6 @@
 #include "flint/cpu/kernel/block.h"
 #include "flint/cpu/kernel/cvt.h"
 #include "flint/cpu/kernel/gemv.h"
-#include "flint/mp.h"
 
 namespace fl {
 namespace op {
@@ -131,8 +130,8 @@ class Gemm {
     int lastNr = C.numCols % NR;
     int lastMr = C.numRows % MR;
 
-    auto closure = [this, &A, &B, &C, mp, np, lastNr, lastMr](MP::Context ctx) {
-      int i = ctx.getBlockIdx();
+#pragma omp parallel for if (MODE == Mode::OMP) schedule(dynamic, 1)
+    for (int i = 0; i < np; ++i) {
       for (int j = 0; j < mp; ++j) {
         int nr = (i != np - 1 || lastNr == 0) ? NR : lastNr;
         int mr = (j != mp - 1 || lastMr == 0) ? MR : lastMr;
@@ -142,14 +141,6 @@ class Gemm {
         Block<T> Cji = C.slice(j * MR, i * NR, mr, nr);
 
         microKernel(Aj, Bi, Cji);
-      }
-    };
-
-    if (MODE == Mode::OMP) {
-      MP::parallelFor(np, closure);
-    } else {
-      for (int i = 0; i < np; ++i) {
-        closure(MP::Context(i, np, 0));
       }
     }
   }

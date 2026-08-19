@@ -8,7 +8,7 @@ option(WITH_CUDA_MALLOC_ASYNC "Use the CUDA stream-ordered memory allocator." ON
 option(WITH_MKL "MKL support (only for reference)." OFF)
 option(WITH_OPENMP "Build with OpenMP." ON)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
-option(WITH_FLASH_ATTN "Link the prebuilt FlashAttention forward kernels." OFF)
+option(WITH_FLASH_ATTN "Link the prebuilt FlashAttention forward kernels." ${WITH_CUDA})
 option(CUDA_ARCH_NATIVE "Build CUDA kernels only for the GPUs in this machine." OFF)
 option(MKL_PREFIX "Prefix for MKL headers and libraries." "/opt/intel/mkl")
 
@@ -197,11 +197,9 @@ target_include_directories(unittest PRIVATE "src" "third_party")
 
 target_link_libraries(unittest ${unittest_LIBADD})
 
-if(WITH_CUDA)
-    add_executable(benchmark "src/flint/bin/benchmark.cc")
-    target_include_directories(benchmark PRIVATE "src" "third_party")
-    target_link_libraries(benchmark flint_benchmark ${libllm_LIBADD} catch2)
-endif()
+add_executable(benchmark "src/flint/bin/benchmark.cc")
+target_include_directories(benchmark PRIVATE "src" "third_party")
+target_link_libraries(benchmark flint_benchmark ${libllm_LIBADD} catch2)
 
 add_executable(llm_benchmark
     "src/libllm/benchmark_main.cc"
