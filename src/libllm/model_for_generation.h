@@ -22,6 +22,7 @@
 #include <memory>
 
 #include "libllm/engine_config.h"
+#include "libllm/packed_batch.h"
 #include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
 #include "lutil/zip_file.h"
@@ -57,18 +58,31 @@ class ModelForGeneration {
 
   virtual ~ModelForGeneration() = default;
 
-  /// @brief Used in the prefill phase. Forward the input prompt through this language model, update
-  /// the `past` state and return the logits for the next token.
+  /// @brief Forward one scheduled batch, update the `past` state and return the logits for the
+  /// next token of every sequence in it.
+  /// @param past (KVCache): key-value cache.
+  /// @param batch the batch a scheduler packed, carrying its tokens.
+  /// @return  <float>(numSequences, V): logits of the next token.
+  virtual fl::Tensor forward(KVCache &past, const PackedBatch &batch) const = 0;
+
+  /// @brief Used in the prefill phase. Forward the tokens of a request through this language
+  /// model, update the `past` state and return the logits for the next token.
+  /// @param past (KVCache): key-value cache.
+  /// @param tokenIds the tokens to prefill. Must not be empty.
+  /// @return  <float>(1, V): logits of the next token.
+  virtual fl::Tensor prefill(KVCache &past, lut::Span<const fl::LongType> tokenIds) const = 0;
+
+  /// @brief Encode `prompt` and prefill the tokens it yields.
   /// @param past (KVCache): key-value cache.
   /// @param prompt (Prompt): the input prompt for prefill.
-  /// @return  <float>(N, 1, V): hidden state from last layer.
-  virtual fl::Tensor prefill(KVCache &past, const Prompt &prompt) const = 0;
+  /// @return  <float>(1, V): logits of the next token.
+  fl::Tensor prefill(KVCache &past, const Prompt &prompt) const;
 
   /// @brief Used in the decodeing phase. Forward input token ids through this language model,
   /// update the `past` state and return the logits for the next token.
   /// @param past (KVCache): key-value cache.
   /// @param inputToken (LongType): the input token.
-  /// @return  <float>(N, 1, V): hidden state from last layer.
+  /// @return  <float>(1, V): logits of the next token.
   virtual fl::Tensor decode(KVCache &past, fl::LongType inputToken) const = 0;
 
   /// @brief Return true if tokenId is a stop token. (stop generating texts)
@@ -114,6 +128,11 @@ class ModelForGeneration {
   /// @brief Get the vocabulary (tokenId to token string) of the model.
   /// @return The vocabulary.
   const Vocab *getVocab() const;
+
+  /// @brief Encode a prompt into the tokens the model reads.
+  /// @param prompt The prompt to encode.
+  /// @return The tokens.
+  std::vector<fl::LongType> encodePrompt(const Prompt &prompt) const;
 
   /// @brief Return the number of tokens produced when encoding a prompt.
   int getPromptTokenCount(const Prompt &prompt) const;

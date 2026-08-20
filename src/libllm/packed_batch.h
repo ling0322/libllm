@@ -39,9 +39,11 @@ namespace libllm {
 class PackedBatch {
  public:
   // A single contiguous sequence of length `qLen`, whose KV-cache already holds `pastLen` past
-  // tokens. This is the shape every call site uses today (one request per forward() call) and
-  // reproduces the old contiguous-slice RoPE behavior exactly.
+  // tokens. Describes the layout only, the caller feeds the activations separately.
   static PackedBatch single(int qLen, int pastLen);
+
+  // Same, but carrying the tokens to forward. This is what a scheduler hands to a model.
+  static PackedBatch single(lut::Span<const fl::LongType> tokenIds, int pastLen);
 
   // A packed multi-sequence batch. `positionIds` has length cuSeqlensQ.back() (one rotary
   // position per packed query token, in packed order).
@@ -56,6 +58,9 @@ class PackedBatch {
   int maxQLen() const;
   int maxKLen() const;
 
+  // the packed query tokens, empty when this batch only describes a layout.
+  lut::Span<const fl::LongType> tokenIds() const;
+
   lut::Span<const int> cuSeqlensQ() const;
   lut::Span<const int> cuSeqlensK() const;
   lut::Span<const fl::LongType> positionIds() const;
@@ -63,6 +68,9 @@ class PackedBatch {
   // the paged KV cache storage this batch reads and writes. Empty until attached.
   void setKVCacheManager(std::weak_ptr<KVCacheManager> manager);
   std::weak_ptr<KVCacheManager> kvCacheManager() const;
+
+  // materialize the packed query tokens as a device <long>(totalQLen) tensor.
+  fl::Tensor tokenIdsTensor(fl::Device device) const;
 
   // materialize the per-token rotary position ids as a device <long>(totalQLen) tensor.
   fl::Tensor positionIdsTensor(fl::Device device) const;
@@ -74,6 +82,7 @@ class PackedBatch {
   fl::Tensor cuSeqlensKTensor(fl::Device device) const;
 
  private:
+  std::vector<fl::LongType> _tokenIds;
   std::vector<int> _cuSeqlensQ;
   std::vector<int> _cuSeqlensK;
   std::vector<fl::LongType> _positionIds;

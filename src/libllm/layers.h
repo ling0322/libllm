@@ -47,9 +47,9 @@ class Embedding {
 
   // forward input and return the output.
   // Args:
-  //   input <long>(N, L): input word-ids.
+  //   input <long>(L): packed input word-ids.
   // Returns:
-  //   <float>(N, L, D): embeddings for input word-ids.
+  //   <float>(L, D): embeddings for input word-ids.
   fl::Tensor forward(const fl::Tensor &input) const;
 
  private:

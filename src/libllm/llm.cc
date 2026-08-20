@@ -10,7 +10,8 @@
 #include <unordered_map>
 
 #include "../../third_party/nlohmann/json.hpp"
-#include "libllm/generator.h"
+#include "libllm/request.h"
+#include "libllm/scheduler.h"
 #include "libllm/model_for_generation.h"
 #include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
@@ -24,7 +25,7 @@
 #include "flint/operators.h"
 
 using libllm::GenerationConfig;
-using libllm::Generator;
+using libllm::Scheduler;
 using libllm::ModelForGeneration;
 using libllm::Prompt;
 using libllm::Tokenizer;
@@ -47,7 +48,7 @@ struct llm_model_impl_t {
 
 struct llm_completion_impl_t {
   std::weak_ptr<ModelForGeneration> model_for_generation;
-  std::shared_ptr<Generator> generator;
+  std::shared_ptr<Scheduler> generator;
 };
 
 struct llm_json_impl_t {
@@ -275,11 +276,12 @@ int32_t llm_model_complete(llm_model_t *m, llm_json_t *kwargs, llm_completion_t 
         {{"temperature", false}, {"top_k", false}, {"top_p", false}, {"messages", true}});
 
     GenerationConfig config = parseGenerationConfig(kwargsJson);
-    (*comp)->generator = SamplingGenerator::newGenerator(config, (*m)->model);
+    (*comp)->generator = Scheduler::create(config, (*m)->model);
     (*comp)->model_for_generation = (*m)->model;
 
     Prompt prompt = buildPromptFromJson((*m)->model.get(), kwargsJson);
-    (*comp)->generator->setPrompt(prompt);
+    (*comp)->generator->setRequest(
+        std::make_shared<libllm::Request>("completion", (*m)->model->encodePrompt(prompt), config));
   } catch (std::exception &e) {
     return llmErrorSetAborted(e.what());
   }

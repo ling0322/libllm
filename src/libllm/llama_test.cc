@@ -90,7 +90,7 @@ fl::Tensor toCpuFloat(fl::Tensor tensor) {
 
 // forward `inputIds` in one shot and return the fp32 logits of every position.
 fl::Tensor forwardAll(const LlamaModel &model, fl::Tensor inputIds, const fl::Device &device) {
-  fl::Tensor input = fl::F::to(device, inputIds).view({1, inputIds.getShape(0)});
+  fl::Tensor input = fl::F::to(device, inputIds);
 
   KVCache past;
   return toCpuFloat(model.forwardLmHead(model.forward(past, input)));
@@ -211,7 +211,7 @@ CATCH_TEST_CASE("test llama prefill matches incremental decode", "[libllm][llama
     KVCache past;
     fl::Tensor hidden;
     for (int i = 0; i < numTokens; ++i) {
-      fl::Tensor token = fl::F::to(device, inputIds.slice({i, i + 1})).view({1, 1});
+      fl::Tensor token = fl::F::to(device, inputIds.slice({i, i + 1}));
       hidden = model->forward(past, token);
     }
     fl::Tensor decodeLogits = toCpuFloat(model->forwardLmHead(hidden));

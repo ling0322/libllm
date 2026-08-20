@@ -66,6 +66,43 @@ Tensor lookup2DHalf(const Tensor &embdTable, const Tensor &input) {
   return dst;
 }
 
+__global__ void lookupHalfKernel1D(
+    PackedTensorAccessor<const half, 2> embd,
+    PackedTensorAccessor<const int64_t, 1> inputs,
+    PackedTensorAccessor<half, 2> dst) {
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if (x < embd.getShape(1) && y < inputs.getShape(0)) {
+    int index = inputs[y];
+    assert(index < embd.getShape(0));
+    dst[y][x] = embd[index][x];
+  }
+}
+
+Tensor lookup1DHalf(const Tensor &embdTable, const Tensor &input) {
+  CHECK(embdTable.getDType() == DType::kFloat16);
+
+  std::vector<Tensor::ShapeType> shape = input.getShape();
+  shape.push_back(embdTable.getShape(1));
+  Tensor dst = createCudaTensorHalf(shape);
+
+  constexpr int blockSize = 256;
+  dim3 d;
+  d.y = dst.getShape(0);
+  d.x = (dst.getShape(1) + blockSize - 1) / blockSize;
+
+  PackedTensorAccessor<const half, 2> sA(embdTable);
+  PackedTensorAccessor<const int64_t, 1> sB(input);
+  PackedTensorAccessor<half, 2> sC(dst);
+
+  lookupHalfKernel1D<<<d, blockSize>>>(sA, sB, sC);
+  cudaDeviceSynchronize();
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+
+  return dst;
+}
+
 Tensor lookup(const Tensor &embdTable, const Tensor &input) {
   CHECK(input.getDType() == DType::kLong);
   CHECK(input.getDevice().getType() == Device::kCuda);
@@ -74,6 +111,11 @@ Tensor lookup(const Tensor &embdTable, const Tensor &input) {
 
   if (input.getDim() == 2 && embdTable.getDType() == DType::kFloat16) {
     return lookup2DHalf(embdTable, input);
+  }
+
+  // a packed batch of ids is 1D, one embedding row comes out per id.
+  if (input.getDim() == 1 && embdTable.getDType() == DType::kFloat16) {
+    return lookup1DHalf(embdTable, input);
   }
 
   NOT_IMPL();

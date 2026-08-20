@@ -141,6 +141,11 @@ CATCH_TEST_CASE("test embedding lookup", "[core][nn][operators]") {
           0.8f,
       });
   CATCH_REQUIRE(F::allClose(F::lookup(wte, input), output));
+
+  // packed indices are 1D and give one embedding row per index.
+  Tensor packed = Tensor::create<LongType>({3}, {0, 1, 2});
+  Tensor packedOutput = Tensor::create<float>({3, 2}, {0.1f, 0.2f, 0.3f, 0.4f, 0.2f, 0.3f});
+  CATCH_REQUIRE(F::allClose(F::lookup(wte, packed), packedOutput));
 }
 
 CATCH_TEST_CASE("test softmax", "[core][nn][operators]") {

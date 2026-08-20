@@ -17,7 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "libllm/generator.h"
+#include "libllm/scheduler.h"
 
 #include <string.h>
 
@@ -25,6 +25,8 @@
 
 #include "lutil/error.h"
 #include "lutil/strings.h"
+#include "libllm/packed_batch.h"
+#include "libllm/request.h"
 #include "flint/functional.h"
 
 namespace libllm {
@@ -129,37 +131,57 @@ int Sampler::sample(const fl::Tensor &distribution) {
 }
 
 // -----------------------------------------------------------------------------------------------+
-// class BaseGenerator                                                                            |
+// class Scheduler                                                                                |
 // -----------------------------------------------------------------------------------------------+
 
-BaseGenerator::BaseGenerator(std::shared_ptr<ModelForGeneration> model)
+Scheduler::Scheduler(const GenerationConfig &config, std::shared_ptr<ModelForGeneration> model)
     : _model(model),
-      _currentToken(-1) {
+      _currentToken(-1),
+      _sampler(config.topK, config.topP),
+      _temperature(config.temperature) {
 }
 
-bool BaseGenerator::generate() {
+std::shared_ptr<Scheduler> Scheduler::create(
+    const GenerationConfig &config,
+    std::shared_ptr<ModelForGeneration> model) {
+  return std::shared_ptr<Scheduler>{new Scheduler(config, model)};
+}
+
+bool Scheduler::generate() {
   if (_model->isStopToken(_currentToken)) return false;
 
-  if (_currentToken >= 0) {
-    _currentToken = searchToken(_model->decode(_past, _currentToken));
-  } else {
-    _currentToken = searchToken(_model->prefill(_past, _prompt));
-  }
+  lut::Span<const fl::LongType> tokenIds = _request->getTokenIds();
+  int contextLength = _request->getContextLength();
+  int numTokensToCompute = static_cast<int>(tokenIds.size()) - contextLength;
+  CHECK(numTokensToCompute > 0);
+
+  PackedBatch batch = PackedBatch::single(
+      tokenIds.subspan(contextLength, numTokensToCompute),
+      contextLength);
+  _currentToken = searchToken(_model->forward(_past, batch));
+
+  _request->advanceComputedTokens(numTokensToCompute);
+  _request->setContextLength(contextLength + numTokensToCompute);
 
   LOG(DEBUG) << lut::sprintf(
       "%d -> \"%s\"",
       _currentToken,
       _model->getVocab()->getTokenString(_currentToken));
-  if (_model->isStopToken(_currentToken)) return false;
+  if (_model->isStopToken(_currentToken)) {
+    _request->finish();
+    return false;
+  }
 
+  _request->appendToken(_currentToken);
   return true;
 }
 
-void BaseGenerator::setPrompt(const Prompt &prompt) {
-  _prompt = prompt;
+void Scheduler::setRequest(std::shared_ptr<Request> request) {
+  CHECK(request);
+  _request = request;
 }
 
-std::string BaseGenerator::getToken() {
+std::string Scheduler::getToken() {
   if (_currentToken < 0) return "";
 
   const Vocab *vocab = _model->getVocab();
@@ -167,7 +189,7 @@ std::string BaseGenerator::getToken() {
   return token;
 }
 
-std::string BaseGenerator::getTokenName() {
+std::string Scheduler::getTokenName() {
   if (_currentToken < 0) return "";
 
   const Vocab *vocab = _model->getVocab();
@@ -175,29 +197,10 @@ std::string BaseGenerator::getTokenName() {
   return token;
 }
 
-// -----------------------------------------------------------------------------------------------+
-// class SamplingGenerator                                                                        |
-// -----------------------------------------------------------------------------------------------+
+int Scheduler::searchToken(const fl::Tensor &logits) {
+  CHECK(logits.getDim() == 2 && logits.getShape(0) == 1);
 
-SamplingGenerator::SamplingGenerator(
-    const GenerationConfig &config,
-    std::shared_ptr<ModelForGeneration> model)
-    : BaseGenerator(model),
-      _sampler(config.topK, config.topP),
-      _temperature(config.temperature) {
-}
-
-std::shared_ptr<SamplingGenerator> SamplingGenerator::newGenerator(
-    const GenerationConfig &config,
-    std::shared_ptr<ModelForGeneration> model) {
-  std::shared_ptr<SamplingGenerator> generator{new SamplingGenerator(config, model)};
-  return generator;
-}
-
-int SamplingGenerator::searchToken(const fl::Tensor &logits) {
-  CHECK(logits.getDim() == 3 && logits.getShape(0) == 1 && logits.getShape(1) == 1);
-
-  fl::Tensor x = logits.subtensor(0).subtensor(0);
+  fl::Tensor x = logits.subtensor(0);
   if (_temperature != 1.0f) {
     x = fl::F::mul(x, 1.0f / _temperature);
   }

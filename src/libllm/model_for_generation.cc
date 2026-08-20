@@ -66,16 +66,24 @@ void ModelForGeneration::initKVCacheFromConfig(const EngineConfig &config) {
   _kvCacheManager = KVCacheManager::create(*this, config);
 }
 
+fl::Tensor ModelForGeneration::prefill(KVCache &past, const Prompt &prompt) const {
+  return prefill(past, encodePrompt(prompt));
+}
+
 const Vocab *ModelForGeneration::getVocab() const {
   return _tokenizer->getVocab();
 }
 
-int ModelForGeneration::getPromptTokenCount(const Prompt &prompt) const {
+std::vector<fl::LongType> ModelForGeneration::encodePrompt(const Prompt &prompt) const {
   std::vector<fl::LongType> tokenIds;
   for (const PromptBlock &block : prompt.getBlocks()) {
     encodePromptBlock(block, tokenIds);
   }
-  return tokenIds.size();
+  return tokenIds;
+}
+
+int ModelForGeneration::getPromptTokenCount(const Prompt &prompt) const {
+  return static_cast<int>(encodePrompt(prompt).size());
 }
 
 void ModelForGeneration::encodePromptBlock(

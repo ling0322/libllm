@@ -6,7 +6,6 @@ endif()
 
 set(libllm_SOURCES
     "bpe.cc"
-    "generator.cc"
     "kv_cache.cc"
     "layers.cc"
     "llama.cc"
@@ -14,6 +13,8 @@ set(libllm_SOURCES
     "model_for_generation.cc"
     "packed_batch.cc"
     "prompt.cc"
+    "request.cc"
+    "scheduler.cc"
     "tokenizer.cc"
     "var_builder.cc")
 

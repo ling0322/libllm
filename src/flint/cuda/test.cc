@@ -172,6 +172,14 @@ CATCH_TEST_CASE("test CUDA lookup", "[op][cuda]") {
   Tensor x = F::lookup(toCuda(embd), F::to(Device::getCuda(), ids));
 
   CATCH_REQUIRE(F::allClose(toCpu(x), xr));
+
+  // packed indices are 1D and give one embedding row per index.
+  Tensor packedIds = Tensor::create<LongType>({3}, {1, 2, 3});
+  Tensor packedRef = F::lookup(embd, packedIds);
+  Tensor packed = F::lookup(toCuda(embd), F::to(Device::getCuda(), packedIds));
+
+  CATCH_REQUIRE(packed.getShape() == std::vector<int>{3, 32});
+  CATCH_REQUIRE(F::allClose(toCpu(packed), packedRef));
 }
 
 CATCH_TEST_CASE("test CUDA matmul", "[op][cuda]") {

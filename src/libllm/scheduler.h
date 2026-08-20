@@ -29,53 +29,15 @@
 
 namespace libllm {
 
+// request.h needs GenerationConfig from this header, so it stays a forward declaration here.
+class Request;
+
 struct GenerationConfig {
   int topK;
   float topP;
   float temperature;
 
   GenerationConfig();
-};
-
-/// @brief Given model and the generation config, generate tokens.
-class Generator {
- public:
-  virtual ~Generator() = default;
-
-  /// @brief set the prompt to prefill.
-  /// @param prompt the prompt;
-  virtual void setPrompt(const Prompt &prompt) = 0;
-
-  /// @brief generate next token. Return false if generation is finished.
-  /// @return if generation is finished.
-  virtual bool generate() = 0;
-
-  /// @brief get the piece of current token.
-  /// @return piece of current token.
-  virtual std::string getToken() = 0;
-
-  /// @brief get the display name of current token.
-  /// @return name of current token.
-  virtual std::string getTokenName() = 0;
-};
-
-class BaseGenerator : public Generator {
- public:
-  BaseGenerator(std::shared_ptr<ModelForGeneration> model);
-  ~BaseGenerator() = default;
-
-  bool generate() override;
-  std::string getToken() override;
-  std::string getTokenName() override;
-  void setPrompt(const Prompt &prompt) override;
-
- protected:
-  Prompt _prompt;
-  KVCache _past;
-  std::shared_ptr<ModelForGeneration> _model;
-  int _currentToken;
-
-  virtual int searchToken(const fl::Tensor &logits) = 0;
 };
 
 class Sampler {
@@ -95,22 +57,43 @@ class Sampler {
   int sampleTopP(const fl::Tensor &distribution, lut::Span<const int> topP);
 };
 
-// generator by sampling.
-class SamplingGenerator : public BaseGenerator {
+/// @brief Drives a model through one prompt, handing out one sampled token at a time.
+class Scheduler {
  public:
-  static std::shared_ptr<SamplingGenerator> newGenerator(
+  static std::shared_ptr<Scheduler> create(
       const GenerationConfig &config,
       std::shared_ptr<ModelForGeneration> model);
-  ~SamplingGenerator() = default;
 
- protected:
-  int searchToken(const fl::Tensor &logits) override;
+  ~Scheduler() = default;
+
+  /// @brief set the request to complete.
+  /// @param request the request;
+  void setRequest(std::shared_ptr<Request> request);
+
+  /// @brief generate next token. Return false if generation is finished.
+  /// @return if generation is finished.
+  bool generate();
+
+  /// @brief get the piece of current token.
+  /// @return piece of current token.
+  std::string getToken();
+
+  /// @brief get the display name of current token.
+  /// @return name of current token.
+  std::string getTokenName();
 
  private:
+  std::shared_ptr<Request> _request;
+  KVCache _past;
+  std::shared_ptr<ModelForGeneration> _model;
+  int _currentToken;
+
   Sampler _sampler;
   float _temperature;
 
-  SamplingGenerator(const GenerationConfig &config, std::shared_ptr<ModelForGeneration> model);
+  Scheduler(const GenerationConfig &config, std::shared_ptr<ModelForGeneration> model);
+
+  int searchToken(const fl::Tensor &logits);
 };
 
 }  // namespace libllm

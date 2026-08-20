@@ -151,6 +151,9 @@ Tensor swiglu(const Tensor &tensor) {
 
   if (tensor.getDim() == 3) return swiglu3D(tensor);
 
+  // a packed batch is 2D, the kernels index it as a 3D tensor with one leading row.
+  if (tensor.getDim() == 2) return swiglu3D(tensor.unsqueeze(0)).subtensor(0);
+
   NOT_IMPL();
 }
 

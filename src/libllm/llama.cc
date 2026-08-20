@@ -167,8 +167,8 @@ fl::Tensor Attention::applyRoPE(fl::Tensor input, fl::Tensor roPE) const {
   fl::Tensor cos = roPE.subtensor(0);
   fl::Tensor sin = roPE.subtensor(1);
 
-  cos = cos.expand({cos.getShape(0), input.getShape(2), cos.getShape(2)});
-  sin = sin.expand({sin.getShape(0), input.getShape(2), sin.getShape(2)});
+  cos = cos.expand({cos.getShape(0), input.getShape(1), cos.getShape(2)});
+  sin = sin.expand({sin.getShape(0), input.getShape(1), sin.getShape(2)});
 
   return fl::F::add(
       fl::F::mul(input, fl::F::contiguous(cos)),
@@ -178,7 +178,7 @@ fl::Tensor Attention::applyRoPE(fl::Tensor input, fl::Tensor roPE) const {
 fl::Tensor Attention::forward(KVCache &past, fl::Tensor input, const PackedBatch &batch) const {
   // multi-sequence packing lands in a later phase; every caller today packs a single sequence.
   CHECK(batch.numSequences() == 1);
-  CHECK(input.getDim() == 3);
+  CHECK(input.getDim() == 2);
   fl::Tensor qkv = _qkvProj->forward(input);
 
   int kvHiddenSize = _headDim * _numKeyValueHead;
@@ -187,15 +187,14 @@ fl::Tensor Attention::forward(KVCache &past, fl::Tensor input, const PackedBatch
   fl::Tensor k = qkv.slice(-1, {_hiddenSize, _hiddenSize + kvHiddenSize});
   fl::Tensor v = qkv.slice(-1, {_hiddenSize + kvHiddenSize, _hiddenSize + 2 * kvHiddenSize});
 
-  int N = qkv.getShape(0);
-  int qLen = qkv.getShape(1);
+  int qLen = qkv.getShape(0);
   int kvLen = qLen + getCtxLength(past);
 
   past.putValue(_namePastLen, kvLen);
 
-  q = q.view({N, qLen, _numHead, _headDim});
-  k = k.view({N, qLen, _numKeyValueHead, _headDim});
-  v = v.view({N, qLen, _numKeyValueHead, _headDim});
+  q = q.view({qLen, _numHead, _headDim});
+  k = k.view({qLen, _numKeyValueHead, _headDim});
+  v = v.view({qLen, _numKeyValueHead, _headDim});
   fl::Tensor roPE = _roPE.slice(1, {kvLen - qLen, kvLen});
 
   q = applyRoPE(q, roPE);
@@ -203,24 +202,25 @@ fl::Tensor Attention::forward(KVCache &past, fl::Tensor input, const PackedBatch
 
   // concat past for k and v.
   if (past.hasTensor(_namePastK) && past.hasTensor(_namePastV)) {
-    k = fl::F::cat(past.getTensor(_namePastK), k, 1);
-    v = fl::F::cat(past.getTensor(_namePastV), v, 1);
+    k = fl::F::cat(past.getTensor(_namePastK), k, 0);
+    v = fl::F::cat(past.getTensor(_namePastV), v, 0);
 
-    CHECK(k.getShape(1) == v.getShape(1) && k.getShape(1) == kvLen);
+    CHECK(k.getShape(0) == v.getShape(0) && k.getShape(0) == kvLen);
   }
 
   // update past.
   past.putTensor(_namePastK, k);
   past.putTensor(_namePastV, v);
 
-  // apply attention.
+  // apply attention. the operator wants <float>(N, numHead, length, headDim).
   // TODO: streaming mode support.
-  q = q.transpose(1, 2);
-  k = k.transpose(1, 2);
-  v = v.transpose(1, 2);
-  fl::Tensor x = fl::F::attention(q, k, v, true);
+  fl::Tensor x = fl::F::attention(
+      q.transpose(0, 1).unsqueeze(0),
+      k.transpose(0, 1).unsqueeze(0),
+      v.transpose(0, 1).unsqueeze(0),
+      true);
 
-  x = fl::F::contiguous(x.transpose(1, 2)).view({N, qLen, _hiddenSize});
+  x = fl::F::contiguous(x.subtensor(0).transpose(0, 1)).view({qLen, _hiddenSize});
   x = _outProj->forward(x);
 
   return x;
@@ -298,8 +298,8 @@ std::shared_ptr<LlamaModel> LlamaModel::build(const LlamaConfig &config, const V
 }
 
 fl::Tensor LlamaModel::forward(KVCache &past, fl::Tensor input) const {
-  CHECK(input.getDim() == 2);
-  int qLen = input.getShape(1);
+  CHECK(input.getDim() == 1);
+  int qLen = input.getShape(0);
   int pastLen = _config.numLayers > 0 ? _layers[0]->getCtxLength(past) : 0;
 
   return forward(past, input, PackedBatch::single(qLen, pastLen));
@@ -323,6 +323,10 @@ fl::Tensor LlamaModel::forwardLmHead(fl::Tensor hidden) const {
 
 int LlamaModel::getOutputDim() const {
   return _config.vocabSize;
+}
+
+int LlamaModel::getCtxLength(const KVCache &past) const {
+  return _config.numLayers > 0 ? _layers[0]->getCtxLength(past) : 0;
 }
 
 // -----------------------------------------------------------------------------------------------+
@@ -363,55 +367,40 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
   return model;
 }
 
-fl::Tensor LlamaModelForGeneration::prefill(KVCache &past, const Prompt &prompt) const {
-  fl::Tensor x = _model->forward(past, buildInput(prompt));
-  CHECK(x.getDim() == 3);
+fl::Tensor LlamaModelForGeneration::forward(KVCache &past, const PackedBatch &batch) const {
+  fl::Tensor x = _model->forward(past, batch.tokenIdsTensor(_device), batch);
+  CHECK(x.getDim() == 2);
 
-  x = x.slice(1, {-1, fl::None});
-  x = _model->forwardLmHead(x);
+  x = x.slice(0, {-1, fl::None});
+  return _model->forwardLmHead(x);
+}
 
-  return x;
+fl::Tensor LlamaModelForGeneration::prefill(
+    KVCache &past,
+    lut::Span<const fl::LongType> tokenIds) const {
+  return forward(past, PackedBatch::single(tokenIds, _model->getCtxLength(past)));
 }
 
 fl::Tensor LlamaModelForGeneration::decode(KVCache &past, fl::LongType inputToken) const {
   std::array<fl::LongType, 1> inputData{inputToken};
-  fl::Tensor inputs = fl::Tensor::create<fl::LongType>({1, 1}, inputData);
-  inputs = fl::F::to(getDevice(), inputs);
-
-  fl::Tensor x = _model->forward(past, inputs);
-  x = _model->forwardLmHead(x);
-
-  return x;
+  return forward(past, PackedBatch::single(inputData, _model->getCtxLength(past)));
 }
 
 void LlamaModelForGeneration::profileRun(int numTokens) const {
   CHECK(numTokens > 0);
 
   std::vector<fl::LongType> inputData(numTokens, 0);
-  fl::Tensor inputs = fl::Tensor::create<fl::LongType>({1, numTokens}, inputData);
+  fl::Tensor inputs = fl::Tensor::create<fl::LongType>({numTokens}, inputData);
   inputs = fl::F::to(getDevice(), inputs);
 
   KVCache past;
   fl::Tensor x = _model->forward(past, inputs);
-  _model->forwardLmHead(x.slice(1, {-1, fl::None}));
+  _model->forwardLmHead(x.slice(0, {-1, fl::None}));
 }
 
-fl::Tensor LlamaModelForGeneration::buildInput(const Prompt &prompt) const {
-  std::vector<fl::LongType> inputData{};
-  for (const PromptBlock &block : prompt.getBlocks()) {
-    if (block.blockType == PromptBlock::ControlToken || block.blockType == PromptBlock::Text) {
-      encodePromptBlock(block, inputData);
-    } else {
-      throw lut::AbortedError(
-          lut::sprintf(
-              "unexpected prompt type %s for model %s",
-              PromptBlock::typeToString(block.blockType),
-              _modelName));
-    }
-  }
-
-  int len = inputData.size();
-  fl::Tensor inputs = fl::Tensor::create<fl::LongType>({1, len}, inputData);
+fl::Tensor LlamaModelForGeneration::buildInput(lut::Span<const fl::LongType> tokenIds) const {
+  int len = static_cast<int>(tokenIds.size());
+  fl::Tensor inputs = fl::Tensor::create<fl::LongType>({len}, tokenIds);
   inputs = fl::F::to(_device, inputs);
   return inputs;
 }

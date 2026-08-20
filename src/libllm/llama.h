@@ -128,6 +128,7 @@ class LlamaModel {
   fl::Tensor forward(KVCache &past, fl::Tensor input, const PackedBatch &batch) const;
   fl::Tensor forwardLmHead(fl::Tensor hidden) const;
   int getOutputDim() const;
+  int getCtxLength(const KVCache &past) const;
 
  private:
   LlamaConfig _config;
@@ -145,7 +146,10 @@ class LlamaModelForGeneration : public ModelForGeneration {
       const fl::Device &device,
       lut::ZipFile *package);
 
-  fl::Tensor prefill(KVCache &past, const Prompt &prompt) const override;
+  using ModelForGeneration::prefill;
+
+  fl::Tensor forward(KVCache &past, const PackedBatch &batch) const override;
+  fl::Tensor prefill(KVCache &past, lut::Span<const fl::LongType> tokenIds) const override;
   fl::Tensor decode(KVCache &past, fl::LongType inputToken) const override;
 
   bool isStopToken(int tokenId) const override;
@@ -165,7 +169,7 @@ class LlamaModelForGeneration : public ModelForGeneration {
   int _eotId;
 
   LlamaModelForGeneration();
-  fl::Tensor buildInput(const Prompt &prompt) const;
+  fl::Tensor buildInput(lut::Span<const fl::LongType> tokenIds) const;
 };
 
 }  // namespace llama

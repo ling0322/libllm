@@ -35,9 +35,10 @@ Tensor arange(LongType begin, LongType end, LongType step = 1, Device device = D
 // the word embeddings for these indices.
 // Args:
 //   table <float>(V, D): the embedding table. V is vocab size and D is the embedding dimension.
-//   indices <long>(N, L): the indices.
+//   indices <long>(N, L) or <long>(L): the indices.
 // Returns:
-//   <float>(N, L, D): the word embedding tensor.
+//   <float>(N, L, D) or <float>(L, D): the word embedding tensor, one dimension more than
+//   `indices`.
 Tensor lookup(Tensor table, Tensor indices);
 
 // apply layer normalization over the last dimension of inputs.

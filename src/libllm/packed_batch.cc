@@ -42,6 +42,15 @@ PackedBatch PackedBatch::single(int qLen, int pastLen) {
   return batch;
 }
 
+PackedBatch PackedBatch::single(lut::Span<const fl::LongType> tokenIds, int pastLen) {
+  CHECK(!tokenIds.empty());
+
+  PackedBatch batch = single(static_cast<int>(tokenIds.size()), pastLen);
+  batch._tokenIds.assign(tokenIds.begin(), tokenIds.end());
+
+  return batch;
+}
+
 PackedBatch PackedBatch::packed(
     std::vector<int> cuSeqlensQ,
     std::vector<int> cuSeqlensK,
@@ -95,6 +104,10 @@ int PackedBatch::maxKLen() const {
   return maxLen;
 }
 
+lut::Span<const fl::LongType> PackedBatch::tokenIds() const {
+  return lut::makeConstSpan(_tokenIds);
+}
+
 lut::Span<const int> PackedBatch::cuSeqlensQ() const {
   return lut::makeConstSpan(_cuSeqlensQ);
 }
@@ -105,6 +118,16 @@ lut::Span<const int> PackedBatch::cuSeqlensK() const {
 
 lut::Span<const fl::LongType> PackedBatch::positionIds() const {
   return lut::makeConstSpan(_positionIds);
+}
+
+fl::Tensor PackedBatch::tokenIdsTensor(fl::Device device) const {
+  CHECK(static_cast<int>(_tokenIds.size()) == totalQLen()) << "batch carries no tokens";
+
+  fl::Tensor ids = fl::Tensor::create<fl::LongType>(
+      {static_cast<int>(_tokenIds.size())},
+      lut::makeConstSpan(_tokenIds));
+
+  return fl::F::to(device, ids);
 }
 
 fl::Tensor PackedBatch::positionIdsTensor(fl::Device device) const {
