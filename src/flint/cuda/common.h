@@ -143,6 +143,7 @@ lut::c_ptr<T> llynCudaAlloc(int64_t n) {
 
 Tensor createCudaTensorHalf(lut::Span<const int> shape);
 Tensor createCudaTensorLong(lut::Span<const int> shape);
+Tensor createCudaTensorInt32(lut::Span<const int> shape);
 Tensor createCudaTensorFloat(lut::Span<const int> shape);
 Tensor createCudaTensorFp4x2(lut::Span<const int> shape);
 Tensor createCudaTensorUInt8(lut::Span<const int> shape);
@@ -159,6 +160,10 @@ inline Tensor createCudaTensor<half>(lut::Span<const int> shape) {
 template<>
 inline Tensor createCudaTensor<LongType>(lut::Span<const int> shape) {
   return createCudaTensorLong(shape);
+}
+template<>
+inline Tensor createCudaTensor<IntType>(lut::Span<const int> shape) {
+  return createCudaTensorInt32(shape);
 }
 template<>
 inline Tensor createCudaTensor<float>(lut::Span<const int> shape) {

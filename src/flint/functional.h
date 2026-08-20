@@ -152,6 +152,43 @@ void copy(Tensor src, Tensor dest);
 //   <float>(N, nHead, L, D): the output tensor.
 Tensor attention(Tensor q, Tensor k, Tensor v, bool causal);
 
+// Compute the scaled dot product attention of a packed (varlen) batch of queries that reads its
+// keys and values from a paged KV cache. Sequence i owns the blocks named by row i of blockTable
+// and attends to the first seqlensK[i] tokens they hold. The tokens it already had before this
+// call are seqlensK[i] minus its query length, which is where the causal mask starts.
+// Args:
+//   q <float>(totalQLen, nHead, D): the queries of every sequence, packed back to back.
+//   keyCache <float>(nBlock, blockSize, nKvHead, D): the key block pool.
+//   valueCache <float>(nBlock, blockSize, nKvHead, D): the value block pool.
+//   blockTable <int>(nSeq, maxNumBlock): the blocks each sequence owns, in token order.
+//   cuSeqlensQ <int>(nSeq + 1): exclusive prefix sum of the query lengths.
+//   seqlensK <int>(nSeq): the number of cached tokens each sequence attends to.
+//   maxQLen: the longest query length in the batch.
+//   maxKLen: the longest value in seqlensK.
+//   causal: mask the future positions, aligned to the bottom right of the score matrix.
+// Returns:
+//   <float>(totalQLen, nHead, D): the output tensor.
+Tensor pagedAttention(
+    Tensor q,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor blockTable,
+    Tensor cuSeqlensQ,
+    Tensor seqlensK,
+    int maxQLen,
+    int maxKLen,
+    bool causal);
+
+// Scatter the keys and values a forward pass just produced into a paged KV cache, so a later
+// pagedAttention() reads them back.
+// Args:
+//   k <float>(numTokens, nKvHead, D): the keys, packed like the queries.
+//   v <float>(numTokens, nKvHead, D): the values.
+//   keyCache <float>(nBlock, blockSize, nKvHead, D): the key block pool, written in place.
+//   valueCache <float>(nBlock, blockSize, nKvHead, D): the value block pool, written in place.
+//   slotMapping <int>(numTokens): the slot of each token, as blockId * blockSize + offset.
+void storeKVCache(Tensor k, Tensor v, Tensor keyCache, Tensor valueCache, Tensor slotMapping);
+
 // Applies the Swish-Gated Linear Unit function SwiGLU(a, b) = swish(a) * b.  Where a is the first
 // half of input (input[..., :input.shape[-1] / 2]) and b is the second half of input
 // (input[..., input.shape[-1] / 2 :]).

@@ -34,6 +34,7 @@ constexpr int16_t DType::kLong;
 constexpr int16_t DType::kUInt8;
 constexpr int16_t DType::kFloat16;
 constexpr int16_t DType::kInt8;
+constexpr int16_t DType::kInt32;
 
 DType::DType(int16_t dtype)
     : _dtype(dtype) {
@@ -46,6 +47,10 @@ DType DType::getTypeImpl<void>() {
 template<>
 DType DType::getTypeImpl<float>() {
   return DType::kFloat;
+}
+template<>
+DType DType::getTypeImpl<int32_t>() {
+  return DType::kInt32;
 }
 template<>
 DType DType::getTypeImpl<int64_t>() {
@@ -82,6 +87,7 @@ DType DType::getTypeImpl<Fp4E2M0x2>() {
 int64_t DType::getTotalSize(int64_t numel) const {
   switch (_dtype) {
     case DType::kFloat:
+    case DType::kInt32:
       return 4 * numel;
     case DType::kFloat16:
       return 2 * numel;
@@ -102,6 +108,7 @@ bool DType::isValid() const {
   switch (_dtype) {
     case DType::kFloat:
     case DType::kFloat16:
+    case DType::kInt32:
     case DType::kLong:
     case DType::kUInt8:
     case DType::kFp4E2M0x2:
@@ -148,6 +155,8 @@ std::string DType::toString() const {
       return "bool";
     case DType::kInt8:
       return "int8";
+    case DType::kInt32:
+      return "int32";
     default:
       return lut::sprintf("unknown(%d)", int(_dtype));
   }

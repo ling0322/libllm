@@ -67,6 +67,16 @@ class CudaOperators : public Operators {
   Tensor sample(Tensor distribution, int topK, float topP) override;
   Tensor softmax(Tensor input) override;
   Tensor attention(Tensor q, Tensor k, Tensor v, bool causal) override;
+  Tensor pagedAttention(
+      Tensor q,
+      Tensor keyCache,
+      Tensor valueCache,
+      Tensor blockTable,
+      Tensor cuSeqlensQ,
+      Tensor seqlensK,
+      int maxQLen,
+      int maxKLen,
+      bool causal) override;
   Tensor sum(Tensor inputs, int dim) override;
   Tensor swiglu(Tensor A) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;

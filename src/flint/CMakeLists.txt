@@ -85,6 +85,7 @@ if (WITH_CUDA)
 
     if(WITH_FLASH_ATTN)
         set(flint_SOURCES ${flint_SOURCES} "cuda/flash_attn.cc")
+        set(flint_test_SOURCES ${flint_test_SOURCES} "cuda/flash_attn_test.cc")
     endif()
 
     set(flint_test_SOURCES ${flint_test_SOURCES} "cuda/test.cc")

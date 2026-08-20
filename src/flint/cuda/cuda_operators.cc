@@ -185,6 +185,33 @@ Tensor CudaOperators::attention(Tensor q, Tensor k, Tensor v, bool causal) {
   return Operators::attention(q, k, v, causal);
 }
 
+Tensor CudaOperators::pagedAttention(
+    Tensor q,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor blockTable,
+    Tensor cuSeqlensQ,
+    Tensor seqlensK,
+    int maxQLen,
+    int maxKLen,
+    bool causal) {
+#ifdef LIBLLM_FLASH_ATTN_ENABLED
+  Tensor output = op::cuda::pagedFlashAttention(
+      q,
+      keyCache,
+      valueCache,
+      blockTable,
+      cuSeqlensQ,
+      seqlensK,
+      maxQLen,
+      maxKLen,
+      causal);
+  if (!output.empty()) return output;
+#endif
+
+  NOT_IMPL();
+}
+
 Tensor CudaOperators::tensor(lut::Span<const int> shape, DType dtype) {
   if (dtype == DType::kFloat16) return createCudaTensorHalf(shape);
   if (dtype == DType::kUInt8) return createCudaTensorUInt8(shape);

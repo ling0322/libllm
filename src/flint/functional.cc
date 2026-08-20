@@ -182,6 +182,33 @@ Tensor attention(Tensor q, Tensor k, Tensor v, bool causal) {
   return getOperators(q.getDevice().getType())->attention(q, k, v, causal);
 }
 
+Tensor pagedAttention(
+    Tensor q,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor blockTable,
+    Tensor cuSeqlensQ,
+    Tensor seqlensK,
+    int maxQLen,
+    int maxKLen,
+    bool causal) {
+  return getOperators(q.getDevice().getType())
+      ->pagedAttention(
+          q,
+          keyCache,
+          valueCache,
+          blockTable,
+          cuSeqlensQ,
+          seqlensK,
+          maxQLen,
+          maxKLen,
+          causal);
+}
+
+void storeKVCache(Tensor k, Tensor v, Tensor keyCache, Tensor valueCache, Tensor slotMapping) {
+  getOperators(k.getDevice().getType())->storeKVCache(k, v, keyCache, valueCache, slotMapping);
+}
+
 Tensor swiglu(Tensor inputs) {
   return getOperators(inputs.getDevice().getType())->swiglu(inputs);
 }

@@ -52,6 +52,7 @@ Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const T> data)
 }
 
 template Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const float> data);
+template Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const IntType> data);
 template Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const LongType> data);
 
 Tensor Tensor::create(

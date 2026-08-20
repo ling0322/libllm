@@ -49,6 +49,38 @@ class Operators {
   /// [batch, numKeyValueHeads, keyValueLength, headDim]. numHeads is a multiple of
   /// numKeyValueHeads, so grouped-query and multi-query attention need no expanded k and v.
   virtual Tensor attention(Tensor q, Tensor k, Tensor v, bool causal);
+
+  /// Scaled dot product attention of a packed (varlen) batch of queries over a paged KV cache.
+  /// q is [totalQueryLength, numHeads, headDim], the queries of every sequence packed back to
+  /// back. keyCache and valueCache are [numBlocks, blockSize, numKeyValueHeads, headDim], the
+  /// block pool every sequence reads through its row of blockTable
+  /// <int>[numSequences, maxNumBlocksPerSequence]. cuSeqlensQ is <int>[numSequences + 1], the
+  /// exclusive prefix sum of the query lengths. seqlensK is <int>[numSequences], how many cached
+  /// tokens each sequence attends to; a causal query reads its own key, so storeKVCache() must
+  /// already have put this batch in the pool and seqlensK[i] counts it. maxQLen and maxKLen bound
+  /// the per-sequence lengths. Returns [totalQueryLength, numHeads, headDim].
+  virtual Tensor pagedAttention(
+      Tensor q,
+      Tensor keyCache,
+      Tensor valueCache,
+      Tensor blockTable,
+      Tensor cuSeqlensQ,
+      Tensor seqlensK,
+      int maxQLen,
+      int maxKLen,
+      bool causal);
+
+  /// Scatter the keys and values a forward pass just produced into a paged KV cache, so that a
+  /// later pagedAttention() reads them back. k and v are [numTokens, numKeyValueHeads, headDim],
+  /// packed the same way as the queries. keyCache and valueCache are
+  /// [numBlocks, blockSize, numKeyValueHeads, headDim]. slotMapping is [numTokens], the slot each
+  /// token takes in the pool, counted as blockId * blockSize + offsetInBlock.
+  virtual void storeKVCache(
+      Tensor k,
+      Tensor v,
+      Tensor keyCache,
+      Tensor valueCache,
+      Tensor slotMapping);
   virtual Tensor sample(Tensor distribution, int topK, float topP);
   virtual Tensor add(Tensor input, Tensor other);
   virtual Tensor sub(Tensor input, Tensor other);

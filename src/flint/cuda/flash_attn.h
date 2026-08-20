@@ -29,6 +29,22 @@ namespace cuda {
 /// if no compiled kernel matches the inputs.
 Tensor flashAttention(Tensor q, Tensor k, Tensor v, bool causal);
 
+/// Runs FlashAttention of a packed batch of queries over a paged KV cache. q is
+/// [totalQLen, nHead, D], keyCache and valueCache are [nBlock, blockSize, nKvHead, D], blockTable
+/// is <int>[nSeq, maxNumBlock], cuSeqlensQ is <int>[nSeq + 1] and seqlensK is <int>[nSeq].
+/// maxQLen and maxKLen bound the per-sequence lengths; the kernel sizes its grid from them.
+/// Returns an empty tensor if no compiled kernel matches the inputs.
+Tensor pagedFlashAttention(
+    Tensor q,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor blockTable,
+    Tensor cuSeqlensQ,
+    Tensor seqlensK,
+    int maxQLen,
+    int maxKLen,
+    bool causal);
+
 }  // namespace cuda
 }  // namespace op
 }  // namespace fl

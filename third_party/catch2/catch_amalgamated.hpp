@@ -14,6 +14,14 @@
 #ifndef CATCH_AMALGAMATED_HPP_INCLUDED
 #define CATCH_AMALGAMATED_HPP_INCLUDED
 
+// libllm local modification, see README.md. The tests spell the macros CATCH_TEST_CASE and
+// CATCH_REQUIRE, so turn the prefixed spelling on here rather than only through the build's
+// -DCATCH_CONFIG_PREFIX_ALL. A translation unit compiled outside the build system, such as an
+// editor parsing a test file on its own, then still resolves them.
+#if !defined(CATCH_CONFIG_PREFIX_ALL) && !defined(CATCH_CONFIG_NO_PREFIX_ALL)
+#define CATCH_CONFIG_PREFIX_ALL
+#endif
+
 
 /** \file
  * This is a convenience header for Catch2. It includes **all** of Catch2 headers.

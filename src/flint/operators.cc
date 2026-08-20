@@ -97,6 +97,28 @@ Tensor Operators::softmax(Tensor input) {
   NOT_IMPL();
 }
 
+Tensor Operators::pagedAttention(
+    Tensor q,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor blockTable,
+    Tensor cuSeqlensQ,
+    Tensor seqlensK,
+    int maxQLen,
+    int maxKLen,
+    bool causal) {
+  NOT_IMPL();
+}
+
+void Operators::storeKVCache(
+    Tensor k,
+    Tensor v,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor slotMapping) {
+  NOT_IMPL();
+}
+
 Tensor Operators::attention(Tensor q, Tensor k, Tensor v, bool causal) {
   CHECK(q.getDim() == 4 && k.getDim() == 4 && v.getDim() == 4);
 
