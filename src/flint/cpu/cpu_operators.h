@@ -71,6 +71,9 @@ class CPUOperators : public Operators {
 
   DType getDefaultFloatType() override;
 
+  MemorySnapshot captureMemorySnapshot() override;
+  void resetPeakMemoryStats() override;
+
  private:
   typedef TensorShape::Elem Shape;
   lut::Random _rand;

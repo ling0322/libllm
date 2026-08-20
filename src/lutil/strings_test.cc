@@ -56,6 +56,26 @@ CATCH_TEST_CASE("string functions works", "[core][util]") {
   CATCH_REQUIRE(toUtf8(ws_ref) == s_ref);
 }
 
+CATCH_TEST_CASE("formatNumber works", "[fl][strings]") {
+  // below the multiplier the number is printed as is.
+  CATCH_REQUIRE(formatNumber(0) == "0");
+  CATCH_REQUIRE(formatNumber(1) == "1");
+  CATCH_REQUIRE(formatNumber(1023) == "1023");
+  CATCH_REQUIRE(formatNumber(-1023) == "-1023");
+
+  CATCH_REQUIRE(formatNumber(1024) == "1.0K");
+  CATCH_REQUIRE(formatNumber(1536) == "1.5K");
+  CATCH_REQUIRE(formatNumber(-2048) == "-2.0K");
+
+  // a value that fills the unit exactly rolls over to the next one.
+  CATCH_REQUIRE(formatNumber(1024LL * 1024) == "1.0M");
+  CATCH_REQUIRE(formatNumber(1024LL * 1024 * 1024) == "1.0G");
+  CATCH_REQUIRE(formatNumber(1024LL * 1024 * 1024 * 1024) == "1.0T");
+  CATCH_REQUIRE(formatNumber(1024LL * 1024 * 1024 * 1024 * 1024) == "1.0P");
+
+  CATCH_REQUIRE(formatNumber(3LL * 1024 * 1024 * 1024 / 2) == "1.5G");
+}
+
 CATCH_TEST_CASE("sprintf works", "[fl][strings]") {
   // BVT
   CATCH_REQUIRE(lut::sprintf("%d", 22) == "22");

@@ -174,6 +174,14 @@ Tensor Operators::zeros(lut::Span<const int> shape, DType dtype) {
   NOT_IMPL();
 }
 
+MemorySnapshot Operators::captureMemorySnapshot() {
+  NOT_IMPL();
+}
+
+void Operators::resetPeakMemoryStats() {
+  NOT_IMPL();
+}
+
 bool Operators::allClose(Tensor A, Tensor B, float rtol, float atol) {
   NOT_IMPL();
 }

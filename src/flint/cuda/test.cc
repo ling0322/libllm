@@ -35,9 +35,33 @@
 #include "flint/cuda/matvec.h"
 #include "flint/device.h"
 #include "flint/functional.h"
+#include "flint/memory.h"
 #include "flint/operators.h"
 
 namespace fl {
+
+CATCH_TEST_CASE("test CUDA memory snapshot", "[fl][cuda][memory]") {
+  MemorySnapshot::resetPeakStats(Device::getCuda());
+
+  MemorySnapshot before = MemorySnapshot::capture(Device::getCuda());
+  CATCH_REQUIRE(before.getTotalMemory() > 0);
+  CATCH_REQUIRE(before.getFreeMemory() > 0);
+  CATCH_REQUIRE(before.getFreeMemory() <= before.getTotalMemory());
+
+  int64_t bytes = 0;
+  {
+    Tensor x = F::tensor({1024, 1024}, DType::kFloat16, Device::getCuda());
+    bytes = x.getNumEl() * 2;
+
+    MemorySnapshot allocated = MemorySnapshot::capture(Device::getCuda());
+    CATCH_REQUIRE(allocated.getAllocatedMemory() >= before.getAllocatedMemory() + bytes);
+  }
+
+  // the tensor is gone, but its bytes stay in the pool and remain in the peak.
+  MemorySnapshot after = MemorySnapshot::capture(Device::getCuda());
+  CATCH_REQUIRE(after.getAllocatedMemory() <= before.getAllocatedMemory());
+  CATCH_REQUIRE(after.getPeakAllocatedMemory() >= bytes);
+}
 
 CATCH_TEST_CASE("test CUDA FastDivmod", "[fl][cuda]") {
   constexpr uint32_t divisors[] = {1, 2, 3, 7, 16, 255, 65535, INT32_MAX};

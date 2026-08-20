@@ -196,6 +196,39 @@ Tensor CudaOperators::tensorLike(Tensor input) {
   return op::cuda::tensorLike(input);
 }
 
+MemorySnapshot CudaOperators::captureMemorySnapshot() {
+  size_t freeMemory = 0;
+  size_t totalMemory = 0;
+  LL_CHECK_CUDA_STATUS(cudaMemGetInfo(&freeMemory, &totalMemory));
+
+  uint64_t allocatedMemory = 0;
+  uint64_t peakAllocatedMemory = 0;
+#ifdef LIBLLM_CUDA_MALLOC_ASYNC_ENABLED
+  cudaMemPool_t memoryPool;
+  LL_CHECK_CUDA_STATUS(cudaDeviceGetDefaultMemPool(&memoryPool, 0));
+  LL_CHECK_CUDA_STATUS(
+      cudaMemPoolGetAttribute(memoryPool, cudaMemPoolAttrUsedMemCurrent, &allocatedMemory));
+  LL_CHECK_CUDA_STATUS(
+      cudaMemPoolGetAttribute(memoryPool, cudaMemPoolAttrUsedMemHigh, &peakAllocatedMemory));
+#endif
+
+  return MemorySnapshot(
+      static_cast<int64_t>(totalMemory),
+      static_cast<int64_t>(freeMemory),
+      static_cast<int64_t>(allocatedMemory),
+      static_cast<int64_t>(peakAllocatedMemory));
+}
+
+void CudaOperators::resetPeakMemoryStats() {
+#ifdef LIBLLM_CUDA_MALLOC_ASYNC_ENABLED
+  // the high watermark of a memory pool can only be reset to zero.
+  cudaMemPool_t memoryPool;
+  uint64_t zero = 0;
+  LL_CHECK_CUDA_STATUS(cudaDeviceGetDefaultMemPool(&memoryPool, 0));
+  LL_CHECK_CUDA_STATUS(cudaMemPoolSetAttribute(memoryPool, cudaMemPoolAttrUsedMemHigh, &zero));
+#endif
+}
+
 void CudaOperators::copy(Tensor src, Tensor dest) {
   CHECK(src.getDevice().getType() == Device::kCuda);
   CHECK(dest.getDevice().getType() == Device::kCuda);

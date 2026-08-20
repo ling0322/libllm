@@ -152,12 +152,16 @@ class LlamaModelForGeneration : public ModelForGeneration {
   const char *getName() const override;
   fl::Device getDevice() const override;
   int getOutputDim() const override;
+  KVCacheSpec getKVCacheSpec() const override;
+  void profileRun(int numTokens) const override;
   Prompt buildPrompt(lut::Span<const Message> history) const override;
 
  protected:
   std::shared_ptr<LlamaModel> _model;
+  LlamaConfig _config;
   std::string _modelName;
   fl::Device _device;
+  fl::DType _floatType;
   int _eotId;
 
   LlamaModelForGeneration();

@@ -22,6 +22,7 @@
 #include "libllm/constants.h"
 #include "libllm/llama.h"
 #include "lutil/error.h"
+#include "lutil/log.h"
 #include "lutil/path.h"
 #include "lutil/strings.h"
 #include "lutil/zip_file.h"
@@ -48,11 +49,21 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
     throw lut::AbortedError(lut::sprintf("unexpected model type: %s", modelType));
   }
 
+  model->_tokenizer = Tokenizer::fromPackage(package);
+  model->initKVCacheFromConfig(EngineConfig());
   return model;
 }
 
 void ModelForGeneration::initTokenizer(lut::ZipFile *package) {
   _tokenizer = Tokenizer::fromPackage(package);
+}
+
+std::weak_ptr<KVCacheManager> ModelForGeneration::getKVCacheManager() const {
+  return _kvCacheManager;
+}
+
+void ModelForGeneration::initKVCacheFromConfig(const EngineConfig &config) {
+  _kvCacheManager = KVCacheManager::create(*this, config);
 }
 
 const Vocab *ModelForGeneration::getVocab() const {

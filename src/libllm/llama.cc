@@ -330,7 +330,8 @@ int LlamaModel::getOutputDim() const {
 // -----------------------------------------------------------------------------------------------+
 
 LlamaModelForGeneration::LlamaModelForGeneration()
-    : _eotId(0) {
+    : _floatType(fl::DType::kUnknown),
+      _eotId(0) {
 }
 
 std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
@@ -352,7 +353,9 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
       device,
       fl::F::getDefaultFloatType(device));
   model->_model = LlamaModel::build(llamaConfig, vb.withName(modelType));
+  model->_config = llamaConfig;
   model->_device = device;
+  model->_floatType = vb.getFloatDType();
   model->_eotId = llamaIni.getInt("eot_token_id");
   model->_modelName = modelType;
 
@@ -379,6 +382,18 @@ fl::Tensor LlamaModelForGeneration::decode(KVCache &past, fl::LongType inputToke
   x = _model->forwardLmHead(x);
 
   return x;
+}
+
+void LlamaModelForGeneration::profileRun(int numTokens) const {
+  CHECK(numTokens > 0);
+
+  std::vector<fl::LongType> inputData(numTokens, 0);
+  fl::Tensor inputs = fl::Tensor::create<fl::LongType>({1, numTokens}, inputData);
+  inputs = fl::F::to(getDevice(), inputs);
+
+  KVCache past;
+  fl::Tensor x = _model->forward(past, inputs);
+  _model->forwardLmHead(x.slice(1, {-1, fl::None}));
 }
 
 fl::Tensor LlamaModelForGeneration::buildInput(const Prompt &prompt) const {
@@ -415,6 +430,15 @@ fl::Device LlamaModelForGeneration::getDevice() const {
 
 int LlamaModelForGeneration::getOutputDim() const {
   return _model->getOutputDim();
+}
+
+KVCacheSpec LlamaModelForGeneration::getKVCacheSpec() const {
+  return KVCacheSpec(
+      _config.numLayers,
+      _config.numKeyValueHeads,
+      _config.hiddenSize / _config.numHeads,
+      _config.maxContextLength,
+      _floatType);
 }
 
 Prompt LlamaModelForGeneration::buildPrompt(lut::Span<const Message> history) const {

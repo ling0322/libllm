@@ -61,6 +61,14 @@ int PackedBatch::numSequences() const {
   return static_cast<int>(_cuSeqlensQ.size()) - 1;
 }
 
+void PackedBatch::setKVCacheManager(std::weak_ptr<KVCacheManager> manager) {
+  _kvCacheManager = std::move(manager);
+}
+
+std::weak_ptr<KVCacheManager> PackedBatch::kvCacheManager() const {
+  return _kvCacheManager;
+}
+
 int PackedBatch::totalQLen() const {
   return _cuSeqlensQ.back();
 }

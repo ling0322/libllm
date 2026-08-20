@@ -20,6 +20,7 @@ set(libllm_SOURCES
 set(libllm_INCDIR ".." "../../third_party")
 
 set(libllm_test_SOURCES
+    "kv_cache_test.cc"
     "llama_test.cc")
 
 add_library(libllm_test OBJECT ${libllm_test_SOURCES})

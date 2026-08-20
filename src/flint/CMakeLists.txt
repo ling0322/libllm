@@ -30,6 +30,7 @@ set(flint_SOURCES
     "device.cc"
     "dtype.cc"
     "functional.cc"
+    "memory.cc"
     "operators.cc"
     "tensor.cc"
     "../../third_party/ruapu/ruapu.cc")

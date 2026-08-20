@@ -24,6 +24,7 @@
 #include "lutil/random.h"
 #include "lutil/thread_pool.h"
 #include "flint/device.h"
+#include "flint/memory.h"
 #include "flint/tensor.h"
 
 namespace fl {
@@ -74,6 +75,9 @@ class Operators {
   virtual Tensor rand(lut::Span<const int> shape, DType dtype);
   virtual Tensor randNormal(lut::Span<const int> shape);
   virtual void manualSeed(uint64_t seed);
+
+  virtual MemorySnapshot captureMemorySnapshot();
+  virtual void resetPeakMemoryStats();
 
   virtual DType getDefaultFloatType();
 };

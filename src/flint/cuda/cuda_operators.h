@@ -80,6 +80,9 @@ class CudaOperators : public Operators {
   bool elemBool(Tensor tensor) override;
   Tensor eq(Tensor input, Tensor other) override;
 
+  MemorySnapshot captureMemorySnapshot() override;
+  void resetPeakMemoryStats() override;
+
   DType getDefaultFloatType() override;
 
  private:

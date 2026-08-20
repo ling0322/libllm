@@ -19,6 +19,9 @@
 
 #pragma once
 
+#include <memory>
+
+#include "libllm/engine_config.h"
 #include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
 #include "lutil/zip_file.h"
@@ -85,6 +88,24 @@ class ModelForGeneration {
   /// @return the output dimension of the model.
   virtual int getOutputDim() const = 0;
 
+  /// @brief Get the model's KV cache layout requirements.
+  virtual KVCacheSpec getKVCacheSpec() const = 0;
+
+  /// @brief Forward a dummy batch of `numTokens` tokens, so the device records the peak memory a
+  /// full-size forward pass needs. The KV cache is not touched.
+  /// @param numTokens Number of tokens in the profiling batch.
+  virtual void profileRun(int numTokens) const = 0;
+
+  /// @brief Allocate the paged KV cache storage according to the engine configuration. Requires a
+  /// device that reports its memory usage.
+  /// @param config The engine configuration.
+  void initKVCacheFromConfig(const EngineConfig &config);
+
+  /// @brief Get the KV cache manager owned by this model.
+  /// @return A non-owning handle to the KV cache manager. Empty if initKVCacheFromConfig() was not
+  /// called.
+  std::weak_ptr<KVCacheManager> getKVCacheManager() const;
+
   /// @brief build prompt from history messages.
   /// @param history the history.
   /// @return the prompt.
@@ -99,6 +120,7 @@ class ModelForGeneration {
 
  protected:
   std::shared_ptr<Tokenizer> _tokenizer;
+  std::shared_ptr<KVCacheManager> _kvCacheManager;
 
   ModelForGeneration() = default;
 

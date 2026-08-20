@@ -19,11 +19,13 @@
 
 #pragma once
 
+#include <memory>
 #include <vector>
 
 #include "lutil/span.h"
 #include "flint/device.h"
 #include "flint/tensor.h"
+#include "libllm/kv_cache.h"
 
 namespace libllm {
 
@@ -58,6 +60,10 @@ class PackedBatch {
   lut::Span<const int> cuSeqlensK() const;
   lut::Span<const fl::LongType> positionIds() const;
 
+  // the paged KV cache storage this batch reads and writes. Empty until attached.
+  void setKVCacheManager(std::weak_ptr<KVCacheManager> manager);
+  std::weak_ptr<KVCacheManager> kvCacheManager() const;
+
   // materialize the per-token rotary position ids as a device <long>(totalQLen) tensor.
   fl::Tensor positionIdsTensor(fl::Device device) const;
 
@@ -71,6 +77,7 @@ class PackedBatch {
   std::vector<int> _cuSeqlensQ;
   std::vector<int> _cuSeqlensK;
   std::vector<fl::LongType> _positionIds;
+  std::weak_ptr<KVCacheManager> _kvCacheManager;
 
   PackedBatch() = default;
 };
