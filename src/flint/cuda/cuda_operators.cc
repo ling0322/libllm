@@ -38,6 +38,7 @@
 #include "flint/cuda/rms_norm.h"
 #include "flint/cuda/sampling.h"
 #include "flint/cuda/softmax.h"
+#include "flint/cuda/store_kv_cache.h"
 #include "flint/cuda/swiglu.h"
 #include "flint/cuda/to_device.h"
 #include "flint/cuda/unary.h"
@@ -183,6 +184,15 @@ Tensor CudaOperators::attention(Tensor q, Tensor k, Tensor v, bool causal) {
 #endif
 
   return Operators::attention(q, k, v, causal);
+}
+
+void CudaOperators::storeKVCache(
+    Tensor k,
+    Tensor v,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor slotMapping) {
+  op::cuda::storeKVCache(k, v, keyCache, valueCache, slotMapping);
 }
 
 Tensor CudaOperators::pagedAttention(

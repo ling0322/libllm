@@ -64,7 +64,7 @@ class Scheduler {
       const GenerationConfig &config,
       std::shared_ptr<ModelForGeneration> model);
 
-  ~Scheduler() = default;
+  ~Scheduler();
 
   /// @brief set the request to complete.
   /// @param request the request;
@@ -84,7 +84,6 @@ class Scheduler {
 
  private:
   std::shared_ptr<Request> _request;
-  KVCache _past;
   std::shared_ptr<ModelForGeneration> _model;
   int _currentToken;
 
@@ -92,6 +91,13 @@ class Scheduler {
   float _temperature;
 
   Scheduler(const GenerationConfig &config, std::shared_ptr<ModelForGeneration> model);
+
+  /// @brief Make sure the request holds enough blocks for `numTokens` tokens, allocating more if
+  /// it does not. Throws when the manager has none left.
+  void reserveBlocks(int numTokens);
+
+  /// @brief Return the blocks of the request to the manager.
+  void releaseBlocks();
 
   int searchToken(const fl::Tensor &logits);
 };

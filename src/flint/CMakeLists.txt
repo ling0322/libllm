@@ -79,6 +79,7 @@ if (WITH_CUDA)
         "cuda/rms_norm.cu"
         "cuda/sampling.cu"
         "cuda/softmax.cu"
+        "cuda/store_kv_cache.cu"
         "cuda/swiglu.cu"
         "cuda/to_device.cc"
         "cuda/unary.cu")
@@ -88,7 +89,10 @@ if (WITH_CUDA)
         set(flint_test_SOURCES ${flint_test_SOURCES} "cuda/flash_attn_test.cc")
     endif()
 
-    set(flint_test_SOURCES ${flint_test_SOURCES} "cuda/test.cc")
+    set(flint_test_SOURCES
+        ${flint_test_SOURCES}
+        "cuda/store_kv_cache_test.cc"
+        "cuda/test.cc")
     set(flint_benchmark_SOURCES ${flint_benchmark_SOURCES} "cuda/benchmark.cc")
 
     if (WITH_CUTLASS)

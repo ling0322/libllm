@@ -77,6 +77,12 @@ class CudaOperators : public Operators {
       int maxQLen,
       int maxKLen,
       bool causal) override;
+  void storeKVCache(
+      Tensor k,
+      Tensor v,
+      Tensor keyCache,
+      Tensor valueCache,
+      Tensor slotMapping) override;
   Tensor sum(Tensor inputs, int dim) override;
   Tensor swiglu(Tensor A) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;

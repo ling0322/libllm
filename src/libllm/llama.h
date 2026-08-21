@@ -25,7 +25,7 @@
 #include "libllm/kv_cache.h"
 #include "libllm/layers.h"
 #include "libllm/model_for_generation.h"
-#include "libllm/packed_batch.h"
+#include "libllm/forward_batch.h"
 #include "lutil/error.h"
 #include "lutil/ini_config.h"
 #include "flint/functional.h"
@@ -64,34 +64,28 @@ class MLP {
 
 class Attention {
  public:
-  // `roPE` is shared by all the attention layers of a model.
+  // `roPE` is shared by all the attention layers of a model. `layerIndex` names this layer's key
+  // and value tensors in the paged KV cache.
   static std::shared_ptr<Attention> build(
       const LlamaConfig &config,
       const VarBuilder &vb,
-      fl::Tensor roPE);
+      fl::Tensor roPE,
+      int layerIndex);
 
-  // `batch` describes how `input` decomposes into sequences. For today's callers it is always
-  // `PackedBatch::single(...)`, i.e. a single contiguous sequence; multi-sequence packing is
-  // wired up in a later phase.
-  fl::Tensor forward(KVCache &past, fl::Tensor input, const PackedBatch &batch) const;
-
-  // get past length of this attention layer. Exposed so callers building a `PackedBatch` for the
-  // single-sequence case know the correct starting rotary position.
-  int getCtxLength(const KVCache &past) const;
+  // `batch` describes how `input` decomposes into sequences and names the cache blocks each one
+  // owns.
+  fl::Tensor forward(fl::Tensor input, const ForwardBatch &batch) const;
 
  private:
   std::shared_ptr<Linear> _qkvProj;
   std::shared_ptr<Linear> _outProj;
   fl::Tensor _roPE;
 
-  std::string _namePastK;
-  std::string _namePastV;
-  std::string _namePastLen;
-
   int _hiddenSize;
   int _numHead;
   int _numKeyValueHead;
   int _headDim;
+  int _layerIndex;
 
   Attention();
 
@@ -104,10 +98,10 @@ class DecodeLayer {
   static std::shared_ptr<DecodeLayer> build(
       const LlamaConfig &config,
       const VarBuilder &vb,
-      fl::Tensor roPE);
+      fl::Tensor roPE,
+      int layerIndex);
 
-  fl::Tensor forward(KVCache &past, fl::Tensor input, const PackedBatch &batch) const;
-  int getCtxLength(const KVCache &past) const;
+  fl::Tensor forward(fl::Tensor input, const ForwardBatch &batch) const;
 
  private:
   std::shared_ptr<RMSNorm> _inputNorm;
@@ -122,13 +116,10 @@ class LlamaModel {
  public:
   static std::shared_ptr<LlamaModel> build(const LlamaConfig &config, const VarBuilder &vb);
 
-  // convenience overload for the single-sequence case (every caller today): builds a
-  // `PackedBatch::single(...)` internally from `past`'s current length and `input`'s length.
-  fl::Tensor forward(KVCache &past, fl::Tensor input) const;
-  fl::Tensor forward(KVCache &past, fl::Tensor input, const PackedBatch &batch) const;
+  fl::Tensor forward(fl::Tensor input, const ForwardBatch &batch) const;
   fl::Tensor forwardLmHead(fl::Tensor hidden) const;
+  const LlamaConfig &getConfig() const;
   int getOutputDim() const;
-  int getCtxLength(const KVCache &past) const;
 
  private:
   LlamaConfig _config;
@@ -146,18 +137,13 @@ class LlamaModelForGeneration : public ModelForGeneration {
       const fl::Device &device,
       lut::ZipFile *package);
 
-  using ModelForGeneration::prefill;
-
-  fl::Tensor forward(KVCache &past, const PackedBatch &batch) const override;
-  fl::Tensor prefill(KVCache &past, lut::Span<const fl::LongType> tokenIds) const override;
-  fl::Tensor decode(KVCache &past, fl::LongType inputToken) const override;
+  fl::Tensor forward(const ForwardBatch &batch) const override;
 
   bool isStopToken(int tokenId) const override;
   const char *getName() const override;
   fl::Device getDevice() const override;
   int getOutputDim() const override;
   KVCacheSpec getKVCacheSpec() const override;
-  void profileRun(int numTokens) const override;
   Prompt buildPrompt(lut::Span<const Message> history) const override;
 
  protected:

@@ -74,48 +74,6 @@ int64_t getKVCacheBytesPerBlock(const KVCacheSpec &spec, int blockSize) {
   return spec.getDType().getTotalSize(numElements);
 }
 
-KVCache KVCache::clone() const {
-  KVCache cache;
-  cache._dict = _dict;
-  cache._intDict = _intDict;
-
-  return cache;
-}
-
-fl::Tensor KVCache::getTensor(const std::string &name) const {
-  auto it = _dict.find(name);
-  if (it == _dict.end()) {
-    throw lut::AbortedError(lut::sprintf("tensor \"%s\" not found in kv cache.", name));
-  }
-
-  return it->second;
-}
-
-void KVCache::putTensor(const std::string &name, fl::Tensor tensor) {
-  _dict[name] = tensor;
-}
-
-bool KVCache::hasTensor(const std::string &name) const {
-  return _dict.find(name) != _dict.end();
-}
-
-int KVCache::getValue(const std::string &name) const {
-  auto it = _intDict.find(name);
-  if (it == _intDict.end()) {
-    throw lut::AbortedError(lut::sprintf("value \"%s\" not found in kv cache.", name));
-  }
-
-  return it->second;
-}
-
-void KVCache::putValue(const std::string &name, int value) {
-  _intDict[name] = value;
-}
-
-bool KVCache::hasValue(const std::string &name) const {
-  return _intDict.find(name) != _intDict.end();
-}
-
 int64_t KVCacheManager::estimateMemoryBudget(
     const ModelForGeneration &model,
     const EngineConfig &config) {
@@ -124,28 +82,43 @@ int64_t KVCacheManager::estimateMemoryBudget(
   CHECK(config.maxNumBatchedTokens > 0);
 
   fl::Device device = model.getDevice();
-  int maxContextLength = model.getKVCacheSpec().getMaxContextLength();
+  KVCacheSpec spec = model.getKVCacheSpec();
+  int blockSize = config.kvCacheBlockSize;
+  int numTokens = std::min(config.maxNumBatchedTokens, spec.getMaxContextLength());
+
+  // The forward pass has to put its keys somewhere, so profiling runs against a scratch pool just
+  // large enough for one batch. Its size is known exactly and comes back out of the measurement
+  // below, leaving only the weights and the activation.
+  int numScratchBlocks = (numTokens + blockSize - 1) / blockSize;
+  auto scratch = std::make_shared<KVCacheManager>(spec, blockSize, numScratchBlocks, device);
+  int64_t scratchBytes = getKVCacheBytesPerBlock(spec, blockSize) * numScratchBlocks;
+
+  std::vector<fl::LongType> tokenIds(numTokens, 0);
+  ForwardBatch batch = ForwardBatch::single(lut::makeConstSpan(tokenIds), 0);
+  batch.setKVCacheManager(scratch);
+  batch.setBlockIds({scratch->allocateBlocksForTokens(numTokens)});
 
   // the peak of a full-size batch tells how much memory the cache has to leave for activation.
   fl::MemorySnapshot::resetPeakStats(device);
-  model.profileRun(std::min(config.maxNumBatchedTokens, maxContextLength));
+  model.forward(batch);
 
   fl::MemorySnapshot snapshot = fl::MemorySnapshot::capture(device);
+  scratch.reset();
   if (snapshot.getTotalMemory() <= 0) {
     throw lut::AbortedError("device does not report its memory usage");
   }
 
-  LOG(INFO) << "model memory profile: weights="
-            << lut::formatNumber(snapshot.getAllocatedMemory()) << "B, activation="
-            << lut::formatNumber(
-                   snapshot.getPeakAllocatedMemory() - snapshot.getAllocatedMemory())
-            << "B, peak=" << lut::formatNumber(snapshot.getPeakAllocatedMemory()) << "B";
+  int64_t weights = snapshot.getAllocatedMemory() - scratchBytes;
+  int64_t peak = snapshot.getPeakAllocatedMemory() - scratchBytes;
+  LOG(INFO) << "model memory profile: weights=" << lut::formatNumber(weights)
+            << "B, activation=" << lut::formatNumber(peak - weights)
+            << "B, peak=" << lut::formatNumber(peak) << "B";
 
-  int64_t budget = static_cast<int64_t>(snapshot.getTotalMemory() * memoryUtilization) -
-                   snapshot.getPeakAllocatedMemory();
+  int64_t budget = static_cast<int64_t>(snapshot.getTotalMemory() * memoryUtilization) - peak;
 
-  // another process may hold memory this process never gets to see.
-  return std::min(budget, snapshot.getFreeMemory());
+  // another process may hold memory this process never gets to see. The scratch pool is gone by
+  // now, so its bytes are free again even though the snapshot was taken while it was held.
+  return std::min(budget, snapshot.getFreeMemory() + scratchBytes);
 }
 
 std::shared_ptr<KVCacheManager> KVCacheManager::create(

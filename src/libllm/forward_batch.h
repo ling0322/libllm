@@ -36,18 +36,18 @@ namespace libllm {
 // `cuSeqlensQ`/`cuSeqlensK` follow the FlashAttention convention: exclusive-prefix-sum token
 // offsets of length numSequences()+1, e.g. {0, 3, 7} means sequence 0 occupies tokens [0, 3) and
 // sequence 1 occupies tokens [3, 7).
-class PackedBatch {
+class ForwardBatch {
  public:
   // A single contiguous sequence of length `qLen`, whose KV-cache already holds `pastLen` past
   // tokens. Describes the layout only, the caller feeds the activations separately.
-  static PackedBatch single(int qLen, int pastLen);
+  static ForwardBatch single(int qLen, int pastLen);
 
   // Same, but carrying the tokens to forward. This is what a scheduler hands to a model.
-  static PackedBatch single(lut::Span<const fl::LongType> tokenIds, int pastLen);
+  static ForwardBatch single(lut::Span<const fl::LongType> tokenIds, int pastLen);
 
   // A packed multi-sequence batch. `positionIds` has length cuSeqlensQ.back() (one rotary
   // position per packed query token, in packed order).
-  static PackedBatch packed(
+  static ForwardBatch packed(
       std::vector<int> cuSeqlensQ,
       std::vector<int> cuSeqlensK,
       std::vector<fl::LongType> positionIds);
@@ -69,26 +69,38 @@ class PackedBatch {
   void setKVCacheManager(std::weak_ptr<KVCacheManager> manager);
   std::weak_ptr<KVCacheManager> kvCacheManager() const;
 
+  // the blocks each sequence owns, in token order, one entry per sequence. The scheduler assigns
+  // them; a batch without them can only describe a layout, not address a cache.
+  void setBlockIds(std::vector<std::vector<int>> blockIds);
+  bool hasBlockIds() const;
+
   // materialize the packed query tokens as a device <long>(totalQLen) tensor.
   fl::Tensor tokenIdsTensor(fl::Device device) const;
 
   // materialize the per-token rotary position ids as a device <long>(totalQLen) tensor.
   fl::Tensor positionIdsTensor(fl::Device device) const;
 
-  // materialize cuSeqlensQ/cuSeqlensK as device <long>(numSequences+1) tensors. Backends that need
-  // int32 device pointers (e.g. the CUDA varlen FlashAttention kernel's cu_seqlens_q/k fields)
-  // cast down from this at the point of use.
-  fl::Tensor cuSeqlensQTensor(fl::Device device) const;
-  fl::Tensor cuSeqlensKTensor(fl::Device device) const;
+  // materialize the index arrays the paged attention operators take, all <int> because that is
+  // what the CUDA kernels index with.
+  fl::Tensor cuSeqlensQTensor(fl::Device device) const;   // <int>(numSequences + 1)
+  fl::Tensor seqlensKTensor(fl::Device device) const;     // <int>(numSequences)
+  fl::Tensor blockTableTensor(fl::Device device) const;   // <int>(numSequences, maxNumBlocks)
+
+  // the pool slot each packed query token is stored at, as blockId * blockSize + offset.
+  fl::Tensor slotMappingTensor(fl::Device device) const;  // <int>(totalQLen)
 
  private:
   std::vector<fl::LongType> _tokenIds;
   std::vector<int> _cuSeqlensQ;
   std::vector<int> _cuSeqlensK;
   std::vector<fl::LongType> _positionIds;
+  std::vector<std::vector<int>> _blockIds;
   std::weak_ptr<KVCacheManager> _kvCacheManager;
 
-  PackedBatch() = default;
+  // the block size of the attached manager, which every paged index depends on.
+  int getBlockSize() const;
+
+  ForwardBatch() = default;
 };
 
 }  // namespace libllm

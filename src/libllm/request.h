@@ -73,6 +73,9 @@ class Request {
   /// @param blockIds Ids of the blocks to add.
   void addBlockIds(lut::Span<const int> blockIds);
 
+  /// @brief Forget the KV cache blocks of this request. The caller returns them to the manager.
+  void clearBlockIds();
+
   /// @brief Append a token the model generated for this request.
   /// @param tokenId The generated token.
   void appendToken(fl::LongType tokenId);

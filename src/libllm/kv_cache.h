@@ -85,38 +85,6 @@ class KVCacheSpec {
 /// @return The number of bytes.
 int64_t getKVCacheBytesPerBlock(const KVCacheSpec &spec, int blockSize);
 
-// the past key-value tensors of a generation session, as well as the past length of each attention
-// layer.
-class KVCache {
- public:
-  KVCache() = default;
-
-  KVCache(const KVCache &) = delete;
-  KVCache &operator=(const KVCache &) = delete;
-
-  KVCache(KVCache &&rhs) = default;
-  KVCache &operator=(KVCache &&rhs) = default;
-
-  /// @brief Create a copy of current cache. It's only a shallow copy and the content of Tensor
-  /// will not be copied (original and copied Tensor still point to the same address of memory).
-  /// @return Copied KVCache.
-  KVCache clone() const;
-
-  // for tensors.
-  fl::Tensor getTensor(const std::string &name) const;
-  void putTensor(const std::string &name, fl::Tensor tensor);
-  bool hasTensor(const std::string &name) const;
-
-  // for lengths.
-  int getValue(const std::string &name) const;
-  void putValue(const std::string &name, int value);
-  bool hasValue(const std::string &name) const;
-
- private:
-  std::unordered_map<std::string, fl::Tensor> _dict;
-  std::unordered_map<std::string, int> _intDict;
-};
-
 /// @brief Owns the paged KV cache storage described by a KVCacheSpec and allocates blocks from it.
 /// A block id refers to the same token range in every layer, but each layer addresses it in its own
 /// key and value tensor.

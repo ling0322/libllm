@@ -11,7 +11,7 @@ set(libllm_SOURCES
     "llama.cc"
     "llm.cc"
     "model_for_generation.cc"
-    "packed_batch.cc"
+    "forward_batch.cc"
     "prompt.cc"
     "request.cc"
     "scheduler.cc"

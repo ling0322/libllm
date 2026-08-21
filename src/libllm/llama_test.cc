@@ -48,6 +48,9 @@ constexpr char TestCasePackage[] = "llama3.2-3b-instruct-fp16_test.llmpkg";
 // device, so the logits only have to be close.
 constexpr double MaxRelDiff = 0.02;
 
+// Prefill and single-token decode use different FP16 kernels; their drift grows with context.
+constexpr double MaxLongContextRelDiff = 0.04;
+
 // the packages are downloaded by tools/download_model_and_test_data.sh and are not part of the
 // repository, so tests using them are skipped when they are missing.
 std::string findPackage(const std::string &name) {
@@ -58,7 +61,9 @@ std::string findPackage(const std::string &name) {
   return "";
 }
 
-std::shared_ptr<LlamaModel> buildModel(const std::string &path, const fl::Device &device) {
+std::shared_ptr<LlamaModel> buildModel(
+    const std::string &path,
+  const fl::Device &device) {
   std::shared_ptr<lut::ZipFile> package = lut::ZipFile::fromFile(path);
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(
       package->open(ModelForGeneration::ModelConfig).get());
@@ -75,6 +80,36 @@ std::shared_ptr<LlamaModel> buildModel(const std::string &path, const fl::Device
   return LlamaModel::build(config, vb.withName(modelType));
 }
 
+// A block pool just large enough for one test sequence.
+std::shared_ptr<KVCacheManager> buildCache(
+    const LlamaConfig &config,
+    const fl::Device &device,
+    int numTokens) {
+  KVCacheSpec spec(
+      config.numLayers,
+      config.numKeyValueHeads,
+      config.hiddenSize / config.numHeads,
+      config.maxContextLength,
+      fl::F::getDefaultFloatType(device));
+
+  constexpr int BlockSize = 256;
+  int numBlocks = (numTokens + BlockSize - 1) / BlockSize;
+  return std::make_shared<KVCacheManager>(spec, BlockSize, numBlocks, device);
+}
+
+// `qLen` tokens appended after the `pastLen` tokens the cache already holds.
+ForwardBatch makeBatch(
+    const std::shared_ptr<KVCacheManager> &cache,
+    const std::vector<int> &blockIds,
+    int qLen,
+    int pastLen) {
+  ForwardBatch batch = ForwardBatch::single(qLen, pastLen);
+  batch.setKVCacheManager(cache);
+  batch.setBlockIds({blockIds});
+
+  return batch;
+}
+
 VarBuilder loadTestCases(const std::string &path) {
   std::shared_ptr<lut::ZipFile> package = lut::ZipFile::fromFile(path);
   return VarBuilder::fromStream(
@@ -89,11 +124,18 @@ fl::Tensor toCpuFloat(fl::Tensor tensor) {
 }
 
 // forward `inputIds` in one shot and return the fp32 logits of every position.
-fl::Tensor forwardAll(const LlamaModel &model, fl::Tensor inputIds, const fl::Device &device) {
+fl::Tensor forwardAll(
+    const LlamaModel &model,
+    fl::Tensor inputIds,
+    const fl::Device &device) {
   fl::Tensor input = fl::F::to(device, inputIds);
+  int numTokens = inputIds.getShape(0);
 
-  KVCache past;
-  return toCpuFloat(model.forwardLmHead(model.forward(past, input)));
+  std::shared_ptr<KVCacheManager> cache = buildCache(model.getConfig(), device, numTokens);
+  std::vector<int> blockIds = cache->allocateBlocksForTokens(numTokens);
+
+  return toCpuFloat(
+      model.forwardLmHead(model.forward(input, makeBatch(cache, blockIds, numTokens, 0))));
 }
 
 int argmax(const float *data, int n) {
@@ -130,7 +172,8 @@ double relDiff(const std::string &tag, const fl::Tensor &a, const fl::Tensor &b,
 }
 
 std::vector<fl::Device> testDevices() {
-  std::vector<fl::Device> devices{fl::Device::getCpu()};
+  // the paged attention operators the model needs only exist for CUDA today.
+  std::vector<fl::Device> devices;
   if (fl::isOperatorsAvailable(fl::Device::kCuda)) devices.emplace_back(fl::Device::getCuda());
 
   return devices;
@@ -189,8 +232,7 @@ CATCH_TEST_CASE("test llama logits match the reference", "[libllm][llama]") {
   }
 }
 
-// forwarding the whole input at once has to predict the same next token as forwarding it one token
-// at a time. It covers the kv cache append, the rope offset and the causal mask alignment.
+// Every incremental step has to match the corresponding row of a one-shot forward.
 CATCH_TEST_CASE("test llama prefill matches incremental decode", "[libllm][llama]") {
   std::string modelPath = findPackage(ModelPackage);
   std::string testCasePath = findPackage(TestCasePackage);
@@ -208,18 +250,73 @@ CATCH_TEST_CASE("test llama prefill matches incremental decode", "[libllm][llama
 
     fl::Tensor prefillLogits = forwardAll(*model, inputIds, device);
 
-    KVCache past;
-    fl::Tensor hidden;
+    std::shared_ptr<KVCacheManager> cache = buildCache(model->getConfig(), device, numTokens);
+    std::vector<int> blockIds = cache->allocateBlocksForTokens(numTokens);
+    int vocabSize = prefillLogits.getShape(-1);
     for (int i = 0; i < numTokens; ++i) {
+      CATCH_INFO("position = " << i);
       fl::Tensor token = fl::F::to(device, inputIds.slice({i, i + 1}));
-      hidden = model->forward(past, token);
-    }
-    fl::Tensor decodeLogits = toCpuFloat(model->forwardLmHead(hidden));
+      fl::Tensor hidden = model->forward(token, makeBatch(cache, blockIds, 1, i));
+      fl::Tensor decodeLogits = toCpuFloat(model->forwardLmHead(hidden));
 
-    int vocabSize = decodeLogits.getShape(-1);
-    CATCH_REQUIRE(
-        argmax(rowOf(prefillLogits, numTokens - 1, vocabSize), vocabSize) ==
-        argmax(rowOf(decodeLogits, 0, vocabSize), vocabSize));
+      fl::Tensor reference = prefillLogits.slice({i, i + 1});
+      CATCH_REQUIRE(
+          relDiff("incremental decode", decodeLogits, reference, vocabSize) < MaxRelDiff);
+      CATCH_REQUIRE(
+          argmax(rowOf(prefillLogits, i, vocabSize), vocabSize) ==
+          argmax(rowOf(decodeLogits, 0, vocabSize), vocabSize));
+    }
+  }
+}
+
+CATCH_TEST_CASE("test llama decode crosses a KV cache block boundary", "[libllm][llama]") {
+  std::string modelPath = findPackage(ModelPackage);
+  std::string testCasePath = findPackage(TestCasePackage);
+  if (modelPath.empty() || testCasePath.empty()) {
+    CATCH_SKIP("the model or the test case package not found in models/");
+  }
+
+  VarBuilder testCases = loadTestCases(testCasePath);
+  fl::Tensor seedIds = testCases.getUnchecked("test_case.0.input_ids");
+  const fl::LongType *seed =
+      seedIds.getInternalData()->getData<fl::LongType>(seedIds.getInternalOffset());
+  int seedLength = seedIds.getShape(0);
+
+  constexpr int NumTokens = 257;
+  constexpr int FirstComparedPosition = 254;
+  std::vector<fl::LongType> tokenIds(NumTokens);
+  for (int i = 0; i < NumTokens; ++i) tokenIds[i] = seed[i % seedLength];
+  fl::Tensor inputIds = fl::Tensor::create<fl::LongType>({NumTokens}, tokenIds);
+
+  for (const fl::Device &device : testDevices()) {
+    CATCH_INFO("device = " << device.getName());
+    std::shared_ptr<LlamaModel> model = buildModel(modelPath, device);
+
+    std::shared_ptr<KVCacheManager> prefillCache =
+        buildCache(model->getConfig(), device, NumTokens);
+    std::vector<int> prefillBlocks = prefillCache->allocateBlocksForTokens(NumTokens);
+    fl::Tensor input = fl::F::to(device, inputIds);
+    fl::Tensor prefillHidden = toCpuFloat(
+        model->forward(input, makeBatch(prefillCache, prefillBlocks, NumTokens, 0)));
+
+    std::shared_ptr<KVCacheManager> decodeCache =
+        buildCache(model->getConfig(), device, NumTokens);
+    std::vector<int> decodeBlocks = decodeCache->allocateBlocksForTokens(NumTokens);
+    for (int i = 0; i < NumTokens; ++i) {
+      fl::Tensor token = input.slice({i, i + 1});
+      fl::Tensor decodeHidden =
+          model->forward(token, makeBatch(decodeCache, decodeBlocks, 1, i));
+      if (i < FirstComparedPosition) continue;
+
+      CATCH_INFO("position = " << i);
+      fl::Tensor reference = prefillHidden.slice({i, i + 1});
+          CATCH_REQUIRE(
+          relDiff(
+              "KV block boundary",
+              toCpuFloat(decodeHidden),
+              reference,
+              model->getConfig().hiddenSize) < MaxLongContextRelDiff);
+    }
   }
 }
 

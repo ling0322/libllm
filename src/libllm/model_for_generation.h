@@ -22,7 +22,7 @@
 #include <memory>
 
 #include "libllm/engine_config.h"
-#include "libllm/packed_batch.h"
+#include "libllm/forward_batch.h"
 #include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
 #include "lutil/zip_file.h"
@@ -58,32 +58,11 @@ class ModelForGeneration {
 
   virtual ~ModelForGeneration() = default;
 
-  /// @brief Forward one scheduled batch, update the `past` state and return the logits for the
-  /// next token of every sequence in it.
-  /// @param past (KVCache): key-value cache.
-  /// @param batch the batch a scheduler packed, carrying its tokens.
+  /// @brief Forward one scheduled batch, write its keys and values into the blocks the batch names
+  /// and return the logits for the next token of every sequence in it.
+  /// @param batch the batch a scheduler packed, carrying its tokens and its cache blocks.
   /// @return  <float>(numSequences, V): logits of the next token.
-  virtual fl::Tensor forward(KVCache &past, const PackedBatch &batch) const = 0;
-
-  /// @brief Used in the prefill phase. Forward the tokens of a request through this language
-  /// model, update the `past` state and return the logits for the next token.
-  /// @param past (KVCache): key-value cache.
-  /// @param tokenIds the tokens to prefill. Must not be empty.
-  /// @return  <float>(1, V): logits of the next token.
-  virtual fl::Tensor prefill(KVCache &past, lut::Span<const fl::LongType> tokenIds) const = 0;
-
-  /// @brief Encode `prompt` and prefill the tokens it yields.
-  /// @param past (KVCache): key-value cache.
-  /// @param prompt (Prompt): the input prompt for prefill.
-  /// @return  <float>(1, V): logits of the next token.
-  fl::Tensor prefill(KVCache &past, const Prompt &prompt) const;
-
-  /// @brief Used in the decodeing phase. Forward input token ids through this language model,
-  /// update the `past` state and return the logits for the next token.
-  /// @param past (KVCache): key-value cache.
-  /// @param inputToken (LongType): the input token.
-  /// @return  <float>(1, V): logits of the next token.
-  virtual fl::Tensor decode(KVCache &past, fl::LongType inputToken) const = 0;
+  virtual fl::Tensor forward(const ForwardBatch &batch) const = 0;
 
   /// @brief Return true if tokenId is a stop token. (stop generating texts)
   /// @param tokenId the token id.
@@ -104,11 +83,6 @@ class ModelForGeneration {
 
   /// @brief Get the model's KV cache layout requirements.
   virtual KVCacheSpec getKVCacheSpec() const = 0;
-
-  /// @brief Forward a dummy batch of `numTokens` tokens, so the device records the peak memory a
-  /// full-size forward pass needs. The KV cache is not touched.
-  /// @param numTokens Number of tokens in the profiling batch.
-  virtual void profileRun(int numTokens) const = 0;
 
   /// @brief Allocate the paged KV cache storage according to the engine configuration. Requires a
   /// device that reports its memory usage.

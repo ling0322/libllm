@@ -66,10 +66,6 @@ void ModelForGeneration::initKVCacheFromConfig(const EngineConfig &config) {
   _kvCacheManager = KVCacheManager::create(*this, config);
 }
 
-fl::Tensor ModelForGeneration::prefill(KVCache &past, const Prompt &prompt) const {
-  return prefill(past, encodePrompt(prompt));
-}
-
 const Vocab *ModelForGeneration::getVocab() const {
   return _tokenizer->getVocab();
 }

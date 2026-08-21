@@ -79,6 +79,10 @@ void Request::addBlockIds(lut::Span<const int> blockIds) {
   _blockIds.insert(_blockIds.end(), blockIds.begin(), blockIds.end());
 }
 
+void Request::clearBlockIds() {
+  _blockIds.clear();
+}
+
 void Request::appendToken(fl::LongType tokenId) {
   _tokenIds.push_back(tokenId);
 }

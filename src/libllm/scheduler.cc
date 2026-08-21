@@ -25,7 +25,8 @@
 
 #include "lutil/error.h"
 #include "lutil/strings.h"
-#include "libllm/packed_batch.h"
+#include "libllm/kv_cache.h"
+#include "libllm/forward_batch.h"
 #include "libllm/request.h"
 #include "flint/functional.h"
 
@@ -155,10 +156,16 @@ bool Scheduler::generate() {
   int numTokensToCompute = static_cast<int>(tokenIds.size()) - contextLength;
   CHECK(numTokensToCompute > 0);
 
-  PackedBatch batch = PackedBatch::single(
+  reserveBlocks(contextLength + numTokensToCompute);
+
+  ForwardBatch batch = ForwardBatch::single(
       tokenIds.subspan(contextLength, numTokensToCompute),
       contextLength);
-  _currentToken = searchToken(_model->forward(_past, batch));
+  batch.setKVCacheManager(_model->getKVCacheManager());
+  lut::Span<const int> blockIds = _request->getBlockIds();
+  batch.setBlockIds({std::vector<int>(blockIds.begin(), blockIds.end())});
+
+  _currentToken = searchToken(_model->forward(batch));
 
   _request->advanceComputedTokens(numTokensToCompute);
   _request->setContextLength(contextLength + numTokensToCompute);
@@ -169,11 +176,41 @@ bool Scheduler::generate() {
       _model->getVocab()->getTokenString(_currentToken));
   if (_model->isStopToken(_currentToken)) {
     _request->finish();
+    releaseBlocks();
     return false;
   }
 
   _request->appendToken(_currentToken);
   return true;
+}
+
+void Scheduler::reserveBlocks(int numTokens) {
+  std::shared_ptr<KVCacheManager> manager = _model->getKVCacheManager().lock();
+  CHECK(manager) << "model has no KV cache manager";
+
+  int numBlocksHeld = static_cast<int>(_request->getBlockIds().size());
+  int numBlocksNeeded = manager->getNumBlocksForTokens(numTokens);
+  if (numBlocksNeeded <= numBlocksHeld) return;
+
+  std::vector<int> blockIds = manager->allocateBlocks(numBlocksNeeded - numBlocksHeld);
+  if (blockIds.empty()) {
+    throw lut::AbortedError("KV cache is full");
+  }
+
+  _request->addBlockIds(blockIds);
+}
+
+void Scheduler::releaseBlocks() {
+  if (_request->getBlockIds().empty()) return;
+
+  std::shared_ptr<KVCacheManager> manager = _model->getKVCacheManager().lock();
+  if (manager) manager->freeBlocks(_request->getBlockIds());
+  _request->clearBlockIds();
+}
+
+Scheduler::~Scheduler() {
+  // A caller that stops early still owes the manager its blocks.
+  if (_request) releaseBlocks();
 }
 
 void Scheduler::setRequest(std::shared_ptr<Request> request) {
