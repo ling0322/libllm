@@ -129,6 +129,7 @@ CATCH_TEST_CASE("kv cache manager converts token count to block count", "[libllm
 
 CATCH_TEST_CASE("kv cache manager rejects invalid block config", "[libllm][kv_cache]") {
   CATCH_REQUIRE_THROWS(KVCacheManager(createSpec(), 0, NumBlocks, fl::Device::getCpu()));
+  CATCH_REQUIRE_THROWS(KVCacheManager(createSpec(), 6, NumBlocks, fl::Device::getCpu()));
   CATCH_REQUIRE_THROWS(KVCacheManager(createSpec(), BlockSize, 0, fl::Device::getCpu()));
 }
 

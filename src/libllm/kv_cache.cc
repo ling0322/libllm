@@ -157,6 +157,9 @@ KVCacheManager::KVCacheManager(
   if (blockSize <= 0 || numBlocks <= 0) {
     throw lut::AbortedError("invalid block_size or num_blocks for kv cache");
   }
+  if ((blockSize & (blockSize - 1)) != 0) {
+    throw lut::AbortedError("kv cache block_size must be a power of two");
+  }
 
   std::vector<int> shape{blockSize, spec.getNumKeyValueHeads(), spec.getHeadDim()};
   shape.insert(shape.begin(), numBlocks);

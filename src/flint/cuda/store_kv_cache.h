@@ -28,7 +28,8 @@ namespace cuda {
 /// Scatter the keys and values of a packed batch into a paged KV cache. k and v are
 /// <half>(numTokens, nKvHead, D), keyCache and valueCache are
 /// <half>(nBlock, blockSize, nKvHead, D) and are written in place, and slotMapping is
-/// <int>(numTokens) holding blockId * blockSize + offsetInBlock for each token.
+/// <int>(numTokens) holding blockId * blockSize + offsetInBlock for each token. blockSize must be
+/// a power of two.
 void storeKVCache(
     const Tensor &k,
     const Tensor &v,

@@ -27,8 +27,8 @@ struct EngineConfig {
   /// the peak activation memory.
   int maxNumBatchedTokens = 2048;
 
-  /// Number of tokens stored in each KV cache block. The vendored FlashAttention addresses a whole
-  /// key tile from one block, so this has to stay a multiple of 256.
+  /// Number of tokens stored in each KV cache block. It must be a power of two, and the vendored
+  /// FlashAttention additionally requires it to be at least 256.
   int kvCacheBlockSize = 256;
 
   /// Fraction of the total device memory the engine may use, in (0, 1]. The KV cache gets what is

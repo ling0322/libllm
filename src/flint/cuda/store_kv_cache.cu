@@ -39,17 +39,18 @@ __global__ void storeKVCacheHalfKernel(
     int keyCacheTokenStride,
     int valueCacheBlockStride,
     int valueCacheTokenStride,
-    int cacheBlockSize,
-    int numCacheBlocks) {
+    int cacheBlockShift,
+    int cacheBlockMask,
+    int numCacheSlots) {
   int token = blockIdx.x;
   __shared__ int keyCacheOffset;
   __shared__ int valueCacheOffset;
 
   if (threadIdx.x == 0) {
     int slot = slotMapping[token];
-    assert(slot >= 0 && slot < numCacheBlocks * cacheBlockSize);
-    int blockId = slot / cacheBlockSize;
-    int offset = slot - blockId * cacheBlockSize;
+    assert(slot >= 0 && slot < numCacheSlots);
+    int blockId = slot >> cacheBlockShift;
+    int offset = slot & cacheBlockMask;
     keyCacheOffset = blockId * keyCacheBlockStride + offset * keyCacheTokenStride;
     valueCacheOffset = blockId * valueCacheBlockStride + offset * valueCacheTokenStride;
   }
@@ -97,6 +98,10 @@ void storeKVCache(
   if (numTokens == 0) return;
 
   constexpr int numThreads = 256;
+  int cacheBlockSize = keyCache.getShape(1);
+  CHECK((cacheBlockSize & (cacheBlockSize - 1)) == 0) << "cache block size must be a power of two";
+  int cacheBlockShift = 0;
+  while ((1 << cacheBlockShift) < cacheBlockSize) ++cacheBlockShift;
   storeKVCacheHalfKernel<<<numTokens, numThreads>>>(
       getDataPtrCuda<half>(k),
       getDataPtrCuda<half>(v),
@@ -110,8 +115,9 @@ void storeKVCache(
       keyCache.getStride(1),
       valueCache.getStride(0),
       valueCache.getStride(1),
-      keyCache.getShape(1),
-      keyCache.getShape(0));
+      cacheBlockShift,
+      cacheBlockSize - 1,
+      keyCache.getShape(0) * cacheBlockSize);
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 }
 

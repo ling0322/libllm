@@ -19,9 +19,11 @@
 
 #pragma once
 
+#include <deque>
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "libllm/model_for_generation.h"
 #include "libllm/prompt.h"
@@ -100,6 +102,78 @@ class Scheduler {
   void releaseBlocks();
 
   int searchToken(const fl::Tensor &logits);
+};
+
+/// Why a request stopped producing tokens.
+enum class RequestFinishReason {
+  kNone,
+  kStop,
+  kLength,
+  kCancelled,
+  kError,
+};
+
+/// One request's delta output from a SchedulerV2 step.
+struct RequestOutput {
+  std::string requestId;
+  std::vector<fl::LongType> tokenIds;
+  std::string text;
+  bool finished = false;
+  RequestFinishReason finishReason = RequestFinishReason::kNone;
+  std::string errorMessage;
+};
+
+/// Synchronous continuous-batching scheduler core.
+///
+/// SchedulerV2 owns all accepted requests and advances a selected set through one packed model
+/// forward per step. It does not own threads, parse JSON, or invoke stream callbacks; the Engine
+/// serializes calls to this class and publishes the returned RequestOutput values.
+class SchedulerV2 {
+ public:
+  /// `maxNumBatchedTokens` is the total query-token budget of one model forward.
+  SchedulerV2(std::shared_ptr<ModelForGeneration> model, int maxNumBatchedTokens);
+  ~SchedulerV2();
+
+  SchedulerV2(const SchedulerV2 &) = delete;
+  SchedulerV2 &operator=(const SchedulerV2 &) = delete;
+
+  /// Accept a request into the waiting queue. Throws if its id is empty or already active.
+  void addRequest(std::shared_ptr<Request> request);
+
+  /// Mark a request for cancellation. Unknown and already finished ids are successful no-ops.
+  /// The final kCancelled output is returned by a subsequent step().
+  void abortRequest(const std::string &requestId);
+
+  /// Schedule and execute at most one packed model forward.
+  ///
+  /// The result contains DELTA outputs: each entry holds only tokens and text produced since that
+  /// request's previous output. A final entry is emitted exactly once for every accepted request.
+  /// A step may return only cancellation/error outputs without executing the model.
+  std::vector<RequestOutput> step();
+
+  /// Return true while an accepted request still needs a final output.
+  bool hasUnfinishedRequests() const;
+
+  /// Number of waiting or running requests, including requests pending cancellation delivery.
+  int getNumUnfinishedRequests() const;
+
+ private:
+  struct RequestState;
+  struct ScheduledBatch;
+
+  std::shared_ptr<ModelForGeneration> _model;
+  int _maxNumBatchedTokens;
+
+  // The map owns request state; the deque defines deterministic FCFS scheduling order.
+  std::unordered_map<std::string, std::unique_ptr<RequestState>> _requests;
+  std::deque<std::string> _requestOrder;
+
+  std::unique_ptr<ScheduledBatch> schedule();
+  std::vector<RequestOutput> execute(ScheduledBatch &batch);
+  std::vector<RequestOutput> finishCancelledRequests();
+  void reserveBlocks(RequestState &state, int numTokens);
+  void releaseBlocks(RequestState &state);
+  void removeFinishedRequests();
 };
 
 }  // namespace libllm
