@@ -26,14 +26,14 @@
 #include <vector>
 
 #include "catch2/catch_amalgamated.hpp"
+#include "flint/functional.h"
+#include "flint/operators.h"
 #include "libllm/constants.h"
 #include "libllm/var_builder.h"
 #include "lutil/ini_config.h"
 #include "lutil/log.h"
 #include "lutil/strings.h"
 #include "lutil/zip_file.h"
-#include "flint/functional.h"
-#include "flint/operators.h"
 
 namespace libllm {
 namespace llama {
@@ -61,9 +61,7 @@ std::string findPackage(const std::string &name) {
   return "";
 }
 
-std::shared_ptr<LlamaModel> buildModel(
-    const std::string &path,
-  const fl::Device &device) {
+std::shared_ptr<LlamaModel> buildModel(const std::string &path, const fl::Device &device) {
   std::shared_ptr<lut::ZipFile> package = lut::ZipFile::fromFile(path);
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(
       package->open(ModelForGeneration::ModelConfig).get());
@@ -175,10 +173,7 @@ fl::Tensor toCpuFloat(fl::Tensor tensor) {
 }
 
 // forward `inputIds` in one shot and return the fp32 logits of every position.
-fl::Tensor forwardAll(
-    const LlamaModel &model,
-    fl::Tensor inputIds,
-    const fl::Device &device) {
+fl::Tensor forwardAll(const LlamaModel &model, fl::Tensor inputIds, const fl::Device &device) {
   fl::Tensor input = fl::F::to(device, inputIds);
   int numTokens = inputIds.getShape(0);
 
@@ -212,12 +207,8 @@ double relDiff(const std::string &tag, const fl::Tensor &a, const fl::Tensor &b,
 
   double meanAbs = sumAbs / numEl;
   double diff = maxDiff / meanAbs;
-  LOG(INFO) << lut::sprintf(
-      "%s: maxDiff=%.4f meanAbs=%.4f relDiff=%.5f",
-      tag,
-      maxDiff,
-      meanAbs,
-      diff);
+  LOG(INFO)
+      << lut::sprintf("%s: maxDiff=%.4f meanAbs=%.4f relDiff=%.5f", tag, maxDiff, meanAbs, diff);
 
   return diff;
 }
@@ -311,11 +302,55 @@ CATCH_TEST_CASE("test llama prefill matches incremental decode", "[libllm][llama
       fl::Tensor decodeLogits = toCpuFloat(model->forwardLmHead(hidden));
 
       fl::Tensor reference = prefillLogits.slice({i, i + 1});
-      CATCH_REQUIRE(
-          relDiff("incremental decode", decodeLogits, reference, vocabSize) < MaxRelDiff);
+      CATCH_REQUIRE(relDiff("incremental decode", decodeLogits, reference, vocabSize) < MaxRelDiff);
       CATCH_REQUIRE(
           argmax(rowOf(prefillLogits, i, vocabSize), vocabSize) ==
           argmax(rowOf(decodeLogits, 0, vocabSize), vocabSize));
+    }
+  }
+}
+
+CATCH_TEST_CASE("test llama chunked prefill matches one-shot prefill", "[libllm][llama]") {
+  std::string modelPath = findPackage(ModelPackage);
+  std::string testCasePath = findPackage(TestCasePackage);
+  if (modelPath.empty() || testCasePath.empty()) {
+    CATCH_SKIP("the model or the test case package not found in models/");
+  }
+
+  VarBuilder testCases = loadTestCases(testCasePath);
+  fl::Tensor inputIds = testCases.getUnchecked("test_case.0.input_ids");
+  int numTokens = inputIds.getShape(0);
+
+  for (const fl::Device &device : testDevices()) {
+    CATCH_INFO("device = " << device.getName());
+    std::shared_ptr<LlamaModel> model = buildModel(modelPath, device);
+    fl::Tensor prefillLogits = forwardAll(*model, inputIds, device);
+
+    std::shared_ptr<KVCacheManager> cache = buildCache(model->getConfig(), device, numTokens);
+    std::vector<int> blockIds = cache->allocateBlocksForTokens(numTokens);
+    fl::Tensor input = fl::F::to(device, inputIds);
+    int vocabSize = prefillLogits.getShape(-1);
+
+    constexpr int ChunkSize = 3;
+    for (int start = 0; start < numTokens; start += ChunkSize) {
+      int end = std::min(start + ChunkSize, numTokens);
+      int chunkLength = end - start;
+      CATCH_INFO("chunk = [" << start << ", " << end << ")");
+
+      fl::Tensor hidden = model->forward(
+          input.slice({start, end}),
+          makeBatch(cache, blockIds, chunkLength, start, device));
+      fl::Tensor chunkLogits = toCpuFloat(model->forwardLmHead(hidden));
+      fl::Tensor reference = prefillLogits.slice({start, end});
+
+      CATCH_REQUIRE(
+          relDiff("chunked prefill", chunkLogits, reference, chunkLength * vocabSize) < MaxRelDiff);
+      for (int i = 0; i < chunkLength; ++i) {
+        CATCH_INFO("position = " << start + i);
+        CATCH_REQUIRE(
+            argmax(rowOf(chunkLogits, i, vocabSize), vocabSize) ==
+            argmax(rowOf(reference, i, vocabSize), vocabSize));
+      }
     }
   }
 }
@@ -329,8 +364,8 @@ CATCH_TEST_CASE("test llama packed batch matches independent requests", "[libllm
 
   VarBuilder testCases = loadTestCases(testCasePath);
   fl::Tensor seedIds = testCases.getUnchecked("test_case.0.input_ids");
-  const fl::LongType *seed =
-      seedIds.getInternalData()->getData<fl::LongType>(seedIds.getInternalOffset());
+  const fl::LongType *seed = seedIds.getInternalData()->getData<fl::LongType>(
+      seedIds.getInternalOffset());
 
   std::vector<fl::LongType> promptA(seed, seed + 7);
   std::vector<fl::LongType> promptB(seed + 2, seed + 6);
@@ -342,8 +377,8 @@ CATCH_TEST_CASE("test llama packed batch matches independent requests", "[libllm
   for (const fl::Device &device : testDevices()) {
     CATCH_INFO("device = " << device.getName());
     std::shared_ptr<LlamaModel> model = buildModel(modelPath, device);
-    std::shared_ptr<TestLlamaModelForGeneration> generationModel =
-        TestLlamaModelForGeneration::create(model, device);
+    std::shared_ptr<TestLlamaModelForGeneration>
+        generationModel = TestLlamaModelForGeneration::create(model, device);
 
     fl::Tensor promptATensor = fl::Tensor::create<fl::LongType>({7}, promptA);
     fl::Tensor promptBTensor = fl::Tensor::create<fl::LongType>({4}, promptB);
@@ -373,9 +408,8 @@ CATCH_TEST_CASE("test llama packed batch matches independent requests", "[libllm
     int vocabSize = model->getOutputDim();
     CATCH_REQUIRE(prefillLogits.getShape() == std::vector<int>{2, vocabSize});
     for (int sequence = 0; sequence < 2; ++sequence) {
-      fl::Tensor reference = sequence == 0
-          ? promptAReference.slice({6, 7})
-          : promptBReference.slice({3, 4});
+      fl::Tensor reference = sequence == 0 ? promptAReference.slice({6, 7})
+                                           : promptBReference.slice({3, 4});
       CATCH_INFO("prefill sequence = " << sequence);
       CATCH_REQUIRE(
           relDiff(
@@ -399,9 +433,8 @@ CATCH_TEST_CASE("test llama packed batch matches independent requests", "[libllm
 
     CATCH_REQUIRE(decodeLogits.getShape() == std::vector<int>{2, vocabSize});
     for (int sequence = 0; sequence < 2; ++sequence) {
-      fl::Tensor reference = sequence == 0
-          ? fullAReference.slice({7, 8})
-          : fullBReference.slice({4, 5});
+      fl::Tensor reference = sequence == 0 ? fullAReference.slice({7, 8})
+                                           : fullBReference.slice({4, 5});
       CATCH_INFO("decode sequence = " << sequence);
       CATCH_REQUIRE(
           relDiff(
@@ -425,8 +458,8 @@ CATCH_TEST_CASE("test llama decode crosses a KV cache block boundary", "[libllm]
 
   VarBuilder testCases = loadTestCases(testCasePath);
   fl::Tensor seedIds = testCases.getUnchecked("test_case.0.input_ids");
-  const fl::LongType *seed =
-      seedIds.getInternalData()->getData<fl::LongType>(seedIds.getInternalOffset());
+  const fl::LongType *seed = seedIds.getInternalData()->getData<fl::LongType>(
+      seedIds.getInternalOffset());
   int seedLength = seedIds.getShape(0);
 
   constexpr int NumTokens = 257;
@@ -439,25 +472,27 @@ CATCH_TEST_CASE("test llama decode crosses a KV cache block boundary", "[libllm]
     CATCH_INFO("device = " << device.getName());
     std::shared_ptr<LlamaModel> model = buildModel(modelPath, device);
 
-    std::shared_ptr<KVCacheManager> prefillCache =
-        buildCache(model->getConfig(), device, NumTokens);
+    std::shared_ptr<KVCacheManager> prefillCache = buildCache(
+        model->getConfig(),
+        device,
+        NumTokens);
     std::vector<int> prefillBlocks = prefillCache->allocateBlocksForTokens(NumTokens);
     fl::Tensor input = fl::F::to(device, inputIds);
     fl::Tensor prefillHidden = toCpuFloat(
-      model->forward(input, makeBatch(prefillCache, prefillBlocks, NumTokens, 0, device)));
+        model->forward(input, makeBatch(prefillCache, prefillBlocks, NumTokens, 0, device)));
 
-    std::shared_ptr<KVCacheManager> decodeCache =
-        buildCache(model->getConfig(), device, NumTokens);
+    std::shared_ptr<KVCacheManager> decodeCache = buildCache(model->getConfig(), device, NumTokens);
     std::vector<int> decodeBlocks = decodeCache->allocateBlocksForTokens(NumTokens);
     for (int i = 0; i < NumTokens; ++i) {
       fl::Tensor token = input.slice({i, i + 1});
-      fl::Tensor decodeHidden =
-          model->forward(token, makeBatch(decodeCache, decodeBlocks, 1, i, device));
+      fl::Tensor decodeHidden = model->forward(
+          token,
+          makeBatch(decodeCache, decodeBlocks, 1, i, device));
       if (i < FirstComparedPosition) continue;
 
       CATCH_INFO("position = " << i);
       fl::Tensor reference = prefillHidden.slice({i, i + 1});
-          CATCH_REQUIRE(
+      CATCH_REQUIRE(
           relDiff(
               "KV block boundary",
               toCpuFloat(decodeHidden),

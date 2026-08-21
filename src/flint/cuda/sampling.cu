@@ -162,6 +162,72 @@ __global__ void sampleTopPExponentialRaceKernel(
   }
 }
 
+template<int BLOCK_SIZE>
+__global__ void sampleLogitsRowsKernel(
+    const float *__restrict__ sortedLogits,
+    const int *__restrict__ sortedLabels,
+    const float *__restrict__ uniformNoise,
+    const float *__restrict__ temperatures,
+    const IntType *__restrict__ topKs,
+    const float *__restrict__ topPs,
+    int rows,
+    int vocabSize,
+    LongType *__restrict__ result) {
+  int row = blockIdx.x;
+  if (row >= rows) return;
+
+  float temperature = temperatures[row];
+  if (temperature == 0.0f) {
+    if (threadIdx.x == 0) result[row] = sortedLabels[row * vocabSize];
+    return;
+  }
+
+  int topK = topKs[row];
+  int effectiveTopK = topK <= 0 ? vocabSize : min(topK, vocabSize);
+  float topP = topPs[row];
+  float maxLogit = sortedLogits[row * vocabSize];
+
+  __shared__ int selectedCount;
+  if (threadIdx.x == 0) {
+    float totalWeight = 0.0f;
+    for (int index = 0; index < effectiveTopK; ++index) {
+      float logit = sortedLogits[row * vocabSize + index];
+      totalWeight += expf((logit - maxLogit) / temperature);
+    }
+
+    float selectedWeight = 0.0f;
+    selectedCount = effectiveTopK;
+    for (int index = 0; index < effectiveTopK; ++index) {
+      float logit = sortedLogits[row * vocabSize + index];
+      selectedWeight += expf((logit - maxLogit) / temperature);
+      if (selectedWeight >= topP * totalWeight) {
+        selectedCount = index + 1;
+        break;
+      }
+    }
+  }
+  __syncthreads();
+
+  cub::KeyValuePair<int, float> threadBest(0, -INFINITY);
+  for (int index = threadIdx.x; index < selectedCount; index += BLOCK_SIZE) {
+    float logit = sortedLogits[row * vocabSize + index];
+    float weight = expf((logit - maxLogit) / temperature);
+    float noise = fmaxf(-logf(uniformNoise[row * vocabSize + index]), FLT_MIN);
+    float score = weight / noise;
+    if (score > threadBest.value) {
+      threadBest = cub::KeyValuePair<int, float>(index, score);
+    }
+  }
+
+  using BlockReduce = cub::BlockReduce<cub::KeyValuePair<int, float>, BLOCK_SIZE>;
+  __shared__ typename BlockReduce::TempStorage tempStorage;
+  cub::KeyValuePair<int, float> blockBest =
+      BlockReduce(tempStorage).Reduce(threadBest, cub::ArgMax());
+  if (threadIdx.x == 0) {
+    result[row] = sortedLabels[row * vocabSize + blockBest.key];
+  }
+}
+
 template<typename T>
 Tensor sampleImpl(
     const Tensor &distribution,
@@ -276,6 +342,108 @@ Tensor sample(
   }
   if (distribution.getDType() == DType::kFloat) {
     return sampleImpl<float>(distribution, uniformNoise, topK, topP);
+  }
+  NOT_IMPL();
+}
+
+template<typename T>
+Tensor sampleLogitsImpl(
+    const Tensor &logits,
+    const Tensor &uniformNoise,
+    const Tensor &temperatures,
+    const Tensor &topKs,
+    const Tensor &topPs) {
+  int rows = logits.getShape(0);
+  int vocabSize = logits.getShape(1);
+  int64_t numel64 = logits.getNumEl();
+  CHECK(numel64 <= std::numeric_limits<int>::max());
+  int numel = static_cast<int>(numel64);
+
+  lut::c_ptr<float> logitsIn = llynCudaAlloc<float>(numel);
+  lut::c_ptr<float> logitsOut = llynCudaAlloc<float>(numel);
+  lut::c_ptr<int> labelsIn = llynCudaAlloc<int>(numel);
+  lut::c_ptr<int> labelsOut = llynCudaAlloc<int>(numel);
+  lut::c_ptr<int> segmentOffsets = llynCudaAlloc<int>(rows + 1);
+
+  constexpr int blockSize = 256;
+  initializeCandidatesKernel<<<getGrid1D(numel, blockSize), blockSize>>>(
+      getDataPtrCuda<T>(logits),
+      logitsIn.get(),
+      labelsIn.get(),
+      numel,
+      vocabSize);
+  initializeSegmentOffsetsKernel<<<getGrid1D(rows + 1, blockSize), blockSize>>>(
+      segmentOffsets.get(), rows, vocabSize);
+
+  void *tempStorage = nullptr;
+  size_t tempStorageBytes = 0;
+  LL_CHECK_CUDA_STATUS(cub::DeviceSegmentedRadixSort::SortPairsDescending(
+      tempStorage,
+      tempStorageBytes,
+      logitsIn.get(),
+      logitsOut.get(),
+      labelsIn.get(),
+      labelsOut.get(),
+      numel,
+      rows,
+      segmentOffsets.get(),
+      segmentOffsets.get() + 1));
+  lut::c_ptr<std::byte> tempStoragePtr = llynCudaAlloc<std::byte>(tempStorageBytes);
+  LL_CHECK_CUDA_STATUS(cub::DeviceSegmentedRadixSort::SortPairsDescending(
+      tempStoragePtr.get(),
+      tempStorageBytes,
+      logitsIn.get(),
+      logitsOut.get(),
+      labelsIn.get(),
+      labelsOut.get(),
+      numel,
+      rows,
+      segmentOffsets.get(),
+      segmentOffsets.get() + 1));
+
+  Tensor result = createCudaTensorLong({rows});
+  sampleLogitsRowsKernel<blockSize><<<rows, blockSize>>>(
+      logitsOut.get(),
+      labelsOut.get(),
+      getDataPtrCuda<float>(uniformNoise),
+      getDataPtrCuda<float>(temperatures),
+      getDataPtrCuda<IntType>(topKs),
+      getDataPtrCuda<float>(topPs),
+      rows,
+      vocabSize,
+      getDataPtrCuda<LongType>(result));
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+  return result;
+}
+
+Tensor sample(
+    const Tensor &logits,
+    const Tensor &uniformNoise,
+    const Tensor &temperatures,
+    const Tensor &topKs,
+    const Tensor &topPs) {
+  CHECK(logits.getDevice().getType() == Device::kCuda && logits.getDim() == 2 &&
+        logits.isContiguous());
+  int rows = logits.getShape(0);
+  int vocabSize = logits.getShape(1);
+  CHECK(uniformNoise.getDevice().getType() == Device::kCuda &&
+        uniformNoise.getDType() == DType::kFloat && uniformNoise.isContiguous() &&
+        uniformNoise.getShape() == std::vector<int>({rows, vocabSize}));
+  CHECK(temperatures.getDevice().getType() == Device::kCuda &&
+        temperatures.getDType() == DType::kFloat && temperatures.isContiguous() &&
+        temperatures.getShape() == std::vector<int>({rows}));
+  CHECK(topKs.getDevice().getType() == Device::kCuda &&
+        topKs.getDType() == DType::kInt32 && topKs.isContiguous() &&
+        topKs.getShape() == std::vector<int>({rows}));
+  CHECK(topPs.getDevice().getType() == Device::kCuda &&
+        topPs.getDType() == DType::kFloat && topPs.isContiguous() &&
+        topPs.getShape() == std::vector<int>({rows}));
+
+  if (logits.getDType() == DType::kFloat16) {
+    return sampleLogitsImpl<half>(logits, uniformNoise, temperatures, topKs, topPs);
+  }
+  if (logits.getDType() == DType::kFloat) {
+    return sampleLogitsImpl<float>(logits, uniformNoise, temperatures, topKs, topPs);
   }
   NOT_IMPL();
 }

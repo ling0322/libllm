@@ -78,6 +78,11 @@ Tensor softmax(Tensor input);
 // Sample one label per row from a probability distribution using top-k and nucleus filtering.
 Tensor sample(Tensor distribution, int topK, float topP);
 
+/// Sample one label per row from logits using per-row temperature, top-k, and top-p parameters.
+/// logits is <float>(rows, vocabSize), temperatures/topPs are <float>(rows), and topKs is
+/// <int>(rows). temperature=0 selects greedily; topK<=0 disables top-k filtering.
+Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs);
+
 // Apply x^2
 Tensor square(Tensor input);
 

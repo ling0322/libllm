@@ -84,14 +84,14 @@ func NewModel(filename, device string) (*Model, error) {
 func DefaultCompletionConfig() CompletionConfig {
 	config := CompletionConfig{}
 	config.Temperature = 1.0
-	config.TopK = 50
+	config.TopK = 0
 	config.TopP = 0.8
 
 	return config
 }
 
 func (m *Model) Complete(history []Message, config CompletionConfig) (*Completion, error) {
-	if config.Temperature <= 0 || config.TopK <= 0 || config.TopP <= 0 {
+	if config.Temperature < 0 || config.TopK < -1 || config.TopP <= 0 {
 		return nil, errors.New("invalid completion config")
 	}
 

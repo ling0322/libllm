@@ -126,7 +126,7 @@ T getValueFromJson(const json &j, std::string_view key, T defaultVal) {
 GenerationConfig parseGenerationConfig(const json &kwargsJson) {
   GenerationConfig config;
   config.temperature = getValueFromJson<float>(kwargsJson, "temperature", 1.0);
-  config.topK = getValueFromJson<int>(kwargsJson, "top_k", 50);
+  config.topK = getValueFromJson<int>(kwargsJson, "top_k", 0);
   config.topP = getValueFromJson<float>(kwargsJson, "top_p", 0.8);
 
   return config;

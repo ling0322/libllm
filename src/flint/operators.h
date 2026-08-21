@@ -36,7 +36,7 @@ class Operators {
 
   virtual Tensor arangeLong(LongType begin, LongType end, LongType step);
   virtual Tensor lookup(Tensor table, Tensor indices);
-    virtual void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache);
+  virtual void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache);
   virtual Tensor rmsNorm(Tensor input, Tensor weight, float eps);
   virtual Tensor matmul(Tensor A, Tensor B);
   virtual Tensor matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB);
@@ -51,16 +51,8 @@ class Operators {
   /// numKeyValueHeads, so grouped-query and multi-query attention need no expanded k and v.
   virtual Tensor attention(Tensor q, Tensor k, Tensor v, bool causal);
 
-  /// Scaled dot product attention of a packed (varlen) batch of queries over a paged KV cache.
-  /// q is [totalQueryLength, numHeads, headDim], the queries of every sequence packed back to
-  /// back. keyCache and valueCache are [numBlocks, blockSize, numKeyValueHeads, headDim], the
-  /// block pool every sequence reads through its row of blockTable
-  /// <int>[numSequences, maxNumBlocksPerSequence]. cuSeqlensQ is <int>[numSequences + 1], the
-  /// exclusive prefix sum of the query lengths. seqlensK is <int>[numSequences], how many cached
-  /// tokens each sequence attends to; a causal query reads its own key, so storeKVCache() must
-  /// already have put this batch in the pool and seqlensK[i] counts it. maxQLen and maxKLen bound
-  /// the per-sequence lengths. Returns [totalQueryLength, numHeads, headDim].
-  virtual Tensor pagedAttention(
+    /// Scaled dot product attention of a packed (varlen) batch of queries over a paged KV cache.
+    virtual Tensor pagedAttention(
       Tensor q,
       Tensor keyCache,
       Tensor valueCache,
@@ -71,18 +63,16 @@ class Operators {
       int maxKLen,
       bool causal);
 
-  /// Scatter the keys and values a forward pass just produced into a paged KV cache, so that a
-  /// later pagedAttention() reads them back. k and v are [numTokens, numKeyValueHeads, headDim],
-  /// packed the same way as the queries. keyCache and valueCache are
-  /// [numBlocks, blockSize, numKeyValueHeads, headDim]. slotMapping is [numTokens], the slot each
-  /// token takes in the pool, counted as blockId * blockSize + offsetInBlock.
-  virtual void storeKVCache(
+    /// Scatter packed keys and values into their paged KV-cache slots.
+    virtual void storeKVCache(
       Tensor k,
       Tensor v,
       Tensor keyCache,
       Tensor valueCache,
       Tensor slotMapping);
+
   virtual Tensor sample(Tensor distribution, int topK, float topP);
+    virtual Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs);
   virtual Tensor add(Tensor input, Tensor other);
   virtual Tensor sub(Tensor input, Tensor other);
   virtual Tensor subFloat(Tensor input, float other);

@@ -447,6 +447,43 @@ CATCH_TEST_CASE("test CUDA sampling", "[fl][op][cuda]") {
   CATCH_REQUIRE(multiBlockData[1] == 1100);
 }
 
+CATCH_TEST_CASE("test CUDA batched sampling parameters", "[fl][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  Tensor logits = Tensor::create<float>(
+      {4, 4},
+      {0.0f, 4.0f, 2.0f, 1.0f,
+       0.0f, 1.0f, 5.0f, 2.0f,
+       0.0f, 1.0f, 2.0f, 6.0f,
+       4.0f, 3.0f, 0.0f, -1.0f});
+  Tensor temperatures = Tensor::create<float>({4}, {0.0f, 1.0f, 1.0f, 0.7f});
+  Tensor topKs = Tensor::create<IntType>({4}, {0, 1, 0, 2});
+  Tensor topPs = Tensor::create<float>({4}, {1.0f, 1.0f, 0.1f, 0.9f});
+
+  logits = F::to(Device::getCuda(), logits);
+  temperatures = F::to(Device::getCuda(), temperatures);
+  topKs = F::to(Device::getCuda(), topKs);
+  topPs = F::to(Device::getCuda(), topPs);
+
+  F::manualSeed(Device::getCuda(), 1234);
+  Tensor first = F::sample(logits, temperatures, topKs, topPs);
+  F::manualSeed(Device::getCuda(), 1234);
+  Tensor second = F::sample(logits, temperatures, topKs, topPs);
+  first = F::to(Device::getCpu(), first);
+  second = F::to(Device::getCpu(), second);
+
+  CATCH_REQUIRE(first.getShape() == std::vector<int>{4});
+  const LongType *firstData =
+      first.getInternalData()->getData<LongType>(first.getInternalOffset());
+  const LongType *secondData =
+      second.getInternalData()->getData<LongType>(second.getInternalOffset());
+  CATCH_REQUIRE(firstData[0] == 1);
+  CATCH_REQUIRE(firstData[1] == 2);
+  CATCH_REQUIRE(firstData[2] == 3);
+  CATCH_REQUIRE((firstData[3] == 0 || firstData[3] == 1));
+  for (int row = 0; row < 4; ++row) CATCH_REQUIRE(firstData[row] == secondData[row]);
+}
+
 CATCH_TEST_CASE("test gemv", "[fl][op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 

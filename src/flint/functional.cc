@@ -48,6 +48,14 @@ Tensor sample(Tensor distribution, int topK, float topP) {
   return getOperators(distribution.getDevice().getType())->sample(distribution, topK, topP);
 }
 
+Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs) {
+  CHECK(logits.getDevice().getType() == temperatures.getDevice().getType());
+  CHECK(logits.getDevice().getType() == topKs.getDevice().getType());
+  CHECK(logits.getDevice().getType() == topPs.getDevice().getType());
+  return getOperators(logits.getDevice().getType())->sample(
+      logits, temperatures, topKs, topPs);
+}
+
 Tensor matmul(Tensor A, Tensor B) {
   CHECK(A.getDevice().getType() == B.getDevice().getType());
   CHECK(!A.empty());

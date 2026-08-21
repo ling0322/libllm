@@ -52,19 +52,16 @@ extern "C" {
 /// background threads.
 typedef struct llm_engine_impl_t llm_engine_t;
 
-/// Opaque JSON value used to pass configuration and request data across the C ABI.
-typedef struct llm_json_impl_t llm_json_t;
+/// Opaque owned buffer containing one serialized protobuf message.
+typedef struct llm_proto_impl_t llm_proto_t;
 
-/// Receives a batch of incremental request outputs from an engine.
-///
-/// `outputs_json` contains a UTF-8 JSON array of request output objects. `outputs_json_size` is its
-/// size in bytes, excluding any trailing null terminator. Both are borrowed and remain valid only
-/// until the callback returns. `user_data` is the pointer passed to llm_engine_new(). Callbacks for
-/// one engine are serialized on its stream thread. The callback may add or abort requests on the
-/// same engine, but it must not call llm_engine_free().
+/// Receives a serialized protobuf RequestOutputs message owned by the engine. `outputs` remains
+/// valid only until the callback returns; the callback must not free it or retain the pointer.
+/// `user_data` is the pointer passed to llm_engine_new(). Callbacks for one engine are serialized
+/// on its stream thread. The callback may add or abort requests on the same engine, but it must not
+/// call llm_engine_free().
 typedef void (*llm_stream_callback_t)(
-	const char *outputs_json,
-	int64_t outputs_json_size,
+	const llm_proto_t *outputs,
 	void *user_data);
 
 // global state
@@ -87,56 +84,44 @@ LLMAPI int32_t llm_get_last_error_code();
 /// thread. The caller must not modify or free it.
 LLMAPI const char *llm_get_last_error_message();
 
-// JSON
+// Protobuf
 
-/// Allocate a JSON value initialized to null.
+/// Copy one serialized protobuf message into a new caller-owned buffer.
 ///
-/// @return A new JSON handle owned by the caller, or NULL on allocation failure. On failure, call
-/// llm_get_last_error_code() and llm_get_last_error_message() on the same thread for details.
-LLMAPI llm_json_t *llm_json_new();
+/// `data` may be NULL only when `size` is zero. The bytes are not validated against a specific
+/// protobuf message type at this layer.
+/// @return A caller-owned protobuf buffer, or NULL on invalid arguments or allocation failure.
+LLMAPI llm_proto_t *llm_proto_new(const uint8_t *data, int64_t size);
 
-/// Free a JSON handle.
-///
-/// Passing NULL has no effect. Any pointer returned by or stored in `j` becomes invalid.
-LLMAPI void llm_json_free(llm_json_t *j);
+/// Free a caller-owned protobuf buffer. Passing NULL has no effect. Engine-owned callback buffers
+/// must not be passed to this function.
+LLMAPI void llm_proto_free(llm_proto_t *proto);
 
-/// Parse a null-terminated UTF-8 JSON document into a new JSON value.
+/// Return a borrowed pointer to the serialized bytes in `proto`.
 ///
-/// @param json_str Document to parse. It is not retained after this function returns.
-/// @return A new JSON handle owned by the caller, or NULL if the argument is invalid, parsing
-/// fails, or allocation fails. Error details are stored in the current thread's error state.
-LLMAPI llm_json_t *llm_json_parse(const char *json_str);
+/// The pointer remains valid for the lifetime of `proto`. Empty messages may return NULL.
+LLMAPI const uint8_t *llm_proto_data(const llm_proto_t *proto);
 
-/// Serialize a JSON value into a caller-provided buffer.
-///
-/// @param j JSON value to serialize.
-/// @param buf Destination buffer. The result is null-terminated on success.
-/// @param buf_size Destination capacity in bytes, including the null terminator.
-/// @return Zero on success, LLM_ERROR_INSUFFICIENT_BUFFER if the buffer is too small, or another
-/// error code for invalid arguments or serialization failure. Error details are also stored in the
-/// current thread's error state.
-LLMAPI int32_t llm_json_dump(llm_json_t *j, char *buf, int64_t buf_size);
+/// Return the number of serialized bytes in `proto`, or zero for an invalid or empty buffer.
+LLMAPI int64_t llm_proto_size(const llm_proto_t *proto);
 
 // Engine
 
 /// Create and start an asynchronous inference engine.
 ///
-/// The function synchronously validates `options`, loads the model, allocates its KV cache and
-/// starts the scheduler and stream threads. No callback is made before this function returns.
-/// `options` is copied and may be freed immediately afterwards. Recognized options include:
-/// - `filename` (string, required): model package path.
-/// - `device` (string, required): `cpu`, `cuda` or `auto`.
-/// - `shutdown_timeout_ms` (integer, optional): time llm_engine_free() waits for accepted requests
-///   to finish; a negative value waits indefinitely and zero cancels them immediately.
+/// The function parses `options` as a protobuf EngineOptions message, loads the model, allocates
+/// its KV cache and starts the scheduler and stream threads. No callback is made before this
+/// function returns. The engine copies all required values, so the protobuf buffer may be freed
+/// immediately afterwards.
 ///
-/// @param options Engine configuration.
+/// @param options Serialized protobuf EngineOptions message.
 /// @param callback Required callback that receives batches of incremental outputs.
 /// @param user_data Optional caller-owned pointer passed unchanged to `callback`. It must remain
 /// valid until llm_engine_free() returns.
 /// @return A running engine owned by the caller, or NULL on failure. Error details are stored in
 /// the current thread's error state.
 LLMAPI llm_engine_t *llm_engine_new(
-	llm_json_t *options,
+	const llm_proto_t *options,
 	llm_stream_callback_t callback,
 	void *user_data);
 
@@ -153,44 +138,32 @@ LLMAPI llm_engine_t *llm_engine_new(
 /// to be cancelled, or another error code if shutdown encountered an error.
 LLMAPI int32_t llm_engine_free(llm_engine_t *engine);
 
-/// Write static and runtime information about an engine to a JSON value.
-///
-/// The existing content of `info` is replaced. The result may include model identity, device and
-/// effective engine configuration. This function is thread-safe and does not stop generation.
-///
-/// @param engine Running engine.
-/// @param info Caller-owned JSON handle that receives the information.
-/// @return Zero on success or an error code on invalid arguments or engine failure.
-LLMAPI int32_t llm_engine_get_info(llm_engine_t *engine, llm_json_t *info);
-
 /// Submit a generation request to an engine.
 ///
-/// This function validates and copies `request`, enqueues it, and returns without waiting for
-/// generation. The JSON handle may be freed immediately afterwards. `request_id` must be non-empty
-/// and unique among unfinished requests; it is copied by the engine. The request contains `messages`
-/// and may contain generation parameters such as `max_tokens`, `temperature`, `top_k` and `top_p`.
-/// Outputs and request-level runtime errors are delivered asynchronously through the stream
-/// callback. This function is thread-safe.
+/// This function parses `request` as a protobuf Request message, validates and enqueues it, then
+/// returns without waiting for generation. `request_id` must be non-empty and unique among
+/// unfinished requests. The protobuf buffer may be freed immediately afterwards. Outputs and
+/// request-level runtime errors are delivered asynchronously through the stream callback. This
+/// function is thread-safe.
 ///
 /// @param engine Running engine accepting requests.
 /// @param request_id Null-terminated request identifier.
-/// @param request Request and generation configuration.
+/// @param request Serialized protobuf Request message.
 /// @return Zero once the request is accepted, or an error code if validation or enqueueing fails.
 LLMAPI int32_t llm_engine_add_request(
 	llm_engine_t *engine,
 	const char *request_id,
-	llm_json_t *request);
+	const llm_proto_t *request);
 
 /// Asynchronously cancel a request.
 ///
-/// Cancellation is idempotent: an unknown or already finished request identifier is treated as a
-/// successful no-op. An active request receives one final callback output with finish reason
-/// `cancelled`, after which its KV cache blocks are released. This function is thread-safe and does
-/// not wait for the final callback.
+/// Cancellation is idempotent: an unknown or already finished request identifier is a successful
+/// no-op. An active request receives one final callback output with finish reason `cancelled`, after
+/// which its KV cache blocks are released. This function is thread-safe and does not wait for the
+/// final callback.
 ///
 /// @param engine Running engine.
-/// @param request_id Null-terminated identifier to cancel. It is copied before this function
-/// returns.
+/// @param request_id Null-terminated request identifier.
 /// @return Zero when cancellation is accepted or unnecessary, or an error code for invalid
 /// arguments or engine failure.
 LLMAPI int32_t llm_engine_abort_request(llm_engine_t *engine, const char *request_id);

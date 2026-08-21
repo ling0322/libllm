@@ -65,10 +65,6 @@ Tensor Operators::lookup(Tensor table, Tensor indices) {
   NOT_IMPL();
 }
 
-void Operators::rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache) {
-  NOT_IMPL();
-}
-
 Tensor Operators::matmul(Tensor a, Tensor b) {
   NOT_IMPL();
 }
@@ -98,28 +94,6 @@ Tensor Operators::mul(Tensor input, Tensor other) {
 }
 
 Tensor Operators::softmax(Tensor input) {
-  NOT_IMPL();
-}
-
-Tensor Operators::pagedAttention(
-    Tensor q,
-    Tensor keyCache,
-    Tensor valueCache,
-    Tensor blockTable,
-    Tensor cuSeqlensQ,
-    Tensor seqlensK,
-    int maxQLen,
-    int maxKLen,
-    bool causal) {
-  NOT_IMPL();
-}
-
-void Operators::storeKVCache(
-    Tensor k,
-    Tensor v,
-    Tensor keyCache,
-    Tensor valueCache,
-    Tensor slotMapping) {
   NOT_IMPL();
 }
 
@@ -224,7 +198,37 @@ Tensor Operators::rmsNorm(Tensor input, Tensor weight, float eps) {
   NOT_IMPL();
 }
 
+void Operators::rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache) {
+  NOT_IMPL();
+}
+
+Tensor Operators::pagedAttention(
+    Tensor q,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor blockTable,
+    Tensor cuSeqlensQ,
+    Tensor seqlensK,
+    int maxQLen,
+    int maxKLen,
+    bool causal) {
+  NOT_IMPL();
+}
+
+void Operators::storeKVCache(
+    Tensor k,
+    Tensor v,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor slotMapping) {
+  NOT_IMPL();
+}
+
 Tensor Operators::sample(Tensor distribution, int topK, float topP) {
+  NOT_IMPL();
+}
+
+Tensor Operators::sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs) {
   NOT_IMPL();
 }
 

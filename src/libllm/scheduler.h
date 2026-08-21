@@ -38,6 +38,7 @@ struct GenerationConfig {
   int topK;
   float topP;
   float temperature;
+  int maxTokens;
 
   GenerationConfig();
 };
@@ -47,6 +48,7 @@ class Sampler {
   Sampler(int topK, float topP);
 
   int sample(const fl::Tensor &distribution);
+  int greedy(fl::Tensor logits);
 
  private:
   lut::Random _random;
@@ -158,21 +160,25 @@ class SchedulerV2 {
   int getNumUnfinishedRequests() const;
 
  private:
-  struct RequestState;
   struct ScheduledBatch;
 
   std::shared_ptr<ModelForGeneration> _model;
   int _maxNumBatchedTokens;
 
-  // The map owns request state; the deque defines deterministic FCFS scheduling order.
-  std::unordered_map<std::string, std::unique_ptr<RequestState>> _requests;
+  // The map owns requests. A request belongs to exactly one scheduling queue; request order
+  // preserves deterministic output and cleanup order.
+  std::unordered_map<std::string, std::shared_ptr<Request>> _requests;
   std::deque<std::string> _requestOrder;
+  std::deque<std::string> _runningOrder;
+  std::deque<std::string> _waitingOrder;
 
   std::unique_ptr<ScheduledBatch> schedule();
   std::vector<RequestOutput> execute(ScheduledBatch &batch);
   std::vector<RequestOutput> finishCancelledRequests();
-  void reserveBlocks(RequestState &state, int numTokens);
-  void releaseBlocks(RequestState &state);
+  bool reserveBlocks(Request &request, int numTokens);
+  Request *selectPreemptionVictim(const std::vector<Request *> &scheduledRequests) const;
+  void preemptRequest(Request &request);
+  void releaseBlocks(Request &request);
   void removeFinishedRequests();
 };
 

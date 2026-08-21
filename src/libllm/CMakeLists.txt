@@ -14,6 +14,7 @@ set(libllm_SOURCES
     "forward_batch.cc"
     "prompt.cc"
     "request.cc"
+    "sampling_batch.cc"
     "scheduler.cc"
     "tokenizer.cc"
     "var_builder.cc")
@@ -22,7 +23,9 @@ set(libllm_INCDIR ".." "../../third_party")
 
 set(libllm_test_SOURCES
     "kv_cache_test.cc"
-    "llama_test.cc")
+    "llama_test.cc"
+    "sampling_batch_test.cc"
+    "scheduler_test.cc")
 
 add_library(libllm_test OBJECT ${libllm_test_SOURCES})
 target_include_directories(libllm_test PRIVATE ${libllm_INCDIR})

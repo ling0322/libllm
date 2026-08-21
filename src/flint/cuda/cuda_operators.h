@@ -66,9 +66,10 @@ class CudaOperators : public Operators {
   void repetitionPenalty(Tensor logits, Tensor history, float weight) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor sample(Tensor distribution, int topK, float topP) override;
+  Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs) override;
   Tensor softmax(Tensor input) override;
   Tensor attention(Tensor q, Tensor k, Tensor v, bool causal) override;
-  Tensor pagedAttention(
+    Tensor pagedAttention(
       Tensor q,
       Tensor keyCache,
       Tensor valueCache,
@@ -78,8 +79,12 @@ class CudaOperators : public Operators {
       int maxQLen,
       int maxKLen,
       bool causal) override;
-  void storeKVCache(Tensor k, Tensor v, Tensor keyCache, Tensor valueCache, Tensor slotMapping)
-      override;
+    void storeKVCache(
+      Tensor k,
+      Tensor v,
+      Tensor keyCache,
+      Tensor valueCache,
+      Tensor slotMapping) override;
   Tensor sum(Tensor inputs, int dim) override;
   Tensor swiglu(Tensor A) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;

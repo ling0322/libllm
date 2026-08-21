@@ -305,6 +305,18 @@ Tensor CudaOperators::sample(Tensor distribution, int topK, float topP) {
   return op::cuda::sample(distribution, uniformNoise, topK, topP);
 }
 
+Tensor CudaOperators::sample(
+    Tensor logits,
+    Tensor temperatures,
+    Tensor topKs,
+    Tensor topPs) {
+  CHECK(logits.getDim() == 2);
+  int rows = logits.getShape(0);
+  int vocabSize = logits.getShape(1);
+  Tensor uniformNoise = _rand->rand({rows, vocabSize});
+  return op::cuda::sample(logits, uniformNoise, temperatures, topKs, topPs);
+}
+
 Tensor CudaOperators::to(Device device, Tensor tensor) {
   return cuda::toDevice(device, tensor);
 }

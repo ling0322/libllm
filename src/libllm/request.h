@@ -28,6 +28,13 @@
 
 namespace libllm {
 
+enum class RequestStatus {
+  kWaiting,
+  kRunning,
+  kPreempted,
+  kFinished,
+};
+
 /// @brief One completion the engine is working on. It owns the tokens of the request, the ones of
 /// the prompt as well as the ones generated so far, and remembers how many of them the model
 /// already forwarded into the KV cache.
@@ -48,6 +55,22 @@ class Request {
   /// @brief Get the generation configuration of this request.
   const GenerationConfig &getConfig() const;
 
+  /// @brief Get the current scheduler lifecycle status.
+  RequestStatus getStatus() const;
+
+  /// @brief Set the current scheduler lifecycle status.
+  void setStatus(RequestStatus status);
+
+  /// @brief Get the number of generated tokens appended after the original prompt.
+  int getNumGeneratedTokens() const;
+
+  RequestFinishReason getPendingFinishReason() const;
+  void setPendingFinishReason(RequestFinishReason finishReason);
+  const std::string &getErrorMessage() const;
+  void setErrorMessage(std::string errorMessage);
+  bool isFinalEmitted() const;
+  void setFinalEmitted(bool finalEmitted);
+
   /// @brief Get the prompt tokens followed by the tokens generated so far.
   lut::Span<const fl::LongType> getTokenIds() const;
 
@@ -57,6 +80,9 @@ class Request {
   /// @brief Tell that the model forwarded `numTokens` further tokens of this request.
   /// @param numTokens Number of tokens forwarded, never more than the ones still left.
   void advanceComputedTokens(int numTokens);
+
+  /// @brief Forget all computed tokens after their KV-cache blocks have been evicted.
+  void resetComputedTokens();
 
   /// @brief Get the number of leading tokens of this request whose keys and values the KV cache
   /// already holds. The tokens a forward pass adds on top of it are its query.
@@ -92,12 +118,16 @@ class Request {
 
   // the prompt tokens, followed by the generated ones.
   std::vector<fl::LongType> _tokenIds;
+  int _promptLength;
   int _numComputedTokens;
 
   int _contextLength;
   std::vector<int> _blockIds;
 
-  bool _finished;
+  RequestStatus _status;
+  RequestFinishReason _pendingFinishReason;
+  std::string _errorMessage;
+  bool _finalEmitted;
 };
 
 }  // namespace libllm

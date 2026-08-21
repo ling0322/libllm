@@ -12,6 +12,13 @@ Tensor sample(
 	int topK,
 	float topP);
 
+Tensor sample(
+	const Tensor &logits,
+	const Tensor &uniformNoise,
+	const Tensor &temperatures,
+	const Tensor &topKs,
+	const Tensor &topPs);
+
 }  // namespace cuda
 }  // namespace op
 }  // namespace fl

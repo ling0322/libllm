@@ -26,6 +26,25 @@ namespace fl {
 namespace op {
 namespace cpu {
 
+CATCH_TEST_CASE("test CPU batched sampling parameters", "[fl][op][cpu]") {
+  Tensor logits = Tensor::create<float>(
+      {3, 4},
+      {0.0f, 4.0f, 2.0f, 1.0f,
+       0.0f, 1.0f, 5.0f, 2.0f,
+       0.0f, 1.0f, 2.0f, 6.0f});
+  Tensor temperatures = Tensor::create<float>({3}, {0.0f, 1.0f, 1.0f});
+  Tensor topKs = Tensor::create<IntType>({3}, {0, 1, 0});
+  Tensor topPs = Tensor::create<float>({3}, {1.0f, 1.0f, 0.1f});
+
+  Tensor sampled = F::sample(logits, temperatures, topKs, topPs);
+  CATCH_REQUIRE(sampled.getShape() == std::vector<int>{3});
+  const LongType *data = sampled.getInternalData()->getData<LongType>(
+      sampled.getInternalOffset());
+  CATCH_REQUIRE(data[0] == 1);
+  CATCH_REQUIRE(data[1] == 2);
+  CATCH_REQUIRE(data[2] == 3);
+}
+
 Tensor RefMatMulFp32(const Tensor &A, const Tensor &B) {
   CATCH_REQUIRE(A.getDType() == B.getDType());
   CATCH_REQUIRE(A.getDim() == 2);

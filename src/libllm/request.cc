@@ -33,9 +33,12 @@ Request::Request(
     : _id(std::move(requestId)),
       _config(config),
       _tokenIds(std::move(promptTokenIds)),
+      _promptLength(static_cast<int>(_tokenIds.size())),
       _numComputedTokens(0),
       _contextLength(0),
-      _finished(false) {
+      _status(RequestStatus::kWaiting),
+      _pendingFinishReason(RequestFinishReason::kNone),
+      _finalEmitted(false) {
   if (_tokenIds.empty()) {
     throw lut::AbortedError("request with an empty prompt");
   }
@@ -49,6 +52,42 @@ const GenerationConfig &Request::getConfig() const {
   return _config;
 }
 
+RequestStatus Request::getStatus() const {
+  return _status;
+}
+
+void Request::setStatus(RequestStatus status) {
+  _status = status;
+}
+
+int Request::getNumGeneratedTokens() const {
+  return static_cast<int>(_tokenIds.size()) - _promptLength;
+}
+
+RequestFinishReason Request::getPendingFinishReason() const {
+  return _pendingFinishReason;
+}
+
+void Request::setPendingFinishReason(RequestFinishReason finishReason) {
+  _pendingFinishReason = finishReason;
+}
+
+const std::string &Request::getErrorMessage() const {
+  return _errorMessage;
+}
+
+void Request::setErrorMessage(std::string errorMessage) {
+  _errorMessage = std::move(errorMessage);
+}
+
+bool Request::isFinalEmitted() const {
+  return _finalEmitted;
+}
+
+void Request::setFinalEmitted(bool finalEmitted) {
+  _finalEmitted = finalEmitted;
+}
+
 lut::Span<const fl::LongType> Request::getTokenIds() const {
   return _tokenIds;
 }
@@ -60,6 +99,11 @@ int Request::getNumComputedTokens() const {
 void Request::advanceComputedTokens(int numTokens) {
   CHECK(numTokens >= 0 && _numComputedTokens + numTokens <= static_cast<int>(_tokenIds.size()));
   _numComputedTokens += numTokens;
+}
+
+void Request::resetComputedTokens() {
+  _numComputedTokens = 0;
+  _contextLength = 0;
 }
 
 int Request::getContextLength() const {
@@ -88,11 +132,11 @@ void Request::appendToken(fl::LongType tokenId) {
 }
 
 bool Request::isFinished() const {
-  return _finished;
+  return _status == RequestStatus::kFinished;
 }
 
 void Request::finish() {
-  _finished = true;
+  _status = RequestStatus::kFinished;
 }
 
 }  // namespace libllm
