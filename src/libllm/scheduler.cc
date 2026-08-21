@@ -164,6 +164,7 @@ bool Scheduler::generate() {
   batch.setKVCacheManager(_model->getKVCacheManager());
   lut::Span<const int> blockIds = _request->getBlockIds();
   batch.setBlockIds({std::vector<int>(blockIds.begin(), blockIds.end())});
+  batch.prepare(_model->getDevice());
 
   _currentToken = searchToken(_model->forward(batch));
 

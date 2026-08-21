@@ -65,6 +65,10 @@ Tensor Operators::lookup(Tensor table, Tensor indices) {
   NOT_IMPL();
 }
 
+void Operators::rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache) {
+  NOT_IMPL();
+}
+
 Tensor Operators::matmul(Tensor a, Tensor b) {
   NOT_IMPL();
 }

@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "catch2/catch_amalgamated.hpp"
@@ -120,6 +121,80 @@ Tensor createTokenIds(const std::shared_ptr<Operators> &operators, int sequenceL
   return operators->to(Device::getCuda(), cpuIds);
 }
 
+Tensor createPositions(const std::shared_ptr<Operators> &operators, int numTokens) {
+  std::vector<LongType> values(numTokens);
+  for (int i = 0; i < numTokens; ++i) values[i] = i;
+  Tensor cpuPositions = Tensor::create<LongType>({numTokens}, values);
+  return operators->to(Device::getCuda(), cpuPositions);
+}
+
+Tensor applyRotaryEmbeddingBaseline(
+    const std::shared_ptr<Operators> &operators,
+    Tensor input,
+    Tensor roPE) {
+  Tensor cos = roPE.subtensor(0);
+  Tensor sin = roPE.subtensor(1);
+  cos = cos.expand({cos.getShape(0), input.getShape(1), cos.getShape(2)});
+  sin = sin.expand({sin.getShape(0), input.getShape(1), sin.getShape(2)});
+
+  int halfShape = input.getShape(-1) / 2;
+  Tensor rotated = operators->tensorLike(input);
+  Tensor x1 = input.slice(-1, {0, halfShape});
+  Tensor x2 = operators->mul(input.slice(-1, {halfShape, None}), -1.0f);
+  operators->copy(x1, rotated.slice(-1, {halfShape, None}));
+  operators->copy(x2, rotated.slice(-1, {0, halfShape}));
+
+  return operators->add(
+      operators->mul(input, F::contiguous(cos)),
+      operators->mul(rotated, F::contiguous(sin)));
+}
+
+std::pair<Tensor, Tensor> rotaryEmbeddingBaseline(
+    const std::shared_ptr<Operators> &operators,
+    Tensor positions,
+    Tensor query,
+    Tensor key,
+    Tensor rotaryCache) {
+  int numTokens = positions.getShape(0);
+  Tensor roPE = operators->lookup(rotaryCache, positions);
+  roPE = roPE.view({numTokens, 2, 1, HeadDim}).transpose(0, 1);
+  return {
+      applyRotaryEmbeddingBaseline(operators, query, roPE),
+      applyRotaryEmbeddingBaseline(operators, key, roPE)};
+}
+
+void benchmarkRotaryEmbedding(
+    const std::shared_ptr<Operators> &operators,
+    int numTokens) {
+  constexpr int MaxPositions = 8192;
+  Tensor positions = createPositions(operators, numTokens);
+  Tensor query = randHalf(operators, {numTokens, NumHeads, HeadDim});
+  Tensor key = randHalf(operators, {numTokens, NumKeyValueHeads, HeadDim});
+  Tensor rotaryCache = randHalf(operators, {MaxPositions, 2 * HeadDim});
+
+  float baselineMilliseconds = benchmarkCuda([&] {
+    auto output = rotaryEmbeddingBaseline(operators, positions, query, key, rotaryCache);
+    (void)output;
+  });
+  Tensor fusedQuery = F::contiguous(query);
+  Tensor fusedKey = F::contiguous(key);
+  float fusedMilliseconds = benchmarkCuda([&] {
+    operators->rotaryEmbedding(positions, fusedQuery, fusedKey, rotaryCache);
+  });
+
+  std::string phase = numTokens == 1 ? "decode-1" : "prefill-" + std::to_string(numTokens);
+  printLatency(
+      phase + " rotary_embedding baseline [24/8,128]",
+      baselineMilliseconds);
+  printLatency(
+      phase + " rotary_embedding fused [24/8,128]",
+      fusedMilliseconds);
+  std::printf(
+      "%-44s %10.2fx\n",
+      (phase + " rotary_embedding speedup").c_str(),
+      baselineMilliseconds / fusedMilliseconds);
+}
+
 void benchmarkLookup(const std::shared_ptr<Operators> &operators, int sequenceLength) {
   Tensor embedding = randHalf(operators, {VocabSize, HiddenSize});
   Tensor ids = createTokenIds(operators, sequenceLength);
@@ -135,6 +210,16 @@ void benchmarkSampling(const std::shared_ptr<Operators> &operators) {
 }
 
 }  // namespace
+
+CATCH_TEST_CASE("CUDA rotary embedding benchmarks", "[benchmark][cuda][rope]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+  std::shared_ptr<Operators> operators = getOperatorsSharedPtr(Device::kCuda);
+
+  std::printf("\nLlama 3.2 3B rotary embedding baseline (FP16)\n");
+  for (int numTokens : {1, 256, 2048}) {
+    benchmarkRotaryEmbedding(operators, numTokens);
+  }
+}
 
 CATCH_TEST_CASE("Llama 3.2 3B benchmarks", "[benchmark][cuda][llama32-3b]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");

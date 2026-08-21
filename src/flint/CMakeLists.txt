@@ -77,6 +77,7 @@ if (WITH_CUDA)
         "cuda/reduce.cu"
         "cuda/repetition_penalty.cu"
         "cuda/rms_norm.cu"
+        "cuda/rotary_embedding.cu"
         "cuda/sampling.cu"
         "cuda/softmax.cu"
         "cuda/store_kv_cache.cu"
@@ -91,6 +92,7 @@ if (WITH_CUDA)
 
     set(flint_test_SOURCES
         ${flint_test_SOURCES}
+        "cuda/rotary_embedding_test.cc"
         "cuda/store_kv_cache_test.cc"
         "cuda/test.cc")
     set(flint_benchmark_SOURCES ${flint_benchmark_SOURCES} "cuda/benchmark.cc")

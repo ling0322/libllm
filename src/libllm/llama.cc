@@ -23,16 +23,18 @@
 
 #include <memory>
 
+#include "flint/functional.h"
 #include "libllm/constants.h"
 #include "libllm/layers.h"
 #include "libllm/model_for_generation.h"
 #include "lutil/error.h"
 #include "lutil/ini_config.h"
 #include "lutil/strings.h"
-#include "flint/functional.h"
 
 namespace libllm {
 namespace llama {
+
+namespace F = fl::F;
 
 // -----------------------------------------------------------------------------------------------+
 // class LlamaConfig                                                                              |
@@ -91,7 +93,7 @@ std::shared_ptr<MLP> MLP::build(const LlamaConfig &config, const VarBuilder &vb)
 
 fl::Tensor MLP::forward(fl::Tensor input) const {
   fl::Tensor x = _gateUpProj->forward(input);
-  x = fl::F::swiglu(x);
+  x = F::swiglu(x);
   x = _downProj->forward(x);
 
   return x;
@@ -111,7 +113,7 @@ Attention::Attention()
 std::shared_ptr<Attention> Attention::build(
     const LlamaConfig &config,
     const VarBuilder &vb,
-    fl::Tensor roPE,
+    fl::Tensor rotaryCache,
     int layerIndex) {
   std::shared_ptr<Attention> layer{new Attention()};
 
@@ -124,45 +126,14 @@ std::shared_ptr<Attention> Attention::build(
   layer->_numKeyValueHead = config.numKeyValueHeads;
   layer->_headDim = headDim;
   layer->_layerIndex = layerIndex;
-  layer->_roPE = roPE;
+  layer->_rotaryCache = rotaryCache;
 
   int qkvProjDim = headDim * config.numKeyValueHeads * 2 + config.hiddenSize;
   int d = config.hiddenSize;
-  layer->_qkvProj = Linear::build(
-      d,
-      qkvProjDim,
-      config.qkvProjBias,
-      vb.withName("qkv_proj"));
+  layer->_qkvProj = Linear::build(d, qkvProjDim, config.qkvProjBias, vb.withName("qkv_proj"));
   layer->_outProj = Linear::build(d, d, false, vb.withName("out_proj"));
 
   return layer;
-}
-
-fl::Tensor Attention::rotateHalf(fl::Tensor x) const {
-  fl::Tensor rotated = fl::F::tensorLike(x);
-  int lastDim = x.getDim() - 1;
-  int halfShape = x.getShape(lastDim) / 2;
-
-  fl::Tensor x1 = x.slice(lastDim, {0, halfShape});
-  fl::Tensor x2 = x.slice(lastDim, {halfShape, fl::None});
-  x2 = fl::F::mul(x2, -1.0f);
-
-  fl::F::copy(x1, rotated.slice(lastDim, {halfShape, fl::None}));
-  fl::F::copy(x2, rotated.slice(lastDim, {0, halfShape}));
-
-  return rotated;
-}
-
-fl::Tensor Attention::applyRoPE(fl::Tensor input, fl::Tensor roPE) const {
-  fl::Tensor cos = roPE.subtensor(0);
-  fl::Tensor sin = roPE.subtensor(1);
-
-  cos = cos.expand({cos.getShape(0), input.getShape(1), cos.getShape(2)});
-  sin = sin.expand({sin.getShape(0), input.getShape(1), sin.getShape(2)});
-
-  return fl::F::add(
-      fl::F::mul(input, fl::F::contiguous(cos)),
-      fl::F::mul(rotateHalf(input), fl::F::contiguous(sin)));
 }
 
 fl::Tensor Attention::forward(fl::Tensor input, const ForwardBatch &batch) const {
@@ -176,43 +147,35 @@ fl::Tensor Attention::forward(fl::Tensor input, const ForwardBatch &batch) const
   fl::Tensor v = qkv.slice(-1, {_hiddenSize + kvHiddenSize, _hiddenSize + 2 * kvHiddenSize});
 
   int qLen = batch.totalQLen();
-  int kvLen = batch.totalKLen();
   CHECK(qkv.getShape(0) == qLen);
 
   q = q.view({qLen, _numHead, _headDim});
   k = k.view({qLen, _numKeyValueHead, _headDim});
   v = v.view({qLen, _numKeyValueHead, _headDim});
 
-  // A single sequence occupies one contiguous rotary range; packed batches take their positions
-  // from batch.positionIds() instead, which lands with multi-sequence packing.
-  CHECK(batch.numSequences() == 1);
-  fl::Tensor roPE = _roPE.slice(1, {kvLen - qLen, kvLen});
-
-  q = applyRoPE(q, roPE);
-  k = applyRoPE(k, roPE);
+  F::rotaryEmbedding(batch.positionIdsTensor(), q, k, _rotaryCache);
 
   std::shared_ptr<KVCacheManager> manager = batch.kvCacheManager().lock();
   CHECK(manager) << "batch has no KV cache manager";
 
-  fl::Device device = input.getDevice();
   fl::Tensor keyCache = manager->getKeyCache(_layerIndex);
   fl::Tensor valueCache = manager->getValueCache(_layerIndex);
 
   // The keys of this batch have to be in the pool before attention reads them: a causal query
   // attends to its own key.
-  fl::F::storeKVCache(k, v, keyCache, valueCache, batch.slotMappingTensor(device));
-  fl::Tensor x = fl::F::pagedAttention(
+  F::storeKVCache(k, v, keyCache, valueCache, batch.slotMappingTensor());
+  fl::Tensor x = F::pagedAttention(
       q,
       keyCache,
       valueCache,
-      batch.blockTableTensor(device),
-      batch.cuSeqlensQTensor(device),
-      batch.seqlensKTensor(device),
+      batch.blockTableTensor(),
+      batch.cuSeqlensQTensor(),
+      batch.seqlensKTensor(),
       batch.maxQLen(),
       batch.maxKLen(),
       true);
 
-  x = fl::F::contiguous(x).view({qLen, _hiddenSize});
+  x = F::contiguous(x).view({qLen, _hiddenSize});
   x = _outProj->forward(x);
 
   return x;
@@ -225,16 +188,13 @@ fl::Tensor Attention::forward(fl::Tensor input, const ForwardBatch &batch) const
 std::shared_ptr<DecodeLayer> DecodeLayer::build(
     const LlamaConfig &config,
     const VarBuilder &vb,
-    fl::Tensor roPE,
+    fl::Tensor rotaryCache,
     int layerIndex) {
   std::shared_ptr<DecodeLayer> layer{new DecodeLayer()};
 
-  layer->_attn = Attention::build(config, vb.withName("attn"), roPE, layerIndex);
+  layer->_attn = Attention::build(config, vb.withName("attn"), rotaryCache, layerIndex);
   layer->_mlp = MLP::build(config, vb.withName("mlp"));
-  layer->_inputNorm = RMSNorm::build(
-      config.hiddenSize,
-      config.normEps,
-      vb.withName("input_norm"));
+  layer->_inputNorm = RMSNorm::build(config.hiddenSize, config.normEps, vb.withName("input_norm"));
   layer->_postAttnNorm = RMSNorm::build(
       config.hiddenSize,
       config.normEps,
@@ -250,17 +210,16 @@ fl::Tensor DecodeLayer::forward(fl::Tensor input, const ForwardBatch &batch) con
   fl::Tensor x = _inputNorm->forward(input);
 
   x = _attn->forward(x, batch);
-  x = fl::F::add(x, residual);
+  x = F::add(x, residual);
 
   // norm + mlp
   residual = x;
   x = _postAttnNorm->forward(x);
   x = _mlp->forward(x);
 
-  x = fl::F::add(x, residual);
+  x = F::add(x, residual);
   return x;
 }
-
 
 // -----------------------------------------------------------------------------------------------+
 // class LlamaModel                                                                               |
@@ -275,12 +234,14 @@ std::shared_ptr<LlamaModel> LlamaModel::build(const LlamaConfig &config, const V
   model->_embedding = Embedding::build(dh, config.vocabSize, vb.withName("embd"));
   model->_norm = RMSNorm::build(dh, config.normEps, vb.withName("norm"));
 
-  fl::Tensor roPE = vb.get("rope", {2, 1, config.maxContextLength, headDim});
-  roPE = roPE.view({2, config.maxContextLength, 1, headDim});
+  fl::Tensor rotaryCache = vb.get("rope", {2, 1, config.maxContextLength, headDim});
+  rotaryCache = F::contiguous(
+      rotaryCache.view({2, config.maxContextLength, headDim}).transpose(0, 1));
+  rotaryCache = rotaryCache.view({config.maxContextLength, 2 * headDim});
 
   for (int i = 0; i < config.numLayers; ++i) {
     model->_layers.emplace_back(
-        DecodeLayer::build(config, vb.withName(lut::sprintf("block%d", i)), roPE, i));
+        DecodeLayer::build(config, vb.withName(lut::sprintf("block%d", i)), rotaryCache, i));
   }
 
   model->_outProj = Linear::build(dh, config.vocabSize, false, vb.withName("out_proj"));
@@ -311,7 +272,6 @@ const LlamaConfig &LlamaModel::getConfig() const {
   return _config;
 }
 
-
 // -----------------------------------------------------------------------------------------------+
 // class LlamaModelForGeneration                                                                  |
 // -----------------------------------------------------------------------------------------------+
@@ -338,7 +298,7 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
   VarBuilder vb = VarBuilder::fromStream(
       package->open(modelFile).get(),
       device,
-      fl::F::getDefaultFloatType(device));
+      F::getDefaultFloatType(device));
   model->_model = LlamaModel::build(llamaConfig, vb.withName(modelType));
   model->_config = llamaConfig;
   model->_device = device;
@@ -351,17 +311,17 @@ std::shared_ptr<LlamaModelForGeneration> LlamaModelForGeneration::fromPackage(
 }
 
 fl::Tensor LlamaModelForGeneration::forward(const ForwardBatch &batch) const {
-  fl::Tensor x = _model->forward(batch.tokenIdsTensor(_device), batch);
+  fl::Tensor x = _model->forward(batch.tokenIdsTensor(), batch);
   CHECK(x.getDim() == 2);
 
-  x = x.slice(0, {-1, fl::None});
+  x = F::lookup(x, batch.lastQueryIndicesTensor());
   return _model->forwardLmHead(x);
 }
 
 fl::Tensor LlamaModelForGeneration::buildInput(lut::Span<const fl::LongType> tokenIds) const {
   int len = static_cast<int>(tokenIds.size());
   fl::Tensor inputs = fl::Tensor::create<fl::LongType>({len}, tokenIds);
-  inputs = fl::F::to(_device, inputs);
+  inputs = F::to(_device, inputs);
   return inputs;
 }
 

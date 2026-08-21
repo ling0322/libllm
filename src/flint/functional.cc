@@ -21,9 +21,9 @@
 
 #include <math.h>
 
+#include "flint/operators.h"
 #include "lutil/error.h"
 #include "lutil/strings.h"
-#include "flint/operators.h"
 
 namespace fl {
 namespace F {
@@ -34,6 +34,10 @@ Tensor arange(LongType begin, LongType end, LongType step, Device device) {
 
 Tensor lookup(Tensor table, Tensor indices) {
   return getOperators(table.getDevice().getType())->lookup(table, indices);
+}
+
+void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache) {
+  getOperators(query.getDevice().getType())->rotaryEmbedding(positions, query, key, rotaryCache);
 }
 
 Tensor rmsNorm(Tensor input, Tensor weight, float eps) {

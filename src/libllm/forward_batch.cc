@@ -52,13 +52,16 @@ ForwardBatch ForwardBatch::single(lut::Span<const fl::LongType> tokenIds, int pa
 }
 
 ForwardBatch ForwardBatch::packed(
+    std::vector<fl::LongType> tokenIds,
     std::vector<int> cuSeqlensQ,
     std::vector<int> cuSeqlensK,
     std::vector<fl::LongType> positionIds) {
   CHECK(cuSeqlensQ.size() == cuSeqlensK.size() && cuSeqlensQ.size() >= 2);
+  CHECK(cuSeqlensQ.back() == static_cast<int>(tokenIds.size()));
   CHECK(cuSeqlensQ.back() == static_cast<int>(positionIds.size()));
 
   ForwardBatch batch;
+  batch._tokenIds = std::move(tokenIds);
   batch._cuSeqlensQ = std::move(cuSeqlensQ);
   batch._cuSeqlensK = std::move(cuSeqlensK);
   batch._positionIds = std::move(positionIds);
@@ -71,6 +74,7 @@ int ForwardBatch::numSequences() const {
 }
 
 void ForwardBatch::setKVCacheManager(std::weak_ptr<KVCacheManager> manager) {
+  CHECK(_preparedDeviceType == fl::Device::kUnknown) << "cannot modify a prepared batch";
   _kvCacheManager = std::move(manager);
 }
 
@@ -120,24 +124,6 @@ lut::Span<const fl::LongType> ForwardBatch::positionIds() const {
   return lut::makeConstSpan(_positionIds);
 }
 
-fl::Tensor ForwardBatch::tokenIdsTensor(fl::Device device) const {
-  CHECK(static_cast<int>(_tokenIds.size()) == totalQLen()) << "batch carries no tokens";
-
-  fl::Tensor ids = fl::Tensor::create<fl::LongType>(
-      {static_cast<int>(_tokenIds.size())},
-      lut::makeConstSpan(_tokenIds));
-
-  return fl::F::to(device, ids);
-}
-
-fl::Tensor ForwardBatch::positionIdsTensor(fl::Device device) const {
-  fl::Tensor ids = fl::Tensor::create<fl::LongType>(
-      {static_cast<int>(_positionIds.size())},
-      lut::makeConstSpan(_positionIds));
-
-  return fl::F::to(device, ids);
-}
-
 namespace {
 
 fl::Tensor toIntTensor(lut::Span<const int> values) {
@@ -147,6 +133,7 @@ fl::Tensor toIntTensor(lut::Span<const int> values) {
 }  // namespace
 
 void ForwardBatch::setBlockIds(std::vector<std::vector<int>> blockIds) {
+  CHECK(_preparedDeviceType == fl::Device::kUnknown) << "cannot modify a prepared batch";
   CHECK(static_cast<int>(blockIds.size()) == numSequences());
   _blockIds = std::move(blockIds);
 }
@@ -162,21 +149,42 @@ int ForwardBatch::getBlockSize() const {
   return manager->getBlockSize();
 }
 
-fl::Tensor ForwardBatch::cuSeqlensQTensor(fl::Device device) const {
-  return fl::F::to(device, toIntTensor(lut::makeConstSpan(_cuSeqlensQ)));
-}
-
-fl::Tensor ForwardBatch::seqlensKTensor(fl::Device device) const {
-  std::vector<int> seqlensK(numSequences());
-  for (int i = 0; i < numSequences(); ++i) {
-    seqlensK[i] = _cuSeqlensK[i + 1] - _cuSeqlensK[i];
+void ForwardBatch::prepare(fl::Device device) {
+  if (_preparedDeviceType != fl::Device::kUnknown) {
+    CHECK(_preparedDeviceType == device.getType()) << "batch already prepared for another device";
+    return;
   }
 
-  return fl::F::to(device, toIntTensor(lut::makeConstSpan(seqlensK)));
-}
-
-fl::Tensor ForwardBatch::blockTableTensor(fl::Device device) const {
+  CHECK(static_cast<int>(_positionIds.size()) == totalQLen());
   CHECK(hasBlockIds()) << "batch has no blocks assigned";
+
+  if (!_tokenIds.empty()) {
+    CHECK(static_cast<int>(_tokenIds.size()) == totalQLen());
+    _tokenIdsTensor = fl::F::to(
+        device,
+        fl::Tensor::create<fl::LongType>(
+            {static_cast<int>(_tokenIds.size())},
+            lut::makeConstSpan(_tokenIds)));
+  }
+  _positionIdsTensor = fl::F::to(
+      device,
+      fl::Tensor::create<fl::LongType>(
+          {static_cast<int>(_positionIds.size())},
+          lut::makeConstSpan(_positionIds)));
+  _cuSeqlensQTensor = fl::F::to(device, toIntTensor(lut::makeConstSpan(_cuSeqlensQ)));
+
+  std::vector<int> seqlensK(numSequences());
+  std::vector<fl::LongType> lastQueryIndices(numSequences());
+  for (int i = 0; i < numSequences(); ++i) {
+    seqlensK[i] = _cuSeqlensK[i + 1] - _cuSeqlensK[i];
+    lastQueryIndices[i] = _cuSeqlensQ[i + 1] - 1;
+  }
+  _seqlensKTensor = fl::F::to(device, toIntTensor(lut::makeConstSpan(seqlensK)));
+  _lastQueryIndicesTensor = fl::F::to(
+      device,
+      fl::Tensor::create<fl::LongType>(
+          {numSequences()},
+          lut::makeConstSpan(lastQueryIndices)));
 
   int maxNumBlocks = 0;
   for (const std::vector<int> &blocks : _blockIds) {
@@ -190,16 +198,11 @@ fl::Tensor ForwardBatch::blockTableTensor(fl::Device device) const {
     std::copy(_blockIds[i].begin(), _blockIds[i].end(), table.begin() + i * maxNumBlocks);
   }
 
-  fl::Tensor blockTable = fl::Tensor::create<fl::IntType>(
-      {numSequences(), maxNumBlocks},
-      lut::makeConstSpan(table));
-
-  return fl::F::to(device, blockTable);
-}
-
-fl::Tensor ForwardBatch::slotMappingTensor(fl::Device device) const {
-  CHECK(hasBlockIds()) << "batch has no blocks assigned";
-  CHECK(static_cast<int>(_positionIds.size()) == totalQLen());
+  _blockTableTensor = fl::F::to(
+      device,
+      fl::Tensor::create<fl::IntType>(
+          {numSequences(), maxNumBlocks},
+          lut::makeConstSpan(table)));
 
   int blockSize = getBlockSize();
   std::vector<int> slots(totalQLen());
@@ -213,8 +216,44 @@ fl::Tensor ForwardBatch::slotMappingTensor(fl::Device device) const {
       slots[t] = blocks[block] * blockSize + position % blockSize;
     }
   }
+  _slotMappingTensor = fl::F::to(device, toIntTensor(lut::makeConstSpan(slots)));
+  _preparedDeviceType = device.getType();
+}
 
-  return fl::F::to(device, toIntTensor(lut::makeConstSpan(slots)));
+fl::Tensor ForwardBatch::tokenIdsTensor() const {
+  CHECK(_preparedDeviceType != fl::Device::kUnknown) << "batch is not prepared";
+  CHECK(!_tokenIds.empty()) << "batch carries no tokens";
+  return _tokenIdsTensor;
+}
+
+fl::Tensor ForwardBatch::positionIdsTensor() const {
+  CHECK(_preparedDeviceType != fl::Device::kUnknown) << "batch is not prepared";
+  return _positionIdsTensor;
+}
+
+fl::Tensor ForwardBatch::lastQueryIndicesTensor() const {
+  CHECK(_preparedDeviceType != fl::Device::kUnknown) << "batch is not prepared";
+  return _lastQueryIndicesTensor;
+}
+
+fl::Tensor ForwardBatch::cuSeqlensQTensor() const {
+  CHECK(_preparedDeviceType != fl::Device::kUnknown) << "batch is not prepared";
+  return _cuSeqlensQTensor;
+}
+
+fl::Tensor ForwardBatch::seqlensKTensor() const {
+  CHECK(_preparedDeviceType != fl::Device::kUnknown) << "batch is not prepared";
+  return _seqlensKTensor;
+}
+
+fl::Tensor ForwardBatch::blockTableTensor() const {
+  CHECK(_preparedDeviceType != fl::Device::kUnknown) << "batch is not prepared";
+  return _blockTableTensor;
+}
+
+fl::Tensor ForwardBatch::slotMappingTensor() const {
+  CHECK(_preparedDeviceType != fl::Device::kUnknown) << "batch is not prepared";
+  return _slotMappingTensor;
 }
 
 }  // namespace libllm

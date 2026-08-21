@@ -21,14 +21,14 @@
 
 #include <memory>
 
+#include "flint/functional.h"
 #include "libllm/constants.h"
+#include "libllm/forward_batch.h"
 #include "libllm/kv_cache.h"
 #include "libllm/layers.h"
 #include "libllm/model_for_generation.h"
-#include "libllm/forward_batch.h"
 #include "lutil/error.h"
 #include "lutil/ini_config.h"
-#include "flint/functional.h"
 
 namespace libllm {
 namespace llama {
@@ -64,12 +64,11 @@ class MLP {
 
 class Attention {
  public:
-  // `roPE` is shared by all the attention layers of a model. `layerIndex` names this layer's key
-  // and value tensors in the paged KV cache.
+  // `layerIndex` names this layer's key and value tensors in the paged KV cache.
   static std::shared_ptr<Attention> build(
       const LlamaConfig &config,
       const VarBuilder &vb,
-      fl::Tensor roPE,
+      fl::Tensor rotaryCache,
       int layerIndex);
 
   // `batch` describes how `input` decomposes into sequences and names the cache blocks each one
@@ -79,7 +78,7 @@ class Attention {
  private:
   std::shared_ptr<Linear> _qkvProj;
   std::shared_ptr<Linear> _outProj;
-  fl::Tensor _roPE;
+  fl::Tensor _rotaryCache;
 
   int _hiddenSize;
   int _numHead;
@@ -88,9 +87,6 @@ class Attention {
   int _layerIndex;
 
   Attention();
-
-  fl::Tensor applyRoPE(fl::Tensor x, fl::Tensor roPE) const;
-  fl::Tensor rotateHalf(fl::Tensor x) const;
 };
 
 class DecodeLayer {
@@ -98,7 +94,7 @@ class DecodeLayer {
   static std::shared_ptr<DecodeLayer> build(
       const LlamaConfig &config,
       const VarBuilder &vb,
-      fl::Tensor roPE,
+      fl::Tensor rotaryCache,
       int layerIndex);
 
   fl::Tensor forward(fl::Tensor input, const ForwardBatch &batch) const;

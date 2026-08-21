@@ -97,6 +97,7 @@ int64_t KVCacheManager::estimateMemoryBudget(
   ForwardBatch batch = ForwardBatch::single(lut::makeConstSpan(tokenIds), 0);
   batch.setKVCacheManager(scratch);
   batch.setBlockIds({scratch->allocateBlocksForTokens(numTokens)});
+  batch.prepare(device);
 
   // the peak of a full-size batch tells how much memory the cache has to leave for activation.
   fl::MemorySnapshot::resetPeakStats(device);

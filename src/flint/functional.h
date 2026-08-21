@@ -41,6 +41,11 @@ Tensor arange(LongType begin, LongType end, LongType step = 1, Device device = D
 //   `indices`.
 Tensor lookup(Tensor table, Tensor indices);
 
+/// Apply NeoX-style rotary embedding to query and key in place. positions is <long>(numTokens),
+/// query and key are <float>(numTokens, numHeads, headDim), and rotaryCache is
+/// <float>(maxPositions, 2 * headDim) with cosine followed by sine values in each row.
+void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache);
+
 // apply layer normalization over the last dimension of inputs.
 // apply root mean square layer normalization over the last dimension of inputs.
 // Args:

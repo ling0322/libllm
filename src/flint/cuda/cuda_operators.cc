@@ -36,6 +36,7 @@
 #include "flint/cuda/reduce.h"
 #include "flint/cuda/repetition_penalty.h"
 #include "flint/cuda/rms_norm.h"
+#include "flint/cuda/rotary_embedding.h"
 #include "flint/cuda/sampling.h"
 #include "flint/cuda/softmax.h"
 #include "flint/cuda/store_kv_cache.h"
@@ -125,6 +126,14 @@ Tensor CudaOperators::sum(Tensor inputs, int dim) {
 
 Tensor CudaOperators::lookup(Tensor table, Tensor indices) {
   return cuda::lookup(table, indices);
+}
+
+void CudaOperators::rotaryEmbedding(
+    Tensor positions,
+    Tensor query,
+    Tensor key,
+    Tensor rotaryCache) {
+  cuda::rotaryEmbedding(positions, query, key, rotaryCache);
 }
 
 Tensor CudaOperators::matmul(Tensor a, Tensor b) {

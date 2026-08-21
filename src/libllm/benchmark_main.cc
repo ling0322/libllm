@@ -60,6 +60,7 @@ ForwardBatch makeBatch(
   ForwardBatch batch = ForwardBatch::single(tokenIds, pastLen);
   batch.setKVCacheManager(model->getKVCacheManager());
   batch.setBlockIds({blockIds});
+  batch.prepare(model->getDevice());
 
   return batch;
 }

@@ -45,9 +45,10 @@ class ForwardBatch {
   // Same, but carrying the tokens to forward. This is what a scheduler hands to a model.
   static ForwardBatch single(lut::Span<const fl::LongType> tokenIds, int pastLen);
 
-  // A packed multi-sequence batch. `positionIds` has length cuSeqlensQ.back() (one rotary
-  // position per packed query token, in packed order).
+  // A packed multi-sequence batch. `tokenIds` and `positionIds` both have length
+  // cuSeqlensQ.back(), in packed query order.
   static ForwardBatch packed(
+      std::vector<fl::LongType> tokenIds,
       std::vector<int> cuSeqlensQ,
       std::vector<int> cuSeqlensK,
       std::vector<fl::LongType> positionIds);
@@ -74,20 +75,20 @@ class ForwardBatch {
   void setBlockIds(std::vector<std::vector<int>> blockIds);
   bool hasBlockIds() const;
 
-  // materialize the packed query tokens as a device <long>(totalQLen) tensor.
-  fl::Tensor tokenIdsTensor(fl::Device device) const;
+  // Materialize all model-independent device tensors once. Repeated calls for the same device are
+  // no-ops; preparing one batch for different device types is invalid.
+  void prepare(fl::Device device);
 
-  // materialize the per-token rotary position ids as a device <long>(totalQLen) tensor.
-  fl::Tensor positionIdsTensor(fl::Device device) const;
+  fl::Tensor tokenIdsTensor() const;          // <long>(totalQLen)
+  fl::Tensor positionIdsTensor() const;       // <long>(totalQLen)
+  fl::Tensor lastQueryIndicesTensor() const;  // <long>(numSequences)
 
-  // materialize the index arrays the paged attention operators take, all <int> because that is
-  // what the CUDA kernels index with.
-  fl::Tensor cuSeqlensQTensor(fl::Device device) const;   // <int>(numSequences + 1)
-  fl::Tensor seqlensKTensor(fl::Device device) const;     // <int>(numSequences)
-  fl::Tensor blockTableTensor(fl::Device device) const;   // <int>(numSequences, maxNumBlocks)
+  fl::Tensor cuSeqlensQTensor() const;  // <int>(numSequences + 1)
+  fl::Tensor seqlensKTensor() const;    // <int>(numSequences)
+  fl::Tensor blockTableTensor() const;  // <int>(numSequences, maxNumBlocks)
 
   // the pool slot each packed query token is stored at, as blockId * blockSize + offset.
-  fl::Tensor slotMappingTensor(fl::Device device) const;  // <int>(totalQLen)
+  fl::Tensor slotMappingTensor() const;  // <int>(totalQLen)
 
  private:
   std::vector<fl::LongType> _tokenIds;
@@ -96,6 +97,15 @@ class ForwardBatch {
   std::vector<fl::LongType> _positionIds;
   std::vector<std::vector<int>> _blockIds;
   std::weak_ptr<KVCacheManager> _kvCacheManager;
+
+  fl::Device::Type _preparedDeviceType = fl::Device::kUnknown;
+  fl::Tensor _tokenIdsTensor;
+  fl::Tensor _positionIdsTensor;
+  fl::Tensor _lastQueryIndicesTensor;
+  fl::Tensor _cuSeqlensQTensor;
+  fl::Tensor _seqlensKTensor;
+  fl::Tensor _blockTableTensor;
+  fl::Tensor _slotMappingTensor;
 
   // the block size of the attached manager, which every paged index depends on.
   int getBlockSize() const;

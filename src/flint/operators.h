@@ -36,6 +36,7 @@ class Operators {
 
   virtual Tensor arangeLong(LongType begin, LongType end, LongType step);
   virtual Tensor lookup(Tensor table, Tensor indices);
+    virtual void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache);
   virtual Tensor rmsNorm(Tensor input, Tensor weight, float eps);
   virtual Tensor matmul(Tensor A, Tensor B);
   virtual Tensor matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB);

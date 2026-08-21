@@ -53,6 +53,7 @@ class CudaOperators : public Operators {
   void fill(Tensor input, float value) override;
   Tensor square(Tensor input) override;
   Tensor lookup(Tensor table, Tensor indices) override;
+  void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache) override;
   Tensor matmul(Tensor a, Tensor b) override;
   Tensor matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB) override;
   Tensor max(Tensor inputs) override;
@@ -77,12 +78,8 @@ class CudaOperators : public Operators {
       int maxQLen,
       int maxKLen,
       bool causal) override;
-  void storeKVCache(
-      Tensor k,
-      Tensor v,
-      Tensor keyCache,
-      Tensor valueCache,
-      Tensor slotMapping) override;
+  void storeKVCache(Tensor k, Tensor v, Tensor keyCache, Tensor valueCache, Tensor slotMapping)
+      override;
   Tensor sum(Tensor inputs, int dim) override;
   Tensor swiglu(Tensor A) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;
