@@ -1,0 +1,17 @@
+[package]
+name = "llm"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Language model inference on top of the flint tensor library"
+
+[lib]
+name = "llm"
+path = "src/lib.rs"
+# rlib for the Rust consumers (llm-cli, llm-capi); staticlib for a C program that wants the
+# whole thing linked in. The staticlib is self-contained down to the C++ kernels, because the
+# libflint.a it pulls in through the flint crate gets bundled into it.
+crate-type = ["rlib", "staticlib"]
+
+[dependencies]
+flint = { path = "../flint" }

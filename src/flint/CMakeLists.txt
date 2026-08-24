@@ -4,6 +4,7 @@ if (OPENMP_FOUND)
 endif()
 
 set(flint_SOURCES
+    "capi.cc"
     "cpu/kernel/fallback.cc"
     "cpu/kernel/interface.cc"
     "cpu/kernel/util.cc"
@@ -36,6 +37,7 @@ set(flint_SOURCES
     "../../third_party/ruapu/ruapu.cc")
 
 set(flint_test_SOURCES
+    "capi_test.cc"
     "cpu/kernel/benchmark.cc"
     "cpu/kernel/interface_test.cc"
     "cpu/test.cc"
