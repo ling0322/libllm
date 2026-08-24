@@ -150,6 +150,6 @@ template<typename T, int Headdim, bool Is_causal> void run_mha_fwd_(Flash_fwd_pa
 template<typename T, int Headdim, bool Is_causal> void run_mha_fwd_splitkv_dispatch(Flash_fwd_params &params, cudaStream_t stream);
 
 // Selects the kernel from params. Returns false if no kernel was compiled for params.d.
-bool run_mha_fwd(Flash_fwd_params &params, cudaStream_t stream);
+bool run_mha_fwd(Flash_fwd_params &params, cudaStream_t stream, bool force_split_kernel = false);
 
 }  // namespace FLASH_NAMESPACE

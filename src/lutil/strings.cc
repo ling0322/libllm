@@ -160,6 +160,25 @@ std::string toLower(const std::string &s) {
   return lower;
 }
 
+std::string formatNumber(int64_t n) {
+  constexpr double Multiplier = 1024.0;
+  const char *units[] = {"K", "M", "G", "T", "P"};
+
+  if (n > -1024 && n < 1024) {
+    return std::to_string(n);
+  }
+
+  double value = static_cast<double>(n);
+  const char *unit = units[0];
+  for (const char *candidate : units) {
+    value /= Multiplier;
+    unit = candidate;
+    if (value > -Multiplier && value < Multiplier) break;
+  }
+
+  return sprintf("%.1f%s", value, unit);
+}
+
 int parseInt(const std::string &s) {
   char *p = nullptr;
   long v = strtol(s.c_str(), &p, 0);

@@ -30,6 +30,7 @@ set(flint_SOURCES
     "device.cc"
     "dtype.cc"
     "functional.cc"
+    "memory.cc"
     "operators.cc"
     "tensor.cc"
     "../../third_party/ruapu/ruapu.cc")
@@ -76,17 +77,24 @@ if (WITH_CUDA)
         "cuda/reduce.cu"
         "cuda/repetition_penalty.cu"
         "cuda/rms_norm.cu"
+        "cuda/rotary_embedding.cu"
         "cuda/sampling.cu"
         "cuda/softmax.cu"
+        "cuda/store_kv_cache.cu"
         "cuda/swiglu.cu"
         "cuda/to_device.cc"
         "cuda/unary.cu")
 
     if(WITH_FLASH_ATTN)
         set(flint_SOURCES ${flint_SOURCES} "cuda/flash_attn.cc")
+        set(flint_test_SOURCES ${flint_test_SOURCES} "cuda/flash_attn_test.cc")
     endif()
 
-    set(flint_test_SOURCES ${flint_test_SOURCES} "cuda/test.cc")
+    set(flint_test_SOURCES
+        ${flint_test_SOURCES}
+        "cuda/rotary_embedding_test.cc"
+        "cuda/store_kv_cache_test.cc"
+        "cuda/test.cc")
     set(flint_benchmark_SOURCES ${flint_benchmark_SOURCES} "cuda/benchmark.cc")
 
     if (WITH_CUTLASS)

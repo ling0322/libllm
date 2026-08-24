@@ -56,6 +56,29 @@ Tensor lookupKernel2D(const Tensor &table, const Tensor &indices) {
   return xC;
 }
 
+template<typename T>
+Tensor lookupKernel1D(const Tensor &table, const Tensor &indices) {
+  CHECK(table.getDim() == 2 && indices.getDim() == 1);
+
+  int vocabSize = table.getShape(0);
+  int d0 = indices.getShape(0);
+  int embdDim = table.getShape(1);
+  Tensor xC = tensor(lut::makeConstSpan({d0, embdDim}), DType::getType<T>());
+
+  TensorAccessor<const T, 2> A = table;
+  TensorAccessor<const LongType, 1> B = indices;
+  TensorAccessor<T, 2> C = xC;
+
+  for (int i = 0; i < d0; ++i) {
+    int64_t index = B[i];
+    CHECK(index < vocabSize) << "indices out of range";
+
+    copyVector(C[i], A[index]);
+  }
+
+  return xC;
+}
+
 template<typename SrcT, typename DestT>
 Tensor lookupQuantizedKernel2D(const Tensor &table, const Tensor &indices) {
   CHECK(table.getDim() == 2 && table.getShape(1) % DType::getType<SrcT>().getGroupSize() == 0);
@@ -83,6 +106,15 @@ Tensor lookupQuantizedKernel2D(const Tensor &table, const Tensor &indices) {
 }
 
 Tensor lookup(const Tensor &table, const Tensor &indices) {
+  // a packed batch of ids is 1D, one embedding row comes out per id.
+  if (indices.getDim() == 1) {
+    if (table.getDType() == DType::kFloat) return lookupKernel1D<float>(table, indices);
+#if LUT_CPU_ARCH == LUT_AARCH64
+    if (table.getDType() == DType::kFloat16) return lookupKernel1D<Float16>(table, indices);
+#endif
+    NOT_IMPL();
+  }
+
   if (table.getDType() == DType::kFloat) return lookupKernel2D<float>(table, indices);
 #if LUT_CPU_ARCH == LUT_AARCH64
   if (table.getDType() == DType::kFloat16) return lookupKernel2D<Float16>(table, indices);

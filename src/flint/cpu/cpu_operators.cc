@@ -21,9 +21,11 @@
 
 #include <stdlib.h>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <numeric>
 
 #include "lutil/random.h"
 #include "flint/cpu/all_close.h"
@@ -97,6 +99,99 @@ Tensor CPUOperators::softmax(Tensor input) {
   return cpu::softmax(input);
 }
 
+Tensor CPUOperators::sample(
+    Tensor logits,
+    Tensor temperatures,
+    Tensor topKs,
+    Tensor topPs) {
+  CHECK(logits.getDevice().getType() == Device::kCpu && logits.getDim() == 2);
+  CHECK(logits.isContiguous());
+  int rows = logits.getShape(0);
+  int vocabSize = logits.getShape(1);
+  CHECK(temperatures.getDevice().getType() == Device::kCpu &&
+        temperatures.getDType() == DType::kFloat && temperatures.isContiguous() &&
+        temperatures.getShape() == std::vector<int>{rows});
+  CHECK(topKs.getDevice().getType() == Device::kCpu &&
+        topKs.getDType() == DType::kInt32 && topKs.isContiguous() &&
+        topKs.getShape() == std::vector<int>{rows});
+  CHECK(topPs.getDevice().getType() == Device::kCpu &&
+        topPs.getDType() == DType::kFloat && topPs.isContiguous() &&
+        topPs.getShape() == std::vector<int>{rows});
+
+  if (logits.getDType() == DType::kFloat16) {
+    return sample(cast(logits, DType::kFloat), temperatures, topKs, topPs);
+  }
+  CHECK(logits.getDType() == DType::kFloat);
+
+  const float *logitData = getDataPtrCpu<float>(logits);
+  const float *temperatureData = getDataPtrCpu<float>(temperatures);
+  const IntType *topKData = getDataPtrCpu<IntType>(topKs);
+  const float *topPData = getDataPtrCpu<float>(topPs);
+  std::vector<LongType> sampled(rows);
+  std::vector<int> labels(vocabSize);
+  std::vector<float> weights(vocabSize);
+
+  for (int row = 0; row < rows; ++row) {
+    float temperature = temperatureData[row];
+    int topK = topKData[row];
+    float topP = topPData[row];
+    CHECK(std::isfinite(temperature) && temperature >= 0.0f);
+    CHECK(topK >= -1 && topK <= vocabSize);
+    CHECK(topP > 0.0f && topP <= 1.0f);
+
+    const float *rowLogits = logitData + static_cast<int64_t>(row) * vocabSize;
+    auto normalizedLogit = [&](int label) {
+      float value = rowLogits[label];
+      return std::isnan(value) ? -std::numeric_limits<float>::infinity() : value;
+    };
+    std::iota(labels.begin(), labels.end(), 0);
+    std::sort(labels.begin(), labels.end(), [&](int left, int right) {
+      return normalizedLogit(left) > normalizedLogit(right);
+    });
+
+    if (temperature == 0.0f) {
+      sampled[row] = labels[0];
+      continue;
+    }
+
+    int effectiveTopK = topK <= 0 ? vocabSize : topK;
+    float maxLogit = normalizedLogit(labels[0]);
+    auto samplingWeight = [&](int label) {
+      float logit = normalizedLogit(label);
+      if (std::isinf(maxLogit)) return logit == maxLogit ? 1.0f : 0.0f;
+      return std::exp((logit - maxLogit) / temperature);
+    };
+    float totalWeight = 0.0f;
+    for (int i = 0; i < effectiveTopK; ++i) {
+      weights[i] = samplingWeight(labels[i]);
+      totalWeight += weights[i];
+    }
+
+    float selectedWeight = 0.0f;
+    int selectedCount = effectiveTopK;
+    for (int i = 0; i < effectiveTopK; ++i) {
+      selectedWeight += weights[i];
+      if (selectedWeight >= topP * totalWeight) {
+        selectedCount = i + 1;
+        break;
+      }
+    }
+
+    float draw = _rand.nextFloat() * selectedWeight;
+    float cumulative = 0.0f;
+    sampled[row] = labels[selectedCount - 1];
+    for (int i = 0; i < selectedCount; ++i) {
+      cumulative += weights[i];
+      if (draw < cumulative) {
+        sampled[row] = labels[i];
+        break;
+      }
+    }
+  }
+
+  return Tensor::create<LongType>({rows}, sampled);
+}
+
 bool CPUOperators::allClose(Tensor A, Tensor B, float rtol, float atol) {
   return cpu::allClose(A, B, rtol, atol);
 }
@@ -166,6 +261,14 @@ void CPUOperators::manualSeed(uint64_t seed) {
 
 DType CPUOperators::getDefaultFloatType() {
   return DType::getType<cpu::DefaultFloatType>();
+}
+
+// the CPU backend allocates through the system allocator and tracks nothing.
+MemorySnapshot CPUOperators::captureMemorySnapshot() {
+  return MemorySnapshot(0, 0, 0, 0);
+}
+
+void CPUOperators::resetPeakMemoryStats() {
 }
 
 }  // namespace cpu

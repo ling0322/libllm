@@ -171,6 +171,9 @@ Tensor rmsNorm(const Tensor &tensor, const Tensor &weight, float eps) {
 
   if (tensor.getDim() == 3) return rmsNorm3D(tensor, weight, eps);
 
+  // a packed batch is 2D, the kernels index it as a 3D tensor with one leading row.
+  if (tensor.getDim() == 2) return rmsNorm3D(tensor.unsqueeze(0), weight, eps).subtensor(0);
+
   NOT_IMPL();
 }
 

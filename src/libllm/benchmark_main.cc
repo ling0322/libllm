@@ -24,6 +24,7 @@
 
 #include "libllm/kv_cache.h"
 #include "libllm/model_for_generation.h"
+#include "libllm/forward_batch.h"
 #include "libllm/prompt.h"
 #include "lutil/error.h"
 #include "lutil/flags.h"
@@ -49,39 +50,70 @@ Prompt makePrompt(int repeatCount) {
   return prompt;
 }
 
+// `tokenIds` appended after the `pastLen` tokens `blockIds` already holds. Re-running the same
+// batch overwrites the same slots, which is what lets the loops below repeat without resetting.
+ForwardBatch makeBatch(
+    const std::shared_ptr<ModelForGeneration> &model,
+    const std::vector<int> &blockIds,
+    lut::Span<const fl::LongType> tokenIds,
+    int pastLen) {
+  ForwardBatch batch = ForwardBatch::single(tokenIds, pastLen);
+  batch.setKVCacheManager(model->getKVCacheManager());
+  batch.setBlockIds({blockIds});
+  batch.prepare(model->getDevice());
+
+  return batch;
+}
+
 float benchmarkPrefill(
     const std::shared_ptr<ModelForGeneration> &model,
     const Prompt &prompt,
     int promptTokenCount) {
-  KVCache past;
-  model->prefill(past, prompt);
+  std::vector<fl::LongType> tokenIds = model->encodePrompt(prompt);
+  std::shared_ptr<KVCacheManager> manager = model->getKVCacheManager().lock();
+  CHECK(manager);
+
+  std::vector<int> blockIds = manager->allocateBlocksForTokens(
+      static_cast<int>(tokenIds.size()));
+  CHECK(!blockIds.empty());
+
+  model->forward(makeBatch(model, blockIds, lut::makeConstSpan(tokenIds), 0));
 
   double start = lut::now();
   int loops = 0;
   while (lut::now() - start < MaxWait) {
-    KVCache loopPast;
-    model->prefill(loopPast, prompt);
+    model->forward(makeBatch(model, blockIds, lut::makeConstSpan(tokenIds), 0));
     ++loops;
   }
   double elapsed = lut::now() - start;
+
+  manager->freeBlocks(blockIds);
   return promptTokenCount * loops / elapsed;
 }
 
 float benchmarkDecode(const std::shared_ptr<ModelForGeneration> &model, const Prompt &prompt) {
-  KVCache past;
-  model->prefill(past, prompt);
+  std::vector<fl::LongType> tokenIds = model->encodePrompt(prompt);
+  int promptLength = static_cast<int>(tokenIds.size());
+  std::shared_ptr<KVCacheManager> manager = model->getKVCacheManager().lock();
+  CHECK(manager);
 
-  KVCache warmupPast = past.clone();
-  model->decode(warmupPast, 0);
+  std::vector<int> blockIds = manager->allocateBlocksForTokens(promptLength + 1);
+  CHECK(!blockIds.empty());
+
+  model->forward(makeBatch(model, blockIds, lut::makeConstSpan(tokenIds), 0));
+
+  std::array<fl::LongType, 1> decodeToken{0};
+  model->forward(makeBatch(model, blockIds, decodeToken, promptLength));
 
   double start = lut::now();
   int loops = 0;
   while (lut::now() - start < MaxWait) {
-    KVCache loopPast = past.clone();
-    model->decode(loopPast, 0);
+    model->forward(makeBatch(model, blockIds, decodeToken, promptLength));
     ++loops;
   }
   double elapsed = lut::now() - start;
+
+  manager->freeBlocks(blockIds);
   return loops / elapsed;
 }
 

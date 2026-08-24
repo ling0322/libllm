@@ -60,6 +60,7 @@ class CPUOperators : public Operators {
   Tensor rand(lut::Span<const int> shape, DType dtype) override;
   void repetitionPenalty(Tensor logits, Tensor history, float weight) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
+  Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs) override;
   Tensor softmax(Tensor input) override;
   Tensor sum(Tensor inputs, int dim) override;
   Tensor swiglu(Tensor A) override;
@@ -70,6 +71,9 @@ class CPUOperators : public Operators {
   void manualSeed(uint64_t seed) override;
 
   DType getDefaultFloatType() override;
+
+  MemorySnapshot captureMemorySnapshot() override;
+  void resetPeakMemoryStats() override;
 
  private:
   typedef TensorShape::Elem Shape;

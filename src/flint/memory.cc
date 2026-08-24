@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2024 Xiaoyang Chen
+// Copyright (c) 2026 Xiaoyang Chen
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 // and associated documentation files (the "Software"), to deal in the Software without
@@ -17,59 +17,45 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package llm
+#include "flint/memory.h"
 
-// #include <stdlib.h>
-// #include "llm.h"
-import "C"
-import (
-	"encoding/json"
-	"errors"
-	"runtime"
-	"unsafe"
-)
+#include "flint/operators.h"
 
-type llmJson struct {
-	json C.llm_json_t
+namespace fl {
+
+MemorySnapshot::MemorySnapshot(
+    int64_t totalMemory,
+    int64_t freeMemory,
+    int64_t allocatedMemory,
+    int64_t peakAllocatedMemory)
+    : _totalMemory(totalMemory),
+      _freeMemory(freeMemory),
+      _allocatedMemory(allocatedMemory),
+      _peakAllocatedMemory(peakAllocatedMemory) {
 }
 
-func newJson() *llmJson {
-	j := new(llmJson)
-	C.llm_json_init(&j.json)
-	runtime.SetFinalizer(j, func(j *llmJson) {
-		C.llm_json_destroy(&j.json)
-	})
-
-	return j
+MemorySnapshot MemorySnapshot::capture(Device device) {
+  return getOperators(device.getType())->captureMemorySnapshot();
 }
 
-func (j *llmJson) marshal(v any) error {
-	jsonBytes, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	cJsonStr := C.CString(string(jsonBytes))
-	defer C.free(unsafe.Pointer(cJsonStr))
-
-	status := C.llm_json_parse(&j.json, cJsonStr)
-	if status != 0 {
-		return errors.New(C.GoString(C.llm_get_last_error_message()))
-	}
-
-	return nil
+void MemorySnapshot::resetPeakStats(Device device) {
+  getOperators(device.getType())->resetPeakMemoryStats();
 }
 
-func (j *llmJson) unmarshal(v any) error {
-	bufSize := 2048
-	buf := C.malloc(C.size_t(bufSize))
-	defer C.free(buf)
-
-	status := C.llm_json_dump(&j.json, (*C.char)(buf), C.int64_t(bufSize))
-	if status != 0 {
-		return errors.New(C.GoString(C.llm_get_last_error_message()))
-	}
-
-	jsonStr := C.GoString((*C.char)(buf))
-	return json.Unmarshal([]byte(jsonStr), v)
+int64_t MemorySnapshot::getTotalMemory() const {
+  return _totalMemory;
 }
+
+int64_t MemorySnapshot::getFreeMemory() const {
+  return _freeMemory;
+}
+
+int64_t MemorySnapshot::getAllocatedMemory() const {
+  return _allocatedMemory;
+}
+
+int64_t MemorySnapshot::getPeakAllocatedMemory() const {
+  return _peakAllocatedMemory;
+}
+
+}  // namespace fl

@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.22)
 project(libllm LANGUAGES CXX C)
 include(CheckTypeSize)
 
+# Lets an editor read the real compile flags instead of guessing them.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 option(WITH_CUDA "CUDA compute support." OFF)
 option(WITH_CUDA_SYNC "Synchronize after each CUDA operator." OFF)
 option(WITH_CUDA_MALLOC_ASYNC "Use the CUDA stream-ordered memory allocator." ON)
@@ -48,7 +51,7 @@ if(WITH_CUDA)
         endif()
     endif()
     message(STATUS "libllm CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
-    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -DCUTE_ARCH_TCGEN05_TMEM_ENABLED -O3 -Xptxas -v")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -DCUTE_ARCH_TCGEN05_TMEM_ENABLED -O3")
     enable_language(CUDA)
 endif()
 

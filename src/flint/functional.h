@@ -35,10 +35,16 @@ Tensor arange(LongType begin, LongType end, LongType step = 1, Device device = D
 // the word embeddings for these indices.
 // Args:
 //   table <float>(V, D): the embedding table. V is vocab size and D is the embedding dimension.
-//   indices <long>(N, L): the indices.
+//   indices <long>(N, L) or <long>(L): the indices.
 // Returns:
-//   <float>(N, L, D): the word embedding tensor.
+//   <float>(N, L, D) or <float>(L, D): the word embedding tensor, one dimension more than
+//   `indices`.
 Tensor lookup(Tensor table, Tensor indices);
+
+/// Apply NeoX-style rotary embedding to query and key in place. positions is <long>(numTokens),
+/// query and key are <float>(numTokens, numHeads, headDim), and rotaryCache is
+/// <float>(maxPositions, 2 * headDim) with cosine followed by sine values in each row.
+void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache);
 
 // apply layer normalization over the last dimension of inputs.
 // apply root mean square layer normalization over the last dimension of inputs.
@@ -71,6 +77,11 @@ Tensor softmax(Tensor input);
 
 // Sample one label per row from a probability distribution using top-k and nucleus filtering.
 Tensor sample(Tensor distribution, int topK, float topP);
+
+/// Sample one label per row from logits using per-row temperature, top-k, and top-p parameters.
+/// logits is <float>(rows, vocabSize), temperatures/topPs are <float>(rows), and topKs is
+/// <int>(rows). temperature=0 selects greedily; topK<=0 disables top-k filtering.
+Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs);
 
 // Apply x^2
 Tensor square(Tensor input);
@@ -150,6 +161,43 @@ void copy(Tensor src, Tensor dest);
 // Returns:
 //   <float>(N, nHead, L, D): the output tensor.
 Tensor attention(Tensor q, Tensor k, Tensor v, bool causal);
+
+// Compute the scaled dot product attention of a packed (varlen) batch of queries that reads its
+// keys and values from a paged KV cache. Sequence i owns the blocks named by row i of blockTable
+// and attends to the first seqlensK[i] tokens they hold. The tokens it already had before this
+// call are seqlensK[i] minus its query length, which is where the causal mask starts.
+// Args:
+//   q <float>(totalQLen, nHead, D): the queries of every sequence, packed back to back.
+//   keyCache <float>(nBlock, blockSize, nKvHead, D): the key block pool.
+//   valueCache <float>(nBlock, blockSize, nKvHead, D): the value block pool.
+//   blockTable <int>(nSeq, maxNumBlock): the blocks each sequence owns, in token order.
+//   cuSeqlensQ <int>(nSeq + 1): exclusive prefix sum of the query lengths.
+//   seqlensK <int>(nSeq): the number of cached tokens each sequence attends to.
+//   maxQLen: the longest query length in the batch.
+//   maxKLen: the longest value in seqlensK.
+//   causal: mask the future positions, aligned to the bottom right of the score matrix.
+// Returns:
+//   <float>(totalQLen, nHead, D): the output tensor.
+Tensor pagedAttention(
+    Tensor q,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor blockTable,
+    Tensor cuSeqlensQ,
+    Tensor seqlensK,
+    int maxQLen,
+    int maxKLen,
+    bool causal);
+
+// Scatter the keys and values a forward pass just produced into a paged KV cache, so a later
+// pagedAttention() reads them back.
+// Args:
+//   k <float>(numTokens, nKvHead, D): the keys, packed like the queries.
+//   v <float>(numTokens, nKvHead, D): the values.
+//   keyCache <float>(nBlock, blockSize, nKvHead, D): the key block pool, written in place.
+//   valueCache <float>(nBlock, blockSize, nKvHead, D): the value block pool, written in place.
+//   slotMapping <int>(numTokens): the slot of each token, as blockId * blockSize + offset.
+void storeKVCache(Tensor k, Tensor v, Tensor keyCache, Tensor valueCache, Tensor slotMapping);
 
 // Applies the Swish-Gated Linear Unit function SwiGLU(a, b) = swish(a) * b.  Where a is the first
 // half of input (input[..., :input.shape[-1] / 2]) and b is the second half of input

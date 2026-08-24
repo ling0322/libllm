@@ -19,51 +19,220 @@
 
 #include "libllm/kv_cache.h"
 
+#include <algorithm>
+#include <memory>
+
+#include "flint/functional.h"
+#include "flint/memory.h"
+#include "libllm/model_for_generation.h"
 #include "lutil/error.h"
+#include "lutil/log.h"
 #include "lutil/strings.h"
 
 namespace libllm {
 
-KVCache KVCache::clone() const {
-  KVCache cache;
-  cache._dict = _dict;
-  cache._intDict = _intDict;
+namespace F = fl::F;
 
-  return cache;
+KVCacheSpec::KVCacheSpec(
+    int numLayers,
+    int numKeyValueHeads,
+    int headDim,
+    int maxContextLength,
+    fl::DType dtype)
+    : _numLayers(numLayers),
+      _numKeyValueHeads(numKeyValueHeads),
+      _headDim(headDim),
+      _maxContextLength(maxContextLength),
+      _dtype(dtype) {
 }
 
-fl::Tensor KVCache::getTensor(const std::string &name) const {
-  auto it = _dict.find(name);
-  if (it == _dict.end()) {
-    throw lut::AbortedError(lut::sprintf("tensor \"%s\" not found in kv cache.", name));
+int KVCacheSpec::getNumLayers() const {
+  return _numLayers;
+}
+
+int KVCacheSpec::getNumKeyValueHeads() const {
+  return _numKeyValueHeads;
+}
+
+int KVCacheSpec::getHeadDim() const {
+  return _headDim;
+}
+
+int KVCacheSpec::getMaxContextLength() const {
+  return _maxContextLength;
+}
+
+fl::DType KVCacheSpec::getDType() const {
+  return _dtype;
+}
+
+int64_t getKVCacheBytesPerBlock(const KVCacheSpec &spec, int blockSize) {
+  CHECK(blockSize > 0);
+
+  int64_t numElements = 2LL * spec.getNumLayers() * blockSize * spec.getNumKeyValueHeads() *
+                        spec.getHeadDim();
+  return spec.getDType().getTotalSize(numElements);
+}
+
+int64_t KVCacheManager::estimateMemoryBudget(
+    const ModelForGeneration &model,
+    const EngineConfig &config) {
+  float memoryUtilization = config.kvCacheMemoryUtilization;
+  CHECK(memoryUtilization > 0.0f && memoryUtilization <= 1.0f);
+  CHECK(config.maxNumBatchedTokens > 0);
+
+  fl::Device device = model.getDevice();
+  KVCacheSpec spec = model.getKVCacheSpec();
+  int blockSize = config.kvCacheBlockSize;
+  int numTokens = std::min(config.maxNumBatchedTokens, spec.getMaxContextLength());
+
+  // The forward pass has to put its keys somewhere, so profiling runs against a scratch pool just
+  // large enough for one batch. Its size is known exactly and comes back out of the measurement
+  // below, leaving only the weights and the activation.
+  int numScratchBlocks = (numTokens + blockSize - 1) / blockSize;
+  auto scratch = std::make_shared<KVCacheManager>(spec, blockSize, numScratchBlocks, device);
+  int64_t scratchBytes = getKVCacheBytesPerBlock(spec, blockSize) * numScratchBlocks;
+
+  std::vector<fl::LongType> tokenIds(numTokens, 0);
+  ForwardBatch batch = ForwardBatch::single(lut::makeConstSpan(tokenIds), 0);
+  batch.setKVCacheManager(scratch);
+  batch.setBlockIds({scratch->allocateBlocksForTokens(numTokens)});
+  batch.prepare(device);
+
+  // the peak of a full-size batch tells how much memory the cache has to leave for activation.
+  fl::MemorySnapshot::resetPeakStats(device);
+  model.forward(batch);
+
+  fl::MemorySnapshot snapshot = fl::MemorySnapshot::capture(device);
+  scratch.reset();
+  if (snapshot.getTotalMemory() <= 0) {
+    throw lut::AbortedError("device does not report its memory usage");
   }
 
-  return it->second;
+  int64_t weights = snapshot.getAllocatedMemory() - scratchBytes;
+  int64_t peak = snapshot.getPeakAllocatedMemory() - scratchBytes;
+  LOG(INFO) << "model memory profile: weights=" << lut::formatNumber(weights)
+            << "B, activation=" << lut::formatNumber(peak - weights)
+            << "B, peak=" << lut::formatNumber(peak) << "B";
+
+  int64_t budget = static_cast<int64_t>(snapshot.getTotalMemory() * memoryUtilization) - peak;
+
+  // another process may hold memory this process never gets to see. The scratch pool is gone by
+  // now, so its bytes are free again even though the snapshot was taken while it was held.
+  return std::min(budget, snapshot.getFreeMemory() + scratchBytes);
 }
 
-void KVCache::putTensor(const std::string &name, fl::Tensor tensor) {
-  _dict[name] = tensor;
-}
+std::shared_ptr<KVCacheManager> KVCacheManager::create(
+    const ModelForGeneration &model,
+    const EngineConfig &config) {
+  KVCacheSpec spec = model.getKVCacheSpec();
+  int64_t memoryBudget = estimateMemoryBudget(model, config);
 
-bool KVCache::hasTensor(const std::string &name) const {
-  return _dict.find(name) != _dict.end();
-}
-
-int KVCache::getValue(const std::string &name) const {
-  auto it = _intDict.find(name);
-  if (it == _intDict.end()) {
-    throw lut::AbortedError(lut::sprintf("value \"%s\" not found in kv cache.", name));
+  int blockSize = config.kvCacheBlockSize;
+  int64_t bytesPerBlock = getKVCacheBytesPerBlock(spec, blockSize);
+  int64_t numBlocks = memoryBudget > 0 ? memoryBudget / bytesPerBlock : 0;
+  if (numBlocks <= 0) {
+    throw lut::AbortedError("not enough memory to store a single block of the kv cache");
   }
 
-  return it->second;
+  LOG(INFO) << "kv cache: allocated=" << lut::formatNumber(numBlocks * bytesPerBlock)
+            << "B, blocks=" << numBlocks << ", block size=" << blockSize
+            << " tokens, capacity=" << lut::formatNumber(numBlocks * blockSize)
+            << " tokens";
+
+  return std::make_shared<KVCacheManager>(
+      spec,
+      blockSize,
+      static_cast<int>(numBlocks),
+      model.getDevice());
 }
 
-void KVCache::putValue(const std::string &name, int value) {
-  _intDict[name] = value;
+KVCacheManager::KVCacheManager(
+    const KVCacheSpec &spec,
+    int blockSize,
+    int numBlocks,
+    fl::Device device)
+    : _spec(spec),
+      _blockSize(blockSize),
+      _numBlocks(numBlocks) {
+  if (blockSize <= 0 || numBlocks <= 0) {
+    throw lut::AbortedError("invalid block_size or num_blocks for kv cache");
+  }
+  if ((blockSize & (blockSize - 1)) != 0) {
+    throw lut::AbortedError("kv cache block_size must be a power of two");
+  }
+
+  std::vector<int> shape{blockSize, spec.getNumKeyValueHeads(), spec.getHeadDim()};
+  shape.insert(shape.begin(), numBlocks);
+
+  for (int i = 0; i < spec.getNumLayers(); ++i) {
+    _keyCache.emplace_back(F::tensor(shape, spec.getDType(), device));
+    _valueCache.emplace_back(F::tensor(shape, spec.getDType(), device));
+  }
+
+  // descending order, so the smallest block id is allocated first.
+  _freeBlocks.reserve(numBlocks);
+  for (int i = numBlocks - 1; i >= 0; --i) {
+    _freeBlocks.push_back(i);
+  }
 }
 
-bool KVCache::hasValue(const std::string &name) const {
-  return _intDict.find(name) != _intDict.end();
+fl::Tensor KVCacheManager::getKeyCache(int layer) const {
+  CHECK(layer >= 0 && layer < static_cast<int>(_keyCache.size()));
+  return _keyCache[layer];
+}
+
+fl::Tensor KVCacheManager::getValueCache(int layer) const {
+  CHECK(layer >= 0 && layer < static_cast<int>(_valueCache.size()));
+  return _valueCache[layer];
+}
+
+int KVCacheManager::getBlockSize() const {
+  return _blockSize;
+}
+
+int KVCacheManager::getNumBlocks() const {
+  return _numBlocks;
+}
+
+int KVCacheManager::getNumFreeBlocks() const {
+  return static_cast<int>(_freeBlocks.size());
+}
+
+int KVCacheManager::getNumBlocksForTokens(int numTokens) const {
+  CHECK(numTokens >= 0);
+  return (numTokens + _blockSize - 1) / _blockSize;
+}
+
+int KVCacheManager::getMaxNumBlocksPerRequest() const {
+  return getNumBlocksForTokens(_spec.getMaxContextLength());
+}
+
+std::vector<int> KVCacheManager::allocateBlocks(int numBlocks) {
+  CHECK(numBlocks >= 0);
+  if (numBlocks > getNumFreeBlocks()) {
+    return {};
+  }
+
+  std::vector<int> blockIds;
+  blockIds.reserve(numBlocks);
+  for (int i = 0; i < numBlocks; ++i) {
+    blockIds.push_back(_freeBlocks.back());
+    _freeBlocks.pop_back();
+  }
+
+  return blockIds;
+}
+
+std::vector<int> KVCacheManager::allocateBlocksForTokens(int numTokens) {
+  return allocateBlocks(getNumBlocksForTokens(numTokens));
+}
+
+void KVCacheManager::freeBlocks(lut::Span<const int> blockIds) {
+  for (int blockId : blockIds) {
+    CHECK(blockId >= 0 && blockId < _numBlocks);
+    _freeBlocks.push_back(blockId);
+  }
 }
 
 }  // namespace libllm

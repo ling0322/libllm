@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "catch2/catch_amalgamated.hpp"
+#include <limits>
 #include "flint/cpu/common.h"
 #include "flint/functional.h"
 #include "flint/tensor.h"
@@ -25,6 +26,25 @@
 namespace fl {
 namespace op {
 namespace cpu {
+
+CATCH_TEST_CASE("test CPU batched sampling parameters", "[fl][op][cpu]") {
+  Tensor logits = Tensor::create<float>(
+      {3, 4},
+      {std::numeric_limits<float>::quiet_NaN(), 4.0f, 2.0f, 1.0f,
+       0.0f, 1.0f, 5.0f, 2.0f,
+       0.0f, 1.0f, 2.0f, 6.0f});
+  Tensor temperatures = Tensor::create<float>({3}, {0.0f, 1.0f, 1.0f});
+  Tensor topKs = Tensor::create<IntType>({3}, {0, 1, 0});
+  Tensor topPs = Tensor::create<float>({3}, {1.0f, 1.0f, 0.1f});
+
+  Tensor sampled = F::sample(logits, temperatures, topKs, topPs);
+  CATCH_REQUIRE(sampled.getShape() == std::vector<int>{3});
+  const LongType *data = sampled.getInternalData()->getData<LongType>(
+      sampled.getInternalOffset());
+  CATCH_REQUIRE(data[0] == 1);
+  CATCH_REQUIRE(data[1] == 2);
+  CATCH_REQUIRE(data[2] == 3);
+}
 
 Tensor RefMatMulFp32(const Tensor &A, const Tensor &B) {
   CATCH_REQUIRE(A.getDType() == B.getDType());
@@ -141,6 +161,11 @@ CATCH_TEST_CASE("test embedding lookup", "[core][nn][operators]") {
           0.8f,
       });
   CATCH_REQUIRE(F::allClose(F::lookup(wte, input), output));
+
+  // packed indices are 1D and give one embedding row per index.
+  Tensor packed = Tensor::create<LongType>({3}, {0, 1, 2});
+  Tensor packedOutput = Tensor::create<float>({3, 2}, {0.1f, 0.2f, 0.3f, 0.4f, 0.2f, 0.3f});
+  CATCH_REQUIRE(F::allClose(F::lookup(wte, packed), packedOutput));
 }
 
 CATCH_TEST_CASE("test softmax", "[core][nn][operators]") {

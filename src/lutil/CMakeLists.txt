@@ -16,6 +16,9 @@ set(lutil_SOURCES
     "zip_file.cc")
 
 set(lut_test_SOURCES
+    "asio_test.cc"
+    "blocking_queue_test.cc"
+    "cancellation_token_test.cc"
     "path_test.cc"
     "strings_test.cc")
 

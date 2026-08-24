@@ -21,9 +21,9 @@
 
 #include <math.h>
 
+#include "flint/operators.h"
 #include "lutil/error.h"
 #include "lutil/strings.h"
-#include "flint/operators.h"
 
 namespace fl {
 namespace F {
@@ -36,12 +36,24 @@ Tensor lookup(Tensor table, Tensor indices) {
   return getOperators(table.getDevice().getType())->lookup(table, indices);
 }
 
+void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache) {
+  getOperators(query.getDevice().getType())->rotaryEmbedding(positions, query, key, rotaryCache);
+}
+
 Tensor rmsNorm(Tensor input, Tensor weight, float eps) {
   return getOperators(input.getDevice().getType())->rmsNorm(input, weight, eps);
 }
 
 Tensor sample(Tensor distribution, int topK, float topP) {
   return getOperators(distribution.getDevice().getType())->sample(distribution, topK, topP);
+}
+
+Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs) {
+  CHECK(logits.getDevice().getType() == temperatures.getDevice().getType());
+  CHECK(logits.getDevice().getType() == topKs.getDevice().getType());
+  CHECK(logits.getDevice().getType() == topPs.getDevice().getType());
+  return getOperators(logits.getDevice().getType())->sample(
+      logits, temperatures, topKs, topPs);
 }
 
 Tensor matmul(Tensor A, Tensor B) {
@@ -180,6 +192,33 @@ void fill(Tensor tensor, float value) {
 
 Tensor attention(Tensor q, Tensor k, Tensor v, bool causal) {
   return getOperators(q.getDevice().getType())->attention(q, k, v, causal);
+}
+
+Tensor pagedAttention(
+    Tensor q,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor blockTable,
+    Tensor cuSeqlensQ,
+    Tensor seqlensK,
+    int maxQLen,
+    int maxKLen,
+    bool causal) {
+  return getOperators(q.getDevice().getType())
+      ->pagedAttention(
+          q,
+          keyCache,
+          valueCache,
+          blockTable,
+          cuSeqlensQ,
+          seqlensK,
+          maxQLen,
+          maxKLen,
+          causal);
+}
+
+void storeKVCache(Tensor k, Tensor v, Tensor keyCache, Tensor valueCache, Tensor slotMapping) {
+  getOperators(k.getDevice().getType())->storeKVCache(k, v, keyCache, valueCache, slotMapping);
 }
 
 Tensor swiglu(Tensor inputs) {

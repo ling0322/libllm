@@ -73,7 +73,7 @@ class Model:
         model_name = interop.model_get_name(self._pmodel.get())
         return model_name.decode("utf-8")
 
-    def complete(self, prompt: Union[str, List[Union[str, ControlToken]]], top_k: int = 50,
+    def complete(self, prompt: Union[str, List[Union[str, ControlToken]]], top_k: int = 0,
                  top_p: float = 0.8, temperature: float = 1.0) -> None:
         """Compelete the prompt with given generation settings. The prompt could be either a string
         or a list of [string|SpecialToken] (when special_token is need).

@@ -22,6 +22,7 @@
 #include "libllm/constants.h"
 #include "libllm/llama.h"
 #include "lutil/error.h"
+#include "lutil/log.h"
 #include "lutil/path.h"
 #include "lutil/strings.h"
 #include "lutil/zip_file.h"
@@ -33,6 +34,13 @@ constexpr char ModelForGeneration::ModelConfig[];
 std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
     const fl::Device &device,
     lut::ZipFile *package) {
+  return fromPackage(device, package, EngineConfig());
+}
+
+std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
+    const fl::Device &device,
+    lut::ZipFile *package,
+    const EngineConfig &config) {
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(
       package->open(ModelConfig).get());
 
@@ -48,6 +56,8 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
     throw lut::AbortedError(lut::sprintf("unexpected model type: %s", modelType));
   }
 
+  model->_tokenizer = Tokenizer::fromPackage(package);
+  model->initKVCacheFromConfig(config);
   return model;
 }
 
@@ -55,16 +65,28 @@ void ModelForGeneration::initTokenizer(lut::ZipFile *package) {
   _tokenizer = Tokenizer::fromPackage(package);
 }
 
+std::weak_ptr<KVCacheManager> ModelForGeneration::getKVCacheManager() const {
+  return _kvCacheManager;
+}
+
+void ModelForGeneration::initKVCacheFromConfig(const EngineConfig &config) {
+  _kvCacheManager = KVCacheManager::create(*this, config);
+}
+
 const Vocab *ModelForGeneration::getVocab() const {
   return _tokenizer->getVocab();
 }
 
-int ModelForGeneration::getPromptTokenCount(const Prompt &prompt) const {
+std::vector<fl::LongType> ModelForGeneration::encodePrompt(const Prompt &prompt) const {
   std::vector<fl::LongType> tokenIds;
   for (const PromptBlock &block : prompt.getBlocks()) {
     encodePromptBlock(block, tokenIds);
   }
-  return tokenIds.size();
+  return tokenIds;
+}
+
+int ModelForGeneration::getPromptTokenCount(const Prompt &prompt) const {
+  return static_cast<int>(encodePrompt(prompt).size());
 }
 
 void ModelForGeneration::encodePromptBlock(

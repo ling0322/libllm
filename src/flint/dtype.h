@@ -59,6 +59,7 @@ struct Fp4E2M0x2 {
 static_assert(sizeof(Fp4E2M0x2) == 1, "invalid size of Fp4E2M0x2");
 
 typedef int8_t Byte;
+typedef int32_t IntType;
 typedef int64_t LongType;
 typedef bool BoolType;
 
@@ -72,6 +73,7 @@ class DType {
   static constexpr int16_t kInt8 = 6;
   static constexpr int16_t kFp4E2M0x2 = 7;
   static constexpr int16_t kBool = 8;
+  static constexpr int16_t kInt32 = 9;
 
   // get DType from type T
   template<typename T>

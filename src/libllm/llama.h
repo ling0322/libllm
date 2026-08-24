@@ -21,13 +21,14 @@
 
 #include <memory>
 
+#include "flint/functional.h"
 #include "libllm/constants.h"
+#include "libllm/forward_batch.h"
 #include "libllm/kv_cache.h"
 #include "libllm/layers.h"
 #include "libllm/model_for_generation.h"
 #include "lutil/error.h"
 #include "lutil/ini_config.h"
-#include "flint/functional.h"
 
 namespace libllm {
 namespace llama {
@@ -63,34 +64,29 @@ class MLP {
 
 class Attention {
  public:
-  // `roPE` is shared by all the attention layers of a model.
+  // `layerIndex` names this layer's key and value tensors in the paged KV cache.
   static std::shared_ptr<Attention> build(
       const LlamaConfig &config,
       const VarBuilder &vb,
-      fl::Tensor roPE);
+      fl::Tensor rotaryCache,
+      int layerIndex);
 
-  fl::Tensor forward(KVCache &past, fl::Tensor input) const;
+  // `batch` describes how `input` decomposes into sequences and names the cache blocks each one
+  // owns.
+  fl::Tensor forward(fl::Tensor input, const ForwardBatch &batch) const;
 
  private:
   std::shared_ptr<Linear> _qkvProj;
   std::shared_ptr<Linear> _outProj;
-  fl::Tensor _roPE;
-
-  std::string _namePastK;
-  std::string _namePastV;
-  std::string _namePastLen;
+  fl::Tensor _rotaryCache;
 
   int _hiddenSize;
   int _numHead;
   int _numKeyValueHead;
   int _headDim;
+  int _layerIndex;
 
   Attention();
-
-  // get past length of this attention layer.
-  int getCtxLength(const KVCache &past) const;
-  fl::Tensor applyRoPE(fl::Tensor x, fl::Tensor roPE) const;
-  fl::Tensor rotateHalf(fl::Tensor x) const;
 };
 
 class DecodeLayer {
@@ -98,9 +94,10 @@ class DecodeLayer {
   static std::shared_ptr<DecodeLayer> build(
       const LlamaConfig &config,
       const VarBuilder &vb,
-      fl::Tensor roPE);
+      fl::Tensor rotaryCache,
+      int layerIndex);
 
-  fl::Tensor forward(KVCache &past, fl::Tensor input) const;
+  fl::Tensor forward(fl::Tensor input, const ForwardBatch &batch) const;
 
  private:
   std::shared_ptr<RMSNorm> _inputNorm;
@@ -115,8 +112,9 @@ class LlamaModel {
  public:
   static std::shared_ptr<LlamaModel> build(const LlamaConfig &config, const VarBuilder &vb);
 
-  fl::Tensor forward(KVCache &past, fl::Tensor input) const;
+  fl::Tensor forward(fl::Tensor input, const ForwardBatch &batch) const;
   fl::Tensor forwardLmHead(fl::Tensor hidden) const;
+  const LlamaConfig &getConfig() const;
   int getOutputDim() const;
 
  private:
@@ -135,23 +133,25 @@ class LlamaModelForGeneration : public ModelForGeneration {
       const fl::Device &device,
       lut::ZipFile *package);
 
-  fl::Tensor prefill(KVCache &past, const Prompt &prompt) const override;
-  fl::Tensor decode(KVCache &past, fl::LongType inputToken) const override;
+  fl::Tensor forward(const ForwardBatch &batch) const override;
 
   bool isStopToken(int tokenId) const override;
   const char *getName() const override;
   fl::Device getDevice() const override;
   int getOutputDim() const override;
+  KVCacheSpec getKVCacheSpec() const override;
   Prompt buildPrompt(lut::Span<const Message> history) const override;
 
  protected:
   std::shared_ptr<LlamaModel> _model;
+  LlamaConfig _config;
   std::string _modelName;
   fl::Device _device;
+  fl::DType _floatType;
   int _eotId;
 
   LlamaModelForGeneration();
-  fl::Tensor buildInput(const Prompt &prompt) const;
+  fl::Tensor buildInput(lut::Span<const fl::LongType> tokenIds) const;
 };
 
 }  // namespace llama

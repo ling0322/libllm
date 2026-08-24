@@ -19,6 +19,10 @@
 
 #pragma once
 
+#include <memory>
+
+#include "libllm/engine_config.h"
+#include "libllm/forward_batch.h"
 #include "libllm/prompt.h"
 #include "libllm/tokenizer.h"
 #include "lutil/zip_file.h"
@@ -51,22 +55,18 @@ class ModelForGeneration {
   static std::shared_ptr<ModelForGeneration> fromPackage(
       const fl::Device &device,
       lut::ZipFile *package);
+    static std::shared_ptr<ModelForGeneration> fromPackage(
+      const fl::Device &device,
+      lut::ZipFile *package,
+      const EngineConfig &config);
 
   virtual ~ModelForGeneration() = default;
 
-  /// @brief Used in the prefill phase. Forward the input prompt through this language model, update
-  /// the `past` state and return the logits for the next token.
-  /// @param past (KVCache): key-value cache.
-  /// @param prompt (Prompt): the input prompt for prefill.
-  /// @return  <float>(N, 1, V): hidden state from last layer.
-  virtual fl::Tensor prefill(KVCache &past, const Prompt &prompt) const = 0;
-
-  /// @brief Used in the decodeing phase. Forward input token ids through this language model,
-  /// update the `past` state and return the logits for the next token.
-  /// @param past (KVCache): key-value cache.
-  /// @param inputToken (LongType): the input token.
-  /// @return  <float>(N, 1, V): hidden state from last layer.
-  virtual fl::Tensor decode(KVCache &past, fl::LongType inputToken) const = 0;
+  /// @brief Forward one scheduled batch, write its keys and values into the blocks the batch names
+  /// and return the logits for the next token of every sequence in it.
+  /// @param batch the batch a scheduler packed, carrying its tokens and its cache blocks.
+  /// @return  <float>(numSequences, V): logits of the next token.
+  virtual fl::Tensor forward(const ForwardBatch &batch) const = 0;
 
   /// @brief Return true if tokenId is a stop token. (stop generating texts)
   /// @param tokenId the token id.
@@ -85,6 +85,19 @@ class ModelForGeneration {
   /// @return the output dimension of the model.
   virtual int getOutputDim() const = 0;
 
+  /// @brief Get the model's KV cache layout requirements.
+  virtual KVCacheSpec getKVCacheSpec() const = 0;
+
+  /// @brief Allocate the paged KV cache storage according to the engine configuration. Requires a
+  /// device that reports its memory usage.
+  /// @param config The engine configuration.
+  void initKVCacheFromConfig(const EngineConfig &config);
+
+  /// @brief Get the KV cache manager owned by this model.
+  /// @return A non-owning handle to the KV cache manager. Empty if initKVCacheFromConfig() was not
+  /// called.
+  std::weak_ptr<KVCacheManager> getKVCacheManager() const;
+
   /// @brief build prompt from history messages.
   /// @param history the history.
   /// @return the prompt.
@@ -94,11 +107,17 @@ class ModelForGeneration {
   /// @return The vocabulary.
   const Vocab *getVocab() const;
 
+  /// @brief Encode a prompt into the tokens the model reads.
+  /// @param prompt The prompt to encode.
+  /// @return The tokens.
+  std::vector<fl::LongType> encodePrompt(const Prompt &prompt) const;
+
   /// @brief Return the number of tokens produced when encoding a prompt.
   int getPromptTokenCount(const Prompt &prompt) const;
 
  protected:
   std::shared_ptr<Tokenizer> _tokenizer;
+  std::shared_ptr<KVCacheManager> _kvCacheManager;
 
   ModelForGeneration() = default;
 

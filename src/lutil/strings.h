@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -42,6 +44,10 @@ std::vector<std::string> split(const std::string &str, const std::string &delim)
 
 std::string replace(const std::string &s, const std::string &old, const std::string &repl);
 std::string toLower(const std::string &s);
+
+// format a number in a compact human readable form, using a 1024 multiplier so it also suits byte
+// counts. For example 1536 -> "1.5K" and 1048576 -> "1.0M". Numbers below 1024 are printed as is.
+std::string formatNumber(int64_t n);
 
 // string to int, float... throw AbortedException if parsing failed.
 int parseInt(const std::string &s);

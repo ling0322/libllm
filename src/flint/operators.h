@@ -24,6 +24,7 @@
 #include "lutil/random.h"
 #include "lutil/thread_pool.h"
 #include "flint/device.h"
+#include "flint/memory.h"
 #include "flint/tensor.h"
 
 namespace fl {
@@ -35,6 +36,7 @@ class Operators {
 
   virtual Tensor arangeLong(LongType begin, LongType end, LongType step);
   virtual Tensor lookup(Tensor table, Tensor indices);
+  virtual void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache);
   virtual Tensor rmsNorm(Tensor input, Tensor weight, float eps);
   virtual Tensor matmul(Tensor A, Tensor B);
   virtual Tensor matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB);
@@ -48,7 +50,29 @@ class Operators {
   /// [batch, numKeyValueHeads, keyValueLength, headDim]. numHeads is a multiple of
   /// numKeyValueHeads, so grouped-query and multi-query attention need no expanded k and v.
   virtual Tensor attention(Tensor q, Tensor k, Tensor v, bool causal);
+
+    /// Scaled dot product attention of a packed (varlen) batch of queries over a paged KV cache.
+    virtual Tensor pagedAttention(
+      Tensor q,
+      Tensor keyCache,
+      Tensor valueCache,
+      Tensor blockTable,
+      Tensor cuSeqlensQ,
+      Tensor seqlensK,
+      int maxQLen,
+      int maxKLen,
+      bool causal);
+
+    /// Scatter packed keys and values into their paged KV-cache slots.
+    virtual void storeKVCache(
+      Tensor k,
+      Tensor v,
+      Tensor keyCache,
+      Tensor valueCache,
+      Tensor slotMapping);
+
   virtual Tensor sample(Tensor distribution, int topK, float topP);
+    virtual Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs);
   virtual Tensor add(Tensor input, Tensor other);
   virtual Tensor sub(Tensor input, Tensor other);
   virtual Tensor subFloat(Tensor input, float other);
@@ -74,6 +98,9 @@ class Operators {
   virtual Tensor rand(lut::Span<const int> shape, DType dtype);
   virtual Tensor randNormal(lut::Span<const int> shape);
   virtual void manualSeed(uint64_t seed);
+
+  virtual MemorySnapshot captureMemorySnapshot();
+  virtual void resetPeakMemoryStats();
 
   virtual DType getDefaultFloatType();
 };

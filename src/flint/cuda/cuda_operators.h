@@ -53,6 +53,7 @@ class CudaOperators : public Operators {
   void fill(Tensor input, float value) override;
   Tensor square(Tensor input) override;
   Tensor lookup(Tensor table, Tensor indices) override;
+  void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache) override;
   Tensor matmul(Tensor a, Tensor b) override;
   Tensor matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB) override;
   Tensor max(Tensor inputs) override;
@@ -65,8 +66,25 @@ class CudaOperators : public Operators {
   void repetitionPenalty(Tensor logits, Tensor history, float weight) override;
   Tensor rmsNorm(Tensor input, Tensor weight, float eps) override;
   Tensor sample(Tensor distribution, int topK, float topP) override;
+  Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs) override;
   Tensor softmax(Tensor input) override;
   Tensor attention(Tensor q, Tensor k, Tensor v, bool causal) override;
+    Tensor pagedAttention(
+      Tensor q,
+      Tensor keyCache,
+      Tensor valueCache,
+      Tensor blockTable,
+      Tensor cuSeqlensQ,
+      Tensor seqlensK,
+      int maxQLen,
+      int maxKLen,
+      bool causal) override;
+    void storeKVCache(
+      Tensor k,
+      Tensor v,
+      Tensor keyCache,
+      Tensor valueCache,
+      Tensor slotMapping) override;
   Tensor sum(Tensor inputs, int dim) override;
   Tensor swiglu(Tensor A) override;
   Tensor tensor(lut::Span<const int> shape, DType dtype) override;
@@ -79,6 +97,9 @@ class CudaOperators : public Operators {
   float elem(Tensor tensor) override;
   bool elemBool(Tensor tensor) override;
   Tensor eq(Tensor input, Tensor other) override;
+
+  MemorySnapshot captureMemorySnapshot() override;
+  void resetPeakMemoryStats() override;
 
   DType getDefaultFloatType() override;
 

@@ -20,6 +20,7 @@
 #include <cuda_fp16.h>
 
 #include <algorithm>
+#include <limits>
 #include <cmath>
 #include <limits>
 #include <vector>
@@ -35,9 +36,33 @@
 #include "flint/cuda/matvec.h"
 #include "flint/device.h"
 #include "flint/functional.h"
+#include "flint/memory.h"
 #include "flint/operators.h"
 
 namespace fl {
+
+CATCH_TEST_CASE("test CUDA memory snapshot", "[fl][cuda][memory]") {
+  MemorySnapshot::resetPeakStats(Device::getCuda());
+
+  MemorySnapshot before = MemorySnapshot::capture(Device::getCuda());
+  CATCH_REQUIRE(before.getTotalMemory() > 0);
+  CATCH_REQUIRE(before.getFreeMemory() > 0);
+  CATCH_REQUIRE(before.getFreeMemory() <= before.getTotalMemory());
+
+  int64_t bytes = 0;
+  {
+    Tensor x = F::tensor({1024, 1024}, DType::kFloat16, Device::getCuda());
+    bytes = x.getNumEl() * 2;
+
+    MemorySnapshot allocated = MemorySnapshot::capture(Device::getCuda());
+    CATCH_REQUIRE(allocated.getAllocatedMemory() >= before.getAllocatedMemory() + bytes);
+  }
+
+  // the tensor is gone, but its bytes stay in the pool and remain in the peak.
+  MemorySnapshot after = MemorySnapshot::capture(Device::getCuda());
+  CATCH_REQUIRE(after.getAllocatedMemory() <= before.getAllocatedMemory());
+  CATCH_REQUIRE(after.getPeakAllocatedMemory() >= bytes);
+}
 
 CATCH_TEST_CASE("test CUDA FastDivmod", "[fl][cuda]") {
   constexpr uint32_t divisors[] = {1, 2, 3, 7, 16, 255, 65535, INT32_MAX};
@@ -148,6 +173,14 @@ CATCH_TEST_CASE("test CUDA lookup", "[op][cuda]") {
   Tensor x = F::lookup(toCuda(embd), F::to(Device::getCuda(), ids));
 
   CATCH_REQUIRE(F::allClose(toCpu(x), xr));
+
+  // packed indices are 1D and give one embedding row per index.
+  Tensor packedIds = Tensor::create<LongType>({3}, {1, 2, 3});
+  Tensor packedRef = F::lookup(embd, packedIds);
+  Tensor packed = F::lookup(toCuda(embd), F::to(Device::getCuda(), packedIds));
+
+  CATCH_REQUIRE(packed.getShape() == std::vector<int>{3, 32});
+  CATCH_REQUIRE(F::allClose(toCpu(packed), packedRef));
 }
 
 CATCH_TEST_CASE("test CUDA matmul", "[op][cuda]") {
@@ -413,6 +446,60 @@ CATCH_TEST_CASE("test CUDA sampling", "[fl][op][cuda]") {
       multiBlockSampled.getInternalOffset());
   CATCH_REQUIRE(multiBlockData[0] == 2049);
   CATCH_REQUIRE(multiBlockData[1] == 1100);
+}
+
+CATCH_TEST_CASE("test CUDA batched sampling parameters", "[fl][op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  Tensor logits = Tensor::create<float>(
+      {4, 4},
+      {std::numeric_limits<float>::quiet_NaN(), 4.0f, 2.0f, 1.0f,
+       0.0f, 1.0f, 5.0f, 2.0f,
+       0.0f, 1.0f, 2.0f, 6.0f,
+       4.0f, 3.0f, 0.0f, -1.0f});
+  Tensor temperatures = Tensor::create<float>({4}, {0.0f, 1.0f, 1.0f, 0.7f});
+  Tensor topKs = Tensor::create<IntType>({4}, {0, 1, 0, 2});
+  Tensor topPs = Tensor::create<float>({4}, {1.0f, 1.0f, 0.1f, 0.9f});
+
+  logits = F::to(Device::getCuda(), logits);
+  temperatures = F::to(Device::getCuda(), temperatures);
+  topKs = F::to(Device::getCuda(), topKs);
+  topPs = F::to(Device::getCuda(), topPs);
+
+  F::manualSeed(Device::getCuda(), 1234);
+  Tensor first = F::sample(logits, temperatures, topKs, topPs);
+  F::manualSeed(Device::getCuda(), 1234);
+  Tensor second = F::sample(logits, temperatures, topKs, topPs);
+  first = F::to(Device::getCpu(), first);
+  second = F::to(Device::getCpu(), second);
+
+  CATCH_REQUIRE(first.getShape() == std::vector<int>{4});
+  const LongType *firstData =
+      first.getInternalData()->getData<LongType>(first.getInternalOffset());
+  const LongType *secondData =
+      second.getInternalData()->getData<LongType>(second.getInternalOffset());
+  CATCH_REQUIRE(firstData[0] == 1);
+  CATCH_REQUIRE(firstData[1] == 2);
+  CATCH_REQUIRE(firstData[2] == 3);
+  CATCH_REQUIRE((firstData[3] == 0 || firstData[3] == 1));
+  for (int row = 0; row < 4; ++row) CATCH_REQUIRE(firstData[row] == secondData[row]);
+
+  constexpr int vocabSize = 128256;
+  std::vector<float> largeLogits(vocabSize, 0.0f);
+  largeLogits[123456] = 10.0f;
+    Tensor largeLogitsCuda = F::cast(
+      F::to(Device::getCuda(), Tensor::create<float>({1, vocabSize}, largeLogits)),
+      DType::kFloat16);
+    Tensor largeSample = F::sample(
+      largeLogitsCuda,
+      F::to(Device::getCuda(), Tensor::create<float>({1}, {1.0f})),
+      F::to(Device::getCuda(), Tensor::create<IntType>({1}, {0})),
+      F::to(Device::getCuda(), Tensor::create<float>({1}, {0.8f})));
+  largeSample = F::to(Device::getCpu(), largeSample);
+  LongType largeToken = largeSample.getInternalData()->getData<LongType>(
+      largeSample.getInternalOffset())[0];
+  CATCH_REQUIRE(largeToken >= 0);
+  CATCH_REQUIRE(largeToken < vocabSize);
 }
 
 CATCH_TEST_CASE("test gemv", "[fl][op][cuda]") {

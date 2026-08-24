@@ -66,6 +66,13 @@ Tensor createCudaTensorLong(lut::Span<const int> shape) {
   return Tensor::create(tensorShape, data);
 }
 
+Tensor createCudaTensorInt32(lut::Span<const int> shape) {
+  auto tensorShape = std::make_shared<TensorShape>(shape);
+  auto data = CudaTensorData::create(tensorShape->getNumEl(), DType::kInt32);
+
+  return Tensor::create(tensorShape, data);
+}
+
 Tensor createCudaTensorFloat(lut::Span<const int> shape) {
   auto tensorShape = std::make_shared<TensorShape>(shape);
   auto data = CudaTensorData::create(tensorShape->getNumEl(), DType::kFloat);

@@ -36,8 +36,10 @@
 #include "flint/cuda/reduce.h"
 #include "flint/cuda/repetition_penalty.h"
 #include "flint/cuda/rms_norm.h"
+#include "flint/cuda/rotary_embedding.h"
 #include "flint/cuda/sampling.h"
 #include "flint/cuda/softmax.h"
+#include "flint/cuda/store_kv_cache.h"
 #include "flint/cuda/swiglu.h"
 #include "flint/cuda/to_device.h"
 #include "flint/cuda/unary.h"
@@ -126,6 +128,14 @@ Tensor CudaOperators::lookup(Tensor table, Tensor indices) {
   return cuda::lookup(table, indices);
 }
 
+void CudaOperators::rotaryEmbedding(
+    Tensor positions,
+    Tensor query,
+    Tensor key,
+    Tensor rotaryCache) {
+  cuda::rotaryEmbedding(positions, query, key, rotaryCache);
+}
+
 Tensor CudaOperators::matmul(Tensor a, Tensor b) {
   return _matmul->apply(a, b);
 }
@@ -185,6 +195,42 @@ Tensor CudaOperators::attention(Tensor q, Tensor k, Tensor v, bool causal) {
   return Operators::attention(q, k, v, causal);
 }
 
+void CudaOperators::storeKVCache(
+    Tensor k,
+    Tensor v,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor slotMapping) {
+  op::cuda::storeKVCache(k, v, keyCache, valueCache, slotMapping);
+}
+
+Tensor CudaOperators::pagedAttention(
+    Tensor q,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor blockTable,
+    Tensor cuSeqlensQ,
+    Tensor seqlensK,
+    int maxQLen,
+    int maxKLen,
+    bool causal) {
+#ifdef LIBLLM_FLASH_ATTN_ENABLED
+  Tensor output = op::cuda::pagedFlashAttention(
+      q,
+      keyCache,
+      valueCache,
+      blockTable,
+      cuSeqlensQ,
+      seqlensK,
+      maxQLen,
+      maxKLen,
+      causal);
+  if (!output.empty()) return output;
+#endif
+
+  NOT_IMPL();
+}
+
 Tensor CudaOperators::tensor(lut::Span<const int> shape, DType dtype) {
   if (dtype == DType::kFloat16) return createCudaTensorHalf(shape);
   if (dtype == DType::kUInt8) return createCudaTensorUInt8(shape);
@@ -194,6 +240,39 @@ Tensor CudaOperators::tensor(lut::Span<const int> shape, DType dtype) {
 
 Tensor CudaOperators::tensorLike(Tensor input) {
   return op::cuda::tensorLike(input);
+}
+
+MemorySnapshot CudaOperators::captureMemorySnapshot() {
+  size_t freeMemory = 0;
+  size_t totalMemory = 0;
+  LL_CHECK_CUDA_STATUS(cudaMemGetInfo(&freeMemory, &totalMemory));
+
+  uint64_t allocatedMemory = 0;
+  uint64_t peakAllocatedMemory = 0;
+#ifdef LIBLLM_CUDA_MALLOC_ASYNC_ENABLED
+  cudaMemPool_t memoryPool;
+  LL_CHECK_CUDA_STATUS(cudaDeviceGetDefaultMemPool(&memoryPool, 0));
+  LL_CHECK_CUDA_STATUS(
+      cudaMemPoolGetAttribute(memoryPool, cudaMemPoolAttrUsedMemCurrent, &allocatedMemory));
+  LL_CHECK_CUDA_STATUS(
+      cudaMemPoolGetAttribute(memoryPool, cudaMemPoolAttrUsedMemHigh, &peakAllocatedMemory));
+#endif
+
+  return MemorySnapshot(
+      static_cast<int64_t>(totalMemory),
+      static_cast<int64_t>(freeMemory),
+      static_cast<int64_t>(allocatedMemory),
+      static_cast<int64_t>(peakAllocatedMemory));
+}
+
+void CudaOperators::resetPeakMemoryStats() {
+#ifdef LIBLLM_CUDA_MALLOC_ASYNC_ENABLED
+  // the high watermark of a memory pool can only be reset to zero.
+  cudaMemPool_t memoryPool;
+  uint64_t zero = 0;
+  LL_CHECK_CUDA_STATUS(cudaDeviceGetDefaultMemPool(&memoryPool, 0));
+  LL_CHECK_CUDA_STATUS(cudaMemPoolSetAttribute(memoryPool, cudaMemPoolAttrUsedMemHigh, &zero));
+#endif
 }
 
 void CudaOperators::copy(Tensor src, Tensor dest) {
@@ -224,6 +303,18 @@ Tensor CudaOperators::sample(Tensor distribution, int topK, float topP) {
   int rows = static_cast<int>(rows64);
   Tensor uniformNoise = _rand->rand({rows, topK});
   return op::cuda::sample(distribution, uniformNoise, topK, topP);
+}
+
+Tensor CudaOperators::sample(
+    Tensor logits,
+    Tensor temperatures,
+    Tensor topKs,
+    Tensor topPs) {
+  CHECK(logits.getDim() == 2);
+  int rows = logits.getShape(0);
+  int vocabSize = logits.getShape(1);
+  Tensor uniformNoise = _rand->rand({rows, vocabSize});
+  return op::cuda::sample(logits, uniformNoise, temperatures, topKs, topPs);
 }
 
 Tensor CudaOperators::to(Device device, Tensor tensor) {

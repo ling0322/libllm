@@ -41,9 +41,9 @@ std::unique_ptr<Embedding> Embedding::build(int dModel, int vocabSize, const Var
 }
 
 fl::Tensor Embedding::forward(const fl::Tensor &input) const {
-  fl::Tensor x = fl::F::lookup(_wte, input);
+  CHECK(input.getDim() == 1);
 
-  return x;
+  return fl::F::lookup(_wte, input);
 }
 
 // -----------------------------------------------------------------------------------------------+
