@@ -2,20 +2,23 @@
 //
 // Copyright (c) 2024 Xiaoyang Chen
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software
-// and associated documentation files (the "Software"), to deal in the Software without
-// restriction, including without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following conditions:
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all copies or
-// substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
 //
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-// BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 #ifdef __APPLE__
 #define LUT_PLATFORM_APPLE
@@ -41,31 +44,25 @@ typedef HMODULE LLM_HMODULE;
 
 #include "llm.h"
 
-// global state
-void (*p_llm_init)();
-const char *(*p_llm_get_last_error_message)();
+void (*p_llm_init)(void);
+int32_t (*p_llm_get_last_error_code)(void);
+const char *(*p_llm_get_last_error_message)(void);
+void (*p_llm_engine_options_init)(llm_engine_options_t *options);
+void (*p_llm_generation_config_init)(llm_generation_config_t *config);
+void (*p_llm_request_init)(llm_request_t *request);
+int32_t (*p_llm_engine_init)(llm_engine_t *engine);
+int32_t (*p_llm_engine_load)(
+    llm_engine_t *engine,
+    const llm_engine_options_t *options,
+    llm_stream_callback_t callback,
+    void *user_data);
+int32_t (*p_llm_engine_destroy)(llm_engine_t *engine);
+int32_t (*p_llm_engine_add_request)(llm_engine_t *engine, const llm_request_t *request);
+int32_t (*p_llm_engine_abort_request)(llm_engine_t *engine, llm_string_view_t request_id);
 
-// llm
+extern void goLlmStreamCallback(const llm_request_outputs_t *outputs, void *user_data);
 
-int32_t (*p_llm_model_init)(llm_model_t *m);
-int32_t (*p_llm_model_destroy)(llm_model_t *m);
-int32_t (*p_llm_model_load)(llm_model_t *m, llm_json_t *kwargs);
-int32_t (*p_llm_model_get_info)(llm_model_t *m, llm_json_t *info);
-int32_t (*p_llm_model_complete)(llm_model_t *m, llm_json_t *kwargs, llm_completion_t *comp);
-
-int32_t (*p_llm_completion_init)(llm_completion_t *c);
-int32_t (*p_llm_completion_destroy)(llm_completion_t *c);
-int32_t (*p_llm_completion_get_next_chunk)(llm_completion_t *c, llm_json_t *chunk);
-
-// json
-int32_t (*p_llm_json_init)(llm_json_t *j);
-int32_t (*p_llm_json_destroy)(llm_json_t *j);
-int32_t (*p_llm_json_parse)(llm_json_t *j, const char *json_str);
-int32_t (*p_llm_json_dump)(llm_json_t *j, char *buf, int64_t buf_size);
-
-// load the libllm shared library.
 void *llm_load_library(const char *library_path) {
-  // first try to load the dll from same folder as current module.
 #if defined(LUT_PLATFORM_APPLE) || defined(LUT_PLATFORM_LINUX)
   return dlopen(library_path, RTLD_NOW);
 #elif defined(LUT_PLATFORM_WINDOWS)
@@ -79,86 +76,69 @@ void *llm_load_library(const char *library_path) {
 #define GET_PROC_ADDR (void *)GetProcAddress
 #endif
 
-#define LOAD_SYMBOL(hDll, symbol)                                    \
-  p_##symbol = GET_PROC_ADDR(hDll, #symbol);                         \
-  if (!p_##symbol) {                                                 \
+#define LOAD_SYMBOL(library, symbol)                                  \
+  p_##symbol = GET_PROC_ADDR(library, #symbol);                       \
+  if (!p_##symbol) {                                                  \
     fprintf(stderr, "llm.go: unable to load symbol: %s\n", #symbol); \
     return LLM_ERROR_ABORTED;                                        \
   }
 
-int32_t llm_load_symbols(void *pDll) {
-  LLM_HMODULE hDll = (LLM_HMODULE)pDll;
-
-  LOAD_SYMBOL(hDll, llm_init);
-  LOAD_SYMBOL(hDll, llm_get_last_error_message);
-  LOAD_SYMBOL(hDll, llm_model_init);
-  LOAD_SYMBOL(hDll, llm_model_destroy);
-  LOAD_SYMBOL(hDll, llm_model_load);
-  LOAD_SYMBOL(hDll, llm_model_get_info);
-  LOAD_SYMBOL(hDll, llm_model_complete);
-  LOAD_SYMBOL(hDll, llm_completion_init);
-  LOAD_SYMBOL(hDll, llm_completion_destroy);
-  LOAD_SYMBOL(hDll, llm_completion_get_next_chunk);
-  LOAD_SYMBOL(hDll, llm_json_init);
-  LOAD_SYMBOL(hDll, llm_json_destroy);
-  LOAD_SYMBOL(hDll, llm_json_parse);
-  LOAD_SYMBOL(hDll, llm_json_dump);
-
+int32_t llm_load_symbols(void *library) {
+  LLM_HMODULE handle = (LLM_HMODULE)library;
+  LOAD_SYMBOL(handle, llm_init);
+  LOAD_SYMBOL(handle, llm_get_last_error_code);
+  LOAD_SYMBOL(handle, llm_get_last_error_message);
+  LOAD_SYMBOL(handle, llm_engine_options_init);
+  LOAD_SYMBOL(handle, llm_generation_config_init);
+  LOAD_SYMBOL(handle, llm_request_init);
+  LOAD_SYMBOL(handle, llm_engine_init);
+  LOAD_SYMBOL(handle, llm_engine_load);
+  LOAD_SYMBOL(handle, llm_engine_destroy);
+  LOAD_SYMBOL(handle, llm_engine_add_request);
+  LOAD_SYMBOL(handle, llm_engine_abort_request);
   return 0;
 }
 
-void llm_init() {
-  return p_llm_init();
+void llm_init(void) {
+  p_llm_init();
 }
 
-const char *llm_get_last_error_message() {
+int32_t llm_get_last_error_code(void) {
+  return p_llm_get_last_error_code();
+}
+
+const char *llm_get_last_error_message(void) {
   return p_llm_get_last_error_message();
 }
 
-int32_t llm_model_init(llm_model_t *m) {
-  return p_llm_model_init(m);
+void llm_engine_options_init(llm_engine_options_t *options) {
+  p_llm_engine_options_init(options);
 }
 
-int32_t llm_model_destroy(llm_model_t *m) {
-  return p_llm_model_destroy(m);
+void llm_generation_config_init(llm_generation_config_t *config) {
+  p_llm_generation_config_init(config);
 }
 
-int32_t llm_model_load(llm_model_t *m, llm_json_t *kwargs) {
-  return p_llm_model_load(m, kwargs);
+void llm_request_init(llm_request_t *request) {
+  p_llm_request_init(request);
 }
 
-int32_t llm_model_get_info(llm_model_t *m, llm_json_t *info) {
-  return p_llm_model_get_info(m, info);
+int32_t llm_engine_init(llm_engine_t *engine) {
+  return p_llm_engine_init(engine);
 }
 
-int32_t llm_model_complete(llm_model_t *m, llm_json_t *kwargs, llm_completion_t *comp) {
-  return p_llm_model_complete(m, kwargs, comp);
+int32_t llm_engine_load_go(llm_engine_t *engine, const llm_engine_options_t *options) {
+  return p_llm_engine_load(engine, options, goLlmStreamCallback, NULL);
 }
 
-int32_t llm_completion_init(llm_completion_t *c) {
-  return p_llm_completion_init(c);
+int32_t llm_engine_destroy(llm_engine_t *engine) {
+  return p_llm_engine_destroy(engine);
 }
 
-int32_t llm_completion_destroy(llm_completion_t *c) {
-  return p_llm_completion_destroy(c);
+int32_t llm_engine_add_request(llm_engine_t *engine, const llm_request_t *request) {
+  return p_llm_engine_add_request(engine, request);
 }
 
-int32_t llm_completion_get_next_chunk(llm_completion_t *c, llm_json_t *chunk) {
-  return p_llm_completion_get_next_chunk(c, chunk);
-}
-
-int32_t llm_json_init(llm_json_t *j) {
-  return p_llm_json_init(j);
-}
-
-int32_t llm_json_destroy(llm_json_t *j) {
-  return p_llm_json_destroy(j);
-}
-
-int32_t llm_json_parse(llm_json_t *j, const char *json_str) {
-  return p_llm_json_parse(j, json_str);
-}
-
-int32_t llm_json_dump(llm_json_t *j, char *buf, int64_t buf_size) {
-  return p_llm_json_dump(j, buf, buf_size);
+int32_t llm_engine_abort_request(llm_engine_t *engine, llm_string_view_t request_id) {
+  return p_llm_engine_abort_request(engine, request_id);
 }

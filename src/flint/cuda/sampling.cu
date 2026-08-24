@@ -4,6 +4,7 @@
 #include <cuda_fp16.h>
 
 #include <cfloat>
+#include <vector>
 
 #include "flint/cuda/common.h"
 
@@ -106,8 +107,14 @@ __global__ void initializeCandidatesKernel(
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   if (index >= numel) return;
 
-  probabilities[index] = static_cast<float>(distribution[index]);
+  float value = static_cast<float>(distribution[index]);
+  probabilities[index] = isnan(value) ? -INFINITY : value;
   labels[index] = index % vocabSize;
+}
+
+__device__ float getSamplingWeight(float logit, float maxLogit, float temperature) {
+  if (isinf(maxLogit)) return logit == maxLogit ? 1.0f : 0.0f;
+  return expf((logit - maxLogit) / temperature);
 }
 
 __global__ void initializeSegmentOffsetsKernel(
@@ -146,9 +153,13 @@ __global__ void sampleTopPExponentialRaceKernel(
   cub::KeyValuePair<int, float> threadBest(0, -INFINITY);
   for (int index = threadIdx.x; index < selectedCount; index += BLOCK_SIZE) {
     float probability = probabilities[row * candidatesPerRow + index];
-    float exponentialNoise = fmaxf(-logf(uniformNoise[row * topK + index]), FLT_MIN);
+      float uniform = uniformNoise[row * topK + index];
+      if (!isfinite(uniform) || uniform <= 0.0f) uniform = FLT_MIN;
+      uniform = fminf(uniform, 1.0f);
+      float exponentialNoise = fmaxf(-logf(uniform), FLT_MIN);
     float score = probability / exponentialNoise;
-    if (score > threadBest.value) {
+      if (isnan(score)) score = 0.0f;
+      if (threadBest.value == -INFINITY || score > threadBest.value) {
       threadBest = cub::KeyValuePair<int, float>(index, score);
     }
   }
@@ -162,69 +173,61 @@ __global__ void sampleTopPExponentialRaceKernel(
   }
 }
 
-template<int BLOCK_SIZE>
+template<typename T, int BLOCK_SIZE>
 __global__ void sampleLogitsRowsKernel(
-    const float *__restrict__ sortedLogits,
-    const int *__restrict__ sortedLabels,
+  const T *__restrict__ logits,
     const float *__restrict__ uniformNoise,
     const float *__restrict__ temperatures,
-    const IntType *__restrict__ topKs,
-    const float *__restrict__ topPs,
     int rows,
     int vocabSize,
     LongType *__restrict__ result) {
   int row = blockIdx.x;
   if (row >= rows) return;
 
-  float temperature = temperatures[row];
-  if (temperature == 0.0f) {
-    if (threadIdx.x == 0) result[row] = sortedLabels[row * vocabSize];
-    return;
-  }
-
-  int topK = topKs[row];
-  int effectiveTopK = topK <= 0 ? vocabSize : min(topK, vocabSize);
-  float topP = topPs[row];
-  float maxLogit = sortedLogits[row * vocabSize];
-
-  __shared__ int selectedCount;
-  if (threadIdx.x == 0) {
-    float totalWeight = 0.0f;
-    for (int index = 0; index < effectiveTopK; ++index) {
-      float logit = sortedLogits[row * vocabSize + index];
-      totalWeight += expf((logit - maxLogit) / temperature);
-    }
-
-    float selectedWeight = 0.0f;
-    selectedCount = effectiveTopK;
-    for (int index = 0; index < effectiveTopK; ++index) {
-      float logit = sortedLogits[row * vocabSize + index];
-      selectedWeight += expf((logit - maxLogit) / temperature);
-      if (selectedWeight >= topP * totalWeight) {
-        selectedCount = index + 1;
-        break;
-      }
-    }
-  }
-  __syncthreads();
-
-  cub::KeyValuePair<int, float> threadBest(0, -INFINITY);
-  for (int index = threadIdx.x; index < selectedCount; index += BLOCK_SIZE) {
-    float logit = sortedLogits[row * vocabSize + index];
-    float weight = expf((logit - maxLogit) / temperature);
-    float noise = fmaxf(-logf(uniformNoise[row * vocabSize + index]), FLT_MIN);
-    float score = weight / noise;
-    if (score > threadBest.value) {
-      threadBest = cub::KeyValuePair<int, float>(index, score);
+  cub::KeyValuePair<int, float> threadMax(0, -INFINITY);
+  for (int index = threadIdx.x; index < vocabSize; index += BLOCK_SIZE) {
+    float logit = static_cast<float>(logits[row * vocabSize + index]);
+    if (isnan(logit)) logit = -INFINITY;
+    if (logit > threadMax.value) {
+      threadMax = cub::KeyValuePair<int, float>(index, logit);
     }
   }
 
   using BlockReduce = cub::BlockReduce<cub::KeyValuePair<int, float>, BLOCK_SIZE>;
   __shared__ typename BlockReduce::TempStorage tempStorage;
+  __shared__ cub::KeyValuePair<int, float> blockMax;
+  cub::KeyValuePair<int, float> reducedMax =
+      BlockReduce(tempStorage).Reduce(threadMax, cub::ArgMax());
+  if (threadIdx.x == 0) blockMax = reducedMax;
+  __syncthreads();
+
+  float temperature = temperatures[row];
+  if (temperature == 0.0f) {
+    if (threadIdx.x == 0) result[row] = blockMax.key;
+    return;
+  }
+
+  cub::KeyValuePair<int, float> threadBest(0, -INFINITY);
+  for (int index = threadIdx.x; index < vocabSize; index += BLOCK_SIZE) {
+    float logit = static_cast<float>(logits[row * vocabSize + index]);
+    if (isnan(logit)) logit = -INFINITY;
+    float weight = getSamplingWeight(logit, blockMax.value, temperature);
+    float uniform = uniformNoise[row * vocabSize + index];
+    if (!isfinite(uniform) || uniform <= 0.0f) uniform = FLT_MIN;
+    uniform = fminf(uniform, 1.0f);
+    float noise = fmaxf(-logf(uniform), FLT_MIN);
+    float score = weight / noise;
+    if (isnan(score)) score = 0.0f;
+    if (threadBest.value == -INFINITY || score > threadBest.value) {
+      threadBest = cub::KeyValuePair<int, float>(index, score);
+    }
+  }
+
+  __syncthreads();
   cub::KeyValuePair<int, float> blockBest =
       BlockReduce(tempStorage).Reduce(threadBest, cub::ArgMax());
   if (threadIdx.x == 0) {
-    result[row] = sortedLabels[row * vocabSize + blockBest.key];
+    result[row] = blockBest.key;
   }
 }
 
@@ -355,60 +358,15 @@ Tensor sampleLogitsImpl(
     const Tensor &topPs) {
   int rows = logits.getShape(0);
   int vocabSize = logits.getShape(1);
-  int64_t numel64 = logits.getNumEl();
-  CHECK(numel64 <= std::numeric_limits<int>::max());
-  int numel = static_cast<int>(numel64);
-
-  lut::c_ptr<float> logitsIn = llynCudaAlloc<float>(numel);
-  lut::c_ptr<float> logitsOut = llynCudaAlloc<float>(numel);
-  lut::c_ptr<int> labelsIn = llynCudaAlloc<int>(numel);
-  lut::c_ptr<int> labelsOut = llynCudaAlloc<int>(numel);
-  lut::c_ptr<int> segmentOffsets = llynCudaAlloc<int>(rows + 1);
+  (void)topKs;
+  (void)topPs;
 
   constexpr int blockSize = 256;
-  initializeCandidatesKernel<<<getGrid1D(numel, blockSize), blockSize>>>(
-      getDataPtrCuda<T>(logits),
-      logitsIn.get(),
-      labelsIn.get(),
-      numel,
-      vocabSize);
-  initializeSegmentOffsetsKernel<<<getGrid1D(rows + 1, blockSize), blockSize>>>(
-      segmentOffsets.get(), rows, vocabSize);
-
-  void *tempStorage = nullptr;
-  size_t tempStorageBytes = 0;
-  LL_CHECK_CUDA_STATUS(cub::DeviceSegmentedRadixSort::SortPairsDescending(
-      tempStorage,
-      tempStorageBytes,
-      logitsIn.get(),
-      logitsOut.get(),
-      labelsIn.get(),
-      labelsOut.get(),
-      numel,
-      rows,
-      segmentOffsets.get(),
-      segmentOffsets.get() + 1));
-  lut::c_ptr<std::byte> tempStoragePtr = llynCudaAlloc<std::byte>(tempStorageBytes);
-  LL_CHECK_CUDA_STATUS(cub::DeviceSegmentedRadixSort::SortPairsDescending(
-      tempStoragePtr.get(),
-      tempStorageBytes,
-      logitsIn.get(),
-      logitsOut.get(),
-      labelsIn.get(),
-      labelsOut.get(),
-      numel,
-      rows,
-      segmentOffsets.get(),
-      segmentOffsets.get() + 1));
-
   Tensor result = createCudaTensorLong({rows});
-  sampleLogitsRowsKernel<blockSize><<<rows, blockSize>>>(
-      logitsOut.get(),
-      labelsOut.get(),
+    sampleLogitsRowsKernel<T, blockSize><<<rows, blockSize>>>(
+      getDataPtrCuda<T>(logits),
       getDataPtrCuda<float>(uniformNoise),
       getDataPtrCuda<float>(temperatures),
-      getDataPtrCuda<IntType>(topKs),
-      getDataPtrCuda<float>(topPs),
       rows,
       vocabSize,
       getDataPtrCuda<LongType>(result));

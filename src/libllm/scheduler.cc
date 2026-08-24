@@ -331,7 +331,7 @@ void SchedulerV2::addRequest(std::shared_ptr<Request> request) {
   if (!std::isfinite(config.temperature) || config.temperature < 0.0f) {
     throw lut::AbortedError("temperature must be finite and not negative");
   }
-  if (config.topK < -1 || config.topK > _model->getOutputDim()) {
+  if (config.topK < -1 || config.topK > _model->getVocab()->getVocabSize()) {
     throw lut::AbortedError("top_k is out of range");
   }
   if (!std::isfinite(config.topP) || config.topP <= 0.0f || config.topP > 1.0f) {
@@ -354,6 +354,15 @@ void SchedulerV2::abortRequest(const std::string &requestId) {
   if (it == _requests.end() || it->second->isFinalEmitted()) return;
   it->second->setPendingFinishReason(RequestFinishReason::kCancelled);
   it->second->setErrorMessage("");
+}
+
+void SchedulerV2::abortAllRequests() {
+  for (auto &entry : _requests) {
+    Request &request = *entry.second;
+    if (request.isFinalEmitted()) continue;
+    request.setPendingFinishReason(RequestFinishReason::kCancelled);
+    request.setErrorMessage("");
+  }
 }
 
 bool SchedulerV2::hasUnfinishedRequests() const {
@@ -628,10 +637,17 @@ std::vector<RequestOutput> SchedulerV2::execute(ScheduledBatch &batch) {
   fl::Tensor sampledTokenIds;
   if (!batch.samplingBatch.empty()) {
     try {
-      sampledTokenIds = batch.samplingBatch.sample(logits);
+      int vocabSize = _model->getVocab()->getVocabSize();
+      CHECK(vocabSize > 0 && vocabSize <= logits.getShape(1));
+      fl::Tensor samplingLogits = logits.getShape(1) == vocabSize
+          ? logits
+          : logits.slice(1, {0, vocabSize});
+      sampledTokenIds = batch.samplingBatch.sample(samplingLogits);
       if (sampledTokenIds.getDevice().getType() != fl::Device::kCpu) {
         sampledTokenIds = fl::F::to(fl::Device::getCpu(), sampledTokenIds);
       }
+      CHECK(sampledTokenIds.getDType() == fl::DType::kLong);
+      CHECK(sampledTokenIds.getShape() == std::vector<int>{batch.samplingBatch.size()});
     } catch (const std::exception &error) {
       for (Request *request : batch.requests) {
         request->setPendingFinishReason(RequestFinishReason::kError);
@@ -659,11 +675,18 @@ std::vector<RequestOutput> SchedulerV2::execute(ScheduledBatch &batch) {
     int sequenceIndex = static_cast<int>(sampleIndices[sampleIndex]);
     Request &request = *batch.requests[sequenceIndex];
     const GenerationConfig &config = request.getConfig();
-    int tokenId = static_cast<int>(sampledData[sampleIndex]);
+    fl::LongType sampledTokenId = sampledData[sampleIndex];
+    int tokenId = static_cast<int>(sampledTokenId);
 
     RequestOutput output;
     output.requestId = request.getId();
-    if (_model->isStopToken(tokenId)) {
+    int vocabSize = _model->getVocab()->getVocabSize();
+    if (tokenId < 0 || tokenId >= vocabSize) {
+      output.finished = true;
+      output.finishReason = RequestFinishReason::kError;
+        output.errorMessage = "sampler returned token " + std::to_string(sampledTokenId) +
+          " outside vocabulary size " + std::to_string(vocabSize);
+    } else if (_model->isStopToken(tokenId)) {
       output.finished = true;
       output.finishReason = RequestFinishReason::kStop;
     } else {

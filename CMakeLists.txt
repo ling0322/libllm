@@ -51,7 +51,7 @@ if(WITH_CUDA)
         endif()
     endif()
     message(STATUS "libllm CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
-    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -DCUTE_ARCH_TCGEN05_TMEM_ENABLED -O3 -Xptxas -v")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -DCUTE_ARCH_TCGEN05_TMEM_ENABLED -O3")
     enable_language(CUDA)
 endif()
 

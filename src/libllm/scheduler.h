@@ -146,6 +146,9 @@ class SchedulerV2 {
   /// The final kCancelled output is returned by a subsequent step().
   void abortRequest(const std::string &requestId);
 
+  /// Mark every unfinished request for cancellation.
+  void abortAllRequests();
+
   /// Schedule and execute at most one packed model forward.
   ///
   /// The result contains DELTA outputs: each entry holds only tokens and text produced since that

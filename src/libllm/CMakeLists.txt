@@ -6,10 +6,11 @@ endif()
 
 set(libllm_SOURCES
     "bpe.cc"
+    "engine.cc"
     "kv_cache.cc"
     "layers.cc"
     "llama.cc"
-    "llm.cc"
+    "llm_v2.cc"
     "model_for_generation.cc"
     "forward_batch.cc"
     "prompt.cc"
@@ -22,8 +23,10 @@ set(libllm_SOURCES
 set(libllm_INCDIR ".." "../../third_party")
 
 set(libllm_test_SOURCES
+    "engine_test.cc"
     "kv_cache_test.cc"
     "llama_test.cc"
+    "llm_v2_test.cc"
     "sampling_batch_test.cc"
     "scheduler_test.cc")
 

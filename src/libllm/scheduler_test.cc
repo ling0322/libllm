@@ -75,7 +75,8 @@ struct BatchRecord {
 
 class FakeModel : public ModelForGeneration {
  public:
-  explicit FakeModel(int numBlocks = NumBlocks) {
+  explicit FakeModel(int numBlocks = NumBlocks, int outputDim = VocabSize)
+      : _outputDim(outputDim) {
     _tokenizer = std::make_shared<FakeTokenizer>();
     _kvCacheManager = std::make_shared<KVCacheManager>(
         getKVCacheSpec(), BlockSize, numBlocks, fl::Device::getCpu());
@@ -93,20 +94,21 @@ class FakeModel : public ModelForGeneration {
     record.positionIds.assign(batch.positionIds().begin(), batch.positionIds().end());
     records.push_back(std::move(record));
 
-    std::vector<float> logits(batch.numSequences() * VocabSize, -10.0f);
+    std::vector<float> logits(batch.numSequences() * _outputDim, -10.0f);
     lut::Span<const fl::LongType> tokens = batch.tokenIds();
     for (int i = 0; i < batch.numSequences(); ++i) {
       int lastQuery = cuQ[i + 1] - 1;
       int nextToken = (static_cast<int>(tokens[lastQuery]) + 1) % VocabSize;
-      logits[i * VocabSize + nextToken] = 10.0f;
+      logits[i * _outputDim + nextToken] = 10.0f;
+      if (_outputDim > VocabSize) logits[i * _outputDim + _outputDim - 1] = 20.0f;
     }
-    return fl::Tensor::create<float>({batch.numSequences(), VocabSize}, logits);
+    return fl::Tensor::create<float>({batch.numSequences(), _outputDim}, logits);
   }
 
   bool isStopToken(int tokenId) const override { return tokenId == 9; }
   const char *getName() const override { return "fake"; }
   fl::Device getDevice() const override { return fl::Device::getCpu(); }
-  int getOutputDim() const override { return VocabSize; }
+  int getOutputDim() const override { return _outputDim; }
   KVCacheSpec getKVCacheSpec() const override {
     return KVCacheSpec(1, 1, 2, 32, fl::DType::kFloat);
   }
@@ -115,6 +117,9 @@ class FakeModel : public ModelForGeneration {
   std::shared_ptr<KVCacheManager> cache() const { return _kvCacheManager; }
 
   mutable std::vector<BatchRecord> records;
+
+ private:
+  int _outputDim;
 };
 
 GenerationConfig config(int maxTokens) {
@@ -219,6 +224,24 @@ CATCH_TEST_CASE("SchedulerV2 batches mixed sampling parameters", "[libllm][sched
   CATCH_REQUIRE(model->records[0].queryLengths == std::vector<int>{1, 1, 1});
 }
 
+CATCH_TEST_CASE("SchedulerV2 does not sample beyond tokenizer vocabulary", "[libllm][scheduler_v2]") {
+  auto model = std::make_shared<FakeModel>(NumBlocks, VocabSize + 4);
+  SchedulerV2 scheduler(model, 1);
+  GenerationConfig greedy = config(1);
+  greedy.temperature = 0.0f;
+  greedy.topK = 0;
+  scheduler.addRequest(std::make_shared<Request>(
+      "padded-vocab",
+      std::vector<fl::LongType>{5},
+      greedy));
+
+  std::vector<RequestOutput> outputs = scheduler.step();
+  CATCH_REQUIRE(outputs.size() == 1);
+  CATCH_REQUIRE(outputs[0].tokenIds == std::vector<fl::LongType>{6});
+  CATCH_REQUIRE(outputs[0].finished);
+  CATCH_REQUIRE(outputs[0].finishReason == RequestFinishReason::kLength);
+}
+
 CATCH_TEST_CASE("SchedulerV2 delivers stop and cancellation", "[libllm][scheduler_v2]") {
   auto model = std::make_shared<FakeModel>();
   SchedulerV2 scheduler(model, 4);
@@ -236,6 +259,24 @@ CATCH_TEST_CASE("SchedulerV2 delivers stop and cancellation", "[libllm][schedule
   CATCH_REQUIRE(outputs[1].finished);
   CATCH_REQUIRE(outputs[1].tokenIds.empty());
   CATCH_REQUIRE(outputs[1].finishReason == RequestFinishReason::kStop);
+  CATCH_REQUIRE_FALSE(scheduler.hasUnfinishedRequests());
+  CATCH_REQUIRE(model->cache()->getNumFreeBlocks() == NumBlocks);
+}
+
+CATCH_TEST_CASE("SchedulerV2 cancels all requests", "[libllm][scheduler_v2]") {
+  auto model = std::make_shared<FakeModel>();
+  SchedulerV2 scheduler(model, 4);
+  scheduler.addRequest(request("first", {1}, 4));
+  scheduler.addRequest(request("second", {2}, 4));
+
+  scheduler.abortAllRequests();
+  std::vector<RequestOutput> outputs = scheduler.step();
+
+  CATCH_REQUIRE(outputs.size() == 2);
+  for (const RequestOutput &output : outputs) {
+    CATCH_REQUIRE(output.finished);
+    CATCH_REQUIRE(output.finishReason == RequestFinishReason::kCancelled);
+  }
   CATCH_REQUIRE_FALSE(scheduler.hasUnfinishedRequests());
   CATCH_REQUIRE(model->cache()->getNumFreeBlocks() == NumBlocks);
 }

@@ -20,6 +20,7 @@
 #include <cuda_fp16.h>
 
 #include <algorithm>
+#include <limits>
 #include <cmath>
 #include <limits>
 #include <vector>
@@ -452,7 +453,7 @@ CATCH_TEST_CASE("test CUDA batched sampling parameters", "[fl][op][cuda]") {
 
   Tensor logits = Tensor::create<float>(
       {4, 4},
-      {0.0f, 4.0f, 2.0f, 1.0f,
+      {std::numeric_limits<float>::quiet_NaN(), 4.0f, 2.0f, 1.0f,
        0.0f, 1.0f, 5.0f, 2.0f,
        0.0f, 1.0f, 2.0f, 6.0f,
        4.0f, 3.0f, 0.0f, -1.0f});
@@ -482,6 +483,23 @@ CATCH_TEST_CASE("test CUDA batched sampling parameters", "[fl][op][cuda]") {
   CATCH_REQUIRE(firstData[2] == 3);
   CATCH_REQUIRE((firstData[3] == 0 || firstData[3] == 1));
   for (int row = 0; row < 4; ++row) CATCH_REQUIRE(firstData[row] == secondData[row]);
+
+  constexpr int vocabSize = 128256;
+  std::vector<float> largeLogits(vocabSize, 0.0f);
+  largeLogits[123456] = 10.0f;
+    Tensor largeLogitsCuda = F::cast(
+      F::to(Device::getCuda(), Tensor::create<float>({1, vocabSize}, largeLogits)),
+      DType::kFloat16);
+    Tensor largeSample = F::sample(
+      largeLogitsCuda,
+      F::to(Device::getCuda(), Tensor::create<float>({1}, {1.0f})),
+      F::to(Device::getCuda(), Tensor::create<IntType>({1}, {0})),
+      F::to(Device::getCuda(), Tensor::create<float>({1}, {0.8f})));
+  largeSample = F::to(Device::getCpu(), largeSample);
+  LongType largeToken = largeSample.getInternalData()->getData<LongType>(
+      largeSample.getInternalOffset())[0];
+  CATCH_REQUIRE(largeToken >= 0);
+  CATCH_REQUIRE(largeToken < vocabSize);
 }
 
 CATCH_TEST_CASE("test gemv", "[fl][op][cuda]") {

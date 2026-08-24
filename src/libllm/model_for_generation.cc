@@ -34,6 +34,13 @@ constexpr char ModelForGeneration::ModelConfig[];
 std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
     const fl::Device &device,
     lut::ZipFile *package) {
+  return fromPackage(device, package, EngineConfig());
+}
+
+std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
+    const fl::Device &device,
+    lut::ZipFile *package,
+    const EngineConfig &config) {
   std::shared_ptr<lut::IniConfig> ini = lut::IniConfig::fromStream(
       package->open(ModelConfig).get());
 
@@ -50,7 +57,7 @@ std::shared_ptr<ModelForGeneration> ModelForGeneration::fromPackage(
   }
 
   model->_tokenizer = Tokenizer::fromPackage(package);
-  model->initKVCacheFromConfig(EngineConfig());
+  model->initKVCacheFromConfig(config);
   return model;
 }
 

@@ -140,9 +140,13 @@ Tensor CPUOperators::sample(
     CHECK(topP > 0.0f && topP <= 1.0f);
 
     const float *rowLogits = logitData + static_cast<int64_t>(row) * vocabSize;
+    auto normalizedLogit = [&](int label) {
+      float value = rowLogits[label];
+      return std::isnan(value) ? -std::numeric_limits<float>::infinity() : value;
+    };
     std::iota(labels.begin(), labels.end(), 0);
     std::sort(labels.begin(), labels.end(), [&](int left, int right) {
-      return rowLogits[left] > rowLogits[right];
+      return normalizedLogit(left) > normalizedLogit(right);
     });
 
     if (temperature == 0.0f) {
@@ -151,10 +155,15 @@ Tensor CPUOperators::sample(
     }
 
     int effectiveTopK = topK <= 0 ? vocabSize : topK;
-    float maxLogit = rowLogits[labels[0]];
+    float maxLogit = normalizedLogit(labels[0]);
+    auto samplingWeight = [&](int label) {
+      float logit = normalizedLogit(label);
+      if (std::isinf(maxLogit)) return logit == maxLogit ? 1.0f : 0.0f;
+      return std::exp((logit - maxLogit) / temperature);
+    };
     float totalWeight = 0.0f;
     for (int i = 0; i < effectiveTopK; ++i) {
-      weights[i] = std::exp((rowLogits[labels[i]] - maxLogit) / temperature);
+      weights[i] = samplingWeight(labels[i]);
       totalWeight += weights[i];
     }
 

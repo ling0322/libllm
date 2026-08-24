@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "catch2/catch_amalgamated.hpp"
+#include <limits>
 #include "flint/cpu/common.h"
 #include "flint/functional.h"
 #include "flint/tensor.h"
@@ -29,7 +30,7 @@ namespace cpu {
 CATCH_TEST_CASE("test CPU batched sampling parameters", "[fl][op][cpu]") {
   Tensor logits = Tensor::create<float>(
       {3, 4},
-      {0.0f, 4.0f, 2.0f, 1.0f,
+      {std::numeric_limits<float>::quiet_NaN(), 4.0f, 2.0f, 1.0f,
        0.0f, 1.0f, 5.0f, 2.0f,
        0.0f, 1.0f, 2.0f, 6.0f});
   Tensor temperatures = Tensor::create<float>({3}, {0.0f, 1.0f, 1.0f});

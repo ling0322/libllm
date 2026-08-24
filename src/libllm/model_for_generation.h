@@ -55,6 +55,10 @@ class ModelForGeneration {
   static std::shared_ptr<ModelForGeneration> fromPackage(
       const fl::Device &device,
       lut::ZipFile *package);
+    static std::shared_ptr<ModelForGeneration> fromPackage(
+      const fl::Device &device,
+      lut::ZipFile *package,
+      const EngineConfig &config);
 
   virtual ~ModelForGeneration() = default;
 
