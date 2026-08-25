@@ -19,7 +19,7 @@
 
 //! What the scheduler needs of a model, whichever family it belongs to.
 
-use flint::{Device, Tensor};
+use crate::flint::{Device, Tensor};
 
 use crate::bpe::BpeModel;
 use crate::error::Result;

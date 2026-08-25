@@ -29,7 +29,7 @@
 //! [`PreparedBatch`], so a batch that has not been prepared cannot be handed to a model by
 //! mistake, and neither can one that is still missing its blocks.
 
-use flint::{Device, Tensor};
+use crate::flint::{Device, Tensor};
 
 use crate::error::{Error, Result};
 

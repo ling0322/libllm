@@ -24,7 +24,7 @@
 //! are named by index because a batch samples only the sequences that are ready for it, which is
 //! not always all of them.
 
-use flint::{functional as F, Device, Tensor};
+use crate::flint::{functional as F, Device, Tensor};
 
 use crate::error::{Error, Result};
 

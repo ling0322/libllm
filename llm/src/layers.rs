@@ -23,7 +23,7 @@
 //! layer to the weights stored for it, and each checks the shape of what it reads so that a
 //! mismatched model package is caught while it loads rather than part way through a forward pass.
 
-use flint::{functional as F, Tensor};
+use crate::flint::{functional as F, Tensor};
 
 use crate::error::{Error, Result};
 use crate::var_builder::VarBuilder;

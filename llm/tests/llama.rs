@@ -24,7 +24,7 @@
 //! large and are not in the repository, and the attention kernels the model needs exist only for
 //! CUDA, so this is `#[ignore]`d: run it with `cargo test --test llama -- --ignored`.
 
-use flint::{functional as F, DType, Device, Tensor};
+use llm::flint::{functional as F, DType, Device, Tensor};
 use llm::{ForwardBatch, KVCacheManager, LlamaForGeneration, LlamaModel, VarBuilder, ZipFile};
 
 const MODEL_PACKAGE: &str = "llama3.2-3b-instruct-fp16.llmpkg";

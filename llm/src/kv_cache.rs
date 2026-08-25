@@ -23,7 +23,7 @@
 //! same token range in every layer, but each layer addresses it in its own key and value tensor,
 //! so a sequence owns a list of block ids and every layer reads its own pool through that list.
 
-use flint::{DType, Device, MemorySnapshot, Tensor};
+use crate::flint::{DType, Device, MemorySnapshot, Tensor};
 
 use crate::engine_config::EngineConfig;
 use crate::error::{Error, Result};

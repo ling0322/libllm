@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "flint-rs",
     "llm",
     "llm-cli",
 ]

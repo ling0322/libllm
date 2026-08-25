@@ -409,7 +409,7 @@ impl<M: ModelForGeneration> Scheduler<M> {
         &mut self,
         batch: ForwardBatch,
         sampling: &SamplingBatch,
-        device: flint::Device,
+        device: crate::flint::Device,
         block_size: i32,
     ) -> Result<Vec<i64>> {
         let prepared = batch.prepare(device, block_size)?;
@@ -435,7 +435,7 @@ impl<M: ModelForGeneration> Scheduler<M> {
         };
 
         let sampled = sampling.prepare(device)?.sample(&logits)?;
-        Ok(sampled.to_device(flint::Device::Cpu)?.to_vec_i64()?)
+        Ok(sampled.to_device(crate::flint::Device::Cpu)?.to_vec_i64()?)
     }
 
     /// Takes one sampled token for one request and says what it produced.

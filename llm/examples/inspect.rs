@@ -24,7 +24,7 @@
 //! cargo run --release --example inspect -- models/llama3.2-3b-instruct-fp16.llmpkg
 //! ```
 
-use flint::{functional as F, Device};
+use llm::flint::{functional as F, Device};
 
 fn main() -> Result<(), llm::Error> {
     let path = match std::env::args().nth(1) {

@@ -27,7 +27,7 @@
 //!
 //! # Why the model is built on the thread
 //!
-//! A [`flint::Tensor`] is not `Send`: the operators keep per-device state that is not ready to be
+//! A [`crate::flint::Tensor`] is not `Send`: the operators keep per-device state that is not ready to be
 //! used from two threads. So the engine cannot be handed a model to move onto its thread; it is
 //! handed a closure that builds one, and runs it there. [`Engine::new`] waits for that closure, so
 //! an engine that exists has a model, and a model that fails to load fails the call rather than

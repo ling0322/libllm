@@ -221,7 +221,7 @@ file(GENERATE
 
 # CMake drives the Rust build too, so a plain `cmake --build build` is the whole build: no
 # separate `cargo build` step. LIBLLM_LIB_DIR is set explicitly so this works regardless of where
-# the build directory was configured, matching what flint-rs/build.rs falls back to on its own.
+# the build directory was configured, matching what llm/build.rs falls back to on its own.
 find_program(CARGO_EXECUTABLE cargo REQUIRED)
 add_custom_target(llm-cli ALL
     COMMAND ${CMAKE_COMMAND} -E env "LIBLLM_LIB_DIR=${CMAKE_BINARY_DIR}"

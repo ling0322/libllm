@@ -17,14 +17,14 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-//! Language model inference on top of the [`flint`] tensor library.
+//! Language model inference on top of the flint tensor library.
 //!
 //! This is a port of the C++ `src/libllm` to Rust. It reads a model package, builds the model it
-//! describes, and runs it; the tensor operations themselves are the ones [`flint`] binds.
+//! describes, and runs it; the tensor operations themselves are the ones [`flint`] binds, and
+//! that module is the safe wrapper over the native `libflint.a` this crate links.
 //!
 //! ```no_run
-//! use flint::{DType, Device};
-//! use llm::{VarBuilder, ZipFile};
+//! use llm::{DType, Device, VarBuilder, ZipFile};
 //!
 //! let mut package = ZipFile::open("model.llmpkg")?;
 //! let config = llm::IniConfig::parse(&package.read_to_string(llm::MODEL_CONFIG)?)?;
@@ -43,6 +43,7 @@ pub mod capi;
 mod engine;
 mod engine_config;
 mod error;
+pub mod flint;
 mod forward_batch;
 mod ini;
 mod kv_cache;
@@ -59,8 +60,8 @@ mod var_builder;
 mod zip_file;
 
 pub use bpe::{BpeConfig, BpeEncoder, BpeModel, INVALID_TOKEN};
-/// The tensor types a caller of this crate needs to name, re-exported so that using it does not
-/// mean depending on [`flint`] directly.
+/// The tensor types a caller of this crate needs to name, re-exported so that the common case
+/// does not have to reach into [`flint`].
 pub use flint::{DType, Device};
 
 pub use engine::{Engine, RequestInput};

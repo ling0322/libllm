@@ -29,7 +29,7 @@ use std::fmt;
 use std::io::Read;
 use std::rc::Rc;
 
-use flint::{DType, Device, Tensor};
+use crate::flint::{DType, Device, Tensor};
 
 use crate::error::{Error, Result};
 use crate::reader::BinaryRead;

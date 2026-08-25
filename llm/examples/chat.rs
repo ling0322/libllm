@@ -26,7 +26,7 @@
 use std::io::Write;
 use std::sync::mpsc::channel;
 
-use flint::Device;
+use llm::flint::Device;
 use llm::{
     Engine, EngineConfig, GenerationConfig, KVCacheManager, LlamaForGeneration, Message,
     RequestInput, RequestOutput, ZipFile,

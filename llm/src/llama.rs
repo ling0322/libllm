@@ -25,7 +25,7 @@
 //! layer never sees a contiguous per-sequence cache: it writes the keys of the tokens it was just
 //! given into the slots the batch names, then attends over the blocks the batch lists.
 
-use flint::{functional as F, DType, Device, Tensor};
+use crate::flint::{functional as F, DType, Device, Tensor};
 
 use crate::error::{Error, Result};
 use crate::forward_batch::PreparedBatch;
