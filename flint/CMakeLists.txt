@@ -40,9 +40,14 @@ set(flint_SOURCES
 
 set(flint_test_SOURCES
     "capi_test.cc"
+    "cpu/fill_test.cc"
     "cpu/kernel/benchmark.cc"
     "cpu/kernel/interface_test.cc"
-    "cpu/test.cc"
+    "cpu/lookup_test.cc"
+    "cpu/matmul_test.cc"
+    "cpu/reduce_test.cc"
+    "cpu/sampling_test.cc"
+    "cpu/softmax_test.cc"
     "tensor_test.cc")
 
 set(flint_benchmark_SOURCES
@@ -96,15 +101,33 @@ if (WITH_CUDA)
 
     set(flint_test_SOURCES
         ${flint_test_SOURCES}
+        "cuda/arange_test.cc"
+        "cuda/attention_test.cc"
+        "cuda/binary_scalar_test.cc"
+        "cuda/binary_test.cc"
+        "cuda/causal_mask_test.cc"
+        "cuda/common_test.cc"
+        "cuda/copy_test.cc"
+        "cuda/fill_test.cc"
+        "cuda/lookup_test.cc"
+        "cuda/matmul_test.cc"
+        "cuda/matvec_test.cc"
+        "cuda/rand_test.cc"
+        "cuda/reduce_test.cc"
+        "cuda/repetition_penalty_test.cc"
+        "cuda/rms_norm_test.cc"
         "cuda/rotary_embedding_test.cc"
         "cuda/sampling_test.cc"
+        "cuda/softmax_test.cc"
         "cuda/store_kv_cache_test.cc"
-        "cuda/test.cc")
+        "cuda/swiglu_test.cc"
+        "cuda/to_device_test.cc")
     set(flint_benchmark_SOURCES ${flint_benchmark_SOURCES} "cuda/benchmark.cc")
 
     if (WITH_CUTLASS)
         set(flint_SOURCES ${flint_SOURCES}
             "cuda/gemm_cutlass.cu")
+        set(flint_test_SOURCES ${flint_test_SOURCES} "cuda/gemm_cutlass_test.cc")
         set(flint_INCDIR ${flint_INCDIR}
             "../third_party/cutlass/include"
             "../third_party/cutlass/tools/util/include")
