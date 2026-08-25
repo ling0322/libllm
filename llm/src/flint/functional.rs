@@ -17,15 +17,15 @@
 //! over and let the error path sort out.
 //!
 //! ```no_run
-//! use flint::{functional as F, Tensor};
+//! use llm::flint::{functional as F, Tensor};
 //!
 //! let a = Tensor::from_f32(&[2, 2], &[1.0, 2.0, 3.0, 4.0])?;
 //! let b = Tensor::from_f32(&[2, 2], &[1.0, 0.0, 0.0, 1.0])?;
 //! assert_eq!(F::matmul(&a, &b)?.to_vec_f32()?, vec![1.0, 2.0, 3.0, 4.0]);
-//! # Ok::<(), flint::Error>(())
+//! # Ok::<(), llm::flint::Error>(())
 //! ```
 
-use crate::{check, ffi, init, DType, Device, Result, Tensor};
+use super::{check, ffi, init, DType, Device, Result, Tensor};
 
 /// Reduce over the last dimension, the default of [`sum`] and [`max`].
 pub const LAST_DIM: i32 = -1;

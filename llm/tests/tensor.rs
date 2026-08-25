@@ -1,7 +1,7 @@
 //! Tests for the safe tensor wrapper. These link against the shared library that CMake builds, so
 //! run `cmake --build build --target libllm` first, or point LIBLLM_LIB_DIR somewhere else.
 
-use flint::{Bound, DType, Device, Tensor};
+use llm::flint::{Bound, DType, Device, Tensor};
 
 #[test]
 fn reports_metadata() {

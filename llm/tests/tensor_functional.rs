@@ -5,7 +5,7 @@
 //! they accept: the operators check their arguments with the C++ library's fatal check, so a test
 //! that fed one a shape it cannot use would abort the whole test binary rather than fail.
 
-use flint::{functional as F, DType, Device, Tensor};
+use llm::flint::{functional as F, DType, Device, Tensor};
 
 fn cpu_f32(shape: &[i32], data: &[f32]) -> Tensor {
     Tensor::from_f32(shape, data).unwrap()

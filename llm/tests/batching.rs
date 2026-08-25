@@ -22,7 +22,7 @@
 //! Both are the bookkeeping around attention rather than attention itself, so they run on the CPU
 //! even though the attention kernels that read them do not.
 
-use flint::{DType, Device};
+use llm::flint::{DType, Device};
 use llm::{ForwardBatch, KVCacheManager, KVCacheSpec};
 
 fn spec() -> KVCacheSpec {

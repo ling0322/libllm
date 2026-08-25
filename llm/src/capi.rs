@@ -32,7 +32,7 @@ use std::cell::RefCell;
 use std::ffi::{c_char, c_void, CString};
 use std::sync::Once;
 
-use flint::Device;
+use crate::flint::Device;
 
 use crate::engine::{Engine, RequestInput};
 use crate::engine_config::EngineConfig;
@@ -215,7 +215,7 @@ static INIT: Once = Once::new();
 /// Sets up the operator backends. Thread-safe, and does nothing after the first call.
 #[no_mangle]
 pub extern "C" fn llm_init() {
-    INIT.call_once(flint::init);
+    INIT.call_once(crate::flint::init);
     clear_error();
 }
 

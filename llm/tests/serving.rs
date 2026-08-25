@@ -28,7 +28,7 @@ use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use flint::{Device, Tensor};
+use llm::flint::{Device, Tensor};
 use llm::{
     EngineConfig, FinishReason, GenerationConfig, KVCacheManager, KVCacheSpec, ModelForGeneration,
     Prompt, Request, RequestOutput, Scheduler, Tokenizer,
@@ -168,7 +168,7 @@ impl MockModel {
             num_key_value_heads: 1,
             head_dim: 8,
             max_context_length: 64,
-            dtype: flint::DType::Float,
+            dtype: llm::flint::DType::Float,
         }
     }
 }

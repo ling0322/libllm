@@ -25,7 +25,7 @@
 //! `cargo test --test model_package -- --ignored`, and point `LLM_TEST_PACKAGE` at a `.llmpkg`
 //! if yours is not the one under `models/`.
 
-use flint::{functional as F, Device};
+use llm::flint::{functional as F, Device};
 use llm::{IniConfig, VarBuilder, ZipFile};
 
 fn package_path() -> std::path::PathBuf {
@@ -81,7 +81,7 @@ fn reads_a_real_package() {
     // The shapes the configuration calls for are the shapes the file holds.
     let embedding = llm::Embedding::build(hidden_size, vocab_size, &model.with_name("embd"))
         .expect("the embedding should match the configuration");
-    let tokens = flint::Tensor::from_i64(&[3], &[0, 1, 2]).unwrap();
+    let tokens = llm::flint::Tensor::from_i64(&[3], &[0, 1, 2]).unwrap();
     let embedded = embedding.forward(&tokens).unwrap();
     assert_eq!(embedded.shape(), vec![3, hidden_size]);
 

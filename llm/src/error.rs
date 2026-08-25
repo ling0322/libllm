@@ -34,7 +34,7 @@ pub enum Error {
     /// The model package is missing something the model needs, or holds it in the wrong shape.
     Model(String),
     /// A tensor operation failed.
-    Tensor(flint::Error),
+    Tensor(crate::flint::Error),
 }
 
 impl Error {
@@ -74,8 +74,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<flint::Error> for Error {
-    fn from(error: flint::Error) -> Error {
+impl From<crate::flint::Error> for Error {
+    fn from(error: crate::flint::Error) -> Error {
         Error::Tensor(error)
     }
 }

@@ -25,7 +25,7 @@
 
 use std::io::Write;
 
-use flint::{functional as F, DType, Device, Tensor};
+use llm::flint::{functional as F, DType, Device, Tensor};
 use llm::{Embedding, IniConfig, Linear, RmsNorm, VarBuilder, ZipFile};
 
 /// Writes a zip holding `entries`, stored rather than compressed, as a model package is.

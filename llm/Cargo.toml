@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "Language model inference on top of the flint tensor library"
+# Declares that this crate links libflint.a, so Cargo runs build.rs and keeps the native library
+# to a single owner in the dependency graph.
+links = "flint"
 
 [lib]
 name = "llm"
@@ -11,6 +14,3 @@ path = "src/lib.rs"
 # rlib for Rust consumers, staticlib and cdylib for C programs. Both C artifacts are
 # self-contained down to the C++ kernels linked from libflint.a.
 crate-type = ["rlib", "staticlib", "cdylib"]
-
-[dependencies]
-flint = { path = "../flint-rs" }

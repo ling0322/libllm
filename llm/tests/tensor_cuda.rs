@@ -5,7 +5,7 @@
 //! run with `cargo test --test cuda -- --ignored`. On a machine without one, the library ends the
 //! process rather than reporting an error, which is why they do not simply detect and skip.
 
-use flint::{functional as F, DType, Device, Tensor};
+use llm::flint::{functional as F, DType, Device, Tensor};
 
 /// The float type the CUDA operators work in, which the inputs have to be in already.
 fn cuda_float() -> DType {

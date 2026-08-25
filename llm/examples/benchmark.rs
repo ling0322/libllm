@@ -29,7 +29,7 @@
 
 use std::time::{Duration, Instant};
 
-use flint::Device;
+use llm::flint::Device;
 use llm::{EngineConfig, ForwardBatch, KVCacheManager, LlamaForGeneration, Prompt, ZipFile};
 
 /// How long to keep repeating each measurement.

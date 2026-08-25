@@ -1,4 +1,4 @@
-//! Rust bindings for the flint tensor library.
+//! Safe Rust bindings for the native flint tensor library.
 //!
 //! A [`Tensor`] owns a handle to shape metadata plus a reference to storage that other tensors may
 //! share. Reshaping operations such as [`Tensor::view`] or [`Tensor::transpose`] return a new
@@ -6,7 +6,7 @@
 //! tensor is cheap but does not give you an independent copy of the data.
 //!
 //! ```no_run
-//! use flint::{DType, Device, Tensor};
+//! use llm::flint::{self, DType, Device, Tensor};
 //!
 //! flint::init();
 //! let x = Tensor::from_f32(&[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])?;
@@ -14,19 +14,19 @@
 //! assert_eq!(x.dtype(), DType::Float);
 //! assert_eq!(x.device(), Device::Cpu);
 //! assert_eq!(x.transpose(0, 1)?.to_vec_f32()?, vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
-//! # Ok::<(), flint::Error>(())
+//! # Ok::<(), llm::flint::Error>(())
 //! ```
 //!
 //! The operations that work on tensors rather than describe them live in [`functional`], which
 //! mirrors `flint/functional.h`:
 //!
 //! ```no_run
-//! use flint::{functional as F, Tensor};
+//! use llm::flint::{functional as F, Tensor};
 //!
 //! let x = Tensor::from_f32(&[2, 2], &[1.0, 2.0, 3.0, 4.0])?;
 //! let sums = F::sum(&x, F::LAST_DIM)?;
 //! assert_eq!(sums.to_vec_f32()?, vec![3.0, 7.0]);
-//! # Ok::<(), flint::Error>(())
+//! # Ok::<(), llm::flint::Error>(())
 //! ```
 //!
 //! # Threading
@@ -533,7 +533,7 @@ impl Tensor {
     }
 
     /// Copy boolean elements out in row-major order, as the comparisons in
-    /// [`functional`](crate::functional) produce them.
+    /// [`functional`] produce them.
     pub fn to_vec_bool(&self) -> Result<Vec<bool>> {
         // Read the bytes rather than `bool` itself: a byte that is neither 0 nor 1 is a valid u8
         // but not a valid bool, and nothing here can promise the library never writes one.

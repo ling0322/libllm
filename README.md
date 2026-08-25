@@ -196,26 +196,25 @@ cmake --build build --target unittest --parallel
 ./build/unittest
 ```
 
-Run the Rust Flint and CLI tests. These read the link flags CMake already wrote out, so they work
-without re-running `cmake --build` -- just be sure `build/` reflects the latest C++ if you edited a
-kernel:
+Run the Rust tests. These read the link flags CMake already wrote out, so they work without
+re-running `cmake --build` -- just be sure `build/` reflects the latest C++ if you edited a kernel:
 
 ```bash
-cargo test -p flint
+cargo test -p llm
 cargo test -p llm-cli
 ```
 
 The ignored Rust CUDA integration tests can be run on a CUDA machine with:
 
 ```bash
-cargo test -p flint --test cuda -- --ignored
+cargo test -p llm --test tensor_cuda -- --ignored
 ```
 
 Some `llm` integration tests require the model and reference packages under `models/`.
 
 ### Custom native build directory
 
-`flint-rs` uses `build/` by default. Point CMake at a different build directory and it builds the
+The Rust build uses `build/` by default. Point CMake at a different build directory and it builds the
 CLI the same way:
 
 ```bash

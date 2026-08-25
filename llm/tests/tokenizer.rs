@@ -23,7 +23,7 @@
 //! the port drifting away from it. Needs a model package, so it is `#[ignore]`d: run it with
 //! `cargo test --test tokenizer -- --ignored`.
 
-use flint::{DType, Device};
+use llm::flint::{DType, Device};
 use llm::{LlamaForGeneration, Message, Tokenizer, VarBuilder, ZipFile};
 
 fn models_dir() -> std::path::PathBuf {
