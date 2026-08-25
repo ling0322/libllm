@@ -72,4 +72,47 @@ CATCH_TEST_CASE("test CUDA FastDivmod", "[fl][cuda]") {
   }
 }
 
+CATCH_TEST_CASE("test CUDA FastDivmod (powers of two)", "[fl][cuda]") {
+  // The magic-number derivation shifts by ceil(log2(divisor)); an exact power of two is where
+  // that shift lands on the boundary and the multiplier is at its smallest.
+  for (int shift = 0; shift < 31; ++shift) {
+    uint32_t divisor = uint32_t{1} << shift;
+    op::cuda::FastDivmod divider(divisor);
+
+    uint32_t dividends[] = {
+        0,
+        1,
+        divisor - 1,
+        divisor,
+        divisor + 1,
+        divisor * 2 - 1,
+        INT32_MAX - 1,
+        INT32_MAX};
+    for (uint32_t dividend : dividends) {
+      uint32_t quotient;
+      uint32_t remainder;
+      divider.divmod(dividend, quotient, remainder);
+      CATCH_INFO("divisor = " << divisor << ", dividend = " << dividend);
+      CATCH_REQUIRE(quotient == dividend / divisor);
+      CATCH_REQUIRE(remainder == dividend % divisor);
+    }
+  }
+}
+
+CATCH_TEST_CASE("test CUDA FastDivmod (exhaustive small)", "[fl][cuda]") {
+  // Small divisors are what the tensor accessors actually use (one per axis), so walk every
+  // dividend/divisor pair in that range rather than sampling it.
+  for (uint32_t divisor = 1; divisor <= 64; ++divisor) {
+    op::cuda::FastDivmod divider(divisor);
+    for (uint32_t dividend = 0; dividend < 512; ++dividend) {
+      uint32_t quotient;
+      uint32_t remainder;
+      divider.divmod(dividend, quotient, remainder);
+      CATCH_INFO("divisor = " << divisor << ", dividend = " << dividend);
+      CATCH_REQUIRE(quotient == dividend / divisor);
+      CATCH_REQUIRE(remainder == dividend % divisor);
+    }
+  }
+}
+
 }  // namespace fl

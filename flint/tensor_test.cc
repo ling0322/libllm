@@ -82,4 +82,25 @@ CATCH_TEST_CASE("test subtensor and slice", "[core][nn][tensor]") {
   CATCH_REQUIRE(F::allClose(tensor.slice(0, {1, 3}).slice(1, {1, 3}), subtensor));
 }
 
+CATCH_TEST_CASE("test view infers a dimension", "[core][nn][tensor]") {
+  Tensor tensor = F::rand({2, 3, 4, 5}, DType::kFloat);
+
+  // A contiguous tensor and a strided one take different code paths, and only the contiguous one
+  // resolves the inferred -1 before walking the strides.
+  Tensor contiguousView = tensor.view({-1, 4, 5});
+  CATCH_REQUIRE(contiguousView.getShape() == std::vector<int>{6, 4, 5});
+  CATCH_REQUIRE(F::allClose(contiguousView, tensor.view({6, 4, 5})));
+
+  Tensor strided = tensor.transpose(2, 3);
+  CATCH_REQUIRE(!strided.isContiguous());
+
+  Tensor stridedView = strided.view({-1, 5, 4});
+  CATCH_REQUIRE(stridedView.getShape() == std::vector<int>{6, 5, 4});
+  CATCH_REQUIRE(F::allClose(stridedView, strided.view({6, 5, 4})));
+
+  // the inferred dimension can sit anywhere in the request, not only first.
+  CATCH_REQUIRE(strided.view({6, 5, -1}).getShape() == std::vector<int>{6, 5, 4});
+  CATCH_REQUIRE(strided.view({6, -1, 4}).getShape() == std::vector<int>{6, 5, 4});
+}
+
 }  // namespace fl
