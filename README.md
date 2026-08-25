@@ -116,10 +116,10 @@ See [llm/examples/chat.rs](llm/examples/chat.rs) for the complete source.
 
 ## Build
 
-libLLM has two build stages:
-
-1. CMake builds the native Flint C++/CUDA kernels into `build/libflint.a`.
-2. Cargo builds the Rust workspace and links the native library into `llm` and `llm-cli`.
+CMake drives the whole build. Configuring picks the native Flint C++/CUDA options -- which
+backends to compile, where CUDA lives, what the third_party prerequisites resolve to -- and
+`cmake --build` does the rest: it builds `libflint.a`, then runs `cargo build` to link it into
+`llm` and `llm-cli`.
 
 Requirements:
 
@@ -138,7 +138,6 @@ Requirements:
 ```bash
 cmake -S . -B build -DWITH_CUDA=OFF
 cmake --build build --parallel
-cargo build -p llm-cli --release
 ```
 
 The command-line executable is written to:
@@ -156,14 +155,13 @@ built once before configuring libLLM:
 ./third_party/install_flash_attn.sh
 ```
 
-Then build the native kernels and CLI:
+Then configure and build:
 
 ```bash
 cmake -S . -B build \
 	-DWITH_CUDA=ON \
 	-DCUDA_ARCH_NATIVE=ON
 cmake --build build --parallel
-cargo build -p llm-cli --release
 ```
 
 `CUDA_ARCH_NATIVE=ON` builds only for GPUs installed in the current machine. Omit it when
@@ -187,7 +185,6 @@ export OpenMP_ROOT="$(brew --prefix)/opt/libomp"
 
 cmake -S . -B build -DWITH_CUDA=OFF
 cmake --build build --parallel
-cargo build -p llm-cli --release
 ```
 
 ### Tests
@@ -199,7 +196,9 @@ cmake --build build --target unittest --parallel
 ./build/unittest
 ```
 
-Run the Rust Flint and CLI tests:
+Run the Rust Flint and CLI tests. These read the link flags CMake already wrote out, so they work
+without re-running `cmake --build` -- just be sure `build/` reflects the latest C++ if you edited a
+kernel:
 
 ```bash
 cargo test -p flint
@@ -216,11 +215,17 @@ Some `llm` integration tests require the model and reference packages under `mod
 
 ### Custom native build directory
 
-`flint-rs` uses `build/` by default. When the CMake output is elsewhere, point Cargo at it with
-`LIBLLM_LIB_DIR`:
+`flint-rs` uses `build/` by default. Point CMake at a different build directory and it builds the
+CLI the same way:
 
 ```bash
 cmake -S . -B out/native -DWITH_CUDA=ON
 cmake --build out/native --parallel
+```
+
+To run `cargo` directly against a build directory that isn't the default `build/`, point it there
+with `LIBLLM_LIB_DIR`:
+
+```bash
 LIBLLM_LIB_DIR="$PWD/out/native" cargo build -p llm-cli --release
 ```

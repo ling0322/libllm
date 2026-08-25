@@ -89,7 +89,9 @@ the thread-local details are available through `fl_get_last_error_code()` and
 `fl_get_last_error_message()`.
 
 Rust applications should use the safe wrapper in [`flint-rs`](../flint-rs), not call the C API
-directly. `flint-rs/build.rs` links the native `build/libflint.a` produced by CMake.
+directly. `flint-rs/build.rs` links the native `build/libflint.a` produced by CMake; CMake is what
+drives the Rust build (see the top-level `CMakeLists.txt`'s `llm-cli` target), so `cmake --build`
+alone builds Flint and the CLI together.
 
 ## Build
 
@@ -118,6 +120,10 @@ build/unittest            Native test executable
 build/benchmark           Native benchmark executable
 ```
 
+`cmake --build build` (no `--target`) builds all of the above plus the `llm` and `llm-cli` crates,
+since the default target set includes the `llm-cli` custom target that invokes `cargo build`. Use
+`--target flint`, `--target unittest`, or `--target benchmark` to build just one native piece.
+
 ## Tests and benchmarks
 
 Build and run the full native test suite:
@@ -140,7 +146,8 @@ cmake --build build --target benchmark --parallel
 ./build/benchmark
 ```
 
-The Rust binding tests exercise the same native library:
+The Rust binding tests exercise the same native library. They read the link flags CMake already
+wrote out rather than rebuilding it, so re-run `cmake --build build` first if you edited a kernel:
 
 ```bash
 cargo test -p flint
