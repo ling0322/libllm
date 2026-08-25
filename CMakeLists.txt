@@ -153,7 +153,7 @@ if(WITH_FLASH_ATTN)
         INTERFACE_INCLUDE_DIRECTORIES "${FLASH_ATTN_ROOT}/csrc/flash_attn/src")
 endif()
 
-add_subdirectory("src")
+add_subdirectory("flint")
 
 set(libllm_LIBADD lutil flint_static ${CMAKE_DL_LIBS} ${UNWIND_ARCH_LIB} ${UNWIND_LIB} )
 
@@ -237,13 +237,13 @@ endif()
 
 add_library(catch2 STATIC  "../third_party/catch2/catch_amalgamated.cpp")
 
-add_executable(unittest "src/flint/bin/unittest.cc")
-target_include_directories(unittest PRIVATE "src" "third_party")
+add_executable(unittest "flint/bin/unittest.cc")
+target_include_directories(unittest PRIVATE "." "flint" "third_party")
 
 target_link_libraries(unittest ${unittest_LIBADD})
 
-add_executable(benchmark "src/flint/bin/benchmark.cc")
-target_include_directories(benchmark PRIVATE "src" "third_party")
+add_executable(benchmark "flint/bin/benchmark.cc")
+target_include_directories(benchmark PRIVATE "." "flint" "third_party")
 target_link_libraries(benchmark flint_benchmark ${libllm_LIBADD} catch2)
 
 enable_testing()

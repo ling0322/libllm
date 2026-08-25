@@ -22,4 +22,4 @@ __pycache__
 /tools/*.config
 python/build
 python/dist
-/rust/*/target
+/target

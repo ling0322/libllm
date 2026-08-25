@@ -18,6 +18,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import argparse
+import os
+
+os.environ.setdefault("TORCH_DISABLE_NATIVE_JIT", "1")
+
 import torch
 import configparser
 import zipfile
@@ -155,17 +159,108 @@ TEST_SENTENCES = [
     "Marisa Kirisame (霧雨 魔理沙) is an ordinary human magician who specializes in light and heat magic and currently resides in the Forest of Magic. She is considered to be the deuteragonist of the Touhou Project series along with the main protagonist, Reimu Hakurei.",
 ]
 
+TEST_SENTENCES += ["""Alice Margatroid
+Personality
+Alice is generally indifferent toward others and prefers an indoor, solitary lifestyle. She rarely leaves the Forest of Magic and knows relatively little about the world outside it. Although she usually presents herself confidently, she also has a timid side.
+She has a strong interest in magic and enjoys collecting magical items and books. This sometimes causes conflict with Marisa Kirisame, who has similar interests.
+Despite being a youkai, Alice is relatively friendly toward humans and is considered to have a low danger level. If someone becomes lost in the Forest of Magic and reaches her house, she is willing to offer them shelter. However, her home is filled with dolls, and her quiet personality can make visitors uncomfortable.
+Alice can be hospitable when she chooses. She has served tea and cake to the Three Fairies of Light and offered them friendship after learning their identities. She has also helped Sakuya Izayoi find her way out of the Forest of Magic.
+Alice was originally human and does not normally attack humans in the way some youkai do. However, she enjoys fighting and readily accepts challenges.
+In combat, Alice prefers intelligence, tactics, and careful control over overwhelming force. She deliberately avoids using all of her strength and generally tries to fight at a level only slightly above her opponent. She dislikes simply overpowering an enemy. Even when losing, she may refuse to reveal her full strength because she believes losing after using everything she has would leave her with nowhere further to go.
+Abilities
+Alice is a magician whose specialty is magic involving dolls.
+Her physical and magical power are considered relatively average, but she possesses exceptional dexterity and extremely refined control over her dolls. She can manipulate a large number of dolls simultaneously and make them behave almost like living beings.
+Her dolls are not actually alive. Alice controls them through magical threads rather than physically moving them with her hands.
+The dolls can perform most actions that humans can perform. They can also manipulate other dolls. Alice commonly uses them for household tasks such as cooking, laundry, cleaning, maintenance, and other chores.
+Alice personally creates her dolls rather than having existing dolls manufacture new ones.
+During battle, Alice usually fights through large groups of dolls. Destroyed dolls can quickly be replaced, allowing her to overwhelm opponents through numbers and positioning.
+Some dolls contain gunpowder or can be magically detonated. Alice may use dolls that are no longer needed as explosive attacks.
+Because controlling many dolls requires concentration, Alice herself tends to move relatively slowly during combat. Directly attacking Alice can therefore be an effective way to disrupt her fighting style.
+Most of her danmaku attacks are performed by her dolls. When Alice attacks directly, her attacks tend to be simpler and weaker.
+Her dolls have occasionally been shown speaking or displaying apparent emotions. However, they are still being controlled by Alice rather than acting independently, meaning these conversations can effectively be considered Alice performing both sides herself.
+Autonomous Doll Research
+Alice's long-term objective is to create a completely autonomous doll capable of thinking and moving according to its own will.
+She has not yet succeeded and acknowledges that she still has much to learn.
+Her research includes experiments concerning the relationship between bodies and souls. She believes that the connection between body and soul is related to the same principle that allows her magical strings to control dolls.
+One experiment involved attaching humanoid straw dolls to trees in order to investigate how actions performed on a representation could affect the associated subject.
+Despite pursuing autonomous dolls as an important research goal, Alice admits that dolls directly controlled by her are currently more practical and useful than dolls capable of independent thought.
+Occupation
+Alice normally lives in the Forest of Magic and rarely leaves it.
+She generally has little interest in the activities of other youkai and usually does not involve herself in incidents. However, if an incident appears to be going unresolved, she may investigate it herself.
+Alice is primarily a doll maker and magician.
+She has stated that she does not normally sell her dolls and does not consider herself a public performer. Because she creates her own dolls, she also has little reason to purchase them.
+Other accounts describe her performing doll shows for crowds during festivals, suggesting that she occasionally presents her puppetry publicly.
+She has also been seen outside the Forest of Magic, including in the Human Village.
+Possessions
+Dolls
+Alice owns a very large collection of dolls of many different types.
+Because the Forest of Magic is humid, the dolls require frequent maintenance to prevent damage.
+Many of Alice's spell cards name dolls after locations or nationalities.
+Notable dolls include:
+Shanghai Doll
+A named doll capable of firing a straight, piercing laser.
+Hourai Doll
+A named doll that uses a stronger version of Shanghai Doll's attack.
+Goliath Doll
+A particularly large doll created by Alice. It was still undergoing testing when it appeared.
+Grimoire
+Alice possesses a magical book or grimoire.
+In Mystic Square, she carried a black book labeled "Grimoire of Alice" and claimed that it contained ultimate magic.
+In later appearances, she is usually shown carrying an unlabeled black-covered book.
+Alice considers the book valuable and has reacted strongly when she believed others were attempting to steal it.
+Species
+Alice is a magician as a species rather than merely a human who practices magic.
+She was originally human and later became a magician youkai through magic associated with abandoning the need for food.
+Her transformation into a magician is relatively recent.
+Because she spent much of her life as a human, she still retains human habits such as eating and sleeping even though these activities are no longer strictly necessary.
+Core Traits
+Species: Magician youkai, formerly human
+Residence: Forest of Magic
+Primary ability: Magic and doll manipulation
+Specialization: Puppetry, magical threads, simultaneous control of many dolls
+Combat style: Strategic, technical, indirect, doll-based
+Temperament: Solitary, reserved, confident but somewhat timid
+Attitude toward humans: Generally peaceful and hospitable
+Interests: Magic, magical items, books, doll making
+Primary research goal: Creation of a fully autonomous doll
+Major weakness: Heavy concentration on doll control leaves Alice herself comparatively vulnerable
+Notable possessions: Large doll collection, Shanghai Doll, Hourai Doll, Goliath Doll, magical grimoire"""]
+
 def export_test_cases(model, tokenizer, fp):
     ctx = Context("test_case")
     with TensorWriter(fp) as writer:
+        assert next(model.parameters()).device.type == "cpu"
+        assert next(model.parameters()).dtype == torch.float32
         for idx, sentence in enumerate(TEST_SENTENCES):
             input_ids = tokenizer(sentence, return_tensors="pt").input_ids
-            with torch.no_grad():
-                logits = model(input_ids).logits
+            with torch.inference_mode():
+                logits_cpu_fp32 = model(input_ids).logits
+            assert logits_cpu_fp32.device.type == "cpu"
+            assert logits_cpu_fp32.dtype == torch.float32
 
             case_ctx = ctx.with_subname(str(idx)).with_quant(Quant.NONE)
             writer.write_tensor(case_ctx.with_subname("input_ids"), input_ids[0])
-            writer.write_tensor(case_ctx.with_subname("logits"), logits[0])
+            writer.write_tensor(
+                case_ctx.with_subname("logits_cpu_fp32"),
+                logits_cpu_fp32[0],
+                preserve_dtype=True)
+            del logits_cpu_fp32
+
+        model.to(device="cuda", dtype=torch.float16)
+        assert next(model.parameters()).device.type == "cuda"
+        assert next(model.parameters()).dtype == torch.float16
+        for idx, sentence in enumerate(TEST_SENTENCES):
+            input_ids = tokenizer(sentence, return_tensors="pt").input_ids.to("cuda")
+            with torch.inference_mode():
+                logits_cuda_fp16 = model(input_ids).logits
+            assert logits_cuda_fp16.device.type == "cuda"
+            assert logits_cuda_fp16.dtype == torch.float16
+
+            case_ctx = ctx.with_subname(str(idx)).with_quant(Quant.NONE)
+            writer.write_tensor(
+                case_ctx.with_subname("logits_cuda_fp16"),
+                logits_cuda_fp16[0])
+            del logits_cuda_fp16
 
 if __name__ == '__main__':
     from transformers import AutoTokenizer
@@ -189,7 +284,10 @@ if __name__ == '__main__':
         sys.exit(0)
 
     tokenizer = AutoTokenizer.from_pretrained(args.huggingface_name, trust_remote_code=True)
-    model = LlamaForCausalLM.from_pretrained(args.huggingface_name, trust_remote_code=True)
+    model = LlamaForCausalLM.from_pretrained(
+        args.huggingface_name,
+        trust_remote_code=True,
+        torch_dtype=torch.float32)
     model = model.eval()
 
     with zipfile.ZipFile(args.output, "w", compression=zipfile.ZIP_STORED) as package:

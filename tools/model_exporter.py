@@ -165,10 +165,10 @@ class TensorWriter:
         self._fp.write(struct.pack('<i', num_slot))
 
 
-    def _write_tensor(self, tensor: torch.Tensor):
-        if tensor.dtype == torch.float32:
+    def _write_tensor(self, tensor: torch.Tensor, preserve_dtype=False):
+        if tensor.dtype == torch.float32 and not preserve_dtype:
             tensor = tensor.to(torch.float16)
-        assert tensor.dtype in {torch.float16, torch.int64}
+        assert tensor.dtype in {torch.float32, torch.float16, torch.int64}
 
         self._write_tensor_header(tensor.shape)
         self._write_tensor_elem(tensor)
@@ -223,7 +223,7 @@ class TensorWriter:
 
         self._fp.write(struct.pack('<h', 0x55aa))
 
-    def write_tensor(self, ctx: Context, tensor: torch.Tensor):
+    def write_tensor(self, ctx: Context, tensor: torch.Tensor, preserve_dtype=False):
         print(f"write tensor {ctx.name}, shape={tensor.shape}, quant={ctx.quant}")
         self._fp.write(b"<r> ")
 
@@ -234,7 +234,7 @@ class TensorWriter:
         self._fp.write(name)
 
         if ctx.quant == Quant.NONE:
-            self._write_tensor(tensor)
+            self._write_tensor(tensor, preserve_dtype=preserve_dtype)
         elif ctx.quant == Quant.Q4:
             self._write_tensor_qint4x32(tensor)
         else:
