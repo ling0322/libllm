@@ -24,6 +24,11 @@
 #include "flint/cuda/to_device.h"
 
 #include <algorithm>
+#include <vector>
+
+#ifdef LIBLLM_CAUSAL_CONV1D_ENABLED
+#include "causal_conv1d_api.h"
+#endif
 
 namespace fl {
 namespace op {
@@ -108,7 +113,7 @@ Tensor causalConv1dImpl(
 
 }  // namespace
 
-Tensor causalConv1d(const Tensor &input, const Tensor &weight, const Tensor &cuSeqlens) {
+Tensor causalConv1dFallback(const Tensor &input, const Tensor &weight, const Tensor &cuSeqlens) {
   CHECK(input.getDim() == 2 && weight.getDim() == 2 && cuSeqlens.getDim() == 1);
   CHECK(input.getDevice().getType() == Device::kCuda);
   CHECK(weight.getDevice().getType() == Device::kCuda);
@@ -143,6 +148,104 @@ Tensor causalConv1d(const Tensor &input, const Tensor &weight, const Tensor &cuS
     return causalConv1dImpl<float>(input, weight, cuSeqlens, numSequences, maxLength);
 
   NOT_IMPL();
+}
+
+#ifdef LIBLLM_CAUSAL_CONV1D_ENABLED
+
+namespace {
+
+/// Labels every packed position with the index of the sequence it belongs to. That is how the
+/// vendored kernel is told where a sequence ends: it only accumulates taps whose label matches
+/// the position being written, so a window never reaches into its neighbour.
+Tensor buildSeqIdx(const Tensor &cuSeqlens, int numTokens, int numSequences) {
+  Tensor hostOffsets = toCpu(cuSeqlens);
+  const IntType *offsets = hostOffsets.getInternalData()->getData<IntType>(
+      hostOffsets.getInternalOffset());
+
+  std::vector<IntType> labels(numTokens, 0);
+  for (int sequence = 0; sequence < numSequences; ++sequence) {
+    for (int token = offsets[sequence]; token < offsets[sequence + 1]; ++token) {
+      labels[token] = sequence;
+    }
+  }
+
+  return toCuda(Tensor::create<IntType>({numTokens}, labels));
+}
+
+}  // namespace
+
+/// Runs the vendored kernel over the whole packed batch as one "sequence" of numTokens, relying
+/// on seq_idx for the boundaries. The kernel wants a channel-last layout, which is exactly how a
+/// packed batch is already stored.
+Tensor causalConv1dVendored(
+    const Tensor &input,
+    const Tensor &weight,
+    const Tensor &cuSeqlens,
+    int numSequences) {
+  int numTokens = input.getShape(0);
+  int numChannels = input.getShape(1);
+  int kernelSize = weight.getShape(1);
+  bool isHalf = input.getDType() == DType::kFloat16;
+
+  Tensor output = isHalf ? createCudaTensorHalf({numTokens, numChannels})
+                         : createCudaTensorFloat({numTokens, numChannels});
+  if (numTokens == 0) return output;
+
+  Tensor seqIdx = buildSeqIdx(cuSeqlens, numTokens, numSequences);
+
+  ConvParamsBase params = {};
+  params.batch = 1;
+  params.dim = numChannels;
+  params.seqlen = numTokens;
+  params.width = kernelSize;
+  params.silu_activation = false;
+
+  params.x_ptr = const_cast<void *>(static_cast<const void *>(getDataPtrCuda<void>(input)));
+  params.x_batch_stride = static_cast<uint32_t>(numTokens) * numChannels;
+  params.x_c_stride = 1;
+  params.x_l_stride = numChannels;
+
+  params.weight_ptr = const_cast<void *>(static_cast<const void *>(getDataPtrCuda<void>(weight)));
+  params.weight_c_stride = kernelSize;
+  params.weight_width_stride = 1;
+
+  params.out_ptr = getDataPtrCuda<void>(output);
+  params.out_batch_stride = static_cast<uint32_t>(numTokens) * numChannels;
+  params.out_c_stride = 1;
+  params.out_l_stride = numChannels;
+
+  params.bias_ptr = nullptr;
+  params.seq_idx_ptr = getDataPtrCuda<void>(seqIdx);
+
+  causal_conv1d::channellast_fwd(params, isHalf, /*stream=*/0);
+
+  LL_CUDA_SYNCHRONIZE();
+  LL_CHECK_CUDA_STATUS(cudaGetLastError());
+  return output;
+}
+
+#endif  // LIBLLM_CAUSAL_CONV1D_ENABLED
+
+Tensor causalConv1d(const Tensor &input, const Tensor &weight, const Tensor &cuSeqlens) {
+  CHECK(input.getDim() == 2 && weight.getDim() == 2 && cuSeqlens.getDim() == 1);
+  CHECK(cuSeqlens.getDType() == DType::kInt32);
+  LL_CHECK_CONTIGUOUS(input);
+  LL_CHECK_CONTIGUOUS(weight);
+  CHECK(weight.getShape(0) == input.getShape(1));
+
+  int numSequences = cuSeqlens.getShape(0) - 1;
+  CHECK(numSequences >= 0);
+
+#ifdef LIBLLM_CAUSAL_CONV1D_ENABLED
+  // The vendored kernel handles widths 2 to 4, which is what the models that use it need. A width
+  // of 1 is a per-channel scale and is left to the portable path.
+  int kernelSize = weight.getShape(1);
+  if (kernelSize >= 2 && kernelSize <= 4 && numSequences > 0) {
+    return causalConv1dVendored(input, weight, cuSeqlens, numSequences);
+  }
+#endif
+
+  return causalConv1dFallback(input, weight, cuSeqlens);
 }
 
 }  // namespace cuda

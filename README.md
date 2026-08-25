@@ -148,12 +148,18 @@ target/release/llm
 
 ### CUDA build
 
-Install the CUDA Toolkit first. FlashAttention is enabled by default for CUDA builds and must be
-built once before configuring libLLM:
+Install the CUDA Toolkit first. FlashAttention and causal-conv1d are enabled by default for CUDA
+builds and must each be built once before configuring libLLM:
 
 ```bash
 ./third_party/install_flash_attn.sh
+./third_party/install_causal_conv1d.sh
 ```
+
+The FlashAttention script clones a pinned CUTLASS the first time it runs; causal-conv1d needs
+nothing but the CUDA toolkit, so its script only compiles what is already in the tree. Both accept
+a build directory as their first argument, and honour `FLASH_ATTN_CUDA_ARCH` and
+`CAUSAL_CONV1D_CUDA_ARCH` to narrow the architectures they build for.
 
 Then configure and build:
 
@@ -172,8 +178,10 @@ CUDA installation, add:
 -DCUDAToolkit_ROOT=/path/to/cuda
 ```
 
-To build CUDA support without FlashAttention, configure with `-DWITH_FLASH_ATTN=OFF` instead of
-running `install_flash_attn.sh`.
+To build CUDA support without either prebuilt library, configure with `-DWITH_FLASH_ATTN=OFF` or
+`-DWITH_CAUSAL_CONV1D=OFF` instead of running its script. Turning off causal-conv1d leaves
+`F::causalConv1d` working: it falls back to a portable kernel in this repository, which is slower
+but computes the same thing.
 
 ### macOS
 

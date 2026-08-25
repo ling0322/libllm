@@ -12,6 +12,7 @@ option(WITH_MKL "MKL support (only for reference)." OFF)
 option(WITH_OPENMP "Build with OpenMP." ON)
 option(WITH_CUTLASS "build MatMul operators with CUTLASS." OFF)
 option(WITH_FLASH_ATTN "Link the prebuilt FlashAttention forward kernels." ${WITH_CUDA})
+option(WITH_CAUSAL_CONV1D "Link the prebuilt causal-conv1d kernels." ${WITH_CUDA})
 option(CUDA_ARCH_NATIVE "Build CUDA kernels only for the GPUs in this machine." OFF)
 option(MKL_PREFIX "Prefix for MKL headers and libraries." "/opt/intel/mkl")
 
@@ -153,12 +154,37 @@ if(WITH_FLASH_ATTN)
         INTERFACE_INCLUDE_DIRECTORIES "${FLASH_ATTN_ROOT}/csrc/flash_attn/src")
 endif()
 
+if(WITH_CAUSAL_CONV1D)
+    if(NOT WITH_CUDA)
+        message(FATAL_ERROR "WITH_CAUSAL_CONV1D requires WITH_CUDA=ON")
+    endif()
+
+    set(CAUSAL_CONV1D_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/causal-conv1d")
+    set(CAUSAL_CONV1D_LIB
+        "${CAUSAL_CONV1D_ROOT}/build/${CMAKE_STATIC_LIBRARY_PREFIX}causal_conv1d${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    if(NOT EXISTS "${CAUSAL_CONV1D_LIB}")
+        message(FATAL_ERROR
+          "unable to find \"${CAUSAL_CONV1D_LIB}\", please "
+          "call install_causal_conv1d.sh in third_party first.")
+    endif()
+
+    add_definitions("-DLIBLLM_CAUSAL_CONV1D_ENABLED")
+    add_library(causal_conv1d STATIC IMPORTED)
+    set_target_properties(causal_conv1d PROPERTIES
+        IMPORTED_LOCATION "${CAUSAL_CONV1D_LIB}"
+        INTERFACE_INCLUDE_DIRECTORIES "${CAUSAL_CONV1D_ROOT}/csrc")
+endif()
+
 add_subdirectory("flint")
 
 set(libllm_LIBADD lutil flint_static ${CMAKE_DL_LIBS} ${UNWIND_ARCH_LIB} ${UNWIND_LIB} )
 
 if(WITH_FLASH_ATTN)
     set(libllm_LIBADD ${libllm_LIBADD} flash_attn)
+endif()
+
+if(WITH_CAUSAL_CONV1D)
+    set(libllm_LIBADD ${libllm_LIBADD} causal_conv1d)
 endif()
 
 if(WITH_OPENMP)
@@ -191,6 +217,13 @@ if(WITH_FLASH_ATTN)
     list(APPEND flint_CARGO_FLAGS
         "cargo:rustc-link-search=native=${flint_FLASH_ATTN_DIR}"
         "cargo:rustc-link-lib=static=flash_attn")
+endif()
+
+if(WITH_CAUSAL_CONV1D)
+    get_filename_component(flint_CAUSAL_CONV1D_DIR "${CAUSAL_CONV1D_LIB}" DIRECTORY)
+    list(APPEND flint_CARGO_FLAGS
+        "cargo:rustc-link-search=native=${flint_CAUSAL_CONV1D_DIR}"
+        "cargo:rustc-link-lib=static=causal_conv1d")
 endif()
 
 if(WITH_CUDA)

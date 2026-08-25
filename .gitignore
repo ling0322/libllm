@@ -8,6 +8,7 @@ transformers
 /third_party/ffmpeg
 /third_party/cutlass
 /third_party/flash-attention/build
+/third_party/causal-conv1d/build
 /third_party/flash-attention/csrc/cutlass
 
 __pycache__

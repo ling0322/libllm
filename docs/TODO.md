@@ -122,7 +122,10 @@ What is still missing, and it is the bulk of the model:
 - **A convolution state for decode.** `F::causalConv1d` takes a whole packed batch and zero-pads at
   each sequence start, which is what prefill needs. Generating one token at a time needs the last
   `kernelSize - 1` positions of each sequence carried between steps, the way the KV cache carries
-  keys and values.
+  keys and values. The kernel for it is already vendored -- `causal_conv1d_update.cu` and
+  `causal_conv1d::update` -- and is deliberately the one piece of the vendored library that nothing
+  calls yet, because what is missing is not the kernel but somewhere to keep the state. Wiring it up
+  means giving the cache manager a conv state alongside the keys and values.
 
 Not operator work, listed so it is not forgotten: the vision tower (the checkpoint is a
 `Qwen3_5ForConditionalGeneration` and carries a `vision_config`), and the built-in MTP draft head.

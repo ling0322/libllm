@@ -107,6 +107,7 @@ For CUDA, prepare FlashAttention and enable the CUDA backend:
 
 ```bash
 ./third_party/install_flash_attn.sh
+./third_party/install_causal_conv1d.sh
 cmake -S . -B build -DWITH_CUDA=ON -DCUDA_ARCH_NATIVE=ON
 cmake --build build --parallel
 ```
