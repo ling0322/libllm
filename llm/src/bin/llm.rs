@@ -17,47 +17,11 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-//! The libllm command line tool: chat with a model, or fetch one.
+//! The `llm` command line tool.
+//!
+//! A shim so that the implementation can live in the library, where its unit tests run with the
+//! rest of the crate. See [`llm::cli`].
 
-mod args;
-mod chat;
-mod download;
-
-use std::process::ExitCode;
-
-fn print_usage() {
-    eprintln!("Usage: llm COMMAND");
-    eprintln!();
-    eprintln!("Commands:");
-    eprintln!("    chat           Chat with LLM");
-    eprintln!("    download       Download model to local");
-    eprintln!();
-    eprintln!("Run 'llm COMMAND -h' for more information on a command.");
-}
-
-fn main() -> ExitCode {
-    let arguments: Vec<String> = std::env::args().skip(1).collect();
-    let Some(command) = arguments.first() else {
-        print_usage();
-        return ExitCode::FAILURE;
-    };
-
-    let rest = &arguments[1..];
-    let result = match command.as_str() {
-        "chat" => chat::main(rest),
-        "download" => download::main(rest),
-        other => {
-            eprintln!("Invalid command \"{other}\"\n");
-            print_usage();
-            return ExitCode::FAILURE;
-        }
-    };
-
-    match result {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(error) => {
-            eprintln!("Error: {error}");
-            ExitCode::FAILURE
-        }
-    }
+fn main() -> std::process::ExitCode {
+    llm::cli::run()
 }

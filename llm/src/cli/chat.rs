@@ -23,13 +23,13 @@ use std::io::{BufRead, Write};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::Instant;
 
-use llm::{
+use crate::{
     Device, Engine, EngineConfig, GenerationConfig, KVCacheManager, LlamaForGeneration, Message,
     RequestInput, RequestOutput, ZipFile,
 };
 
-use crate::args::{Args, DeviceOption};
-use crate::download;
+use crate::cli::args::{Args, DeviceOption};
+use crate::cli::download;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -46,7 +46,7 @@ fn print_usage() {
     eprintln!("Usage: llm chat [OPTIONS]");
     eprintln!();
     eprintln!("Options:");
-    crate::args::print_options();
+    crate::cli::args::print_options();
     eprintln!();
 }
 

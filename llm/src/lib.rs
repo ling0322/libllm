@@ -40,6 +40,8 @@
 
 mod bpe;
 pub mod capi;
+#[cfg(feature = "cli")]
+pub mod cli;
 mod engine;
 mod engine_config;
 mod error;

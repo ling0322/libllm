@@ -1,6 +1,5 @@
 [workspace]
 members = [
     "llm",
-    "llm-cli",
 ]
 resolver = "2"

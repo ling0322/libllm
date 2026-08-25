@@ -223,12 +223,14 @@ file(GENERATE
 # separate `cargo build` step. LIBLLM_LIB_DIR is set explicitly so this works regardless of where
 # the build directory was configured, matching what llm/build.rs falls back to on its own.
 find_program(CARGO_EXECUTABLE cargo REQUIRED)
+# `--features cli` is what builds the `llm` binary: it is off by default so that using the crate
+# as a library does not drag in an HTTPS client.
 add_custom_target(llm-cli ALL
     COMMAND ${CMAKE_COMMAND} -E env "LIBLLM_LIB_DIR=${CMAKE_BINARY_DIR}"
-            ${CARGO_EXECUTABLE} build -p llm-cli --release
+            ${CARGO_EXECUTABLE} build -p llm --features cli --release
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS flint "${CMAKE_BINARY_DIR}/flint_link_flags.txt"
-    COMMENT "cargo build -p llm-cli --release"
+    COMMENT "cargo build -p llm --features cli --release"
     VERBATIM)
 
 set(unittest_LIBADD
