@@ -199,12 +199,12 @@ Tensor reduceLastDim3DImpl(Tensor A) {
   LL_CUDA_SYNCHRONIZE();
   LL_CHECK_CUDA_STATUS(cudaGetLastError());
 
+  // C is 2D -- the input was reshaped to 3D above and the reduced axis dropped -- so undoing the
+  // reshape means dropping the leading axis that was added, not indexing the input's rank.
   switch (origDim) {
     case 1:
-      C = C.view({C.getShape(2)});
-      break;
     case 2:
-      C = C.view({C.getShape(1), C.getShape(2)});
+      C = C.view({C.getShape(1)});
       break;
     case 3:
       break;

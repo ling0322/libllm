@@ -140,7 +140,12 @@ Tensor MatMul::matmulMxfp4(const Tensor &A, const Tensor &sfA, const Tensor &B, 
 Tensor MatMul::matmulHalf(const Tensor &A, const Tensor &B) {
   CHECK(A.getDType() == B.getDType() && A.getDType() == DType::kFloat16);
   if (A.getDim() == 2 && B.getDim() == 2) {
-    if (A.getShape(0) == 1 && A.getStride(1) == 1 && B.getStride(0) == 1) {
+    // A single row against a transposed weight is the decode-step shape, and the vector kernel
+    // is faster for it. Every condition gemvHalf asserts has to be checked here, not just the
+    // transposed layout: a contiguous B with one column also has getStride(0) == 1, and the
+    // kernel loads eight halves at a time. Anything it cannot take falls through to the GEMM.
+    if (A.getShape(0) == 1 && A.getStride(1) == 1 && B.getStride(0) == 1 &&
+        B.getStride(1) == B.getShape(0) && B.getShape(0) % 8 == 0) {
       return gemvHalf(A.subtensor(0), B);
     } else {
       return gemmHalf(A, B);

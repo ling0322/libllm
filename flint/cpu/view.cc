@@ -107,7 +107,9 @@ Tensor view(const Tensor &src, lut::Span<const int> view) {
         src.getInternalData(),
         src.getInternalOffset());
   } else {
-    std::vector<TensorShape::Elem> viewShape = getViewShapeStride(src, view);
+    // `shape`, not `view`: an inferred -1 has already been resolved into it. Passing the raw
+    // request through would have the stride walk try to match a dimension of -1.
+    std::vector<TensorShape::Elem> viewShape = getViewShapeStride(src, shape);
     return Tensor::create(
         std::make_shared<TensorShape>(viewShape),
         src.getInternalData(),
