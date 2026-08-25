@@ -14,3 +14,18 @@ path = "src/lib.rs"
 # rlib for Rust consumers, staticlib and cdylib for C programs. Both C artifacts are
 # self-contained down to the C++ kernels linked from libflint.a.
 crate-type = ["rlib", "staticlib", "cdylib"]
+
+[[bin]]
+name = "llm"
+path = "src/bin/llm.rs"
+required-features = ["cli"]
+
+[features]
+# The command line tool. Off by default so that using this crate as a library stays
+# dependency-free; the binary needs an HTTPS client to fetch models.
+cli = ["dep:ureq"]
+
+[dependencies]
+# Only for downloading models, and only for the CLI. The library itself has no dependencies; an
+# HTTPS client is the one thing here that is not worth writing by hand.
+ureq = { version = "3", default-features = false, features = ["rustls"], optional = true }

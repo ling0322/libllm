@@ -120,8 +120,9 @@ build/unittest            Native test executable
 build/benchmark           Native benchmark executable
 ```
 
-`cmake --build build` (no `--target`) builds all of the above plus the `llm` and `llm-cli` crates,
-since the default target set includes the `llm-cli` custom target that invokes `cargo build`. Use
+`cmake --build build` (no `--target`) builds all of the above plus the `llm` crate and its command
+line binary, since the default target set includes the `llm-cli` custom target that invokes
+`cargo build`. Use
 `--target flint`, `--target unittest`, or `--target benchmark` to build just one native piece.
 
 ## Tests and benchmarks

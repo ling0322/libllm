@@ -23,7 +23,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use crate::args::Args;
+use crate::cli::args::Args;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -55,7 +55,7 @@ fn print_usage() {
     eprintln!("Usage: llm download [OPTIONS]");
     eprintln!();
     eprintln!("Options:");
-    crate::args::print_options();
+    crate::cli::args::print_options();
     eprintln!();
 }
 

@@ -119,7 +119,7 @@ See [llm/examples/chat.rs](llm/examples/chat.rs) for the complete source.
 CMake drives the whole build. Configuring picks the native Flint C++/CUDA options -- which
 backends to compile, where CUDA lives, what the third_party prerequisites resolve to -- and
 `cmake --build` does the rest: it builds `libflint.a`, then runs `cargo build` to link it into
-`llm` and `llm-cli`.
+`llm` and the `llm` binary.
 
 Requirements:
 
@@ -200,8 +200,7 @@ Run the Rust tests. These read the link flags CMake already wrote out, so they w
 re-running `cmake --build` -- just be sure `build/` reflects the latest C++ if you edited a kernel:
 
 ```bash
-cargo test -p llm
-cargo test -p llm-cli
+cargo test -p llm --features cli
 ```
 
 The ignored Rust CUDA integration tests can be run on a CUDA machine with:
@@ -226,5 +225,5 @@ To run `cargo` directly against a build directory that isn't the default `build/
 with `LIBLLM_LIB_DIR`:
 
 ```bash
-LIBLLM_LIB_DIR="$PWD/out/native" cargo build -p llm-cli --release
+LIBLLM_LIB_DIR="$PWD/out/native" cargo build -p llm --features cli --release
 ```
