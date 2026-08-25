@@ -137,6 +137,12 @@ extern "C" {
     pub fn fl_sum(input: FlTensor, dim: i32, out: *mut FlTensor) -> i32;
     pub fn fl_max(input: FlTensor, dim: i32, out: *mut FlTensor) -> i32;
     pub fn fl_min(input: FlTensor, dim: i32, out: *mut FlTensor) -> i32;
+    pub fn fl_causal_conv1d(
+        input: FlTensor,
+        weight: FlTensor,
+        cu_seqlens: FlTensor,
+        out: *mut FlTensor,
+    ) -> i32;
     pub fn fl_cat(a: FlTensor, b: FlTensor, dim: i32, out: *mut FlTensor) -> i32;
     pub fn fl_causal_mask(max_len: i32, device: FlDeviceType, out: *mut FlTensor) -> i32;
 

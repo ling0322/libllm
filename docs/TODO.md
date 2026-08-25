@@ -3,36 +3,37 @@
 Known issues and deferred work. Each entry says what was observed, not what it might be, so
 whoever picks it up starts from evidence rather than from a guess.
 
-## `tensor_functional` failed once and did not reproduce
+## `draws_reproducible_random_numbers` races against the sampling test
 
-Seen once during `cargo test` on the branch that folded `flint-rs` into `llm` (2026-08-25).
-One test in `llm/tests/tensor_functional.rs` failed:
+`llm/tests/tensor_functional.rs::draws_reproducible_random_numbers` fails intermittently, roughly
+one run in ten. Diagnosed 2026-08-25:
 
 ```
-test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
-error: test failed, to rerun pass `-p llm --test tensor_functional`
+assertion `left == right` failed
+  left:  [0.0009440733, 0.57136285, 0.2568094, ...]
+  right: [0.57136285, 0.2568094, 0.44767365, ...]
 ```
 
-The failing test's name and its panic output were not captured, which is the first thing to fix
-if it happens again — run the suite so the failure output is kept rather than re-running to try
-to reproduce it.
+The second draw is the first shifted by exactly one element, so one extra number came out of the
+generator between the two seeded draws.
 
-It did not reproduce in 8 runs of `cargo test -p llm --test tensor_functional` alone, nor in 6
-runs of the full `cargo test`. So it is rare, and running that binary on its own may not be
-enough to trigger it.
+The cause is that `CPUOperators::sample` draws from the same generator as `rand`
+(`flint/cpu/cpu_operators.cc`, `float draw = _rand.nextFloat() * selectedWeight;`) — one value per
+row. The test carries a comment saying it has to stay the only test in the file that draws from the
+generator, and it is the only one that draws *explicitly*; the sampling test in the same file draws
+implicitly through `F::sample_with_params`. libtest runs the tests of one binary on several threads,
+so that single `nextFloat()` lands between the seed and the draw.
 
-Unknown so far:
+Worth deciding rather than patching blind, which is why it is here and not fixed:
 
-- whether it predates the `flint-rs` merge. Nothing in that merge changed the binding code
-  itself, only the paths it is reached by, so a pre-existing flake is the more likely reading —
-  but that has not been checked against `main`.
-- whether it depends on other test binaries having run first. Both times the suite was run in
-  full; the isolated runs that passed were of that one binary.
+- give sampling its own generator, which decouples the two but means `manual_seed` no longer makes
+  sampling reproducible — probably not what a caller expects;
+- keep one generator and make it thread-safe, which serialises every draw;
+- or leave the design and stop the tests from overlapping, which fixes the symptom only in this
+  file and leaves the next caller to trip over the same sharing.
 
-Worth knowing while investigating: tests inside one binary run on several threads by default,
-and a flint `Tensor` is deliberately neither `Send` nor `Sync` because the operators keep
-per-device state. `init()` is guarded by a `Once`. That makes ordering and startup races the
-first place to look.
+The underlying point is that the per-device generator is shared mutable state with no lock, so any
+two threads drawing at once interfere. That is a property of the engine, not of the test.
 
 ## Raise or remove the llama test's token cap
 
@@ -100,3 +101,33 @@ order of how often an inference engine wants them:
 enough to be surprising given the name — comparing two `<float>` tensors is the obvious use and it
 aborts. Widening it means picking a rounding policy for float comparison, which is why it was left
 as-is rather than extended along with the other element-wise work.
+
+## Qwen3.5 (Qwen3.8-27B), text only
+
+Checked against the published config: 64 layers, hidden 5120, 24 query heads over 4 KV heads,
+head_dim 256, intermediate 17408, silu, RMS eps 1e-6, vocab 248320, RoPE theta 1e7.
+
+Already covered: SwiGLU, RMSNorm, grouped-query attention at 24:4, head_dim 256 (the attention
+tests cover it), and the element-wise gate primitives silu/sigmoid/exp/rsqrt. Partial RoPE and the
+causal convolution are now in.
+
+What is still missing, and it is the bulk of the model:
+
+- **Gated DeltaNet linear attention.** `full_attention_interval` is 4, so only 16 of the 64 layers
+  run the attention this engine already has; the other 48 run a linear-attention layer with a
+  recurrent matrix-valued state. That is a whole attention mechanism, comparable in size to the
+  paged-attention work already in the tree, not an operator: a chunked scan over time carrying an
+  N-by-N state, with the numerical care that goes with it. The published parameters are 16 key
+  heads and 48 value heads, both with a head dimension of 128, and a convolution kernel of 4.
+- **A convolution state for decode.** `F::causalConv1d` takes a whole packed batch and zero-pads at
+  each sequence start, which is what prefill needs. Generating one token at a time needs the last
+  `kernelSize - 1` positions of each sequence carried between steps, the way the KV cache carries
+  keys and values.
+
+Not operator work, listed so it is not forgotten: the vision tower (the checkpoint is a
+`Qwen3_5ForConditionalGeneration` and carries a `vision_config`), and the built-in MTP draft head.
+
+Two things the model needs that turned out to compose from what already exists, so they need no
+kernel of their own: a gated RMSNorm is `mul(rmsNorm(x, w, eps), silu(gate))`, and an L2
+normalisation over the last dimension is `mul(x, rsqrt(sum(square(x))))`. A fused kernel would be
+faster for both, but neither blocks bringing the model up.

@@ -73,8 +73,12 @@ pub fn lookup(table: &Tensor, indices: &Tensor) -> Result<Tensor> {
 /// Apply NeoX-style rotary embedding to `query` and `key` in place.
 ///
 /// `positions` is `<long>(numTokens)`, `query` and `key` are `<float>(numTokens, numHeads,
-/// headDim)`, and `rotary_cache` is `<float>(maxPositions, 2 * headDim)`, each row holding a
+/// headDim)`, and `rotary_cache` is `<float>(maxPositions, 2 * rotaryDim)`, each row holding a
 /// cosine half followed by a sine half.
+///
+/// `rotaryDim` comes from the cache width and may be smaller than `headDim`: that rotates only the
+/// front of each head and carries the rest through, which is how a partial rotary factor is
+/// expressed.
 pub fn rotary_embedding(
     positions: &Tensor,
     query: &mut Tensor,
@@ -215,6 +219,17 @@ pub fn max(input: &Tensor, dim: i32) -> Result<Tensor> {
 /// Smallest element of dimension `dim`, which the result drops the way [`sum`] does.
 pub fn min(input: &Tensor, dim: i32) -> Result<Tensor> {
     Tensor::produce(|out| unsafe { ffi::fl_min(input.raw, dim, out) })
+}
+
+/// Depth-wise causal convolution over the token axis of a packed batch.
+///
+/// `input` is `<float>(totalTokens, channels)`, `weight` is `<float>(channels, kernelSize)`, and
+/// `cu_seqlens` is `<int>(numSequences + 1)` giving where each sequence starts. A window reaching
+/// past the start of its sequence is zero-padded rather than reading the sequence before it.
+pub fn causal_conv1d(input: &Tensor, weight: &Tensor, cu_seqlens: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe {
+        ffi::fl_causal_conv1d(input.raw, weight.raw, cu_seqlens.raw, out)
+    })
 }
 
 /// Concatenate `a` and `b` along `dim`. They must agree on every other dimension.

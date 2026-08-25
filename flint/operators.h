@@ -91,6 +91,7 @@ class Operators {
   virtual Tensor relu(Tensor input);
   virtual Tensor gelu(Tensor input);
   virtual Tensor silu(Tensor input);
+  virtual Tensor causalConv1d(Tensor input, Tensor weight, Tensor cuSeqlens);
   virtual void fill(Tensor input, float value);
   virtual Tensor tensor(lut::Span<const int> shape, DType dtype);
   virtual Tensor tensorLike(Tensor input);

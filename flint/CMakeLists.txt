@@ -12,6 +12,7 @@ set(flint_SOURCES
     "cpu/kernel/util.cc"
     "cpu/all_close.cc"
     "cpu/binary_op.cc"
+    "cpu/causal_conv1d.cc"
     "cpu/cast.cc"
     "cpu/common.cc"
     "cpu/copy.cc"
@@ -41,6 +42,7 @@ set(flint_SOURCES
 
 set(flint_test_SOURCES
     "capi_test.cc"
+    "cpu/causal_conv1d_test.cc"
     "cpu/fill_test.cc"
     "cpu/kernel/benchmark.cc"
     "cpu/kernel/interface_test.cc"
@@ -71,6 +73,7 @@ if (WITH_CUDA)
         "cuda/arange.cu"
         "cuda/binary.cu"
         "cuda/binary_scalar.cu"
+        "cuda/causal_conv1d.cu"
         "cuda/cast.cu"
         "cuda/causal_mask.cu"
         "cuda/copy.cu"
@@ -107,6 +110,7 @@ if (WITH_CUDA)
         "cuda/attention_test.cc"
         "cuda/binary_scalar_test.cc"
         "cuda/binary_test.cc"
+        "cuda/causal_conv1d_test.cc"
         "cuda/causal_mask_test.cc"
         "cuda/common_test.cc"
         "cuda/copy_test.cc"

@@ -25,6 +25,7 @@
 #include "flint/cuda/binary.h"
 #include "flint/cuda/binary_scalar.h"
 #include "flint/cpu/all_close.h"
+#include "flint/cuda/causal_conv1d.h"
 #include "flint/cuda/cast.h"
 #include "flint/cuda/causal_mask.h"
 #include "flint/cuda/copy.h"
@@ -152,6 +153,10 @@ Tensor CudaOperators::gelu(Tensor input) {
 
 Tensor CudaOperators::silu(Tensor input) {
   return op::cuda::applyUnaryOp(op::cuda::UnaryOp::SILU, input);
+}
+
+Tensor CudaOperators::causalConv1d(Tensor input, Tensor weight, Tensor cuSeqlens) {
+  return op::cuda::causalConv1d(input, weight, cuSeqlens);
 }
 
 Tensor CudaOperators::subFloat(Tensor input, float other) {

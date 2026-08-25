@@ -120,6 +120,10 @@ Tensor silu(Tensor input) {
   return getOperators(input.getDevice().getType())->silu(input);
 }
 
+Tensor causalConv1d(Tensor input, Tensor weight, Tensor cuSeqlens) {
+  return getOperators(input.getDevice().getType())->causalConv1d(input, weight, cuSeqlens);
+}
+
 Tensor square(Tensor input) {
   return getOperators(input.getDevice().getType())->square(input);
 }

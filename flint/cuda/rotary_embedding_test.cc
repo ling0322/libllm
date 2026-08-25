@@ -77,6 +77,46 @@ bool runCase(int numQueryHeads, int numKeyHeads, int headDim) {
       F::allClose(toCpuFloat(actualKey), toCpuFloat(expectedKey), 5e-3f);
 }
 
+/// Rotates only the first `rotaryDim` of each head, leaving the tail alone, which is what a
+/// partial rotary factor asks for.
+bool runPartialCase(int numQueryHeads, int numKeyHeads, int headDim, int rotaryDim) {
+  std::vector<LongType> positionValues = {7, 2, 31};
+  int numTokens = static_cast<int>(positionValues.size());
+  Device device = Device::getCuda();
+
+  Tensor positions = F::to(device, Tensor::create<LongType>({numTokens}, positionValues));
+  Tensor query = F::rand({numTokens, numQueryHeads, headDim}, DType::kFloat16, device);
+  Tensor key = F::rand({numTokens, numKeyHeads, headDim}, DType::kFloat16, device);
+
+  // The cache is only as wide as the rotated part; that is what tells the operator how much of
+  // each head to touch.
+  Tensor cache = F::rand({64, 2 * rotaryDim}, DType::kFloat16, device);
+
+  Tensor gathered = F::lookup(cache, positions);
+  gathered = gathered.view({numTokens, 2, 1, rotaryDim}).transpose(0, 1);
+
+  // The reference rotates the front of each head and copies the tail through unchanged.
+  Tensor expectedQuery = F::contiguous(query);
+  Tensor expectedKey = F::contiguous(key);
+  Tensor rotatedQuery = baselineRotaryEmbedding(
+      F::contiguous(query.slice(-1, {0, rotaryDim})),
+      gathered);
+  Tensor rotatedKey = baselineRotaryEmbedding(
+      F::contiguous(key.slice(-1, {0, rotaryDim})),
+      gathered);
+  Tensor queryFront = expectedQuery.slice(-1, {0, rotaryDim});
+  Tensor keyFront = expectedKey.slice(-1, {0, rotaryDim});
+  F::copy(rotatedQuery, queryFront);
+  F::copy(rotatedKey, keyFront);
+
+  Tensor actualQuery = F::contiguous(query);
+  Tensor actualKey = F::contiguous(key);
+  F::rotaryEmbedding(positions, actualQuery, actualKey, cache);
+
+  return F::allClose(toCpuFloat(actualQuery), toCpuFloat(expectedQuery), 5e-3f) &&
+         F::allClose(toCpuFloat(actualKey), toCpuFloat(expectedKey), 5e-3f);
+}
+
 }  // namespace
 
 CATCH_TEST_CASE("test CUDA rotaryEmbedding", "[op][cuda]") {
@@ -85,6 +125,18 @@ CATCH_TEST_CASE("test CUDA rotaryEmbedding", "[op][cuda]") {
   CATCH_REQUIRE(runCase(4, 2, 64));
   CATCH_REQUIRE(runCase(24, 8, 128));
   CATCH_REQUIRE(runCase(8, 8, 256));
+}
+
+CATCH_TEST_CASE("test CUDA rotaryEmbedding (partial rotary factor)", "[op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  // headDim 256 rotating 64 of it is the 0.25 partial rotary factor Qwen3.5 uses.
+  CATCH_REQUIRE(runPartialCase(24, 4, 256, 64));
+  CATCH_REQUIRE(runPartialCase(8, 2, 128, 32));
+  CATCH_REQUIRE(runPartialCase(4, 4, 64, 32));
+
+  // rotating the whole head is the same thing the non-partial path does.
+  CATCH_REQUIRE(runPartialCase(4, 2, 64, 64));
 }
 
 }  // namespace fl

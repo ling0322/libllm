@@ -69,6 +69,7 @@ class CudaOperators : public Operators {
   Tensor relu(Tensor input) override;
   Tensor gelu(Tensor input) override;
   Tensor silu(Tensor input) override;
+  Tensor causalConv1d(Tensor input, Tensor weight, Tensor cuSeqlens) override;
   Tensor subFloat(Tensor input, float other) override;
   bool allClose(Tensor A, Tensor B, float rtol, float atol) override;
   Tensor mul(Tensor input, float other) override;

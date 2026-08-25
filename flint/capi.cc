@@ -521,6 +521,18 @@ int32_t fl_max(fl_tensor_t input, int32_t dim, fl_tensor_t *out) {
   return guard([&]() { return publish(fl::F::max(deref(input), dim), out); });
 }
 
+int32_t fl_causal_conv1d(
+    fl_tensor_t input,
+    fl_tensor_t weight,
+    fl_tensor_t cu_seqlens,
+    fl_tensor_t *out) {
+  return guard([&]() {
+    return publish(
+        fl::F::causalConv1d(deref(input), deref(weight), deref(cu_seqlens)),
+        out);
+  });
+}
+
 int32_t fl_min(fl_tensor_t input, int32_t dim, fl_tensor_t *out) {
   return guard([&]() { return publish(fl::F::min(deref(input), dim), out); });
 }

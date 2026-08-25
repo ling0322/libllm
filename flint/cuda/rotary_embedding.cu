@@ -39,19 +39,21 @@ __global__ void rotaryEmbeddingHalfKernel(
     int numQueryHeads,
     int numKeyHeads,
     int headDim,
+    int rotaryDim,
     int halfDimShift,
     int halfDimMask,
     int cacheStride,
     int maxPositions) {
   int token = blockIdx.x;
-  int halfDim = headDim / 2;
+  // Only the first rotaryDim of each head is rotated; the rest is carried through untouched.
+  int halfDim = rotaryDim / 2;
   int pairsPerToken = (numQueryHeads + numKeyHeads) * halfDim;
   int position = static_cast<int>(positions[token]);
   assert(position >= 0 && position < maxPositions);
 
   const half *cache = rotaryCache + position * cacheStride;
   const half *cos = cache;
-  const half *sin = cache + headDim;
+  const half *sin = cache + rotaryDim;
 
   for (int pair = threadIdx.x; pair < pairsPerToken; pair += blockDim.x) {
     int head = pair >> halfDimShift;
@@ -92,9 +94,14 @@ void rotaryEmbedding(
   int headDim = query.getShape(2);
   CHECK(key.getShape(0) == numTokens && query.getShape(0) == numTokens);
   CHECK(key.getShape(2) == headDim && headDim > 0 && headDim % 2 == 0);
-  int halfDim = headDim / 2;
-  CHECK((halfDim & (halfDim - 1)) == 0) << "half head dimension must be a power of two";
-  CHECK(rotaryCache.getShape(1) == 2 * headDim);
+
+  // The cache width says how much of each head is rotated: a model with a partial rotary factor
+  // builds a narrower cache and leaves the tail of every head alone.
+  CHECK(rotaryCache.getShape(1) % 2 == 0);
+  int rotaryDim = rotaryCache.getShape(1) / 2;
+  CHECK(rotaryDim > 0 && rotaryDim <= headDim && rotaryDim % 2 == 0);
+  int halfDim = rotaryDim / 2;
+  CHECK((halfDim & (halfDim - 1)) == 0) << "half rotary dimension must be a power of two";
   CHECK(positions.getStride(0) == 1);
   CHECK(query.getStride(2) == 1 && query.getStride(1) == headDim);
   CHECK(key.getStride(2) == 1 && key.getStride(1) == headDim);
@@ -114,6 +121,7 @@ void rotaryEmbedding(
       query.getShape(1),
       key.getShape(1),
       headDim,
+      rotaryDim,
       halfDimShift,
       halfDim - 1,
       rotaryCache.getStride(0),

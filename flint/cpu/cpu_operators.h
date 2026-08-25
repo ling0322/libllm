@@ -67,6 +67,7 @@ class CPUOperators : public Operators {
   Tensor relu(Tensor input) override;
   Tensor gelu(Tensor input) override;
   Tensor silu(Tensor input) override;
+  Tensor causalConv1d(Tensor input, Tensor weight, Tensor cuSeqlens) override;
   Tensor arangeLong(LongType begin, LongType end, LongType step) override;
   Tensor randNormal(lut::Span<const int> shape) override;
   Tensor div(Tensor input, float other) override;

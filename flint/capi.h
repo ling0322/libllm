@@ -233,7 +233,9 @@ FLAPI int32_t fl_lookup(fl_tensor_t table, fl_tensor_t indices, fl_tensor_t *out
 
 /// Apply NeoX-style rotary embedding to `query` and `key` in place. `positions` is
 /// <long>(numTokens), the two others are <float>(numTokens, numHeads, headDim), and
-/// `rotary_cache` is <float>(maxPositions, 2 * headDim), each row a cosine half then a sine half.
+/// `rotary_cache` is <float>(maxPositions, 2 * rotaryDim), each row a cosine half then a sine
+/// half. rotaryDim comes from the cache width and may be smaller than headDim, which rotates only
+/// the front of each head and leaves the rest alone.
 FLAPI int32_t fl_rotary_embedding(
     fl_tensor_t positions,
     fl_tensor_t query,
@@ -317,6 +319,16 @@ FLAPI int32_t fl_sum(fl_tensor_t input, int32_t dim, fl_tensor_t *out);
 
 /// Largest element of dimension `dim`, which the result drops the same way fl_sum() does.
 FLAPI int32_t fl_max(fl_tensor_t input, int32_t dim, fl_tensor_t *out);
+
+/// Depth-wise causal convolution over the token axis of a packed batch. `input` is
+/// <float>(totalTokens, channels), `weight` is <float>(channels, kernelSize), and `cu_seqlens` is
+/// <int>(numSequences + 1) giving where each sequence starts. A window reaching past the start of
+/// its sequence is zero-padded rather than reading the sequence packed before it.
+FLAPI int32_t fl_causal_conv1d(
+    fl_tensor_t input,
+    fl_tensor_t weight,
+    fl_tensor_t cu_seqlens,
+    fl_tensor_t *out);
 
 /// Smallest element of dimension `dim`, which the result drops the same way fl_sum() does.
 FLAPI int32_t fl_min(fl_tensor_t input, int32_t dim, fl_tensor_t *out);

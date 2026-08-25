@@ -30,6 +30,7 @@
 #include "lutil/random.h"
 #include "flint/cpu/all_close.h"
 #include "flint/cpu/binary_op.h"
+#include "flint/cpu/causal_conv1d.h"
 #include "flint/cpu/cast.h"
 #include "flint/cpu/common.h"
 #include "flint/cpu/copy.h"
@@ -272,6 +273,10 @@ Tensor CPUOperators::gelu(Tensor input) {
 
 Tensor CPUOperators::silu(Tensor input) {
   return cpu::unaryOp(input, cpu::UnaryOp::SILU);
+}
+
+Tensor CPUOperators::causalConv1d(Tensor input, Tensor weight, Tensor cuSeqlens) {
+  return cpu::causalConv1d(input, weight, cuSeqlens);
 }
 
 Tensor CPUOperators::div(Tensor input, float other) {

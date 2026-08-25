@@ -186,6 +186,10 @@ Tensor Operators::silu(Tensor input) {
   NOT_IMPL();
 }
 
+Tensor Operators::causalConv1d(Tensor input, Tensor weight, Tensor cuSeqlens) {
+  NOT_IMPL();
+}
+
 void Operators::fill(Tensor input, float value) {
   NOT_IMPL();
 }

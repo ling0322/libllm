@@ -43,7 +43,11 @@ Tensor lookup(Tensor table, Tensor indices);
 
 /// Apply NeoX-style rotary embedding to query and key in place. positions is <long>(numTokens),
 /// query and key are <float>(numTokens, numHeads, headDim), and rotaryCache is
-/// <float>(maxPositions, 2 * headDim) with cosine followed by sine values in each row.
+/// <float>(maxPositions, 2 * rotaryDim) with cosine followed by sine values in each row.
+///
+/// rotaryDim comes from the cache width and may be smaller than headDim, which is how a model
+/// with a partial rotary factor is expressed: the first rotaryDim of each head is rotated and the
+/// rest is left as it is.
 void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache);
 
 // apply layer normalization over the last dimension of inputs.
@@ -100,6 +104,18 @@ Tensor gelu(Tensor input);
 /// The sigmoid linear unit, x * sigmoid(x). This is the activation swiglu applies to its gate
 /// half; here it is available on its own.
 Tensor silu(Tensor input);
+
+/// Depth-wise causal convolution over the token axis of a packed batch, the short convolution the
+/// linear-attention layers of recent models apply to their projections.
+///
+///   input <float>(totalTokens, channels): the packed activations.
+///   weight <float>(channels, kernelSize): one filter per channel.
+///   cuSeqlens <int>(numSequences + 1): where each sequence starts in `input`.
+///
+/// Returns <float>(totalTokens, channels). Each output reads the `kernelSize` positions ending at
+/// its own, and a window reaching past the start of its sequence is zero-padded rather than
+/// borrowing from the sequence packed before it.
+Tensor causalConv1d(Tensor input, Tensor weight, Tensor cuSeqlens);
 
 // return input + other.
 Tensor add(Tensor input, Tensor other);
