@@ -445,6 +445,10 @@ int32_t fl_eq(fl_tensor_t a, fl_tensor_t b, fl_tensor_t *out) {
   return guard([&]() { return publish(fl::F::eq(deref(a), deref(b)), out); });
 }
 
+int32_t fl_div(fl_tensor_t a, fl_tensor_t b, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::div(deref(a), deref(b)), out); });
+}
+
 int32_t fl_mul_scalar(fl_tensor_t input, float other, fl_tensor_t *out) {
   return guard([&]() { return publish(fl::F::mul(deref(input), other), out); });
 }
@@ -461,6 +465,46 @@ int32_t fl_square(fl_tensor_t input, fl_tensor_t *out) {
   return guard([&]() { return publish(fl::F::square(deref(input)), out); });
 }
 
+int32_t fl_neg(fl_tensor_t input, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::neg(deref(input)), out); });
+}
+
+int32_t fl_abs(fl_tensor_t input, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::abs(deref(input)), out); });
+}
+
+int32_t fl_exp(fl_tensor_t input, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::exp(deref(input)), out); });
+}
+
+int32_t fl_sqrt(fl_tensor_t input, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::sqrt(deref(input)), out); });
+}
+
+int32_t fl_rsqrt(fl_tensor_t input, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::rsqrt(deref(input)), out); });
+}
+
+int32_t fl_sigmoid(fl_tensor_t input, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::sigmoid(deref(input)), out); });
+}
+
+int32_t fl_tanh(fl_tensor_t input, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::tanh(deref(input)), out); });
+}
+
+int32_t fl_relu(fl_tensor_t input, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::relu(deref(input)), out); });
+}
+
+int32_t fl_gelu(fl_tensor_t input, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::gelu(deref(input)), out); });
+}
+
+int32_t fl_silu(fl_tensor_t input, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::silu(deref(input)), out); });
+}
+
 int32_t fl_softmax(fl_tensor_t input, fl_tensor_t *out) {
   return guard([&]() { return publish(fl::F::softmax(deref(input)), out); });
 }
@@ -475,6 +519,10 @@ int32_t fl_sum(fl_tensor_t input, int32_t dim, fl_tensor_t *out) {
 
 int32_t fl_max(fl_tensor_t input, int32_t dim, fl_tensor_t *out) {
   return guard([&]() { return publish(fl::F::max(deref(input), dim), out); });
+}
+
+int32_t fl_min(fl_tensor_t input, int32_t dim, fl_tensor_t *out) {
+  return guard([&]() { return publish(fl::F::min(deref(input), dim), out); });
 }
 
 int32_t fl_cat(fl_tensor_t a, fl_tensor_t b, int32_t dim, fl_tensor_t *out) {

@@ -24,6 +24,7 @@
 #include "flint/cuda/arange.h"
 #include "flint/cuda/binary.h"
 #include "flint/cuda/binary_scalar.h"
+#include "flint/cpu/all_close.h"
 #include "flint/cuda/cast.h"
 #include "flint/cuda/causal_mask.h"
 #include "flint/cuda/copy.h"
@@ -98,11 +99,75 @@ void CudaOperators::fill(Tensor input, float value) {
 }
 
 Tensor CudaOperators::square(Tensor input) {
-  return op::cuda::applyUnaryOp(UnaryOp::SQUARE, input);
+  return op::cuda::applyUnaryOp(op::cuda::UnaryOp::SQUARE, input);
 }
 
 Tensor CudaOperators::max(Tensor inputs) {
   return op::cuda::reduceLastDim(inputs, inputs.getDType(), MapReduceType::MAX);
+}
+
+Tensor CudaOperators::min(Tensor inputs) {
+  return op::cuda::reduceLastDim(inputs, inputs.getDType(), MapReduceType::MIN);
+}
+
+Tensor CudaOperators::divTensor(Tensor input, Tensor other) {
+  return op::cuda::applyBinaryOp(BinaryOp::DIV, input, other);
+}
+
+Tensor CudaOperators::neg(Tensor input) {
+  return op::cuda::applyUnaryOp(op::cuda::UnaryOp::NEG, input);
+}
+
+Tensor CudaOperators::abs(Tensor input) {
+  return op::cuda::applyUnaryOp(op::cuda::UnaryOp::ABS, input);
+}
+
+Tensor CudaOperators::exp(Tensor input) {
+  return op::cuda::applyUnaryOp(op::cuda::UnaryOp::EXP, input);
+}
+
+Tensor CudaOperators::sqrt(Tensor input) {
+  return op::cuda::applyUnaryOp(op::cuda::UnaryOp::SQRT, input);
+}
+
+Tensor CudaOperators::rsqrt(Tensor input) {
+  return op::cuda::applyUnaryOp(op::cuda::UnaryOp::RSQRT, input);
+}
+
+Tensor CudaOperators::sigmoid(Tensor input) {
+  return op::cuda::applyUnaryOp(op::cuda::UnaryOp::SIGMOID, input);
+}
+
+Tensor CudaOperators::tanh(Tensor input) {
+  return op::cuda::applyUnaryOp(op::cuda::UnaryOp::TANH, input);
+}
+
+Tensor CudaOperators::relu(Tensor input) {
+  return op::cuda::applyUnaryOp(op::cuda::UnaryOp::RELU, input);
+}
+
+Tensor CudaOperators::gelu(Tensor input) {
+  return op::cuda::applyUnaryOp(op::cuda::UnaryOp::GELU, input);
+}
+
+Tensor CudaOperators::silu(Tensor input) {
+  return op::cuda::applyUnaryOp(op::cuda::UnaryOp::SILU, input);
+}
+
+Tensor CudaOperators::subFloat(Tensor input, float other) {
+  return op::cuda::applyBinaryScalarOp(BinaryScalarOp::SUB, input, other);
+}
+
+bool CudaOperators::allClose(Tensor A, Tensor B, float rtol, float atol) {
+  // The comparison itself is a host-side reduction over both tensors, so bring them over and let
+  // the CPU backend do it rather than growing a kernel that would only be used by tests. The cast
+  // to float is what the CPU comparison expects; half tensors go through it on the device, where
+  // the copy is cheaper.
+  auto toHostFloat = [](const Tensor &x) {
+    return op::cuda::toCpu(x.getDType() == DType::kFloat ? x : op::cuda::cast(x, DType::kFloat));
+  };
+
+  return op::cpu::allClose(toHostFloat(A), toHostFloat(B), rtol, atol);
 }
 
 bool CudaOperators::all(Tensor A) {

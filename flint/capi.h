@@ -259,6 +259,9 @@ FLAPI int32_t fl_sub(fl_tensor_t a, fl_tensor_t b, fl_tensor_t *out);
 /// Element-wise `a` == `b`, giving a <bool> tensor of the same shape.
 FLAPI int32_t fl_eq(fl_tensor_t a, fl_tensor_t b, fl_tensor_t *out);
 
+/// Element-wise `a` / `b`, broadcasting `b` over the leading dimensions of `a`.
+FLAPI int32_t fl_div(fl_tensor_t a, fl_tensor_t b, fl_tensor_t *out);
+
 /// Element-wise `input` * `other`.
 FLAPI int32_t fl_mul_scalar(fl_tensor_t input, float other, fl_tensor_t *out);
 
@@ -270,6 +273,36 @@ FLAPI int32_t fl_mod_scalar(fl_tensor_t input, int64_t other, fl_tensor_t *out);
 
 /// Element-wise `input` squared.
 FLAPI int32_t fl_square(fl_tensor_t input, fl_tensor_t *out);
+
+/// Element-wise -x.
+FLAPI int32_t fl_neg(fl_tensor_t input, fl_tensor_t *out);
+
+/// Element-wise |x|.
+FLAPI int32_t fl_abs(fl_tensor_t input, fl_tensor_t *out);
+
+/// Element-wise e^x.
+FLAPI int32_t fl_exp(fl_tensor_t input, fl_tensor_t *out);
+
+/// Element-wise square root.
+FLAPI int32_t fl_sqrt(fl_tensor_t input, fl_tensor_t *out);
+
+/// Element-wise reciprocal square root, 1/sqrt(x).
+FLAPI int32_t fl_rsqrt(fl_tensor_t input, fl_tensor_t *out);
+
+/// Element-wise 1/(1+e^-x).
+FLAPI int32_t fl_sigmoid(fl_tensor_t input, fl_tensor_t *out);
+
+/// Element-wise hyperbolic tangent.
+FLAPI int32_t fl_tanh(fl_tensor_t input, fl_tensor_t *out);
+
+/// Element-wise max(x, 0).
+FLAPI int32_t fl_relu(fl_tensor_t input, fl_tensor_t *out);
+
+/// Element-wise exact GELU, x * P(X <= x). Not the tanh approximation.
+FLAPI int32_t fl_gelu(fl_tensor_t input, fl_tensor_t *out);
+
+/// Element-wise x * sigmoid(x).
+FLAPI int32_t fl_silu(fl_tensor_t input, fl_tensor_t *out);
 
 /// Softmax over the last dimension.
 FLAPI int32_t fl_softmax(fl_tensor_t input, fl_tensor_t *out);
@@ -284,6 +317,9 @@ FLAPI int32_t fl_sum(fl_tensor_t input, int32_t dim, fl_tensor_t *out);
 
 /// Largest element of dimension `dim`, which the result drops the same way fl_sum() does.
 FLAPI int32_t fl_max(fl_tensor_t input, int32_t dim, fl_tensor_t *out);
+
+/// Smallest element of dimension `dim`, which the result drops the same way fl_sum() does.
+FLAPI int32_t fl_min(fl_tensor_t input, int32_t dim, fl_tensor_t *out);
 
 /// Concatenate `a` and `b` along `dim`. They must agree on every other dimension.
 FLAPI int32_t fl_cat(fl_tensor_t a, fl_tensor_t b, int32_t dim, fl_tensor_t *out);

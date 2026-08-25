@@ -79,6 +79,18 @@ class Operators {
   virtual Tensor max(Tensor input);
   virtual Tensor eq(Tensor input, Tensor other);
   virtual Tensor square(Tensor input);
+  virtual Tensor min(Tensor input);
+  virtual Tensor divTensor(Tensor input, Tensor other);
+  virtual Tensor neg(Tensor input);
+  virtual Tensor abs(Tensor input);
+  virtual Tensor exp(Tensor input);
+  virtual Tensor sqrt(Tensor input);
+  virtual Tensor rsqrt(Tensor input);
+  virtual Tensor sigmoid(Tensor input);
+  virtual Tensor tanh(Tensor input);
+  virtual Tensor relu(Tensor input);
+  virtual Tensor gelu(Tensor input);
+  virtual Tensor silu(Tensor input);
   virtual void fill(Tensor input, float value);
   virtual Tensor tensor(lut::Span<const int> shape, DType dtype);
   virtual Tensor tensorLike(Tensor input);

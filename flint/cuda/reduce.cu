@@ -40,7 +40,7 @@ struct MapOp {
   __device__ TOut operator()(const TIn &x) const {
     if constexpr (
         MR_TYPE == MapReduceType::SUM || MR_TYPE == MapReduceType::MAX ||
-        MR_TYPE == MapReduceType::ALL) {
+        MR_TYPE == MapReduceType::MIN || MR_TYPE == MapReduceType::ALL) {
       return TOut(x);
     } else if constexpr (MR_TYPE == MapReduceType::SUM_EXP) {
       return expf(TOut(x));
@@ -63,6 +63,8 @@ struct ReduceOp {
       return a && b;
     } else if constexpr (MR_TYPE == MapReduceType::MAX) {
       return std::max(a, b);
+    } else if constexpr (MR_TYPE == MapReduceType::MIN) {
+      return std::min(a, b);
     } else {
       __trap();
     }
@@ -77,6 +79,8 @@ __device__ __host__ T getReduceInitial() {
     return T(0);
   } else if constexpr (MR_TYPE == MapReduceType::MAX) {
     return -::cuda::std::numeric_limits<float>::infinity();
+  } else if constexpr (MR_TYPE == MapReduceType::MIN) {
+    return ::cuda::std::numeric_limits<float>::infinity();
   } else if constexpr (MR_TYPE == MapReduceType::ALL) {
     return true;
   } else {
@@ -226,6 +230,8 @@ Tensor reduceLastDim(Tensor A, DType outType, MapReduceType reduceType) {
     return reduceLastDim3DImpl<MapReduceType::SUM_SQUARE, half, float>(A);
   if (inType == DType::kFloat16 && outType == DType::kFloat16 && reduceType == MapReduceType::MAX)
     return reduceLastDim3DImpl<MapReduceType::MAX, half, half>(A);
+  if (inType == DType::kFloat16 && outType == DType::kFloat16 && reduceType == MapReduceType::MIN)
+    return reduceLastDim3DImpl<MapReduceType::MIN, half, half>(A);
 
   NOT_IMPL();
 }

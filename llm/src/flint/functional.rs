@@ -100,6 +100,11 @@ pub fn mul(a: &Tensor, b: &Tensor) -> Result<Tensor> {
     Tensor::produce(|out| unsafe { ffi::fl_mul(a.raw, b.raw, out) })
 }
 
+/// Element-wise `a / b`, broadcasting `b` over the leading dimensions of `a`.
+pub fn div(a: &Tensor, b: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_div(a.raw, b.raw, out) })
+}
+
 /// Element-wise `a + b`, broadcasting `b` over the leading dimensions of `a`.
 pub fn add(a: &Tensor, b: &Tensor) -> Result<Tensor> {
     Tensor::produce(|out| unsafe { ffi::fl_add(a.raw, b.raw, out) })
@@ -135,6 +140,56 @@ pub fn square(input: &Tensor) -> Result<Tensor> {
     Tensor::produce(|out| unsafe { ffi::fl_square(input.raw, out) })
 }
 
+/// Element-wise `-x`.
+pub fn neg(input: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_neg(input.raw, out) })
+}
+
+/// Element-wise `|x|`.
+pub fn abs(input: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_abs(input.raw, out) })
+}
+
+/// Element-wise `e^x`.
+pub fn exp(input: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_exp(input.raw, out) })
+}
+
+/// Element-wise square root.
+pub fn sqrt(input: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_sqrt(input.raw, out) })
+}
+
+/// Element-wise reciprocal square root, `1/sqrt(x)`.
+pub fn rsqrt(input: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_rsqrt(input.raw, out) })
+}
+
+/// Element-wise `1/(1 + e^-x)`.
+pub fn sigmoid(input: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_sigmoid(input.raw, out) })
+}
+
+/// Element-wise hyperbolic tangent.
+pub fn tanh(input: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_tanh(input.raw, out) })
+}
+
+/// Element-wise `max(x, 0)`.
+pub fn relu(input: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_relu(input.raw, out) })
+}
+
+/// Element-wise exact GELU, `x * P(X <= x)`. Not the tanh approximation.
+pub fn gelu(input: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_gelu(input.raw, out) })
+}
+
+/// Element-wise `x * sigmoid(x)`.
+pub fn silu(input: &Tensor) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_silu(input.raw, out) })
+}
+
 /// Softmax over the last dimension.
 pub fn softmax(input: &Tensor) -> Result<Tensor> {
     Tensor::produce(|out| unsafe { ffi::fl_softmax(input.raw, out) })
@@ -155,6 +210,11 @@ pub fn sum(input: &Tensor, dim: i32) -> Result<Tensor> {
 /// The largest element of dimension `dim`, which the result drops the same way [`sum`] does.
 pub fn max(input: &Tensor, dim: i32) -> Result<Tensor> {
     Tensor::produce(|out| unsafe { ffi::fl_max(input.raw, dim, out) })
+}
+
+/// Smallest element of dimension `dim`, which the result drops the way [`sum`] does.
+pub fn min(input: &Tensor, dim: i32) -> Result<Tensor> {
+    Tensor::produce(|out| unsafe { ffi::fl_min(input.raw, dim, out) })
 }
 
 /// Concatenate `a` and `b` along `dim`. They must agree on every other dimension.

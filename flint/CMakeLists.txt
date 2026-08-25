@@ -29,6 +29,7 @@ set(flint_SOURCES
     "cpu/swiglu.cc"
     "cpu/tensor.cc"
     "cpu/transform.cc"
+    "cpu/unary.cc"
     "cpu/view.cc"
     "device.cc"
     "dtype.cc"
@@ -48,6 +49,7 @@ set(flint_test_SOURCES
     "cpu/reduce_test.cc"
     "cpu/sampling_test.cc"
     "cpu/softmax_test.cc"
+    "cpu/unary_test.cc"
     "tensor_test.cc")
 
 set(flint_benchmark_SOURCES
@@ -121,7 +123,8 @@ if (WITH_CUDA)
         "cuda/softmax_test.cc"
         "cuda/store_kv_cache_test.cc"
         "cuda/swiglu_test.cc"
-        "cuda/to_device_test.cc")
+        "cuda/to_device_test.cc"
+        "cuda/unary_test.cc")
     set(flint_benchmark_SOURCES ${flint_benchmark_SOURCES} "cuda/benchmark.cc")
 
     if (WITH_CUTLASS)

@@ -25,7 +25,7 @@ namespace fl {
 namespace op {
 namespace cuda {
 
-enum class BinaryOp { ADD, SUB, MUL, EQUAL };
+enum class BinaryOp { ADD, SUB, MUL, DIV, EQUAL };
 
 // apply C <- BinaryOp(A, B)
 Tensor applyBinaryOp(BinaryOp op, const Tensor &A, const Tensor &B);

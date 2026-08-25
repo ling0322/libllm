@@ -138,6 +138,54 @@ Tensor Operators::square(Tensor input) {
   NOT_IMPL();
 }
 
+Tensor Operators::min(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::divTensor(Tensor input, Tensor other) {
+  NOT_IMPL();
+}
+
+Tensor Operators::neg(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::abs(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::exp(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::sqrt(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::rsqrt(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::sigmoid(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::tanh(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::relu(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::gelu(Tensor input) {
+  NOT_IMPL();
+}
+
+Tensor Operators::silu(Tensor input) {
+  NOT_IMPL();
+}
+
 void Operators::fill(Tensor input, float value) {
   NOT_IMPL();
 }

@@ -17,8 +17,9 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "flint/cpu/binary_op.h"
+#include "flint/cpu/unary.h"
 
+#include <math.h>
 #include <omp.h>
 
 #include "lutil/attributes.h"
@@ -31,50 +32,67 @@ namespace fl {
 namespace op {
 namespace cpu {
 
-Tensor broadcastTensor(const Tensor &a, lut::Span<const Tensor::ShapeType> targetShape) {
-  Tensor x = expandBatchDims(a, targetShape);
-  return x.expand(targetShape);
+namespace {
+
+/// Every function is evaluated in float regardless of the tensor's type, so that a half tensor
+/// gets the same value the float one would, rounded once at the end rather than at each step.
+inline float applyUnaryOpFloat(float x, UnaryOp op) {
+  switch (op) {
+    case UnaryOp::NEG:
+      return -x;
+    case UnaryOp::ABS:
+      return fabsf(x);
+    case UnaryOp::EXP:
+      return expf(x);
+    case UnaryOp::SQUARE:
+      return x * x;
+    case UnaryOp::SQRT:
+      return sqrtf(x);
+    case UnaryOp::RSQRT:
+      return 1.0f / sqrtf(x);
+    case UnaryOp::SIGMOID:
+      return 1.0f / (1.0f + expf(-x));
+    case UnaryOp::TANH:
+      return tanhf(x);
+    case UnaryOp::RELU:
+      return x > 0.0f ? x : 0.0f;
+    case UnaryOp::GELU:
+      // The exact form, so that this matches torch.nn.GELU() rather than its tanh approximation.
+      return x * 0.5f * (1.0f + erff(x * 0.70710678118654752f));
+    case UnaryOp::SILU:
+      return x / (1.0f + expf(-x));
+    default:
+      NOT_IMPL();
+  }
 }
 
+}  // namespace
+
 template<typename T>
-Tensor binaryOpKernel(const Tensor &A, const Tensor &B, BinaryOp op) {
-  Tensor xB = broadcastTensor(B, A.getShape());
+Tensor unaryOpKernel(const Tensor &A, UnaryOp op) {
   Tensor C = tensorLike(A);
 
   TensorList<const T, 1> vA = TensorList<const T, 1>::fromTensor(A);
-  TensorList<const T, 1> vB = TensorList<const T, 1>::fromTensor(xB);
   TensorList<T, 1> vC = TensorList<T, 1>::fromTensor(C);
-  CHECK(vA.getLength() == vB.getLength() && vC.getLength() == vB.getLength());
+  CHECK(vA.getLength() == vC.getLength());
 
 #pragma omp parallel for num_threads(omp_get_max_threads())
   for (int j = 0; j < vA.getLength(); ++j) {
     TensorAccessor<const T, 1> a = vA.getTensor(j);
-    TensorAccessor<const T, 1> b = vB.getTensor(j);
     TensorAccessor<T, 1> c = vC.getTensor(j);
 
     for (int i = 0; i < a.getShape(0); ++i) {
-      if (op == BinaryOp::ADD) {
-        c[i] = a[i] + b[i];
-      } else if (op == BinaryOp::SUB) {
-        c[i] = a[i] - b[i];
-      } else if (op == BinaryOp::MUL) {
-        c[i] = a[i] * b[i];
-      } else if (op == BinaryOp::DIV) {
-        c[i] = a[i] / b[i];
-      } else {
-        NOT_IMPL();
-      }
+      c[i] = static_cast<T>(applyUnaryOpFloat(static_cast<float>(a[i]), op));
     }
   }
 
   return C;
 }
 
-// apply C <- BinaryOp(A, B)
-Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op) {
-  if (A.getDType() == DType::kFloat) return binaryOpKernel<float>(A, B, op);
+Tensor unaryOp(const Tensor &A, UnaryOp op) {
+  if (A.getDType() == DType::kFloat) return unaryOpKernel<float>(A, op);
 #if LUT_CPU_ARCH == LUT_AARCH64
-  if (A.getDType() == DType::kFloat16) return binaryOpKernel<Float16>(A, B, op);
+  if (A.getDType() == DType::kFloat16) return unaryOpKernel<Float16>(A, op);
 #endif
 
   NOT_IMPL();

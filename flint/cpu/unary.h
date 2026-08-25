@@ -25,10 +25,24 @@ namespace fl {
 namespace op {
 namespace cpu {
 
-enum class BinaryOp { ADD, MUL, SUB, DIV };
+/// Element-wise functions of one tensor. flint/cuda/unary.h lists the same set for the CUDA
+/// backend; the CUDA tests check their results against these.
+enum class UnaryOp {
+  NEG,
+  ABS,
+  EXP,
+  SQUARE,
+  SQRT,
+  RSQRT,
+  SIGMOID,
+  TANH,
+  RELU,
+  GELU,
+  SILU,
+};
 
-// apply C <- BinaryOp(A, B)
-Tensor binaryOp(const Tensor &A, const Tensor &B, BinaryOp op);
+/// apply C <- UnaryOp(A)
+Tensor unaryOp(const Tensor &A, UnaryOp op);
 
 }  // namespace cpu
 }  // namespace op

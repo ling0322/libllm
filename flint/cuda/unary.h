@@ -25,9 +25,22 @@ namespace fl {
 namespace op {
 namespace cuda {
 
-enum class UnaryOp { SQUARE };
+/// Element-wise functions of one tensor. flint/cpu/unary.h lists the same set for the CPU
+/// backend, and the two have to compute the same values.
+enum class UnaryOp {
+  NEG,
+  ABS,
+  EXP,
+  SQUARE,
+  SQRT,
+  RSQRT,
+  SIGMOID,
+  TANH,
+  RELU,
+  GELU,
+  SILU,
+};
 
-//
 Tensor applyUnaryOp(UnaryOp op, const Tensor &tensor);
 
 }  // namespace cuda

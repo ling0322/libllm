@@ -47,6 +47,7 @@
 #include "flint/cpu/swiglu.h"
 #include "flint/cpu/tensor.h"
 #include "flint/cpu/transform.h"
+#include "flint/cpu/unary.h"
 #include "flint/operators.h"
 #include "flint/tensor.h"
 
@@ -219,6 +220,162 @@ Tensor CPUOperators::sum(Tensor inputs, int dim) {
 
 Tensor CPUOperators::max(Tensor inputs) {
   return cpu::reduce(inputs, MapReduceType::MAX);
+}
+
+Tensor CPUOperators::min(Tensor inputs) {
+  return cpu::reduce(inputs, MapReduceType::MIN);
+}
+
+Tensor CPUOperators::square(Tensor input) {
+  return cpu::unaryOp(input, cpu::UnaryOp::SQUARE);
+}
+
+Tensor CPUOperators::divTensor(Tensor input, Tensor other) {
+  return cpu::binaryOp(input, other, BinaryOp::DIV);
+}
+
+Tensor CPUOperators::neg(Tensor input) {
+  return cpu::unaryOp(input, cpu::UnaryOp::NEG);
+}
+
+Tensor CPUOperators::abs(Tensor input) {
+  return cpu::unaryOp(input, cpu::UnaryOp::ABS);
+}
+
+Tensor CPUOperators::exp(Tensor input) {
+  return cpu::unaryOp(input, cpu::UnaryOp::EXP);
+}
+
+Tensor CPUOperators::sqrt(Tensor input) {
+  return cpu::unaryOp(input, cpu::UnaryOp::SQRT);
+}
+
+Tensor CPUOperators::rsqrt(Tensor input) {
+  return cpu::unaryOp(input, cpu::UnaryOp::RSQRT);
+}
+
+Tensor CPUOperators::sigmoid(Tensor input) {
+  return cpu::unaryOp(input, cpu::UnaryOp::SIGMOID);
+}
+
+Tensor CPUOperators::tanh(Tensor input) {
+  return cpu::unaryOp(input, cpu::UnaryOp::TANH);
+}
+
+Tensor CPUOperators::relu(Tensor input) {
+  return cpu::unaryOp(input, cpu::UnaryOp::RELU);
+}
+
+Tensor CPUOperators::gelu(Tensor input) {
+  return cpu::unaryOp(input, cpu::UnaryOp::GELU);
+}
+
+Tensor CPUOperators::silu(Tensor input) {
+  return cpu::unaryOp(input, cpu::UnaryOp::SILU);
+}
+
+Tensor CPUOperators::div(Tensor input, float other) {
+  return op::cpu::transform(input, 1.0f / other, 0.0f);
+}
+
+Tensor CPUOperators::arangeLong(LongType begin, LongType end, LongType step) {
+  CHECK(step != 0);
+  int64_t numel = (end - begin) / step;
+  CHECK(numel >= 0 && numel < std::numeric_limits<int32_t>::max());
+
+  Tensor x = op::cpu::tensor({static_cast<int>(numel)}, DType::kLong);
+  LongType *data = getDataPtrCpu<LongType>(x);
+  for (int64_t i = 0; i < numel; ++i) {
+    data[i] = begin + step * i;
+  }
+
+  return x;
+}
+
+Tensor CPUOperators::randNormal(lut::Span<const int> shape) {
+  Tensor x = op::cpu::tensor(shape, DType::kFloat);
+  int64_t numel = x.getNumEl();
+  float *data = getDataPtrCpu<float>(x);
+
+  // fillGaussian works in pairs, so an odd count is filled one element long and truncated.
+  if (numel % 2 == 0) {
+    _rand.fillGaussian(lut::Span<float>(data, numel));
+  } else {
+    std::vector<float> padded(numel + 1);
+    _rand.fillGaussian(lut::makeSpan(padded));
+    std::copy(padded.begin(), padded.begin() + numel, data);
+  }
+
+  return x;
+}
+
+float CPUOperators::elem(Tensor tensor) {
+  CHECK(tensor.getNumEl() == 1);
+  CHECK(tensor.getDType() == DType::kFloat);
+
+  return getDataPtrCpu<float>(tensor)[0];
+}
+
+bool CPUOperators::elemBool(Tensor tensor) {
+  CHECK(tensor.getNumEl() == 1);
+  CHECK(tensor.getDType() == DType::kBool);
+
+  return getDataPtrCpu<BoolType>(tensor)[0];
+}
+
+/// A packed copy of `input`, so the loops below can walk it as a flat array.
+static Tensor contiguousCpu(const Tensor &input) {
+  if (input.isContiguous()) return input;
+
+  Tensor packed = op::cpu::tensorLike(input);
+  op::cpu::copy(input, packed);
+  return packed;
+}
+
+Tensor CPUOperators::mod(Tensor input, LongType other) {
+  CHECK(input.getDType() == DType::kLong);
+  CHECK(other != 0);
+
+  Tensor x = contiguousCpu(input);
+  Tensor c = op::cpu::tensorLike(x);
+  const LongType *src = getDataPtrCpu<LongType>(x);
+  LongType *dest = getDataPtrCpu<LongType>(c);
+  for (int64_t i = 0; i < c.getNumEl(); ++i) {
+    dest[i] = src[i] % other;
+  }
+
+  return c;
+}
+
+Tensor CPUOperators::eq(Tensor input, Tensor other) {
+  // Matches the CUDA backend, which compares <uint8> tensors and answers in <bool>.
+  CHECK(input.getDType() == DType::kUInt8 && other.getDType() == DType::kUInt8);
+  input.throwIfInvalidShape(other.getShape(), "eq");
+
+  Tensor a = contiguousCpu(input);
+  Tensor b = contiguousCpu(other);
+  Tensor c = op::cpu::tensor(a.getShape(), DType::kBool);
+
+  const UInt8 *pa = getDataPtrCpu<UInt8>(a);
+  const UInt8 *pb = getDataPtrCpu<UInt8>(b);
+  BoolType *pc = getDataPtrCpu<BoolType>(c);
+  for (int64_t i = 0; i < c.getNumEl(); ++i) {
+    pc[i] = pa[i] == pb[i];
+  }
+
+  return c;
+}
+
+bool CPUOperators::all(Tensor A) {
+  CHECK(A.getDType() == DType::kBool);
+
+  Tensor x = contiguousCpu(A);
+  const BoolType *data = getDataPtrCpu<BoolType>(x);
+  for (int64_t i = 0; i < x.getNumEl(); ++i) {
+    if (!data[i]) return false;
+  }
+
+  return true;
 }
 
 void CPUOperators::repetitionPenalty(Tensor logits, Tensor history, float weight) {

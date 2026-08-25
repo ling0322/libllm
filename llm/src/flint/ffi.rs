@@ -114,6 +114,7 @@ extern "C" {
     pub fn fl_rms_norm(input: FlTensor, weight: FlTensor, eps: f32, out: *mut FlTensor) -> i32;
     pub fn fl_matmul(a: FlTensor, b: FlTensor, out: *mut FlTensor) -> i32;
     pub fn fl_mul(a: FlTensor, b: FlTensor, out: *mut FlTensor) -> i32;
+    pub fn fl_div(a: FlTensor, b: FlTensor, out: *mut FlTensor) -> i32;
     pub fn fl_add(a: FlTensor, b: FlTensor, out: *mut FlTensor) -> i32;
     pub fn fl_sub(a: FlTensor, b: FlTensor, out: *mut FlTensor) -> i32;
     pub fn fl_eq(a: FlTensor, b: FlTensor, out: *mut FlTensor) -> i32;
@@ -121,10 +122,21 @@ extern "C" {
     pub fn fl_div_scalar(input: FlTensor, other: f32, out: *mut FlTensor) -> i32;
     pub fn fl_mod_scalar(input: FlTensor, other: i64, out: *mut FlTensor) -> i32;
     pub fn fl_square(input: FlTensor, out: *mut FlTensor) -> i32;
+    pub fn fl_neg(input: FlTensor, out: *mut FlTensor) -> i32;
+    pub fn fl_abs(input: FlTensor, out: *mut FlTensor) -> i32;
+    pub fn fl_exp(input: FlTensor, out: *mut FlTensor) -> i32;
+    pub fn fl_sqrt(input: FlTensor, out: *mut FlTensor) -> i32;
+    pub fn fl_rsqrt(input: FlTensor, out: *mut FlTensor) -> i32;
+    pub fn fl_sigmoid(input: FlTensor, out: *mut FlTensor) -> i32;
+    pub fn fl_tanh(input: FlTensor, out: *mut FlTensor) -> i32;
+    pub fn fl_relu(input: FlTensor, out: *mut FlTensor) -> i32;
+    pub fn fl_gelu(input: FlTensor, out: *mut FlTensor) -> i32;
+    pub fn fl_silu(input: FlTensor, out: *mut FlTensor) -> i32;
     pub fn fl_softmax(input: FlTensor, out: *mut FlTensor) -> i32;
     pub fn fl_swiglu(input: FlTensor, out: *mut FlTensor) -> i32;
     pub fn fl_sum(input: FlTensor, dim: i32, out: *mut FlTensor) -> i32;
     pub fn fl_max(input: FlTensor, dim: i32, out: *mut FlTensor) -> i32;
+    pub fn fl_min(input: FlTensor, dim: i32, out: *mut FlTensor) -> i32;
     pub fn fl_cat(a: FlTensor, b: FlTensor, dim: i32, out: *mut FlTensor) -> i32;
     pub fn fl_causal_mask(max_len: i32, device: FlDeviceType, out: *mut FlTensor) -> i32;
 
