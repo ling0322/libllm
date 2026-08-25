@@ -1,0 +1,16 @@
+[package]
+name = "llm-cli"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "The libllm command line tool"
+
+[[bin]]
+name = "llm"
+path = "src/main.rs"
+
+[dependencies]
+llm = { path = "../llm" }
+# Only for downloading models. The library crates have no dependencies; an HTTPS client is the
+# one thing here that is not worth writing by hand.
+ureq = { version = "3", default-features = false, features = ["rustls"] }

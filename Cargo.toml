@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "flint-rs",
+    "llm",
+    "llm-cli",
+]
+resolver = "2"

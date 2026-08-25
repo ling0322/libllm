@@ -22,3 +22,4 @@ __pycache__
 /tools/*.config
 python/build
 python/dist
+/target

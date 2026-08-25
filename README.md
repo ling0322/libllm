@@ -1,6 +1,6 @@
-# libLLM: Efficient inference of large language models.
+# libLLM: A lightweight vLLM-style inference engine in Rust
 
-Welcome to libLLM, an open-source project designed for efficient inference of large language models (LLM) on ordinary personal computers and mobile devices. The core is implemented in C++14, without any third-party dependencies (such as BLAS or SentencePiece), enabling seamless operation across a variety of devices.
+libLLM is a lightweight LLM inference engine with a Rust runtime and optimized C++17/CUDA kernels. It provides vLLM-style serving features including continuous batching, paged KV cache, chunked prefill, request preemption, and per-request sampling.
 
 ## Model download:
 
@@ -55,37 +55,172 @@ How can I assist you today?
 >
 ```
 
+## Rust example
+
+The Rust API can load a model package and stream generated text through an `Engine` callback:
+
+```rust
+use std::io::Write;
+use std::sync::mpsc::channel;
+
+use llm::{
+	Device, Engine, EngineConfig, GenerationConfig, KVCacheManager, LlamaForGeneration,
+	Message, RequestInput, RequestOutput, ZipFile,
+};
+
+fn main() -> Result<(), llm::Error> {
+	let device = Device::Cuda;
+	let model_path = "models/llama3.2-3b-instruct-fp16.llmpkg";
+	let config = EngineConfig::default();
+	let (finished_tx, finished_rx) = channel();
+
+	let engine = Engine::new(
+		move || {
+			let package = ZipFile::open(model_path)?;
+			let model = LlamaForGeneration::from_package(device, &package)?;
+			let cache = KVCacheManager::for_model(&model, &config)?;
+			Ok((model, cache))
+		},
+		config.max_num_batched_tokens,
+		move |outputs: &[RequestOutput]| {
+			for output in outputs {
+				print!("{}", output.text);
+				let _ = std::io::stdout().flush();
+				if output.finished {
+					let _ = finished_tx.send(());
+				}
+			}
+		},
+	)?;
+
+	engine.add_request_input(
+		"example",
+		RequestInput::Messages(vec![Message::new("user", "Why is the sky blue?")]),
+		GenerationConfig::default(),
+	)?;
+
+	let _ = finished_rx.recv();
+	engine.shutdown()
+}
+```
+
+After completing the build steps below, run the complete example with:
+
+```bash
+cargo run --release -p llm --example chat -- \
+	models/llama3.2-3b-instruct-fp16.llmpkg \
+	"Why is the sky blue?"
+```
+
+See [llm/examples/chat.rs](llm/examples/chat.rs) for the complete source.
+
 ## Build
 
-### libLLM CPU only
+libLLM has two build stages:
+
+1. CMake builds the native Flint C++/CUDA kernels into `build/libflint.a`.
+2. Cargo builds the Rust workspace and links the native library into `llm` and `llm-cli`.
+
+Requirements:
+
+- CMake 3.22 or newer
+- A C++17 compiler
+- Rust and Cargo
+- OpenMP, unless configured with `-DWITH_OPENMP=OFF`
+- The bundled libunwind build:
 
 ```bash
-$ mkdir build && cd build
-$ cmake ..
-$ make -j
+(cd third_party && ./install_unwind.sh)
 ```
 
-#### For macOS
-
-Please brew install OpenMP before cmake. NOTE: currently libllm macOS expected to be very slow since there is no aarch64 kernel for it.
+### CPU build
 
 ```bash
-% brew install libomp
-% export OpenMP_ROOT=$(brew --prefix)/opt/libomp
-% mkdir build && cd build
-% cmake ..
-% make -j
+cmake -S . -B build -DWITH_CUDA=OFF
+cmake --build build --parallel
+cargo build -p llm-cli --release
 ```
 
-### Build with CUDA
+The command-line executable is written to:
 
-NOTE: specify `-DCUDAToolkit_ROOT=<CUDA-DIR>` if there is multiple CUDA versions in your OS.
+```text
+target/release/llm
+```
 
-Recommand versions are:
-- CUDA: 11.7
+### CUDA build
+
+Install the CUDA Toolkit first. FlashAttention is enabled by default for CUDA builds and must be
+built once before configuring libLLM:
 
 ```bash
-$ mkdir build && cd build
-$ cmake -DWITH_CUDA=ON [-DCUDAToolkit_ROOT=<CUDA-DIR>] ..
-$ make -j
+./third_party/install_flash_attn.sh
+```
+
+Then build the native kernels and CLI:
+
+```bash
+cmake -S . -B build \
+	-DWITH_CUDA=ON \
+	-DCUDA_ARCH_NATIVE=ON
+cmake --build build --parallel
+cargo build -p llm-cli --release
+```
+
+`CUDA_ARCH_NATIVE=ON` builds only for GPUs installed in the current machine. Omit it when
+building an artifact intended for several GPU generations. If CMake cannot find the intended
+CUDA installation, add:
+
+```text
+-DCUDAToolkit_ROOT=/path/to/cuda
+```
+
+To build CUDA support without FlashAttention, configure with `-DWITH_FLASH_ATTN=OFF` instead of
+running `install_flash_attn.sh`.
+
+### macOS
+
+Install OpenMP before configuring the CPU build:
+
+```bash
+brew install libomp
+export OpenMP_ROOT="$(brew --prefix)/opt/libomp"
+
+cmake -S . -B build -DWITH_CUDA=OFF
+cmake --build build --parallel
+cargo build -p llm-cli --release
+```
+
+### Tests
+
+Run the native C++/CUDA test suite:
+
+```bash
+cmake --build build --target unittest --parallel
+./build/unittest
+```
+
+Run the Rust Flint and CLI tests:
+
+```bash
+cargo test -p flint
+cargo test -p llm-cli
+```
+
+The ignored Rust CUDA integration tests can be run on a CUDA machine with:
+
+```bash
+cargo test -p flint --test cuda -- --ignored
+```
+
+Some `llm` integration tests require the model and reference packages under `models/`.
+
+### Custom native build directory
+
+`flint-rs` uses `build/` by default. When the CMake output is elsewhere, point Cargo at it with
+`LIBLLM_LIB_DIR`:
+
+```bash
+cmake -S . -B out/native -DWITH_CUDA=ON
+cmake --build out/native --parallel
+LIBLLM_LIB_DIR="$PWD/out/native" cargo build -p llm-cli --release
 ```

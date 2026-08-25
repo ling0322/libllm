@@ -153,7 +153,7 @@ if(WITH_FLASH_ATTN)
         INTERFACE_INCLUDE_DIRECTORIES "${FLASH_ATTN_ROOT}/csrc/flash_attn/src")
 endif()
 
-add_subdirectory("src")
+add_subdirectory("flint")
 
 set(libllm_LIBADD lutil flint_static ${CMAKE_DL_LIBS} ${UNWIND_ARCH_LIB} ${UNWIND_LIB} )
 
@@ -169,17 +169,58 @@ if(WITH_CUDA)
     set(libllm_LIBADD ${libllm_LIBADD} CUDA::cudart_static CUDA::curand_static)
 endif()
 
-add_library(libllm SHARED $<TARGET_OBJECTS:libllm_static>)
-target_link_libraries(libllm ${libllm_LIBADD}  )
-set_property(TARGET libllm PROPERTY OUTPUT_NAME llm)
-if(UNIX AND NOT APPLE)
-    target_link_options(libllm PUBLIC "-Wl,--no-undefined")
+# libflint.a is what the Rust `flint` crate links against. It bundles every object this project
+# compiles -- the kernels and the lutil helpers they use -- so a consumer needs exactly one
+# archive from the CMake build. The model runtime that used to sit on top of it now lives in the
+# Rust `llm` crate.
+add_library(flint STATIC $<TARGET_OBJECTS:flint_static> $<TARGET_OBJECTS:lutil>)
+
+# A static archive carries no record of what it still needs, and Cargo cannot read CMake's
+# dependency graph, so write the rest of the link line out as cargo directives for the flint
+# crate's build script to echo. Order matters: dependents come before what they depend on.
+get_filename_component(flint_UNWIND_DIR "${UNWIND_LIB}" DIRECTORY)
+set(flint_CARGO_FLAGS
+    "cargo:rustc-link-search=native=${CMAKE_BINARY_DIR}"
+    "cargo:rustc-link-lib=static=flint"
+    "cargo:rustc-link-search=native=${flint_UNWIND_DIR}"
+    "cargo:rustc-link-lib=static=${UNWIND_ARCH_LIB_NAME}"
+    "cargo:rustc-link-lib=static=unwind")
+
+if(WITH_FLASH_ATTN)
+    get_filename_component(flint_FLASH_ATTN_DIR "${FLASH_ATTN_LIB}" DIRECTORY)
+    list(APPEND flint_CARGO_FLAGS
+        "cargo:rustc-link-search=native=${flint_FLASH_ATTN_DIR}"
+        "cargo:rustc-link-lib=static=flash_attn")
 endif()
+
+if(WITH_CUDA)
+    list(APPEND flint_CARGO_FLAGS
+        "cargo:rustc-link-search=native=${CUDAToolkit_LIBRARY_DIR}"
+        "cargo:rustc-link-lib=static=curand_static"
+        "cargo:rustc-link-lib=static=cudart_static"
+        "cargo:rustc-link-lib=static=culibos")
+endif()
+
+if(WITH_OPENMP)
+    foreach(flint_OMP_LIB ${OpenMP_CXX_LIB_NAMES})
+        list(APPEND flint_CARGO_FLAGS "cargo:rustc-link-lib=dylib=${flint_OMP_LIB}")
+    endforeach()
+endif()
+
+# The C++ runtime last: everything above draws on it.
+list(APPEND flint_CARGO_FLAGS
+    "cargo:rustc-link-lib=dylib=stdc++"
+    "cargo:rustc-link-lib=dylib=dl"
+    "cargo:rustc-link-lib=dylib=rt"
+    "cargo:rustc-link-lib=dylib=m")
+
+string(REPLACE ";" "\n" flint_CARGO_FLAGS_TEXT "${flint_CARGO_FLAGS}")
+file(GENERATE
+    OUTPUT "${CMAKE_BINARY_DIR}/flint_link_flags.txt"
+    CONTENT "${flint_CARGO_FLAGS_TEXT}\n")
 
 
 set(unittest_LIBADD
-    libllm_static
-    libllm_test
     flint_test
     lutil_test
     ${libllm_LIBADD}
@@ -196,27 +237,14 @@ endif()
 
 add_library(catch2 STATIC  "../third_party/catch2/catch_amalgamated.cpp")
 
-add_executable(unittest "src/flint/bin/unittest.cc")
-target_include_directories(unittest PRIVATE "src" "third_party")
+add_executable(unittest "flint/bin/unittest.cc")
+target_include_directories(unittest PRIVATE "." "flint" "third_party")
 
 target_link_libraries(unittest ${unittest_LIBADD})
 
-add_executable(benchmark "src/flint/bin/benchmark.cc")
-target_include_directories(benchmark PRIVATE "src" "third_party")
+add_executable(benchmark "flint/bin/benchmark.cc")
+target_include_directories(benchmark PRIVATE "." "flint" "third_party")
 target_link_libraries(benchmark flint_benchmark ${libllm_LIBADD} catch2)
-
-add_executable(llm_benchmark
-    "src/libllm/benchmark_main.cc"
-    $<TARGET_OBJECTS:libllm_static>)
-target_include_directories(llm_benchmark PRIVATE "src" "third_party")
-target_link_libraries(llm_benchmark ${libllm_LIBADD})
-
 
 enable_testing()
 add_test(NAME unittest COMMAND $<TARGET_FILE:unittest>)
-
-add_custom_target(llm
-    ALL
-    DEPENDS libllm
-    COMMAND go build -o $<PATH:GET_PARENT_PATH,$<TARGET_FILE:unittest>>/llm${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_SOURCE_DIR}/go/bin
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/go/bin)

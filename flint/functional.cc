@@ -1,0 +1,261 @@
+// The MIT License (MIT)
+//
+// Copyright (c) 2023 Xiaoyang Chen
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+// and associated documentation files (the "Software"), to deal in the Software without
+// restriction, including without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or
+// substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+// BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+#include "flint/functional.h"
+
+#include <math.h>
+
+#include "flint/operators.h"
+#include "lutil/error.h"
+#include "lutil/strings.h"
+
+namespace fl {
+namespace F {
+
+Tensor arange(LongType begin, LongType end, LongType step, Device device) {
+  return getOperators(device.getType())->arangeLong(begin, end, step);
+}
+
+Tensor lookup(Tensor table, Tensor indices) {
+  return getOperators(table.getDevice().getType())->lookup(table, indices);
+}
+
+void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache) {
+  getOperators(query.getDevice().getType())->rotaryEmbedding(positions, query, key, rotaryCache);
+}
+
+Tensor rmsNorm(Tensor input, Tensor weight, float eps) {
+  return getOperators(input.getDevice().getType())->rmsNorm(input, weight, eps);
+}
+
+Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs) {
+  CHECK(logits.getDevice().getType() == temperatures.getDevice().getType());
+  CHECK(logits.getDevice().getType() == topKs.getDevice().getType());
+  CHECK(logits.getDevice().getType() == topPs.getDevice().getType());
+  return getOperators(logits.getDevice().getType())->sample(
+      logits, temperatures, topKs, topPs);
+}
+
+Tensor matmul(Tensor A, Tensor B) {
+  CHECK(A.getDevice().getType() == B.getDevice().getType());
+  CHECK(!A.empty());
+  CHECK(!B.empty());
+
+  return getOperators(A.getDevice().getType())->matmul(A, B);
+}
+
+Tensor mul(Tensor input, float other) {
+  return getOperators(input.getDevice().getType())->mul(input, other);
+}
+
+Tensor div(Tensor input, float other) {
+  return getOperators(input.getDevice().getType())->div(input, other);
+}
+
+Tensor mul(Tensor input, Tensor other) {
+  return getOperators(input.getDevice().getType())->mul(input, other);
+}
+
+Tensor softmax(Tensor input) {
+  return getOperators(input.getDevice().getType())->softmax(input);
+}
+
+Tensor square(Tensor input) {
+  return getOperators(input.getDevice().getType())->square(input);
+}
+
+Tensor add(Tensor input, Tensor other) {
+  return getOperators(input.getDevice().getType())->add(input, other);
+}
+
+Tensor sub(Tensor input, Tensor other) {
+  return getOperators(input.getDevice().getType())->sub(input, other);
+}
+
+Tensor mod(Tensor input, LongType other) {
+  return getOperators(input.getDevice().getType())->mod(input, other);
+}
+
+Tensor tensor(lut::Span<const int> shape, DType dtype, Device device) {
+  return getOperators(device.getType())->tensor(shape, dtype);
+}
+
+Tensor tensorLike(Tensor input) {
+  return getOperators(input.getDevice().getType())->tensorLike(input);
+}
+
+Tensor rand(lut::Span<const int> shape, DType dtype, Device device) {
+  return getOperators(device.getType())->rand(shape, dtype);
+}
+
+Tensor randn(lut::Span<const int> shape, Device device) {
+  return getOperators(device.getType())->randNormal(shape);
+}
+
+Tensor zeros(lut::Span<const int> shape, DType dtype, Device device) {
+  return getOperators(device.getType())->zeros(shape, dtype);
+}
+
+Tensor contiguous(Tensor input) {
+  Tensor x = tensorLike(input);
+  F::copy(input, x);
+
+  return x;
+}
+
+bool allClose(Tensor A, Tensor B, float rtol, float atol) {
+  return getOperators(A.getDevice().getType())->allClose(A, B, rtol, atol);
+}
+
+void print(Tensor tensor) {
+  getOperators(tensor.getDevice().getType())->print(tensor);
+}
+
+Tensor causalMask(int maxLen, Device device) {
+  return getOperators(device.getType())->causalMask(maxLen);
+}
+
+Tensor cat(Tensor A, Tensor B, int dim) {
+  CHECK(A.getDType() == B.getDType());
+  dim = A.getInternalShape()->getRealDim(dim);
+  CHECK(A.getDim() == B.getDim() && dim < A.getDim());
+
+  std::vector<int> shape = A.getShape();
+  int dA = A.getShape(dim);
+  int dB = B.getShape(dim);
+  shape[dim] = dA + dB;
+
+  Tensor C = tensor(shape, A.getDType(), A.getDevice());
+  Tensor sA = C.slice(dim, {0, dA});
+  Tensor sB = C.slice(dim, {dA, dA + dB});
+
+  copy(A, sA);
+  copy(B, sB);
+
+  return C;
+}
+
+void copy(Tensor src, Tensor dest) {
+  CHECK(src.getDType() == dest.getDType());
+  src.throwIfInvalidShape(dest.getShape(), "F::copy");
+
+  switch (src.getDevice().getType()) {
+    case Device::kCpu:
+      CHECK(dest.getDevice().getType() == Device::kCpu);
+      getOperators(Device::kCpu)->copy(src, dest);
+      break;
+    case Device::kCuda:
+      CHECK(dest.getDevice().getType() == Device::kCuda);
+      getOperators(Device::kCuda)->copy(src, dest);
+      break;
+    default:
+      NOT_IMPL();
+  }
+}
+
+void repetitionPenalty(Tensor logits, Tensor history, float weight) {
+  getOperators(logits.getDevice().getType())->repetitionPenalty(logits, history, weight);
+}
+
+Tensor sum(Tensor tensor, int dim) {
+  return getOperators(tensor.getDevice().getType())->sum(tensor, dim);
+}
+
+Tensor max(Tensor tensor, int dim) {
+  CHECK(dim == -1 || dim == tensor.getDim() - 1);
+  return getOperators(tensor.getDevice().getType())->max(tensor);
+}
+
+void fill(Tensor tensor, float value) {
+  getOperators(tensor.getDevice().getType())->fill(tensor, value);
+}
+
+Tensor attention(Tensor q, Tensor k, Tensor v, bool causal) {
+  return getOperators(q.getDevice().getType())->attention(q, k, v, causal);
+}
+
+Tensor pagedAttention(
+    Tensor q,
+    Tensor keyCache,
+    Tensor valueCache,
+    Tensor blockTable,
+    Tensor cuSeqlensQ,
+    Tensor seqlensK,
+    int maxQLen,
+    int maxKLen,
+    bool causal) {
+  return getOperators(q.getDevice().getType())
+      ->pagedAttention(
+          q,
+          keyCache,
+          valueCache,
+          blockTable,
+          cuSeqlensQ,
+          seqlensK,
+          maxQLen,
+          maxKLen,
+          causal);
+}
+
+void storeKVCache(Tensor k, Tensor v, Tensor keyCache, Tensor valueCache, Tensor slotMapping) {
+  getOperators(k.getDevice().getType())->storeKVCache(k, v, keyCache, valueCache, slotMapping);
+}
+
+Tensor swiglu(Tensor inputs) {
+  return getOperators(inputs.getDevice().getType())->swiglu(inputs);
+}
+Tensor to(Device device, Tensor tensor) {
+  Device::Type src = tensor.getDevice().getType();
+  Device::Type tgt = device.getType();
+
+  Device srcDevice = tensor.getDevice();
+  if (srcDevice.getType() == device.getType()) return tensor;
+
+  if (srcDevice.getType() == Device::kCuda || device.getType() == Device::kCuda)
+    return getOperators(Device::kCuda)->to(device, tensor);
+  else
+    NOT_IMPL();
+}
+
+Tensor cast(Tensor tensor, DType dtype) {
+  return getOperators(tensor.getDevice().getType())->cast(tensor, dtype);
+}
+
+DType getDefaultFloatType(Device device) {
+  return getOperators(device.getType())->getDefaultFloatType();
+}
+
+float elem(Tensor tensor) {
+  return getOperators(tensor.getDevice().getType())->elem(tensor);
+}
+
+Tensor eq(Tensor tensor, Tensor other) {
+  return getOperators(tensor.getDevice().getType())->eq(tensor, other);
+}
+
+bool all(Tensor tensor) {
+  return getOperators(tensor.getDevice().getType())->all(tensor);
+}
+
+void manualSeed(Device device, uint64_t seed) {
+  return getOperators(device.getType())->manualSeed(seed);
+}
+
+}  // namespace F
+}  // namespace fl
