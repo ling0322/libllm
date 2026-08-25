@@ -219,6 +219,17 @@ file(GENERATE
     OUTPUT "${CMAKE_BINARY_DIR}/flint_link_flags.txt"
     CONTENT "${flint_CARGO_FLAGS_TEXT}\n")
 
+# CMake drives the Rust build too, so a plain `cmake --build build` is the whole build: no
+# separate `cargo build` step. LIBLLM_LIB_DIR is set explicitly so this works regardless of where
+# the build directory was configured, matching what flint-rs/build.rs falls back to on its own.
+find_program(CARGO_EXECUTABLE cargo REQUIRED)
+add_custom_target(llm-cli ALL
+    COMMAND ${CMAKE_COMMAND} -E env "LIBLLM_LIB_DIR=${CMAKE_BINARY_DIR}"
+            ${CARGO_EXECUTABLE} build -p llm-cli --release
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    DEPENDS flint "${CMAKE_BINARY_DIR}/flint_link_flags.txt"
+    COMMENT "cargo build -p llm-cli --release"
+    VERBATIM)
 
 set(unittest_LIBADD
     flint_test
@@ -235,7 +246,7 @@ if (WITH_MKL)
         iomp5)
 endif()
 
-add_library(catch2 STATIC  "../third_party/catch2/catch_amalgamated.cpp")
+add_library(catch2 STATIC  "third_party/catch2/catch_amalgamated.cpp")
 
 add_executable(unittest "flint/bin/unittest.cc")
 target_include_directories(unittest PRIVATE "." "flint" "third_party")

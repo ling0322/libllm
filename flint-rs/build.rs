@@ -1,5 +1,10 @@
-// Points the linker at the static library that the CMake build produces. Override the location
-// with LIBLLM_LIB_DIR when building somewhere other than the in-tree `build` directory.
+// Points the linker at the static library that the CMake build produces. CMake is what drives
+// this crate's build -- the top-level CMakeLists.txt's `llm-cli` target runs `cargo build` after
+// the `flint` archive is fresh, so a plain `cmake --build build` builds both. This script never
+// invokes CMake itself; it only reads the link flags CMake already wrote out. That keeps a lone
+// `cargo build` working too (useful when iterating on Rust code only), as long as the native
+// archive is already up to date. Override the location with LIBLLM_LIB_DIR when building
+// somewhere other than the in-tree `build` directory.
 //
 // libflint.a carries no record of what it still needs -- libunwind, the CUDA runtime, OpenMP and
 // the C++ runtime are all resolved by whoever links it -- and that set depends on the CMake
@@ -21,7 +26,7 @@ fn main() {
     let flags = std::fs::read_to_string(&flags_path).unwrap_or_else(|e| {
         panic!(
             "cannot read {}: {e}\n\
-             Build the CMake project first (cmake -S . -B build && cmake --build build), or point \
+             Build with CMake first (cmake -S . -B build && cmake --build build), or point \
              LIBLLM_LIB_DIR at a directory that has one.",
             flags_path.display()
         )
