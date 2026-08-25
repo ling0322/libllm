@@ -68,12 +68,56 @@ Tensor div(Tensor input, float other) {
   return getOperators(input.getDevice().getType())->div(input, other);
 }
 
+Tensor div(Tensor input, Tensor other) {
+  return getOperators(input.getDevice().getType())->divTensor(input, other);
+}
+
 Tensor mul(Tensor input, Tensor other) {
   return getOperators(input.getDevice().getType())->mul(input, other);
 }
 
 Tensor softmax(Tensor input) {
   return getOperators(input.getDevice().getType())->softmax(input);
+}
+
+Tensor neg(Tensor input) {
+  return getOperators(input.getDevice().getType())->neg(input);
+}
+
+Tensor abs(Tensor input) {
+  return getOperators(input.getDevice().getType())->abs(input);
+}
+
+Tensor exp(Tensor input) {
+  return getOperators(input.getDevice().getType())->exp(input);
+}
+
+Tensor sqrt(Tensor input) {
+  return getOperators(input.getDevice().getType())->sqrt(input);
+}
+
+Tensor rsqrt(Tensor input) {
+  return getOperators(input.getDevice().getType())->rsqrt(input);
+}
+
+Tensor sigmoid(Tensor input) {
+  return getOperators(input.getDevice().getType())->sigmoid(input);
+}
+
+Tensor tanh(Tensor input) {
+  return getOperators(input.getDevice().getType())->tanh(input);
+}
+
+Tensor relu(Tensor input) {
+  return getOperators(input.getDevice().getType())->relu(input);
+}
+
+Tensor gelu(Tensor input) {
+  return getOperators(input.getDevice().getType())->gelu(input);
+}
+
+Tensor silu(Tensor input) {
+  return getOperators(input.getDevice().getType())->silu(input);
 }
 
 Tensor square(Tensor input) {
@@ -180,6 +224,11 @@ Tensor sum(Tensor tensor, int dim) {
 Tensor max(Tensor tensor, int dim) {
   CHECK(dim == -1 || dim == tensor.getDim() - 1);
   return getOperators(tensor.getDevice().getType())->max(tensor);
+}
+
+Tensor min(Tensor tensor, int dim) {
+  CHECK(dim == -1 || dim == tensor.getDim() - 1);
+  return getOperators(tensor.getDevice().getType())->min(tensor);
 }
 
 void fill(Tensor tensor, float value) {

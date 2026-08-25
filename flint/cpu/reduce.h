@@ -25,7 +25,7 @@ namespace fl {
 namespace op {
 namespace cpu {
 
-enum class MapReduceType { SUM, MAX };
+enum class MapReduceType { SUM, MAX, MIN };
 
 Tensor reduce(const Tensor &A, MapReduceType reduceType);
 

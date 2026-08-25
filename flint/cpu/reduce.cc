@@ -28,13 +28,15 @@ namespace op {
 namespace cpu {
 
 enum class MapType { EXP_FP16_FP32, SQUARE_FP16_FP32, IDENTITY, UNKNOWN };
-enum class ReduceType { SUM, MAX, UNKNOWN };
+enum class ReduceType { SUM, MAX, MIN, UNKNOWN };
 
 constexpr MapType getMapType(MapReduceType mapReduceType) {
   switch (mapReduceType) {
     case MapReduceType::SUM:
       return MapType::IDENTITY;
     case MapReduceType::MAX:
+      return MapType::IDENTITY;
+    case MapReduceType::MIN:
       return MapType::IDENTITY;
     default:
       return MapType::UNKNOWN;
@@ -47,6 +49,8 @@ constexpr ReduceType getReduceType(MapReduceType mapReduceType) {
       return ReduceType::SUM;
     case MapReduceType::MAX:
       return ReduceType::MAX;
+    case MapReduceType::MIN:
+      return ReduceType::MIN;
     default:
       return ReduceType::UNKNOWN;
   }
@@ -59,6 +63,8 @@ T getReduceInitial() {
       return T(0);
     case ReduceType::MAX:
       return -std::numeric_limits<float>::infinity();
+    case ReduceType::MIN:
+      return std::numeric_limits<float>::infinity();
     default:
       NOT_IMPL();
   }
@@ -86,6 +92,8 @@ Tensor reduceKernel(Tensor A) {
         accumulator += a[i];
       } else if (REDUCE_TYPE == ReduceType::MAX) {
         if (a[i] > accumulator) accumulator = a[i];
+      } else if (REDUCE_TYPE == ReduceType::MIN) {
+        if (a[i] < accumulator) accumulator = a[i];
       } else {
         NOT_IMPL();
       }
@@ -105,11 +113,15 @@ Tensor reduce(const Tensor &A, MapReduceType reduceType) {
     return reduceKernel<float, ReduceType::SUM>(A);
   if (A.getDType() == DType::kFloat && reduceType == MapReduceType::MAX)
     return reduceKernel<float, ReduceType::MAX>(A);
+  if (A.getDType() == DType::kFloat && reduceType == MapReduceType::MIN)
+    return reduceKernel<float, ReduceType::MIN>(A);
 #if LUT_CPU_ARCH == LUT_AARCH64
   if (A.getDType() == DType::kFloat16 && reduceType == MapReduceType::SUM)
     return reduceKernel<Float16, ReduceType::SUM>(A);
   if (A.getDType() == DType::kFloat16 && reduceType == MapReduceType::MAX)
     return reduceKernel<Float16, ReduceType::MAX>(A);
+  if (A.getDType() == DType::kFloat16 && reduceType == MapReduceType::MIN)
+    return reduceKernel<Float16, ReduceType::MIN>(A);
 #endif
 
   NOT_IMPL();

@@ -29,10 +29,34 @@ namespace cuda {
 
 __device__ constexpr float Sqrt2 = 1.4142136f;
 
+/// Evaluated in float whatever the tensor's type is, so a half tensor gets the value the float
+/// one would and is rounded once at the end. flint/cpu/unary.cc computes the same way.
 template<typename T, UnaryOp OP>
 __forceinline__ __device__ T applyUnaryOp(T x) {
-  if constexpr (OP == UnaryOp::SQUARE) {
+  float v = static_cast<float>(x);
+  if constexpr (OP == UnaryOp::NEG) {
+    return static_cast<T>(-v);
+  } else if constexpr (OP == UnaryOp::ABS) {
+    return static_cast<T>(fabsf(v));
+  } else if constexpr (OP == UnaryOp::EXP) {
+    return static_cast<T>(expf(v));
+  } else if constexpr (OP == UnaryOp::SQUARE) {
     return x * x;
+  } else if constexpr (OP == UnaryOp::SQRT) {
+    return static_cast<T>(sqrtf(v));
+  } else if constexpr (OP == UnaryOp::RSQRT) {
+    return static_cast<T>(rsqrtf(v));
+  } else if constexpr (OP == UnaryOp::SIGMOID) {
+    return static_cast<T>(1.0f / (1.0f + expf(-v)));
+  } else if constexpr (OP == UnaryOp::TANH) {
+    return static_cast<T>(tanhf(v));
+  } else if constexpr (OP == UnaryOp::RELU) {
+    return static_cast<T>(v > 0.0f ? v : 0.0f);
+  } else if constexpr (OP == UnaryOp::GELU) {
+    // The exact form, matching torch.nn.GELU() rather than its tanh approximation.
+    return static_cast<T>(v * 0.5f * (1.0f + erff(v * 0.70710678118654752f)));
+  } else if constexpr (OP == UnaryOp::SILU) {
+    return static_cast<T>(v / (1.0f + expf(-v)));
   } else {
     __trap();
   }
@@ -102,10 +126,24 @@ Tensor applyUnaryOp(UnaryOp op, const Tensor &tensor) {
   CHECK(tensor.getDevice().getType() == Device::kCuda);
   DType dtype = tensor.getDType();
 
-  if (op == UnaryOp::SQUARE && dtype == DType::kFloat16)
-    return unaryImpl<half, UnaryOp::SQUARE>(tensor);
-  if (op == UnaryOp::SQUARE && dtype == DType::kFloat)
-    return unaryImpl<float, UnaryOp::SQUARE>(tensor);
+#define LL_DISPATCH_UNARY(NAME)                                        \
+  if (op == UnaryOp::NAME) {                                           \
+    if (dtype == DType::kFloat16) return unaryImpl<half, UnaryOp::NAME>(tensor);   \
+    if (dtype == DType::kFloat) return unaryImpl<float, UnaryOp::NAME>(tensor);    \
+  }
+
+  LL_DISPATCH_UNARY(NEG)
+  LL_DISPATCH_UNARY(ABS)
+  LL_DISPATCH_UNARY(EXP)
+  LL_DISPATCH_UNARY(SQUARE)
+  LL_DISPATCH_UNARY(SQRT)
+  LL_DISPATCH_UNARY(RSQRT)
+  LL_DISPATCH_UNARY(SIGMOID)
+  LL_DISPATCH_UNARY(TANH)
+  LL_DISPATCH_UNARY(RELU)
+  LL_DISPATCH_UNARY(GELU)
+  LL_DISPATCH_UNARY(SILU)
+#undef LL_DISPATCH_UNARY
 
   NOT_IMPL();
 }

@@ -38,6 +38,8 @@ __forceinline__ __device__ TOut applyBinaryOp(TIn a, TIn b) {
     return a - b;
   } else if constexpr (OP == BinaryOp::MUL) {
     return a * b;
+  } else if constexpr (OP == BinaryOp::DIV) {
+    return a / b;
   } else if constexpr (OP == BinaryOp::EQUAL) {
     return a == b;
   } else {
@@ -148,6 +150,10 @@ Tensor applyBinaryOp(BinaryOp op, const Tensor &A, const Tensor &B) {
     return binaryImpl<float, float, BinaryOp::SUB>(A, B);
   if (op == BinaryOp::MUL && dtype == DType::kFloat)
     return binaryImpl<float, float, BinaryOp::MUL>(A, B);
+  if (op == BinaryOp::DIV && dtype == DType::kFloat16)
+    return binaryImpl<half, half, BinaryOp::DIV>(A, B);
+  if (op == BinaryOp::DIV && dtype == DType::kFloat)
+    return binaryImpl<float, float, BinaryOp::DIV>(A, B);
   if (op == BinaryOp::EQUAL && dtype == DType::kUInt8)
     return binaryImpl<UInt8, BoolType, BinaryOp::EQUAL>(A, B);
 

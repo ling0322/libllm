@@ -59,3 +59,44 @@ Neither test in the file actually carries `#[ignore]`, so both run under a plain
 both need the model packages under `models/`, which are not in the repository. Either restore the
 attribute or correct the comment — right now a checkout without those packages fails the default
 test run for a reason the comment says should not apply.
+
+## Operators the CPU backend still does not implement
+
+Found while filling in the element-wise operators. Each of these is declared on `Operators`, is
+reachable through `flint/functional.h`, and aborts with `NOT_IMPL()` when the tensor is on the CPU,
+because `CPUOperators` does not override it and the base method has no fallback:
+
+- `rotaryEmbedding`
+- `pagedAttention`
+- `storeKVCache`
+- `matmulNarrowPrecision` (the mxfp4 path)
+
+These are the paged-KV-cache and quantised kernels, so unlike the ones already filled in they need
+real CPU implementations rather than a few lines of glue. `attention` is not on the list: it has a
+working default on `Operators` built out of matmul and softmax, so the CPU gets it for free.
+
+Nothing in the Rust runtime hits these on CPU today — the model runs on CUDA — so this only matters
+for running a model on CPU, or for testing a CUDA kernel against a CPU reference the way the
+element-wise tests now do.
+
+## Operators worth adding next
+
+The element-wise set, `div(a, b)` and `min` are in. Still missing from `functional.h`, roughly in
+order of how often an inference engine wants them:
+
+- `argmax`. Greedy decoding goes through `sample` with a temperature of 0 today, which works but
+  makes the caller build three parameter tensors to ask for the largest logit. Unlike the
+  reductions already there it returns indices rather than values, so it needs its own kernel that
+  carries an index through the block reduction rather than an extra `MapReduceType`.
+- `layerNorm`. `rmsNorm` covers Llama-style models; a model family that normalises with a mean and
+  a variance cannot run at all.
+- comparisons other than `eq` (`gt`, `lt`, `ge`, `le`, `ne`). `eq` is also unusual in taking only
+  `<uint8>` and answering in `<bool>`, which is narrower than it looks.
+- `mean`, `clamp`, `pow`, `topk`, `where`/`masked_fill`.
+
+## `eq` only compares uint8 tensors
+
+`Operators::eq` is implemented for `<uint8>` on both backends and nothing else, which is narrow
+enough to be surprising given the name — comparing two `<float>` tensors is the obvious use and it
+aborts. Widening it means picking a rounding policy for float comparison, which is why it was left
+as-is rather than extended along with the other element-wise work.

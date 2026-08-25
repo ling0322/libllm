@@ -252,3 +252,100 @@ fn prints_without_failing() {
     let x = cpu_f32(&[2, 2], &[1.0, 2.0, 3.0, 4.0]);
     F::print(&x).unwrap();
 }
+
+#[test]
+fn applies_element_wise_functions() {
+    let x = cpu_f32(&[5], &[0.0, 1.0, -1.0, 2.0, -2.0]);
+
+    assert_eq!(
+        F::neg(&x).unwrap().to_vec_f32().unwrap(),
+        vec![0.0, -1.0, 1.0, -2.0, 2.0]
+    );
+    assert_eq!(
+        F::abs(&x).unwrap().to_vec_f32().unwrap(),
+        vec![0.0, 1.0, 1.0, 2.0, 2.0]
+    );
+    assert_eq!(
+        F::relu(&x).unwrap().to_vec_f32().unwrap(),
+        vec![0.0, 1.0, 0.0, 2.0, 0.0]
+    );
+    assert_eq!(
+        F::square(&x).unwrap().to_vec_f32().unwrap(),
+        vec![0.0, 1.0, 1.0, 4.0, 4.0]
+    );
+
+    // The rest are checked against their definitions rather than against literals.
+    let close = |actual: Vec<f32>, expected: Vec<f32>| {
+        assert_eq!(actual.len(), expected.len());
+        for (a, e) in actual.iter().zip(&expected) {
+            assert!((a - e).abs() < 1e-5, "{a} != {e}");
+        }
+    };
+    let values = [0.0f32, 1.0, -1.0, 2.0, -2.0];
+    close(
+        F::exp(&x).unwrap().to_vec_f32().unwrap(),
+        values.iter().map(|v| v.exp()).collect(),
+    );
+    close(
+        F::tanh(&x).unwrap().to_vec_f32().unwrap(),
+        values.iter().map(|v| v.tanh()).collect(),
+    );
+    close(
+        F::sigmoid(&x).unwrap().to_vec_f32().unwrap(),
+        values.iter().map(|v| 1.0 / (1.0 + (-v).exp())).collect(),
+    );
+    close(
+        F::silu(&x).unwrap().to_vec_f32().unwrap(),
+        values.iter().map(|v| v / (1.0 + (-v).exp())).collect(),
+    );
+
+    // gelu and silu both pass through the origin; sigmoid does not.
+    assert_eq!(F::gelu(&x).unwrap().to_vec_f32().unwrap()[0], 0.0);
+    assert_eq!(F::silu(&x).unwrap().to_vec_f32().unwrap()[0], 0.0);
+    assert!((F::sigmoid(&x).unwrap().to_vec_f32().unwrap()[0] - 0.5).abs() < 1e-6);
+}
+
+#[test]
+fn takes_roots() {
+    let x = cpu_f32(&[4], &[0.25, 1.0, 4.0, 9.0]);
+
+    assert_eq!(
+        F::sqrt(&x).unwrap().to_vec_f32().unwrap(),
+        vec![0.5, 1.0, 2.0, 3.0]
+    );
+    let inverse = F::rsqrt(&x).unwrap().to_vec_f32().unwrap();
+    for (actual, expected) in inverse.iter().zip(&[2.0f32, 1.0, 0.5, 1.0 / 3.0]) {
+        assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+    }
+}
+
+#[test]
+fn divides_element_wise() {
+    let a = cpu_f32(&[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let b = cpu_f32(&[2, 3], &[2.0, 4.0, 4.0, 8.0, 10.0, 3.0]);
+    assert_eq!(
+        F::div(&a, &b).unwrap().to_vec_f32().unwrap(),
+        vec![0.5, 0.5, 0.75, 0.5, 0.5, 2.0]
+    );
+
+    // the divisor broadcasts over the leading dimensions, as mul does.
+    let row = cpu_f32(&[3], &[1.0, 2.0, 4.0]);
+    assert_eq!(
+        F::div(&a, &row).unwrap().to_vec_f32().unwrap(),
+        vec![1.0, 1.0, 0.75, 4.0, 2.5, 1.5]
+    );
+}
+
+#[test]
+fn reduces_to_a_minimum() {
+    // An all-negative row is where a minimum that kept its initial value would show up.
+    let a = cpu_f32(&[2, 4], &[1.0, 2.0, 3.0, 4.0, -1.0, -2.0, -3.0, -4.0]);
+
+    let smallest = F::min(&a, F::LAST_DIM).unwrap();
+    assert_eq!(smallest.shape(), vec![2]);
+    assert_eq!(smallest.to_vec_f32().unwrap(), vec![1.0, -4.0]);
+    assert_eq!(
+        F::max(&a, F::LAST_DIM).unwrap().to_vec_f32().unwrap(),
+        vec![4.0, -1.0]
+    );
+}

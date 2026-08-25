@@ -83,6 +83,24 @@ Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs);
 // Apply x^2
 Tensor square(Tensor input);
 
+/// Element-wise functions of one tensor. Each returns a new tensor of the same shape and type;
+/// none of them modify the input.
+Tensor neg(Tensor input);
+Tensor abs(Tensor input);
+Tensor exp(Tensor input);
+Tensor sqrt(Tensor input);
+/// Reciprocal square root, 1/sqrt(x).
+Tensor rsqrt(Tensor input);
+Tensor sigmoid(Tensor input);
+Tensor tanh(Tensor input);
+Tensor relu(Tensor input);
+/// The exact Gaussian error linear unit, x * P(X <= x), matching torch.nn.GELU() rather than its
+/// tanh approximation.
+Tensor gelu(Tensor input);
+/// The sigmoid linear unit, x * sigmoid(x). This is the activation swiglu applies to its gate
+/// half; here it is available on its own.
+Tensor silu(Tensor input);
+
 // return input + other.
 Tensor add(Tensor input, Tensor other);
 
@@ -91,6 +109,9 @@ Tensor sub(Tensor input, Tensor other);
 
 // return input - other.
 Tensor div(Tensor input, float other);
+
+/// Element-wise division. `other` is broadcast to the shape of `input` the way mul does.
+Tensor div(Tensor input, Tensor other);
 
 // create a tensor with specified shape and dtype. Data in this tensor is uninitialize.
 // Args:
@@ -220,6 +241,10 @@ Tensor sum(Tensor tensor, int dim = -1);
 /// @param tensor <float>(d1, d2, ..., dn) the input tensor.
 /// @return <float>(d1, d2, ..., dn-1): the output tensor.
 Tensor max(Tensor tensor, int dim = -1);
+
+/// Smallest element of dimension `dim`, which the result drops the same way sum() does. Only the
+/// last dimension is supported.
+Tensor min(Tensor tensor, int dim = -1);
 
 /// @brief Apply repetition penalty to the logits tensor according to the history tensor.
 /// @param logits <float>(N, vocab_size): the logits tensor to apply repetition penalty.

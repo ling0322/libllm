@@ -38,6 +38,9 @@ enum class MapReduceType {
   // Get maximun number in list.
   MAX,
 
+  // Get minimum number in list.
+  MIN,
+
   // Return true if all elements are true
   ALL
 };
