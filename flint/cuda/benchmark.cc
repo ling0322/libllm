@@ -7,8 +7,12 @@
 #include <vector>
 
 #include "catch2/catch_amalgamated.hpp"
+#include "lutil/span.h"
 #include "flint/cuda/common.h"
 #include "flint/cuda/cuda_operators.h"
+#include "flint/cuda/gated_delta_net.h"
+#include "flint/functional.h"
+#include "flint/tensor.h"
 
 namespace fl {
 namespace {
@@ -23,6 +27,12 @@ constexpr int VocabSize = 128256;
 constexpr int BatchSize = 1;
 constexpr int NumWarmup = 5;
 constexpr int NumIterations = 20;
+
+// The Qwen3.5 gated DeltaNet layer: 16 key heads against 48 value heads, both 128 wide. 48 of the
+// model's 64 layers run this rather than the attention the rest of these benchmarks cover.
+constexpr int DeltaNetKeyHeads = 16;
+constexpr int DeltaNetValueHeads = 48;
+constexpr int DeltaNetHeadDim = 128;
 
 class CudaEvent {
  public:
@@ -215,7 +225,98 @@ void benchmarkSampling(const std::shared_ptr<Operators> &operators) {
   printLatency("sampling [1,128256] top_k=50 top_p=0.9", milliseconds);
 }
 
+const char *pathName(op::cuda::GatedDeltaNetPath path) {
+  switch (path) {
+    case op::cuda::GatedDeltaNetPath::kFused:
+      return "fused";
+    case op::cuda::GatedDeltaNetPath::kFusedRegisters:
+      return "fused-regs";
+    case op::cuda::GatedDeltaNetPath::kTensorCore:
+      return "tensorcore";
+    case op::cuda::GatedDeltaNetPath::kTensorCoreMma:
+      return "mma";
+    case op::cuda::GatedDeltaNetPath::kChunked:
+      return "chunked";
+    default:
+      return "auto";
+  }
+}
+
+void benchmarkGatedDeltaNet(
+    const std::shared_ptr<Operators> &operators,
+    int numTokens,
+    int numSeq,
+    op::cuda::GatedDeltaNetPath path) {
+  Tensor q = randHalf(operators, {numTokens, DeltaNetKeyHeads, DeltaNetHeadDim});
+  Tensor k = randHalf(operators, {numTokens, DeltaNetKeyHeads, DeltaNetHeadDim});
+  Tensor v = randHalf(operators, {numTokens, DeltaNetValueHeads, DeltaNetHeadDim});
+  Tensor g = operators->rand({numTokens, DeltaNetValueHeads}, DType::kFloat);
+  Tensor beta = operators->rand({numTokens, DeltaNetValueHeads}, DType::kFloat);
+  // CudaOperators::zeros hands back a <half> whatever dtype it is asked for, so the state starts
+  // as a host tensor and is copied over.
+  std::vector<float> stateData(
+      static_cast<size_t>(numSeq) * DeltaNetValueHeads * DeltaNetHeadDim * DeltaNetHeadDim,
+      0.0f);
+  Tensor state = F::to(
+      Device::getCuda(),
+      Tensor::create<float>(
+          {numSeq, DeltaNetValueHeads, DeltaNetHeadDim, DeltaNetHeadDim},
+          lut::makeConstSpan(stateData)));
+
+  // g is a log decay, so it has to be at most zero.
+  g = operators->neg(g);
+
+  std::vector<int32_t> lengths;
+  for (int s = 0; s <= numSeq; ++s) lengths.push_back(numTokens / numSeq * s);
+  lengths.back() = numTokens;
+  Tensor cuSeqlens = F::to(
+      Device::getCuda(),
+      Tensor::create<int32_t>({numSeq + 1}, lut::makeConstSpan(lengths)));
+
+  // The identity mapping: a pool the size of the batch, in batch order. What the mapping costs is
+  // one int load per block, so a scattered pool measures the same; it is the timings that are
+  // being kept comparable here, not the traffic.
+  std::vector<int32_t> slots;
+  for (int s = 0; s < numSeq; ++s) slots.push_back(s);
+  Tensor stateSlots = F::to(
+      Device::getCuda(),
+      Tensor::create<int32_t>({numSeq}, lut::makeConstSpan(slots)));
+
+  float milliseconds = benchmarkCuda([&] {
+    op::cuda::gatedDeltaNetPrefill(q, k, v, g, beta, cuSeqlens, stateSlots, state, path);
+  });
+  printLatency(
+      std::string("gated_delta_net ") + pathName(path) + " tokens=" +
+          std::to_string(numTokens) + " seqs=" + std::to_string(numSeq),
+      milliseconds);
+}
+
 }  // namespace
+
+CATCH_TEST_CASE("Qwen3.5 gated DeltaNet benchmarks", "[benchmark][cuda][gated_delta_net]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+  std::shared_ptr<Operators> operators = getOperatorsSharedPtr(Device::kCuda);
+
+  std::printf("\nQwen3.5 gated DeltaNet prefill benchmarks (FP16 in, FP32 state)\n");
+
+  // The fused path gets one CTA per (sequence, value head), so a single sequence gives it only 48
+  // of them against 36 SMs. Splitting the same token count over several sequences is what a serving
+  // batch looks like, and is the case that tells the two apart.
+  for (op::cuda::GatedDeltaNetPath path :
+       {op::cuda::GatedDeltaNetPath::kTensorCoreMma,
+        op::cuda::GatedDeltaNetPath::kTensorCore,
+        op::cuda::GatedDeltaNetPath::kChunked,
+        op::cuda::GatedDeltaNetPath::kFused,
+        op::cuda::GatedDeltaNetPath::kFusedRegisters}) {
+    for (int numSeq : {1, 2, 4, 8}) {
+      benchmarkGatedDeltaNet(operators, 4096, numSeq, path);
+    }
+  }
+
+  for (int numTokens : {256, 1024, 4096}) {
+    benchmarkGatedDeltaNet(operators, numTokens, 1, op::cuda::GatedDeltaNetPath::kAuto);
+  }
+}
 
 CATCH_TEST_CASE("CUDA rotary embedding benchmarks", "[benchmark][cuda][rope]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");

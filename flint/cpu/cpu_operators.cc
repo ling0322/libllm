@@ -35,6 +35,7 @@
 #include "flint/cpu/copy.h"
 #include "flint/cpu/cpu_tensor_data.h"
 #include "flint/cpu/fill.h"
+#include "flint/cpu/gated_delta_net.h"
 #include "flint/cpu/kernel/interface.h"
 #include "flint/cpu/lookup.h"
 #include "flint/cpu/matmul.h"
@@ -78,6 +79,18 @@ Tensor CPUOperators::zeros(lut::Span<const int> shape, DType dtype) {
 
 Tensor CPUOperators::matmul(Tensor A, Tensor B) {
   return cpu::matmul(A, B);
+}
+
+Tensor CPUOperators::gatedDeltaNetPrefill(
+    Tensor q,
+    Tensor k,
+    Tensor v,
+    Tensor g,
+    Tensor beta,
+    Tensor cuSeqlens,
+    Tensor stateSlots,
+    Tensor state) {
+  return cpu::gatedDeltaNetPrefill(q, k, v, g, beta, cuSeqlens, stateSlots, state);
 }
 
 void CPUOperators::print(Tensor tensor) {
