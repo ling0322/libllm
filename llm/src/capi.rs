@@ -105,6 +105,7 @@ pub struct llm_engine_options_t {
     pub max_num_batched_tokens: i32,
     pub kv_cache_block_size: i32,
     pub kv_cache_memory_utilization: f32,
+    pub max_num_seqs: i32,
 }
 
 #[repr(C)]
@@ -250,6 +251,7 @@ pub unsafe extern "C" fn llm_engine_options_init(options: *mut llm_engine_option
         max_num_batched_tokens: defaults.max_num_batched_tokens,
         kv_cache_block_size: defaults.kv_cache_block_size,
         kv_cache_memory_utilization: defaults.kv_cache_memory_utilization,
+        max_num_seqs: defaults.max_num_seqs,
     };
 }
 
@@ -351,6 +353,9 @@ pub unsafe extern "C" fn llm_engine_load(
     else {
         return set_error(LLM_ERROR_INVALID_ARG, "model_path is empty");
     };
+    if options.max_num_seqs <= 0 {
+        return set_error(LLM_ERROR_INVALID_ARG, "max_num_seqs must be positive");
+    }
     if options.max_num_batched_tokens <= 0 {
         return set_error(
             LLM_ERROR_INVALID_ARG,
@@ -390,6 +395,7 @@ pub unsafe extern "C" fn llm_engine_load(
         max_num_batched_tokens: options.max_num_batched_tokens,
         kv_cache_block_size: options.kv_cache_block_size,
         kv_cache_memory_utilization: options.kv_cache_memory_utilization,
+        max_num_seqs: options.max_num_seqs,
     };
 
     let user_data = UserData(user_data);

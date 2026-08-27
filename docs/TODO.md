@@ -3,37 +3,6 @@
 Known issues and deferred work. Each entry says what was observed, not what it might be, so
 whoever picks it up starts from evidence rather than from a guess.
 
-## `tensor_functional` failed once and did not reproduce
-
-Seen once during `cargo test` on the branch that folded `flint-rs` into `llm` (2026-08-25).
-One test in `llm/tests/tensor_functional.rs` failed:
-
-```
-test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
-error: test failed, to rerun pass `-p llm --test tensor_functional`
-```
-
-The failing test's name and its panic output were not captured, which is the first thing to fix
-if it happens again — run the suite so the failure output is kept rather than re-running to try
-to reproduce it.
-
-It did not reproduce in 8 runs of `cargo test -p llm --test tensor_functional` alone, nor in 6
-runs of the full `cargo test`. So it is rare, and running that binary on its own may not be
-enough to trigger it.
-
-Unknown so far:
-
-- whether it predates the `flint-rs` merge. Nothing in that merge changed the binding code
-  itself, only the paths it is reached by, so a pre-existing flake is the more likely reading —
-  but that has not been checked against `main`.
-- whether it depends on other test binaries having run first. Both times the suite was run in
-  full; the isolated runs that passed were of that one binary.
-
-Worth knowing while investigating: tests inside one binary run on several threads by default,
-and a flint `Tensor` is deliberately neither `Send` nor `Sync` because the operators keep
-per-device state. `init()` is guarded by a `Once`. That makes ordering and startup races the
-first place to look.
-
 ## The mma path's recurrent branch has a reproducible hump at 13 to 15 tokens
 
 Sweeping the sequence length at 64 sequences, 48 value heads and D=128 on an RTX 5060 Ti, the
@@ -300,10 +269,49 @@ FlashInfer has the same state-pool indirection this operator has -- `state_indic
 pool-shaped `initial_state` -- but only on its SM100/SM103 kernel: on sm120 it raises
 `NotImplementedError`. The comparison above is against its packed, sequence-ordered path.
 
-## `CudaOperators::zeros` ignores the dtype it is asked for
+## The hybrid cache has no model to serve yet
 
-`flint/cuda/cuda_operators.cc` builds the tensor with `createCudaTensorHalf` whatever `dtype`
-says, so `zeros(shape, DType::kFloat)` hands back a `<half>` and the next operator to look at it
-aborts on a dtype check. Found while writing the gated DeltaNet benchmark, which now builds its
-FP32 state on the host and copies it over instead. `op::cuda::fill` is half-only, which is
-presumably why it was written this way, so fixing it means giving `fill` the other types first.
+`llm/src/kv_cache.rs` describes a model's layers one by one, so a model whose layers do not all
+attend over every token gets a pool of blocks for the layers that attend and a pool of per-request
+state slots for the ones that recur. `ModelCacheSpec::qwen3_5` builds the spec of the architecture
+the Qwen 3.8 models use, from the fields of its `config.json` under the names that file uses.
+
+For the 27B (`Qwen/Qwen3.8-27B`, `model_type: qwen3_5`), the numbers are worth having written down,
+because one of them decides a configuration knob:
+
+```
+64 layers, layer_types = 3 linear_attention then 1 full_attention, repeated
+  16 full attention   4 key-value heads of 256          -> 64 KB of keys and values a token
+  48 gated DeltaNet   48 value heads of 128 by 128      -> 3.0 MB of recurrence a layer
+                      conv over 2*16*128 + 48*128 = 10240 channels, kernel 4
+                                                        -> 60 KB of window a layer
+max_position_embeddings 262144
+```
+
+A state slot is 147 MB — held from the moment a request is admitted to the moment it finishes,
+whether it is at its first token or its millionth. That is what about 2350 tokens of context cost
+in the same model, so `max_num_seqs` is no longer only a batching knob: at the default of 256 the
+state pool alone would want 37 GB. Sizing it is the first thing to get right on this model, and it
+is why the pools are counted separately here rather than padded to a common page size the way vLLM
+does it.
+
+What is missing is a model that asks for any of this:
+
+the runtime implements Llama and nothing else, so nothing calls `ModelCacheSpec::qwen3_5` outside
+the tests. The scheduler takes and gives back both kinds of allocation already.
+
+To serve one, in the order it would have to be done:
+
+- **The model.** A `qwen3.rs` beside `llama.rs`, reading its layer pattern out of the package's
+  configuration rather than assuming the interval. `ModelCacheSpec::interleaved` covers "every
+  fourth layer attends"; anything else hands `ModelCacheSpec::new` the layers directly.
+- **The decode step of the recurrence.** `F::gatedDeltaNetPrefill` folds a whole chunk of tokens
+  into the state at once, which is what a prefill wants. Decoding one token at a time against a
+  slot is the same recurrence with a chunk of one, and it is not written.
+- **The multi-token-prediction head.** `mtp_num_hidden_layers` is 1, and if speculative decoding is
+  ever run that layer attends too, so it needs a spec of its own rather than being left out of the
+  layer list.
+- **Prefix caching, if it is ever added, has to skip the recurrent group.** Blocks hold what was
+  computed from a prefix and two requests with the same prefix could share them; a state is the
+  whole history folded together and cannot be cut at an arbitrary token. vLLM disables it per
+  group for the same reason.

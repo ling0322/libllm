@@ -71,7 +71,10 @@ pub use engine_config::EngineConfig;
 pub use error::{Error, Result};
 pub use forward_batch::{ForwardBatch, PreparedBatch};
 pub use ini::{IniConfig, IniSection};
-pub use kv_cache::{KVCacheManager, KVCacheSpec};
+pub use kv_cache::{
+    CacheKind, FullAttentionSpec, KVCacheGroup, KVCacheManager, KVCacheSpec, ModelCacheSpec,
+    RecurrentStateSpec,
+};
 pub use layers::{Embedding, Linear, RmsNorm};
 pub use llama::{LlamaConfig, LlamaForGeneration, LlamaModel};
 pub use model::ModelForGeneration;

@@ -23,20 +23,16 @@
 //! even though the attention kernels that read them do not.
 
 use llm::flint::{DType, Device};
-use llm::{ForwardBatch, KVCacheManager, KVCacheSpec};
+use llm::{ForwardBatch, KVCacheManager, ModelCacheSpec};
 
-fn spec() -> KVCacheSpec {
-    KVCacheSpec {
-        num_layers: 2,
-        num_key_value_heads: 2,
-        head_dim: 4,
-        max_context_length: 64,
-        dtype: DType::Float,
-    }
+const NUM_LAYERS: i32 = 2;
+
+fn spec() -> ModelCacheSpec {
+    ModelCacheSpec::uniform_attention(NUM_LAYERS, 2, 4, 64, DType::Float).unwrap()
 }
 
 fn manager(block_size: i32, num_blocks: i32) -> KVCacheManager {
-    KVCacheManager::new(spec(), block_size, num_blocks, Device::Cpu).unwrap()
+    KVCacheManager::new(spec(), block_size, num_blocks, 0, Device::Cpu).unwrap()
 }
 
 #[test]
@@ -45,12 +41,12 @@ fn allocates_one_pool_per_layer() {
 
     assert_eq!(cache.num_blocks(), 4);
     assert_eq!(cache.block_size(), 16);
-    for layer in 0..spec().num_layers {
+    for layer in 0..NUM_LAYERS {
         // Every layer addresses the same block ids in its own storage.
         assert_eq!(cache.key_cache(layer).unwrap().shape(), vec![4, 16, 2, 4]);
         assert_eq!(cache.value_cache(layer).unwrap().shape(), vec![4, 16, 2, 4]);
     }
-    assert!(cache.key_cache(spec().num_layers).is_err(), "no such layer");
+    assert!(cache.key_cache(NUM_LAYERS).is_err(), "no such layer");
 }
 
 #[test]
@@ -94,10 +90,10 @@ fn allocation_is_all_or_nothing() {
 #[test]
 fn refuses_a_block_size_that_is_not_a_power_of_two() {
     // The block of a position is found by shifting rather than dividing.
-    let error = KVCacheManager::new(spec(), 12, 4, Device::Cpu).unwrap_err();
+    let error = KVCacheManager::new(spec(), 12, 4, 0, Device::Cpu).unwrap_err();
     assert!(error.to_string().contains("power of two"), "{error}");
 
-    assert!(KVCacheManager::new(spec(), 16, 0, Device::Cpu).is_err());
+    assert!(KVCacheManager::new(spec(), 16, 0, 0, Device::Cpu).is_err());
 }
 
 #[test]

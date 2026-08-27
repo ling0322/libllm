@@ -78,6 +78,8 @@ void fill(Tensor A, float value) {
 
   if (A.getDType() == DType::kFloat16)
     fillImpl<half>(A, __float2half(value));
+  else if (A.getDType() == DType::kFloat)
+    fillImpl<float>(A, value);
   else
     NOT_IMPL();
 }

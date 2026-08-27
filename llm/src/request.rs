@@ -103,6 +103,10 @@ pub struct Request {
     num_computed_tokens: i32,
     context_length: i32,
     block_ids: Vec<i32>,
+    /// The recurrent state slot this request holds, on a model that has one. Taken when it is
+    /// admitted and given back when it finishes: unlike a block, it cannot be handed to another
+    /// request and read back later, because it holds this sequence's whole history folded up.
+    state_slot: Option<i32>,
     status: RequestStatus,
     pending_finish_reason: FinishReason,
     error_message: String,
@@ -128,6 +132,7 @@ impl Request {
             num_computed_tokens: 0,
             context_length: 0,
             block_ids: Vec::new(),
+            state_slot: None,
             status: RequestStatus::Waiting,
             pending_finish_reason: FinishReason::None,
             error_message: String::new(),
@@ -241,6 +246,19 @@ impl Request {
     /// Give up the blocks. The caller hands them back to the cache.
     pub fn take_block_ids(&mut self) -> Vec<i32> {
         std::mem::take(&mut self.block_ids)
+    }
+
+    pub fn state_slot(&self) -> Option<i32> {
+        self.state_slot
+    }
+
+    pub fn set_state_slot(&mut self, slot: i32) {
+        self.state_slot = Some(slot);
+    }
+
+    /// Give up the state slot, if this request holds one.
+    pub fn take_state_slot(&mut self) -> Option<i32> {
+        self.state_slot.take()
     }
 
     pub fn append_token(&mut self, token_id: i64) {

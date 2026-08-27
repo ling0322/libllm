@@ -31,6 +31,13 @@ pub struct EngineConfig {
     /// The share of the device's memory the engine may use, in (0, 1]. The cache gets what is
     /// left of it once the weights and the peak activation are accounted for.
     pub kv_cache_memory_utilization: f32,
+    /// The most requests that may run at once.
+    ///
+    /// On a model whose layers all attend over every token this only bounds the batch; the cache
+    /// bounds it too, and whichever is smaller wins. On a model with recurrent layers it also
+    /// sizes their pool, since a request needs a state slot for its whole life and cannot be
+    /// admitted without one -- one slot per request that may run, and no more.
+    pub max_num_seqs: i32,
 }
 
 impl Default for EngineConfig {
@@ -39,6 +46,7 @@ impl Default for EngineConfig {
             max_num_batched_tokens: 2048,
             kv_cache_block_size: 256,
             kv_cache_memory_utilization: 0.9,
+            max_num_seqs: 256,
         }
     }
 }

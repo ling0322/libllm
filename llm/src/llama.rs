@@ -30,7 +30,7 @@ use crate::flint::{functional as F, DType, Device, Tensor};
 use crate::error::{Error, Result};
 use crate::forward_batch::PreparedBatch;
 use crate::ini::IniSection;
-use crate::kv_cache::{KVCacheManager, KVCacheSpec};
+use crate::kv_cache::{KVCacheManager, ModelCacheSpec};
 use crate::layers::{Embedding, Linear, RmsNorm};
 use crate::prompt::{Message, Prompt};
 use crate::tokenizer::Tokenizer;
@@ -362,7 +362,7 @@ impl crate::model::ModelForGeneration for LlamaForGeneration {
         self.model.output_dim()
     }
 
-    fn kv_cache_spec(&self) -> Result<KVCacheSpec> {
+    fn kv_cache_spec(&self) -> Result<ModelCacheSpec> {
         LlamaForGeneration::kv_cache_spec(self)
     }
 
@@ -505,15 +505,16 @@ impl LlamaForGeneration {
         token_id == self.eot_id
     }
 
-    /// The cache layout this model needs.
-    pub fn kv_cache_spec(&self) -> Result<KVCacheSpec> {
-        Ok(KVCacheSpec {
-            num_layers: self.model.config.num_layers,
-            num_key_value_heads: self.model.config.num_key_value_heads,
-            head_dim: self.model.config.head_dim()?,
-            max_context_length: self.model.config.max_context_length,
-            dtype: self.float_type,
-        })
+    /// The cache layout this model needs. Every layer of a Llama is the same full attention, so
+    /// the spec is one layer repeated.
+    pub fn kv_cache_spec(&self) -> Result<ModelCacheSpec> {
+        ModelCacheSpec::uniform_attention(
+            self.model.config.num_layers,
+            self.model.config.num_key_value_heads,
+            self.model.config.head_dim()?,
+            self.model.config.max_context_length,
+            self.float_type,
+        )
     }
 
     pub fn model(&self) -> &LlamaModel {

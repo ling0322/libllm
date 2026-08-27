@@ -41,6 +41,7 @@ pub struct ForwardBatch {
     cu_seqlens_k: Vec<i32>,
     position_ids: Vec<i64>,
     block_ids: Vec<Vec<i32>>,
+    state_slots: Vec<i32>,
 }
 
 impl ForwardBatch {
@@ -60,6 +61,7 @@ impl ForwardBatch {
             cu_seqlens_k: vec![0, past_len + q_len],
             position_ids: (past_len..past_len + q_len).map(i64::from).collect(),
             block_ids: Vec::new(),
+            state_slots: Vec::new(),
         })
     }
 
@@ -108,7 +110,26 @@ impl ForwardBatch {
             cu_seqlens_k,
             position_ids,
             block_ids: Vec::new(),
+            state_slots: Vec::new(),
         })
+    }
+
+    /// Assign the state slot each sequence owns, one apiece.
+    ///
+    /// Only a model with recurrent layers has these, and it has exactly one per sequence however
+    /// long the sequence is: the slot is where that sequence's whole history lives, and it is the
+    /// same slot for every recurrent layer, each in its own pool.
+    pub fn set_state_slots(&mut self, state_slots: Vec<i32>) -> Result<()> {
+        if state_slots.len() != self.num_sequences() as usize {
+            return Err(Error::model(format!(
+                "batch holds {} sequences but was given state slots for {}",
+                self.num_sequences(),
+                state_slots.len()
+            )));
+        }
+
+        self.state_slots = state_slots;
+        Ok(())
     }
 
     /// Assign the blocks each sequence owns, in token order.
@@ -169,6 +190,11 @@ impl ForwardBatch {
         &self.block_ids
     }
 
+    /// The state slot of each sequence, empty on a model that has none.
+    pub fn state_slots(&self) -> &[i32] {
+        &self.state_slots
+    }
+
     /// Turn the layout into the tensors a model reads, on `device`.
     ///
     /// `block_size` is the one the KV cache was built with: it is what turns a token's position
@@ -197,6 +223,7 @@ pub struct PreparedBatch {
     seqlens_k: Tensor,
     block_table: Tensor,
     slot_mapping: Tensor,
+    state_slots: Option<Tensor>,
 }
 
 impl PreparedBatch {
@@ -294,6 +321,14 @@ impl PreparedBatch {
                 &table,
             )?)?,
             slot_mapping: to_device(Tensor::from_i32(&[batch.total_q_len()], &slots)?)?,
+            state_slots: if batch.state_slots.is_empty() {
+                None
+            } else {
+                Some(to_device(Tensor::from_i32(
+                    &[num_sequences],
+                    &batch.state_slots,
+                )?)?)
+            },
             batch,
         })
     }
@@ -342,6 +377,13 @@ impl PreparedBatch {
     /// `blockId * blockSize + offset`.
     pub fn slot_mapping(&self) -> &Tensor {
         &self.slot_mapping
+    }
+
+    /// `<int>(numSequences)`: the state slot each sequence's recurrent layers read and write, which
+    /// is what `gated_delta_net_prefill` indexes its state pool by. Absent on a model whose layers
+    /// carry no state between tokens.
+    pub fn state_slots(&self) -> Option<&Tensor> {
+        self.state_slots.as_ref()
     }
 
     pub fn num_sequences(&self) -> i32 {

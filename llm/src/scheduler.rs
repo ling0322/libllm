@@ -207,6 +207,7 @@ impl<M: ModelForGeneration> Scheduler<M> {
         let mut cu_seqlens_q: Vec<i32> = vec![0];
         let mut cu_seqlens_k: Vec<i32> = vec![0];
         let mut block_ids: Vec<Vec<i32>> = Vec::new();
+        let mut state_slots: Vec<i32> = Vec::new();
 
         // Running requests come first, then the waiting queue in the order it was joined. The
         // boundary is taken now so that requests moving between queues below do not change what
@@ -258,7 +259,7 @@ impl<M: ModelForGeneration> Scheduler<M> {
 
             // Make room, evicting the lowest-priority running requests until this one fits. A
             // request may end up evicting itself, in which case it waits for a later step.
-            let mut reserved = self.reserve_blocks(request_id, context_length + query_length);
+            let mut reserved = self.reserve_cache(request_id, context_length + query_length);
             while !reserved
                 && was_running
                 && self.requests[request_id].pending_finish_reason() == FinishReason::None
@@ -273,7 +274,7 @@ impl<M: ModelForGeneration> Scheduler<M> {
                 if preempted_itself {
                     break;
                 }
-                reserved = self.reserve_blocks(request_id, context_length + query_length);
+                reserved = self.reserve_cache(request_id, context_length + query_length);
             }
 
             if !reserved {
@@ -322,6 +323,9 @@ impl<M: ModelForGeneration> Scheduler<M> {
                 cu_seqlens_k.last().expect("seeded with zero") + context_length + query_length,
             );
             block_ids.push(request.block_ids().to_vec());
+            if let Some(slot) = request.state_slot() {
+                state_slots.push(slot);
+            }
             request_ids.push(request_id.clone());
             query_lengths.push(query_length);
             token_budget -= query_length;
@@ -334,6 +338,9 @@ impl<M: ModelForGeneration> Scheduler<M> {
         let batch = ForwardBatch::packed(token_ids, cu_seqlens_q, cu_seqlens_k, position_ids)
             .and_then(|mut batch| {
                 batch.set_block_ids(block_ids)?;
+                if !state_slots.is_empty() {
+                    batch.set_state_slots(state_slots)?;
+                }
                 Ok(batch)
             });
         let sampling = SamplingBatch::new(sample_sequence_indices, temperatures, top_ks, top_ps);
@@ -484,8 +491,7 @@ impl<M: ModelForGeneration> Scheduler<M> {
         if output.finished {
             request.finish();
             request.set_final_emitted(true);
-            let blocks = request.take_block_ids();
-            let _ = self.cache.free_blocks(&blocks);
+            self.release_cache(&request_id);
         }
 
         output
@@ -513,8 +519,7 @@ impl<M: ModelForGeneration> Scheduler<M> {
 
             request.finish();
             request.set_final_emitted(true);
-            let blocks = request.take_block_ids();
-            let _ = self.cache.free_blocks(&blocks);
+            self.release_cache(&request_id);
 
             outputs.push(output);
         }
@@ -522,11 +527,30 @@ impl<M: ModelForGeneration> Scheduler<M> {
         outputs
     }
 
-    /// Make sure a request holds blocks for `num_tokens` tokens. False when the cache has none to
-    /// spare; a request too large to ever fit is failed outright.
-    fn reserve_blocks(&mut self, request_id: &str, num_tokens: i32) -> bool {
+    /// Give back everything a request holds of the cache: its blocks, and its state slot on a
+    /// model that has one.
+    fn release_cache(&mut self, request_id: &str) {
+        let Some(request) = self.requests.get_mut(request_id) else {
+            return;
+        };
+
+        let blocks = request.take_block_ids();
+        let slot = request.take_state_slot();
+        let _ = self.cache.free_blocks(&blocks);
+        if let Some(slot) = slot {
+            let _ = self.cache.free_state_slot(slot);
+        }
+    }
+
+    /// Make sure a request holds blocks for `num_tokens` tokens, and the state slot it needs to run
+    /// at all. False when the cache has neither to spare; a request too large to ever fit is failed
+    /// outright.
+    ///
+    /// All or nothing across the two: a request that got a slot but no blocks could not run, and
+    /// leaving the slot in its hands would keep it from anyone who could.
+    fn reserve_cache(&mut self, request_id: &str, num_tokens: i32) -> bool {
         let needed = self.cache.num_blocks_for_tokens(num_tokens);
-        let too_large = num_tokens > self.cache.spec().max_context_length
+        let too_large = num_tokens > self.cache.spec().max_context_length()
             || needed > self.cache.max_num_blocks_per_request()
             || needed > self.cache.num_blocks();
 
@@ -537,20 +561,44 @@ impl<M: ModelForGeneration> Scheduler<M> {
             request.set_error_message("request is larger than the kv cache can hold");
             return false;
         }
-        if needed <= held {
-            return true;
-        }
 
-        match self.cache.allocate_blocks(needed - held) {
-            Some(blocks) => {
-                self.requests
+        // The slot comes first, because it is the one that cannot be taken back from a running
+        // request to make room: preempting frees blocks, and a preempted request gives up its slot
+        // with them, but nothing else does.
+        let wants_slot =
+            self.cache.needs_state_slot() && self.requests[request_id].state_slot().is_none();
+        let slot = if wants_slot {
+            match self.cache.allocate_state_slot() {
+                Some(slot) => Some(slot),
+                None => return false,
+            }
+        } else {
+            None
+        };
+
+        if needed > held {
+            match self.cache.allocate_blocks(needed - held) {
+                Some(blocks) => self
+                    .requests
                     .get_mut(request_id)
                     .expect("looked up above")
-                    .add_block_ids(&blocks);
-                true
+                    .add_block_ids(&blocks),
+                None => {
+                    if let Some(slot) = slot {
+                        let _ = self.cache.free_state_slot(slot);
+                    }
+                    return false;
+                }
             }
-            None => false,
         }
+
+        if let Some(slot) = slot {
+            self.requests
+                .get_mut(request_id)
+                .expect("looked up above")
+                .set_state_slot(slot);
+        }
+        true
     }
 
     /// The running request to evict: the lowest-priority one that is not already in this batch.
@@ -570,12 +618,9 @@ impl<M: ModelForGeneration> Scheduler<M> {
     /// Take a running request's blocks back and send it to the front of the waiting queue. What
     /// it had computed is forgotten and recomputed when it is admitted again.
     fn preempt_request(&mut self, request_id: &str) {
-        let request = self
-            .requests
-            .get_mut(request_id)
-            .expect("a victim is a running request");
-        let blocks = request.take_block_ids();
-        let _ = self.cache.free_blocks(&blocks);
+        // A preempted request gives up its state slot along with its blocks: the state is what its
+        // computed tokens folded into, and those are forgotten here too.
+        self.release_cache(request_id);
 
         let request = self.requests.get_mut(request_id).expect("looked up above");
         request.reset_computed_tokens();
@@ -626,7 +671,11 @@ impl<M: ModelForGeneration> Drop for Scheduler<M> {
         // leaves the cache as it found it.
         for request in self.requests.values_mut() {
             let blocks = request.take_block_ids();
+            let slot = request.take_state_slot();
             let _ = self.cache.free_blocks(&blocks);
+            if let Some(slot) = slot {
+                let _ = self.cache.free_state_slot(slot);
+            }
         }
     }
 }
