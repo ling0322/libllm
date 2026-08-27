@@ -34,6 +34,44 @@ and a flint `Tensor` is deliberately neither `Send` nor `Sync` because the opera
 per-device state. `init()` is guarded by a `Once`. That makes ordering and startup races the
 first place to look.
 
+## The mma path's recurrent branch has a reproducible hump at 13 to 15 tokens
+
+Sweeping the sequence length at 64 sequences, 48 value heads and D=128 on an RTX 5060 Ti, the
+in-kernel recurrent path costs, in microseconds:
+
+```
+len   11     12     13     14     15     16
+    1106   1115   1172   1205   1175   1145
+```
+
+which is not monotonic: 14 tokens costs 5% more than 16 does. It reproduced identically across
+four runs, so it is not noise, and the chunk path measured over the same lengths does not have it
+(1130 at 12, 1140 at 14, 1146 at 16 -- flat and rising slowly, as it should be).
+
+Ruled out: loop unrolling of the per-token loop. Building the same sweep with `#pragma unroll 1`
+on it moved nothing (1193 at 14 against 1205), so it is not the compiler choosing a different
+schedule at those trip counts.
+
+Not yet looked at: whether it survives at other head dimensions or sequence counts, and whether it
+is visible in the memory counters. The case is bandwidth bound at 64 sequences -- the state alone
+is 196MB read and written -- so a 5% hump is somewhere in the memory system rather than in the
+arithmetic, which is what makes it worth a profile rather than a re-read of the kernel.
+
+`kDefaultRecurrentLen` is 12 partly because of this: the band is on the other side of it. Raising
+it is worth ~8% at small batch, so this is what stands in the way.
+
+## The mma kernel costs ten more registers at a head dimension of 32
+
+Adding the recurrent branch took the D=32 instantiation from 128 registers to 138, with no spill
+either way. 128 by 256 threads is exactly half a Blackwell SM's register file, so the baseline fit
+two CTAs per SM there and this one fits one. D=64 went the other way (162 to 156) and D=128, which
+is the shape the model runs, did not move at all.
+
+`__launch_bounds__(kThreads, 2)` on the D=32 instantiation does bring it back to 128, but it buys
+that with 36 bytes of spill stores and 92 of spill loads, which is the worse trade -- so it is not
+applied. Nothing measures D=32: the benchmarks are all at the Qwen3.5 head dimension, and it is
+reached only by the tests. Whether the lost CTA costs anything there is unmeasured.
+
 ## Raise or remove the llama test's token cap
 
 `llm/tests/llama.rs` skips reference cases longer than `MAX_TOKENS_PER_CASE`, which currently
@@ -204,7 +242,9 @@ memory to coalesce it; and padding the chunk-square matrices by a whole tile.
 One correctness note, since it is the kind of thing tile handouts invite: a warp's tiles all sit in
 one column block only when the tile width divides the warp count, which is true at D of 32, 64 and
 128 and false at 48, 80 and 112. Hoisting that column out of the tile loop as a per-warp constant is
-wrong at those head dimensions, silently, and there is a test at 48 for it.
+wrong at those head dimensions, silently. The test that covered it was at 48 and went when the WMMA
+path did -- the operator no longer takes a head dimension that is not 32, 64 or 128 -- so anyone
+instantiating the mma path for one of them has that trap waiting and no test standing on it.
 
 ### What is left
 
@@ -215,12 +255,16 @@ wrong at those head dimensions, silently, and there is a test at 48 for it.
 - **Warp specialisation.** FlashInfer runs 384 threads as three warp groups, one of them doing
   nothing but loads. The mma path is pinned to eight math warps by the row partitioning, so adding a
   load group is the natural next step and there is shared memory for it.
-- **More head dimensions.** The mma path is instantiated for 32, 64 and 128; anything else falls to
-  the WMMA path, which is 30% slower. Instantiating the rest costs compile time in proportion.
+- **More head dimensions.** The mma path is instantiated for 32, 64 and 128 and nothing else is
+  left to catch the rest -- `gatedDeltaNetPrefill` refuses them now rather than routing them
+  somewhere slower. Instantiating more costs compile time in proportion; read the correctness note
+  above first, since 48, 80 and 112 are exactly the ones the tile handout is a trap at.
 
 ### The three FP32 paths, and what they measured
 
-They are still reachable by name, and what they established, before any of them was the answer:
+All three are deleted, along with the WMMA path and `cuda/triangular_solve.cu`, which nothing but
+`kChunked` used. This is what they established, before any of them was the answer -- kept because
+it is the argument for the shape the surviving kernel has, not because the code is coming back:
 
 - `kChunked` is three launches -- build every chunk's system, solve the batch of them through
   `triangularSolveInplace`, scan each sequence's chunks in order. It moves several hundred megabytes

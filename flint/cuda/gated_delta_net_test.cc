@@ -218,10 +218,7 @@ void compareBackends(
 
 constexpr op::cuda::GatedDeltaNetPath kPaths[] = {
     op::cuda::GatedDeltaNetPath::kTensorCoreMma,
-    op::cuda::GatedDeltaNetPath::kTensorCore,
-    op::cuda::GatedDeltaNetPath::kFused,
-    op::cuda::GatedDeltaNetPath::kFusedRegisters,
-    op::cuda::GatedDeltaNetPath::kChunked,
+    op::cuda::GatedDeltaNetPath::kTensorCoreMmaChunkOnly,
 };
 
 }  // namespace
@@ -280,6 +277,24 @@ CATCH_TEST_CASE("test CUDA gatedDeltaNetPrefill (tile edges)", "[op][cuda][gated
   }
 }
 
+CATCH_TEST_CASE("test CUDA gatedDeltaNetPrefill (decode batch)", "[op][cuda][gated_delta_net]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  // What a decode step is: every sequence one token, on top of a state it has to carry. The mma
+  // path steps these rather than chunking them, and this is the only case that runs that at the
+  // shape the model does -- three value heads per key head, a head dimension of 128.
+  for (op::cuda::GatedDeltaNetPath path : kPaths) {
+    compareBackends({1, 1, 1, 1, 1, 1, 1, 1}, 2, 3, 128, true, 0x7200, 5e-3f, path);
+  }
+
+  // And a mixed step: two sequences still prefilling next to six that are decoding, with lengths
+  // either side of the crossover. That batch is what the branch inside the kernel exists for, and
+  // both sides of it have to leave the same state behind for the next one.
+  for (op::cuda::GatedDeltaNetPath path : kPaths) {
+    compareBackends({1, 1, 200, 16, 1, 17, 1, 1}, 2, 3, 128, true, 0x7300, 5e-3f, path);
+  }
+}
+
 CATCH_TEST_CASE("test CUDA gatedDeltaNetPrefill (many chunks)", "[op][cuda][gated_delta_net]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
@@ -327,38 +342,12 @@ CATCH_TEST_CASE("test CUDA gatedDeltaNetPrefill (scattered slots)", "[op][cuda][
   }
 }
 
-CATCH_TEST_CASE(
-    "test CUDA gatedDeltaNetPrefill (odd head dimensions)",
-    "[op][cuda][gated_delta_net]") {
-  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
-
-  // Head dimensions that are a multiple of a tile but not of the warp count the WMMA path hands its
-  // tiles out to. At 32, 64 and 128 a warp's tiles all sit in one column block; at 48, 80 and 112
-  // they do not, and a kernel that took that for granted would be silently wrong. 16 is the other
-  // end: one tile wide, so every phase runs a single step of its contraction.
-  //
-  // Only the WMMA path is asked for these. The mma path is instantiated for 32, 64 and 128, and the
-  // FP32 paths want a multiple of 32.
-  for (int headDim : {16, 48, 80, 112}) {
-    CATCH_INFO("headDim = " << headDim);
-    compareBackends(
-        {70, 33},
-        2,
-        3,
-        headDim,
-        true,
-        0x5000 + headDim,
-        5e-3f,
-        op::cuda::GatedDeltaNetPath::kTensorCore);
-  }
-}
-
 CATCH_TEST_CASE("test CUDA gatedDeltaNetPrefill (auto)", "[op][cuda][gated_delta_net]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 
-  // Whatever kAuto picks has to be right too, and which path that is changes with the head
-  // dimension: 32, 64 and 128 reach the mma path, 48 and 80 fall through it to the WMMA one.
-  for (int headDim : {32, 48, 64, 80, 128}) {
+  // kAuto is kTensorCoreMma now, but it is what a caller reaches for, so it is run at every head
+  // dimension the kernel is instantiated for rather than trusted to be the same code.
+  for (int headDim : {32, 64, 128}) {
     CATCH_INFO("headDim = " << headDim);
     compareBackends(
         {130, 0, 7},

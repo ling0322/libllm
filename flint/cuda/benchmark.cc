@@ -227,26 +227,24 @@ void benchmarkSampling(const std::shared_ptr<Operators> &operators) {
 
 const char *pathName(op::cuda::GatedDeltaNetPath path) {
   switch (path) {
-    case op::cuda::GatedDeltaNetPath::kFused:
-      return "fused";
-    case op::cuda::GatedDeltaNetPath::kFusedRegisters:
-      return "fused-regs";
-    case op::cuda::GatedDeltaNetPath::kTensorCore:
-      return "tensorcore";
     case op::cuda::GatedDeltaNetPath::kTensorCoreMma:
       return "mma";
-    case op::cuda::GatedDeltaNetPath::kChunked:
-      return "chunked";
+    case op::cuda::GatedDeltaNetPath::kTensorCoreMmaChunkOnly:
+      return "mma-chunk-only";
     default:
       return "auto";
   }
 }
 
-void benchmarkGatedDeltaNet(
+void benchmarkGatedDeltaNetSeqlens(
     const std::shared_ptr<Operators> &operators,
-    int numTokens,
-    int numSeq,
+    const std::vector<int> &seqlens,
+    const std::string &label,
     op::cuda::GatedDeltaNetPath path) {
+  int numSeq = static_cast<int>(seqlens.size());
+  int numTokens = 0;
+  for (int len : seqlens) numTokens += len;
+
   Tensor q = randHalf(operators, {numTokens, DeltaNetKeyHeads, DeltaNetHeadDim});
   Tensor k = randHalf(operators, {numTokens, DeltaNetKeyHeads, DeltaNetHeadDim});
   Tensor v = randHalf(operators, {numTokens, DeltaNetValueHeads, DeltaNetHeadDim});
@@ -267,8 +265,8 @@ void benchmarkGatedDeltaNet(
   g = operators->neg(g);
 
   std::vector<int32_t> lengths;
-  for (int s = 0; s <= numSeq; ++s) lengths.push_back(numTokens / numSeq * s);
-  lengths.back() = numTokens;
+  lengths.push_back(0);
+  for (int len : seqlens) lengths.push_back(lengths.back() + len);
   Tensor cuSeqlens = F::to(
       Device::getCuda(),
       Tensor::create<int32_t>({numSeq + 1}, lut::makeConstSpan(lengths)));
@@ -285,10 +283,23 @@ void benchmarkGatedDeltaNet(
   float milliseconds = benchmarkCuda([&] {
     op::cuda::gatedDeltaNetPrefill(q, k, v, g, beta, cuSeqlens, stateSlots, state, path);
   });
-  printLatency(
-      std::string("gated_delta_net ") + pathName(path) + " tokens=" +
-          std::to_string(numTokens) + " seqs=" + std::to_string(numSeq),
-      milliseconds);
+  printLatency(std::string("gated_delta_net ") + pathName(path) + " " + label, milliseconds);
+}
+
+// The even split, which is what the prefill benchmarks measure: one batch of `numSeq` sequences
+// that between them hold `numTokens`.
+void benchmarkGatedDeltaNet(
+    const std::shared_ptr<Operators> &operators,
+    int numTokens,
+    int numSeq,
+    op::cuda::GatedDeltaNetPath path) {
+  std::vector<int> seqlens(numSeq, numTokens / numSeq);
+  seqlens.back() += numTokens - numSeq * (numTokens / numSeq);
+  benchmarkGatedDeltaNetSeqlens(
+      operators,
+      seqlens,
+      "tokens=" + std::to_string(numTokens) + " seqs=" + std::to_string(numSeq),
+      path);
 }
 
 }  // namespace
@@ -299,22 +310,42 @@ CATCH_TEST_CASE("Qwen3.5 gated DeltaNet benchmarks", "[benchmark][cuda][gated_de
 
   std::printf("\nQwen3.5 gated DeltaNet prefill benchmarks (FP16 in, FP32 state)\n");
 
-  // The fused path gets one CTA per (sequence, value head), so a single sequence gives it only 48
-  // of them against 36 SMs. Splitting the same token count over several sequences is what a serving
-  // batch looks like, and is the case that tells the two apart.
-  for (op::cuda::GatedDeltaNetPath path :
-       {op::cuda::GatedDeltaNetPath::kTensorCoreMma,
-        op::cuda::GatedDeltaNetPath::kTensorCore,
-        op::cuda::GatedDeltaNetPath::kChunked,
-        op::cuda::GatedDeltaNetPath::kFused,
-        op::cuda::GatedDeltaNetPath::kFusedRegisters}) {
-    for (int numSeq : {1, 2, 4, 8}) {
-      benchmarkGatedDeltaNet(operators, 4096, numSeq, path);
-    }
+  // One CTA per (sequence, value head), so a single sequence gives the kernel only 48 of them
+  // against 36 SMs. Splitting the same token count over several sequences is what a serving batch
+  // looks like, and is what the launch's shape actually turns on.
+  for (int numSeq : {1, 2, 4, 8}) {
+    benchmarkGatedDeltaNet(operators, 4096, numSeq, op::cuda::GatedDeltaNetPath::kTensorCoreMma);
   }
 
   for (int numTokens : {256, 1024, 4096}) {
     benchmarkGatedDeltaNet(operators, numTokens, 1, op::cuda::GatedDeltaNetPath::kAuto);
+  }
+
+  // A decode step, and a decode step with one sequence still prefilling in it. Both are what a
+  // continuously batched server spends most of its launches on, and both are what the mma path's
+  // per-CTA branch is for: mma-chunk-only is the same kernel with that branch turned off, so the
+  // pair of them is the branch's whole cost and benefit.
+  std::printf("\nQwen3.5 gated DeltaNet decode benchmarks\n");
+  for (op::cuda::GatedDeltaNetPath path :
+       {op::cuda::GatedDeltaNetPath::kTensorCoreMma,
+        op::cuda::GatedDeltaNetPath::kTensorCoreMmaChunkOnly}) {
+    for (int numSeq : {1, 8, 32, 128}) {
+      benchmarkGatedDeltaNetSeqlens(
+          operators,
+          std::vector<int>(numSeq, 1),
+          "decode seqs=" + std::to_string(numSeq),
+          path);
+    }
+
+    for (int numSeq : {32, 128}) {
+      std::vector<int> seqlens(numSeq, 1);
+      seqlens.back() = 2048;
+      benchmarkGatedDeltaNetSeqlens(
+          operators,
+          seqlens,
+          "decode seqs=" + std::to_string(numSeq) + " + one 2048 prefill",
+          path);
+    }
   }
 }
 

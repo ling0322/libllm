@@ -84,7 +84,6 @@ if (WITH_CUDA)
         "cuda/fill.cu"
         "cuda/gated_delta_net.cu"
         "cuda/gated_delta_net_mma.cu"
-        "cuda/gated_delta_net_wmma.cu"
         "cuda/gemm_cublas.cc"
         "cuda/lookup.cu"
         "cuda/matmul.cc"
@@ -99,7 +98,6 @@ if (WITH_CUDA)
         "cuda/softmax.cu"
         "cuda/store_kv_cache.cu"
         "cuda/swiglu.cu"
-        "cuda/triangular_solve.cu"
         "cuda/to_device.cc"
         "cuda/unary.cu")
 
