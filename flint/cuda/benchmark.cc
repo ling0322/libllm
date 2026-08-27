@@ -7,8 +7,12 @@
 #include <vector>
 
 #include "catch2/catch_amalgamated.hpp"
+#include "lutil/span.h"
 #include "flint/cuda/common.h"
 #include "flint/cuda/cuda_operators.h"
+#include "flint/cuda/gated_delta_net.h"
+#include "flint/functional.h"
+#include "flint/tensor.h"
 
 namespace fl {
 namespace {
@@ -23,6 +27,12 @@ constexpr int VocabSize = 128256;
 constexpr int BatchSize = 1;
 constexpr int NumWarmup = 5;
 constexpr int NumIterations = 20;
+
+// The Qwen3.5 gated DeltaNet layer: 16 key heads against 48 value heads, both 128 wide. 48 of the
+// model's 64 layers run this rather than the attention the rest of these benchmarks cover.
+constexpr int DeltaNetKeyHeads = 16;
+constexpr int DeltaNetValueHeads = 48;
+constexpr int DeltaNetHeadDim = 128;
 
 class CudaEvent {
  public:
@@ -215,7 +225,129 @@ void benchmarkSampling(const std::shared_ptr<Operators> &operators) {
   printLatency("sampling [1,128256] top_k=50 top_p=0.9", milliseconds);
 }
 
+const char *pathName(op::cuda::GatedDeltaNetPath path) {
+  switch (path) {
+    case op::cuda::GatedDeltaNetPath::kTensorCoreMma:
+      return "mma";
+    case op::cuda::GatedDeltaNetPath::kTensorCoreMmaChunkOnly:
+      return "mma-chunk-only";
+    default:
+      return "auto";
+  }
+}
+
+void benchmarkGatedDeltaNetSeqlens(
+    const std::shared_ptr<Operators> &operators,
+    const std::vector<int> &seqlens,
+    const std::string &label,
+    op::cuda::GatedDeltaNetPath path) {
+  int numSeq = static_cast<int>(seqlens.size());
+  int numTokens = 0;
+  for (int len : seqlens) numTokens += len;
+
+  Tensor q = randHalf(operators, {numTokens, DeltaNetKeyHeads, DeltaNetHeadDim});
+  Tensor k = randHalf(operators, {numTokens, DeltaNetKeyHeads, DeltaNetHeadDim});
+  Tensor v = randHalf(operators, {numTokens, DeltaNetValueHeads, DeltaNetHeadDim});
+  Tensor g = operators->rand({numTokens, DeltaNetValueHeads}, DType::kFloat);
+  Tensor beta = operators->rand({numTokens, DeltaNetValueHeads}, DType::kFloat);
+  // CudaOperators::zeros hands back a <half> whatever dtype it is asked for, so the state starts
+  // as a host tensor and is copied over.
+  std::vector<float> stateData(
+      static_cast<size_t>(numSeq) * DeltaNetValueHeads * DeltaNetHeadDim * DeltaNetHeadDim,
+      0.0f);
+  Tensor state = F::to(
+      Device::getCuda(),
+      Tensor::create<float>(
+          {numSeq, DeltaNetValueHeads, DeltaNetHeadDim, DeltaNetHeadDim},
+          lut::makeConstSpan(stateData)));
+
+  // g is a log decay, so it has to be at most zero.
+  g = operators->neg(g);
+
+  std::vector<int32_t> lengths;
+  lengths.push_back(0);
+  for (int len : seqlens) lengths.push_back(lengths.back() + len);
+  Tensor cuSeqlens = F::to(
+      Device::getCuda(),
+      Tensor::create<int32_t>({numSeq + 1}, lut::makeConstSpan(lengths)));
+
+  // The identity mapping: a pool the size of the batch, in batch order. What the mapping costs is
+  // one int load per block, so a scattered pool measures the same; it is the timings that are
+  // being kept comparable here, not the traffic.
+  std::vector<int32_t> slots;
+  for (int s = 0; s < numSeq; ++s) slots.push_back(s);
+  Tensor stateSlots = F::to(
+      Device::getCuda(),
+      Tensor::create<int32_t>({numSeq}, lut::makeConstSpan(slots)));
+
+  float milliseconds = benchmarkCuda([&] {
+    op::cuda::gatedDeltaNetPrefill(q, k, v, g, beta, cuSeqlens, stateSlots, state, path);
+  });
+  printLatency(std::string("gated_delta_net ") + pathName(path) + " " + label, milliseconds);
+}
+
+// The even split, which is what the prefill benchmarks measure: one batch of `numSeq` sequences
+// that between them hold `numTokens`.
+void benchmarkGatedDeltaNet(
+    const std::shared_ptr<Operators> &operators,
+    int numTokens,
+    int numSeq,
+    op::cuda::GatedDeltaNetPath path) {
+  std::vector<int> seqlens(numSeq, numTokens / numSeq);
+  seqlens.back() += numTokens - numSeq * (numTokens / numSeq);
+  benchmarkGatedDeltaNetSeqlens(
+      operators,
+      seqlens,
+      "tokens=" + std::to_string(numTokens) + " seqs=" + std::to_string(numSeq),
+      path);
+}
+
 }  // namespace
+
+CATCH_TEST_CASE("Qwen3.5 gated DeltaNet benchmarks", "[benchmark][cuda][gated_delta_net]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+  std::shared_ptr<Operators> operators = getOperatorsSharedPtr(Device::kCuda);
+
+  std::printf("\nQwen3.5 gated DeltaNet prefill benchmarks (FP16 in, FP32 state)\n");
+
+  // One CTA per (sequence, value head), so a single sequence gives the kernel only 48 of them
+  // against 36 SMs. Splitting the same token count over several sequences is what a serving batch
+  // looks like, and is what the launch's shape actually turns on.
+  for (int numSeq : {1, 2, 4, 8}) {
+    benchmarkGatedDeltaNet(operators, 4096, numSeq, op::cuda::GatedDeltaNetPath::kTensorCoreMma);
+  }
+
+  for (int numTokens : {256, 1024, 4096}) {
+    benchmarkGatedDeltaNet(operators, numTokens, 1, op::cuda::GatedDeltaNetPath::kAuto);
+  }
+
+  // A decode step, and a decode step with one sequence still prefilling in it. Both are what a
+  // continuously batched server spends most of its launches on, and both are what the mma path's
+  // per-CTA branch is for: mma-chunk-only is the same kernel with that branch turned off, so the
+  // pair of them is the branch's whole cost and benefit.
+  std::printf("\nQwen3.5 gated DeltaNet decode benchmarks\n");
+  for (op::cuda::GatedDeltaNetPath path :
+       {op::cuda::GatedDeltaNetPath::kTensorCoreMma,
+        op::cuda::GatedDeltaNetPath::kTensorCoreMmaChunkOnly}) {
+    for (int numSeq : {1, 8, 32, 128}) {
+      benchmarkGatedDeltaNetSeqlens(
+          operators,
+          std::vector<int>(numSeq, 1),
+          "decode seqs=" + std::to_string(numSeq),
+          path);
+    }
+
+    for (int numSeq : {32, 128}) {
+      std::vector<int> seqlens(numSeq, 1);
+      seqlens.back() = 2048;
+      benchmarkGatedDeltaNetSeqlens(
+          operators,
+          seqlens,
+          "decode seqs=" + std::to_string(numSeq) + " + one 2048 prefill",
+          path);
+    }
+  }
+}
 
 CATCH_TEST_CASE("CUDA rotary embedding benchmarks", "[benchmark][cuda][rope]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");

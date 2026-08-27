@@ -235,6 +235,19 @@ void fill(Tensor tensor, float value) {
   getOperators(tensor.getDevice().getType())->fill(tensor, value);
 }
 
+Tensor gatedDeltaNetPrefill(
+    Tensor q,
+    Tensor k,
+    Tensor v,
+    Tensor g,
+    Tensor beta,
+    Tensor cuSeqlens,
+    Tensor stateSlots,
+    Tensor state) {
+  return getOperators(q.getDevice().getType())
+      ->gatedDeltaNetPrefill(q, k, v, g, beta, cuSeqlens, stateSlots, state);
+}
+
 Tensor attention(Tensor q, Tensor k, Tensor v, bool causal) {
   return getOperators(q.getDevice().getType())->attention(q, k, v, causal);
 }

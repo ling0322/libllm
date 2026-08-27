@@ -29,6 +29,7 @@
 #include "flint/cuda/causal_mask.h"
 #include "flint/cuda/copy.h"
 #include "flint/cuda/fill.h"
+#include "flint/cuda/gated_delta_net.h"
 #include "flint/cuda/flash_attn.h"
 #include "flint/cuda/lookup.h"
 #include "flint/cuda/matmul.h"
@@ -207,6 +208,18 @@ Tensor CudaOperators::matmul(Tensor a, Tensor b) {
 
 Tensor CudaOperators::matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB) {
   return _matmul->applyNarrowPrecision(A, sfA, B, sfB);
+}
+
+Tensor CudaOperators::gatedDeltaNetPrefill(
+    Tensor q,
+    Tensor k,
+    Tensor v,
+    Tensor g,
+    Tensor beta,
+    Tensor cuSeqlens,
+    Tensor stateSlots,
+    Tensor state) {
+  return op::cuda::gatedDeltaNetPrefill(q, k, v, g, beta, cuSeqlens, stateSlots, state);
 }
 
 Tensor CudaOperators::mul(Tensor input, float other) {

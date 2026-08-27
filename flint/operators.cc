@@ -73,6 +73,18 @@ Tensor Operators::matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor s
   NOT_IMPL();
 }
 
+Tensor Operators::gatedDeltaNetPrefill(
+    Tensor q,
+    Tensor k,
+    Tensor v,
+    Tensor g,
+    Tensor beta,
+    Tensor cuSeqlens,
+    Tensor stateSlots,
+    Tensor state) {
+  NOT_IMPL();
+}
+
 Tensor Operators::mul(Tensor input, float other) {
   NOT_IMPL();
 }

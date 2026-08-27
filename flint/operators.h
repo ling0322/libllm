@@ -40,6 +40,9 @@ class Operators {
   virtual Tensor rmsNorm(Tensor input, Tensor weight, float eps);
   virtual Tensor matmul(Tensor A, Tensor B);
   virtual Tensor matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB);
+
+  /// Solve the lower triangular systems L X = B. l is <float>(..., N, N) and b is
+  /// <float>(..., N, M) with the same batch dimensions.
   virtual Tensor mul(Tensor input, float other);
   virtual Tensor div(Tensor input, float other);
   virtual Tensor mod(Tensor input, LongType other);
@@ -70,6 +73,17 @@ class Operators {
       Tensor keyCache,
       Tensor valueCache,
       Tensor slotMapping);
+
+    /// Gated DeltaNet linear attention over a packed (varlen) batch, prefill form.
+    virtual Tensor gatedDeltaNetPrefill(
+      Tensor q,
+      Tensor k,
+      Tensor v,
+      Tensor g,
+      Tensor beta,
+      Tensor cuSeqlens,
+      Tensor stateSlots,
+      Tensor state);
 
     virtual Tensor sample(Tensor logits, Tensor temperatures, Tensor topKs, Tensor topPs);
   virtual Tensor add(Tensor input, Tensor other);

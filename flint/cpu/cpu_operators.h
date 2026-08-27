@@ -53,6 +53,15 @@ class CPUOperators : public Operators {
   void fill(Tensor input, float value) override;
   Tensor lookup(Tensor table, Tensor indices) override;
   Tensor matmul(Tensor a, Tensor b) override;
+  Tensor gatedDeltaNetPrefill(
+      Tensor q,
+      Tensor k,
+      Tensor v,
+      Tensor g,
+      Tensor beta,
+      Tensor cuSeqlens,
+      Tensor stateSlots,
+      Tensor state) override;
   Tensor max(Tensor inputs) override;
   Tensor min(Tensor inputs) override;
   Tensor square(Tensor input) override;

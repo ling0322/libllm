@@ -6,8 +6,8 @@ dispatch, CPU/CUDA operators, and stable C ABI used by the Rust bindings in
 
 Flint is intentionally focused on inference workloads rather than being a general-purpose tensor
 framework. Its operators cover the paths needed by the model runtime, including matrix
-multiplication, normalization, rotary embeddings, attention, paged KV cache updates, and
-temperature/top-k/top-p sampling.
+multiplication, normalization, rotary embeddings, attention, paged KV cache updates, gated DeltaNet
+linear attention, and temperature/top-k/top-p sampling.
 
 ## Architecture
 

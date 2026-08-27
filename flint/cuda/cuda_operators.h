@@ -56,6 +56,15 @@ class CudaOperators : public Operators {
   void rotaryEmbedding(Tensor positions, Tensor query, Tensor key, Tensor rotaryCache) override;
   Tensor matmul(Tensor a, Tensor b) override;
   Tensor matmulNarrowPrecision(Tensor A, Tensor sfA, Tensor B, Tensor sfB) override;
+  Tensor gatedDeltaNetPrefill(
+      Tensor q,
+      Tensor k,
+      Tensor v,
+      Tensor g,
+      Tensor beta,
+      Tensor cuSeqlens,
+      Tensor stateSlots,
+      Tensor state) override;
   Tensor max(Tensor inputs) override;
   Tensor min(Tensor inputs) override;
   Tensor divTensor(Tensor input, Tensor other) override;

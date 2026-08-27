@@ -217,6 +217,44 @@ Tensor pagedAttention(
 //   slotMapping <int>(numTokens): the slot of each token, as blockId * blockSize + offset.
 void storeKVCache(Tensor k, Tensor v, Tensor keyCache, Tensor valueCache, Tensor slotMapping);
 
+// Gated DeltaNet linear attention over a packed (varlen) batch, the prefill form: every sequence
+// runs from its own incoming recurrent state through all of its tokens at once. Each value head
+// carries a (D, D) state S and applies, per token,
+//   S_t = exp(g_t) (I - beta_t k_t k_t^T) S_{t-1} + beta_t k_t v_t^T,   o_t = S_t^T q_t
+// which the operator evaluates a chunk at a time rather than a token at a time. q and k carry
+// nKHead heads against v's nVHead, a multiple of it, so value head h reads query and key head
+// h / (nVHead / nKHead) and grouped keys need no expanded copy. g and beta belong to the value
+// head, since the state does.
+// Args:
+//   q <float>(numTokens, nKHead, D): the queries of every sequence, packed back to back.
+//   k <float>(numTokens, nKHead, D): the keys.
+//   v <float>(numTokens, nVHead, D): the values.
+//   g <float32>(numTokens, nVHead): the log decay of each step, at most 0.
+//   beta <float32>(numTokens, nVHead): the delta rule write strength of each step.
+//   cuSeqlens <int>(nSeq + 1): exclusive prefix sum of the sequence lengths.
+//   stateSlots <int>(nSeq): the slot of the pool each sequence's state occupies. Sequence i reads
+//       its incoming state from state[stateSlots[i]] and overwrites that same slot, so a sequence
+//       is tied to its state by the mapping rather than by its position in the batch -- the way a
+//       paged KV cache reaches its blocks through a block table, at one slot per sequence because
+//       a linear attention's whole history is one fixed-size state. A slot therefore outlives the
+//       batch: the same sequence may sit anywhere in the next prefill and still find its state.
+//       Two sequences may not name the same slot -- each is written by its own blocks and nothing
+//       orders them against each other.
+//   state <float32>(nSlot, nVHead, D, D): the pool of recurrent states, at least nSeq slots of it,
+//       read at each sequence's first token and overwritten in place with the state after its last
+//       one. Slots no sequence in this batch maps to are left untouched.
+// Returns:
+//   <float>(numTokens, nVHead, D): the output tensor.
+Tensor gatedDeltaNetPrefill(
+    Tensor q,
+    Tensor k,
+    Tensor v,
+    Tensor g,
+    Tensor beta,
+    Tensor cuSeqlens,
+    Tensor stateSlots,
+    Tensor state);
+
 // Applies the Swish-Gated Linear Unit function SwiGLU(a, b) = swish(a) * b.  Where a is the first
 // half of input (input[..., :input.shape[-1] / 2]) and b is the second half of input
 // (input[..., input.shape[-1] / 2 :]).
