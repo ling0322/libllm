@@ -94,6 +94,9 @@ enum class Regime {
 enum class SlotPolicy {
   kReversed,
   kScattered,
+  // A pool whose slots are a stride apart rather than packed: each one is followed by bytes that
+  // belong to something else, which is what a state looks like in a pool the whole model shares.
+  kStrided,
 };
 
 // Run the same prefill on both backends and compare the output and the state they leave behind.
@@ -139,10 +142,19 @@ void compareBackends(
     }
   }
 
-  std::vector<float> stateData(
-      static_cast<size_t>(numStateSlot) * numVHead * headDim * headDim, 7.0f);
   const size_t slotSize = static_cast<size_t>(numVHead) * headDim * headDim;
-  std::fill(stateData.begin() + slotSize, stateData.end(), 0.0f);
+  // What follows each slot when the pool is strided. Odd, so that nothing about the alignment is
+  // accidental, and marked with a value neither backend may write.
+  const size_t padSize = (slotPolicy == SlotPolicy::kStrided) ? 37 : 0;
+  const size_t rowSize = slotSize + padSize;
+  constexpr float kPadSentinel = 13.0f;
+  std::vector<float> stateData(static_cast<size_t>(numStateSlot) * rowSize, 0.0f);
+  for (int slot = 0; slot < numStateSlot; ++slot) {
+    float *row = stateData.data() + slot * rowSize;
+    // Slot 0 is the one no sequence maps to, and its sentinel says so.
+    std::fill(row, row + slotSize, slot == 0 ? 7.0f : 0.0f);
+    std::fill(row + slotSize, row + rowSize, kPadSentinel);
+  }
 
   for (float &x : qData) x = lcg.next();
   for (float &x : kData) x = lcg.next();
@@ -168,7 +180,10 @@ void compareBackends(
       break;
   }
   if (nonZeroState) {
-    for (size_t i = slotSize; i < stateData.size(); ++i) stateData[i] = lcg.next() * 0.2f;
+    for (int slot = 1; slot < numStateSlot; ++slot) {
+      float *row = stateData.data() + slot * rowSize;
+      for (size_t i = 0; i < slotSize; ++i) row[i] = lcg.next() * 0.2f;
+    }
   }
 
   Tensor q = Tensor::create<float>({numTokens, numKHead, headDim}, lut::makeConstSpan(qData));
@@ -181,13 +196,19 @@ void compareBackends(
       lut::makeConstSpan(cuSeqlens));
   Tensor slotsTensor = Tensor::create<int32_t>({numSeq}, lut::makeConstSpan(stateSlots));
 
-  // Both backends overwrite the state, so each gets its own copy of the pool.
-  Tensor stateCpu = Tensor::create<float>(
-      {numStateSlot, numVHead, headDim, headDim},
+  // Both backends overwrite the state, so each gets its own copy of the pool. The states are the
+  // front of each row of it; a strided pool keeps something else in the rest of the row, and what
+  // the operators are handed is the view that skips it.
+  auto states = [&](const Tensor &pool) {
+    return pool.slice(1, {0, static_cast<int>(slotSize)})
+        .view({numStateSlot, numVHead, headDim, headDim});
+  };
+  Tensor poolCpu = Tensor::create<float>(
+      {numStateSlot, static_cast<int>(rowSize)},
       lut::makeConstSpan(stateData));
-  Tensor stateCuda = toCudaFloat(Tensor::create<float>(
-      {numStateSlot, numVHead, headDim, headDim},
-      lut::makeConstSpan(stateData)));
+  Tensor poolCuda = toCudaFloat(poolCpu);
+  Tensor stateCpu = states(poolCpu);
+  Tensor stateCuda = states(poolCuda);
 
   // The path is forced rather than left to kAuto: these head counts are far below what kAuto reads
   // as enough CTAs to fuse, so kAuto alone would never reach the fused kernel here.
@@ -213,7 +234,20 @@ void compareBackends(
 
   CATCH_REQUIRE(actual.getShape() == std::vector<int>{numTokens, numVHead, headDim});
   CATCH_REQUIRE(F::allClose(toCpuFloat(actual), expected, tolerance, tolerance));
-  CATCH_REQUIRE(F::allClose(toCpuFloat(stateCuda), stateCpu, tolerance, tolerance));
+  // A strided view cannot be copied between devices, so the whole pool comes back and the states
+  // are taken out of it here.
+  Tensor poolBack = toCpuFloat(poolCuda);
+  CATCH_REQUIRE(F::allClose(states(poolBack), stateCpu, tolerance, tolerance));
+
+  // Neither backend may touch what sits between the slots.
+  if (padSize) {
+    Tensor padCuda = poolBack.slice(1, {static_cast<int>(slotSize), None});
+    Tensor padCpu = poolCpu.slice(1, {static_cast<int>(slotSize), None});
+    Tensor padWanted = F::zeros({numStateSlot, static_cast<int>(padSize)}, DType::kFloat);
+    F::fill(padWanted, kPadSentinel);
+    CATCH_REQUIRE(F::allClose(padCuda, padWanted));
+    CATCH_REQUIRE(F::allClose(padCpu, padWanted));
+  }
 }
 
 constexpr op::cuda::GatedDeltaNetPath kPaths[] = {
@@ -339,6 +373,27 @@ CATCH_TEST_CASE("test CUDA gatedDeltaNetPrefill (scattered slots)", "[op][cuda][
         path,
         Regime::kDefault,
         SlotPolicy::kScattered);
+  }
+}
+
+CATCH_TEST_CASE("test CUDA gatedDeltaNetPrefill (strided pool)", "[op][cuda][gated_delta_net]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  // The slots of a pool the whole model shares are a stride apart: the rest of each block holds
+  // what another layer keeps there, and neither the reads at the start nor the writes at the end
+  // may run past the state's own bytes.
+  for (op::cuda::GatedDeltaNetPath path : kPaths) {
+    compareBackends(
+        {130, 0, 7, 64},
+        2,
+        2,
+        64,
+        true,
+        0x7500,
+        5e-3f,
+        path,
+        Regime::kDefault,
+        SlotPolicy::kStrided);
   }
 }
 

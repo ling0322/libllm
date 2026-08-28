@@ -41,7 +41,8 @@ pub struct ForwardBatch {
     cu_seqlens_k: Vec<i32>,
     position_ids: Vec<i64>,
     block_ids: Vec<Vec<i32>>,
-    state_slots: Vec<i32>,
+    /// `[group][sequence]`: the run of the recurrent group each sequence's state lives in.
+    state_slots: Vec<Vec<i32>>,
 }
 
 impl ForwardBatch {
@@ -114,18 +115,21 @@ impl ForwardBatch {
         })
     }
 
-    /// Assign the state slot each sequence owns, one apiece.
+    /// Assign the state slots each sequence owns: one per recurrent group, and one per sequence
+    /// within each, indexed `[group][sequence]`.
     ///
-    /// Only a model with recurrent layers has these, and it has exactly one per sequence however
-    /// long the sequence is: the slot is where that sequence's whole history lives, and it is the
-    /// same slot for every recurrent layer, each in its own pool.
-    pub fn set_state_slots(&mut self, state_slots: Vec<i32>) -> Result<()> {
-        if state_slots.len() != self.num_sequences() as usize {
-            return Err(Error::model(format!(
-                "batch holds {} sequences but was given state slots for {}",
-                self.num_sequences(),
-                state_slots.len()
-            )));
+    /// Only a model with recurrent layers has these, and it has one per group however long the
+    /// sequence is: a slot is where that sequence's whole history lives, and every layer of a
+    /// group reads the same one. A model whose recurrent layers are one group hands over one row.
+    pub fn set_state_slots(&mut self, state_slots: Vec<Vec<i32>>) -> Result<()> {
+        for slots in &state_slots {
+            if slots.len() != self.num_sequences() as usize {
+                return Err(Error::model(format!(
+                    "batch holds {} sequences but was given state slots for {}",
+                    self.num_sequences(),
+                    slots.len()
+                )));
+            }
         }
 
         self.state_slots = state_slots;
@@ -190,8 +194,8 @@ impl ForwardBatch {
         &self.block_ids
     }
 
-    /// The state slot of each sequence, empty on a model that has none.
-    pub fn state_slots(&self) -> &[i32] {
+    /// The state slots of each recurrent group, empty on a model that has none.
+    pub fn state_slots(&self) -> &[Vec<i32>] {
         &self.state_slots
     }
 
@@ -223,7 +227,9 @@ pub struct PreparedBatch {
     seqlens_k: Tensor,
     block_table: Tensor,
     slot_mapping: Tensor,
-    state_slots: Option<Tensor>,
+    /// One `<int32>(numSequences)` per recurrent group, which is what the operators of the layers
+    /// in that group take as their slot mapping.
+    state_slots: Vec<Tensor>,
 }
 
 impl PreparedBatch {
@@ -321,14 +327,11 @@ impl PreparedBatch {
                 &table,
             )?)?,
             slot_mapping: to_device(Tensor::from_i32(&[batch.total_q_len()], &slots)?)?,
-            state_slots: if batch.state_slots.is_empty() {
-                None
-            } else {
-                Some(to_device(Tensor::from_i32(
-                    &[num_sequences],
-                    &batch.state_slots,
-                )?)?)
-            },
+            state_slots: batch
+                .state_slots
+                .iter()
+                .map(|slots| to_device(Tensor::from_i32(&[num_sequences], slots)?))
+                .collect::<Result<Vec<_>>>()?,
             batch,
         })
     }
@@ -379,11 +382,17 @@ impl PreparedBatch {
         &self.slot_mapping
     }
 
-    /// `<int>(numSequences)`: the state slot each sequence's recurrent layers read and write, which
-    /// is what `gated_delta_net_prefill` indexes its state pool by. Absent on a model whose layers
+    /// `<int>(numSequences)`: the state slot each sequence's layers of one recurrent group read
+    /// and write, which is what `gated_delta_net_prefill` indexes its state pool by. `group` is
+    /// the index the cache gives a layer through `state_group_of`. Absent on a model whose layers
     /// carry no state between tokens.
-    pub fn state_slots(&self) -> Option<&Tensor> {
-        self.state_slots.as_ref()
+    pub fn state_slots(&self, group: i32) -> Option<&Tensor> {
+        self.state_slots.get(group.max(0) as usize)
+    }
+
+    /// How many recurrent groups this batch carries slots for.
+    pub fn num_state_groups(&self) -> i32 {
+        self.state_slots.len() as i32
     }
 
     pub fn num_sequences(&self) -> i32 {

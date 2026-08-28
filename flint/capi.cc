@@ -292,6 +292,10 @@ int32_t fl_tensor_view(
   });
 }
 
+int32_t fl_tensor_view_as(fl_tensor_t tensor, fl_dtype_t dtype, fl_tensor_t *out) {
+  return guard([&]() { return publish(deref(tensor).viewAs(toDType(dtype)), out); });
+}
+
 int32_t fl_tensor_transpose(
     fl_tensor_t tensor,
     int32_t dim0,

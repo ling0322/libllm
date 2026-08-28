@@ -33,6 +33,39 @@
 
 namespace fl {
 
+namespace {
+
+/// The storage of another TensorData, read as a different element type.
+///
+/// Only the type and the element count differ: the bytes, the device and the lifetime are the one
+/// the owner holds, which the shared pointer keeps alive for as long as any view of it is.
+class AliasTensorData : public TensorData {
+ public:
+  AliasTensorData(std::shared_ptr<TensorData> owner, DType dtype)
+      : _owner(std::move(owner)) {
+    int64_t elementSize = dtype.getTotalSize(1);
+    int64_t storageSize = _owner->getSizeInBytes();
+    CHECK(storageSize % elementSize == 0)
+        << "cannot view " << storageSize << " bytes as " << dtype.toString();
+
+    _dtype = dtype;
+    _numel = storageSize / elementSize;
+  }
+
+  Device getDevice() const override {
+    return _owner->getDevice();
+  }
+
+  std::byte *getRawData() const override {
+    return _owner->getRawData();
+  }
+
+ private:
+  std::shared_ptr<TensorData> _owner;
+};
+
+}  // namespace
+
 template<typename T>
 Tensor Tensor::create(std::initializer_list<int> shape, lut::Span<const T> data) {
   Tensor tensor;
@@ -118,6 +151,44 @@ void Tensor::read(lut::Reader *fp) {
 
 Tensor Tensor::view(lut::Span<const int> shape) const {
   return op::cpu::view(*this, shape);
+}
+
+Tensor Tensor::viewAs(DType dtype) const {
+  CHECK(!getDType().isQuantized() && !dtype.isQuantized());
+  CHECK(getDim() > 0) << "an empty tensor has no bytes to read as another type";
+
+  int64_t from = getDType().getTotalSize(1);
+  int64_t to = dtype.getTotalSize(1);
+  int lastDim = getDim() - 1;
+  CHECK(getStride(lastDim) == 1) << "viewAs needs the last dimension packed";
+
+  int64_t lastBytes = getShape(lastDim) * from;
+  CHECK(lastBytes % to == 0) << "the last dimension spans " << lastBytes
+                             << " bytes, which is not a whole number of " << dtype.toString();
+  CHECK(_offset * from % to == 0) << "the tensor does not start on a " << dtype.toString()
+                                  << " boundary";
+
+  std::vector<TensorShape::Elem> shape;
+  for (int d = 0; d < lastDim; ++d) {
+    int64_t stride = getStride(d) * from;
+    CHECK(stride % to == 0) << "dimension " << d << " steps by " << stride
+                            << " bytes, which is not a whole number of " << dtype.toString();
+
+    TensorShape::Elem elem;
+    elem.shape = getShape(d);
+    elem.stride = static_cast<TensorShape::ShapeType>(stride / to);
+    shape.push_back(elem);
+  }
+
+  TensorShape::Elem last;
+  last.shape = static_cast<TensorShape::ShapeType>(lastBytes / to);
+  last.stride = 1;
+  shape.push_back(last);
+
+  return Tensor::create(
+      std::make_shared<TensorShape>(lut::makeConstSpan(shape)),
+      std::make_shared<AliasTensorData>(_data, dtype),
+      _offset * from / to);
 }
 
 Tensor Tensor::expand(lut::Span<const int> shape) const {

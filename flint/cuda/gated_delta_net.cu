@@ -69,7 +69,6 @@ Tensor gatedDeltaNetPrefill(
   LL_CHECK_CONTIGUOUS(beta);
   LL_CHECK_CONTIGUOUS(cuSeqlens);
   LL_CHECK_CONTIGUOUS(stateSlots);
-  LL_CHECK_CONTIGUOUS(state);
   CHECK(q.getDim() == 3 && k.getDim() == 3 && v.getDim() == 3);
   CHECK(g.getDim() == 2 && beta.getDim() == 2 && cuSeqlens.getDim() == 1);
   CHECK(stateSlots.getDim() == 1);
@@ -89,6 +88,13 @@ Tensor gatedDeltaNetPrefill(
   CHECK(stateSlots.getShape(0) == numSeq) << "one state slot per sequence";
   CHECK(state.getShape(0) >= numSeq && state.getShape(1) == numVHead);
   CHECK(state.getShape(2) == headDim && state.getShape(3) == headDim);
+
+  // One slot has to be packed, since the kernel walks it by hand, but the slots themselves need
+  // only be a stride apart: a pool that a whole model shares gives each state a region of a block
+  // and keeps something else in the rest of it.
+  CHECK(state.getStride(3) == 1 && state.getStride(2) == headDim)
+      << "one state slot must be packed";
+  CHECK(state.getStride(1) == headDim * headDim) << "one state slot must be packed";
 
   // There is one implementation now, so what it takes is what this operator takes, and the whole of
   // it is decided here. `gdnmma::fits` answers for the device and the head dimension together --

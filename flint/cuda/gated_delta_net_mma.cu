@@ -462,6 +462,7 @@ __global__ __launch_bounds__(kThreads) void gatedDeltaNetMmaKernel(
     const int32_t *__restrict__ cuSeqlens,
     const int32_t *__restrict__ stateSlots,
     float *__restrict__ state,
+    int64_t stateSlotStride,
     half *__restrict__ out,
     int numKHead,
     int numVHead,
@@ -526,8 +527,10 @@ __global__ __launch_bounds__(kThreads) void gatedDeltaNetMmaKernel(
     copyAsyncCommit();
   };
 
+  // The slots are a stride apart rather than packed back to back: a state may be one region of a
+  // block of a shared pool, with the rest of that block holding something else.
   const int64_t stateOffset =
-      (static_cast<int64_t>(stateSlots[seq]) * numVHead + head) * d * d;
+      static_cast<int64_t>(stateSlots[seq]) * stateSlotStride + static_cast<int64_t>(head) * d * d;
 
   // The state, transposed, in registers for the whole sequence: this warp's 16 rows of the value
   // dimension by every column of the key dimension, as one m16n8 accumulator per eight columns.
@@ -944,6 +947,7 @@ void run(
         getDataPtrCuda<int32_t>(cuSeqlens),
         getDataPtrCuda<int32_t>(stateSlots),
         getDataPtrCuda<float>(state),
+        state.getStride(0),
         getDataPtrCuda<half>(o),
         numKHead,
         numVHead,

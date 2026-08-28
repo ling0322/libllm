@@ -213,6 +213,17 @@ class Tensor {
   // Get a new view of the tensor..
   Tensor view(lut::Span<const int> shape) const;
 
+  /// @brief Read the same bytes as another element type, sharing the storage.
+  ///
+  /// The last dimension is the one that changes size: its bytes are handed to `dtype`, so a
+  /// <uint8>(n, 64) becomes a <float16>(n, 32). Nothing is copied and nothing is converted -- this
+  /// is how one pool of bytes backs tensors of different types, each block of it read as whatever
+  /// the layer that owns that block keeps there.
+  ///
+  /// The last dimension must be packed, and the bytes it spans, every other stride, and the
+  /// tensor's own offset must all divide by the size of `dtype`.
+  Tensor viewAs(DType dtype) const;
+
   // Get a new view of the tensor with singleton dimensions expanded to a larger size.
   Tensor expand(lut::Span<const int> shape) const;
 

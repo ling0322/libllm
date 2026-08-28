@@ -43,7 +43,8 @@
 //! tensors, so the recurrent pool is sized by how many requests may run at once and the attention
 //! pool takes what is left, which wastes nothing.
 
-use crate::flint::{functional as F, DType, Device, MemorySnapshot, Tensor};
+use crate::cache_pool::{BlockShape, CachePool, CacheUnit, GroupShape};
+use crate::flint::{DType, Device, MemorySnapshot, Tensor};
 
 use crate::engine_config::EngineConfig;
 use crate::error::{Error, Result};
@@ -206,6 +207,15 @@ impl KVCacheSpec {
 pub enum CacheKind {
     FullAttention,
     RecurrentState,
+}
+
+/// The largest number both are a whole multiple of, and whichever is not zero when the other is.
+fn gcd(a: i32, b: i32) -> i32 {
+    if b == 0 {
+        a
+    } else {
+        gcd(b, a % b)
+    }
 }
 
 /// The layers that share a spec, and so share a pool. vLLM calls this a KV cache group.
@@ -391,17 +401,51 @@ impl ModelCacheSpec {
             .collect()
     }
 
-    /// The groups the layers fall into: those that need the same thing share a pool. Layers that
-    /// agree on everything but their position are one group however far apart they run.
+    /// The groups the layers fall into, all of them the same size.
+    ///
+    /// Layers that need the same thing of a block belong together, and layers that agree on
+    /// everything but their position are one group however far apart they run. What makes this
+    /// more than a `group_by` is the second rule, which vLLM's hybrid allocator has for the same
+    /// reason: **every group has the same number of layers**, so a kind that has more of them than
+    /// the smallest kind is split into several groups rather than given a larger block. A stack of
+    /// 16 full attention layers and 48 gated DeltaNet ones is four groups of 16, not one of 16 and
+    /// one of 48.
+    ///
+    /// That is what lets one pool serve all of them: the pool holds a tensor per position within a
+    /// group, and layer `i` of every group reads its blocks out of the same one. A group larger
+    /// than another would leave its extra layers with no storage to share.
+    ///
+    /// The layers of a kind are dealt out to its groups in turn -- the 48 recurrent layers of that
+    /// stack go 0, 3, 6, ... to the first and 1, 4, 7, ... to the second -- so a group is a set of
+    /// layers spread through the model rather than a slice of it.
     pub fn groups(&self) -> Vec<KVCacheGroup> {
-        let mut groups: Vec<KVCacheGroup> = Vec::new();
+        let mut kinds: Vec<(KVCacheSpec, Vec<i32>)> = Vec::new();
         for (layer, spec) in self.layers.iter().enumerate() {
-            match groups.iter_mut().find(|group| &group.spec == spec) {
-                Some(group) => group.layers.push(layer as i32),
-                None => groups.push(KVCacheGroup {
-                    layers: vec![layer as i32],
+            match kinds.iter_mut().find(|(kind, _)| kind == spec) {
+                Some((_, layers)) => layers.push(layer as i32),
+                None => kinds.push((spec.clone(), vec![layer as i32])),
+            }
+        }
+
+        // The largest group size every kind can be cut into a whole number of.
+        let size = kinds
+            .iter()
+            .map(|(_, layers)| layers.len() as i32)
+            .fold(0, gcd);
+
+        let mut groups = Vec::new();
+        for (spec, layers) in kinds {
+            let count = layers.len() as i32 / size;
+            for group in 0..count {
+                groups.push(KVCacheGroup {
+                    layers: layers
+                        .iter()
+                        .skip(group as usize)
+                        .step_by(count as usize)
+                        .copied()
+                        .collect(),
                     spec: spec.clone(),
-                }),
+                });
             }
         }
         groups
@@ -412,6 +456,66 @@ impl ModelCacheSpec {
         self.layers
             .iter()
             .any(|spec| spec.kind() == CacheKind::RecurrentState)
+    }
+
+    /// What each group needs of one allocation: the tensors a layer of it keeps there, and whether
+    /// one allocation is a block or a whole run.
+    ///
+    /// An attention layer keeps the keys and the values of `block_size` tokens, and takes another
+    /// block whenever its sequence outgrows the last one. A recurrent layer keeps the states the
+    /// spec lists, and takes one run at the start and holds it.
+    fn group_shapes(groups: &[KVCacheGroup], block_size: i32) -> Result<Vec<GroupShape>> {
+        groups
+            .iter()
+            .map(|group| match &group.spec {
+                KVCacheSpec::FullAttention(attention) => {
+                    let shape = vec![
+                        block_size,
+                        attention.num_key_value_heads,
+                        attention.head_dim,
+                    ];
+                    GroupShape::new(
+                        vec![shape.clone(), shape],
+                        attention.dtype,
+                        CacheUnit::Block,
+                    )
+                }
+                KVCacheSpec::RecurrentState(recurrent) => {
+                    let dtype = recurrent.dtypes[0];
+                    if recurrent
+                        .dtypes
+                        .iter()
+                        .any(|&state_dtype| state_dtype != dtype)
+                    {
+                        return Err(Error::model(
+                            "all states in one cache page must have the same type",
+                        ));
+                    }
+                    GroupShape::new(recurrent.shapes.clone(), dtype, CacheUnit::Run)
+                }
+            })
+            .collect()
+    }
+
+    /// The three numbers that decide how large a pool for this model is: what one block id costs
+    /// across every slot of it, how many blocks one recurrent state spans, and how many states a
+    /// request holds.
+    ///
+    /// Worked out without allocating anything, which is what lets a caller turn a budget in bytes
+    /// into a block count before it builds the pool.
+    pub fn pool_layout(&self, block_size: i32) -> Result<(i64, i32, i32)> {
+        let groups = self.groups();
+        let shapes = ModelCacheSpec::group_shapes(&groups, block_size)?;
+        let (page_size_bytes, blocks_per_run) = CachePool::page_layout(&shapes)?;
+
+        let num_layers = groups[0].layers.len() as i64;
+        let num_state_groups = groups
+            .iter()
+            .filter(|group| group.spec.kind() == CacheKind::RecurrentState)
+            .count() as i32;
+
+        let bytes_per_block = page_size_bytes * num_layers;
+        Ok((bytes_per_block, blocks_per_run, num_state_groups))
     }
 
     /// The bytes one block takes across every attention layer, which is what a block of the pool
@@ -433,33 +537,36 @@ impl ModelCacheSpec {
             .sum()
     }
 }
-
-/// Owns the cache storage and hands out blocks and slots of it.
+/// Owns the cache storage and hands out blocks and state slots of it.
+///
+/// One [`CachePool`] holds the whole of it. What a layer of the model reads its blocks through is
+/// a view of that pool, decided by the group the layer is in; what a request holds is a list of
+/// block ids for the attention group and one run per recurrent group, all drawn from the one
+/// allocator.
 #[derive(Debug)]
 pub struct KVCacheManager {
     spec: ModelCacheSpec,
     block_size: i32,
-    num_blocks: i32,
-    num_state_slots: i32,
-    /// Indexed by layer, empty for layers that are not full attention.
-    key_cache: Vec<Option<Tensor>>,
-    value_cache: Vec<Option<Tensor>>,
-    /// Indexed by layer, and then by the states that layer carries. Empty for layers that carry
-    /// none.
-    state_cache: Vec<Vec<Tensor>>,
-    /// The blocks nobody holds, kept in descending order so that the lowest id is taken first.
-    free_blocks: Vec<i32>,
-    /// The state slots nobody holds, in the same order and for the same reason.
-    free_state_slots: Vec<i32>,
+    pool: CachePool,
+    /// Where each model layer sits: its group, and its slot within that group.
+    placement: Vec<(i32, i32)>,
+    /// The group whose blocks a sequence's block table names. `None` on a model with no attention
+    /// layer at all.
+    attention_group: Option<i32>,
+    /// The groups that take a run per request, in the order a request's slots are given in. Empty
+    /// on a model that keeps no state between tokens.
+    state_groups: Vec<i32>,
 }
 
 impl KVCacheManager {
-    /// Allocate the pools of every layer.
+    /// Allocate the pool every layer draws from.
     ///
     /// `block_size` is a power of two, which is what lets a token's position be split into a block
-    /// and an offset without a division at every step. `num_state_slots` is how many requests may
-    /// hold a recurrent state at once, and so how many may run at once on a model that has one; it
-    /// is ignored by a model that has no recurrent layer.
+    /// and an offset without a division at every step. `num_blocks` is how large the pool is, in
+    /// blocks; it is rounded down to a whole number of runs. `num_state_slots` is how many requests
+    /// may hold a recurrent state at once, and so how many may run at once on a model that has one
+    /// -- their runs are kept back from the blocks so that a request that has been admitted can
+    /// always be given its state. It is ignored by a model that has no recurrent layer.
     pub fn new(
         spec: ModelCacheSpec,
         block_size: i32,
@@ -477,11 +584,9 @@ impl KVCacheManager {
                 "kv cache block size must be a power of two, got {block_size}"
             )));
         }
-
-        let num_attention_layers = spec.layers_of(CacheKind::FullAttention).len();
-        if num_attention_layers > 0 && num_blocks <= 0 {
+        if num_blocks <= 0 {
             return Err(Error::model(format!(
-                "a model with attention layers needs a positive block count, got {num_blocks}"
+                "a kv cache needs a positive block count, got {num_blocks}"
             )));
         }
         let num_state_slots = if spec.has_recurrent_state() {
@@ -496,94 +601,96 @@ impl KVCacheManager {
             0
         };
 
-        let mut key_cache = Vec::with_capacity(spec.layers.len());
-        let mut value_cache = Vec::with_capacity(spec.layers.len());
-        let mut state_cache = Vec::with_capacity(spec.layers.len());
-        for layer in &spec.layers {
-            match layer {
-                KVCacheSpec::FullAttention(attention) => {
-                    let shape = [
-                        num_blocks,
-                        block_size,
-                        attention.num_key_value_heads,
-                        attention.head_dim,
-                    ];
-                    // Every element is written by store_kv_cache() before attention reads it, so
-                    // there is nothing to gain from zeroing what can be tens of gigabytes.
-                    key_cache.push(Some(Tensor::empty(&shape, attention.dtype, device)?));
-                    value_cache.push(Some(Tensor::empty(&shape, attention.dtype, device)?));
-                    state_cache.push(Vec::new());
-                }
-                KVCacheSpec::RecurrentState(recurrent) => {
-                    key_cache.push(None);
-                    value_cache.push(None);
+        let groups = spec.groups();
+        let shapes = ModelCacheSpec::group_shapes(&groups, block_size)?;
 
-                    // A recurrent state is read before it is written -- the first chunk of a
-                    // sequence folds the state it came in with into its own output -- so a slot
-                    // that a request has just been handed has to be zero rather than whatever the
-                    // request before it left there.
-                    let mut states = Vec::with_capacity(recurrent.shapes.len());
-                    for (shape, &dtype) in recurrent.shapes.iter().zip(recurrent.dtypes.iter()) {
-                        let mut slot_shape = Vec::with_capacity(shape.len() + 1);
-                        slot_shape.push(num_state_slots);
-                        slot_shape.extend_from_slice(shape);
-                        states.push(Tensor::zeros(&slot_shape, dtype, device)?);
+        let mut placement = vec![(0, 0); spec.layers.len()];
+        let mut attention_group = None;
+        let mut state_groups = Vec::new();
+        for (index, group) in groups.iter().enumerate() {
+            let index = index as i32;
+            for (slot, &layer) in group.layers.iter().enumerate() {
+                placement[layer as usize] = (index, slot as i32);
+            }
+            match group.spec.kind() {
+                CacheKind::FullAttention => {
+                    if attention_group.is_some() {
+                        // Every attention layer reads the blocks of one table, so a model whose
+                        // attention layers fall into more than one group would need a table per
+                        // group to run. Nothing builds one yet.
+                        return Err(Error::model(
+                            "this cache runs a model whose attention layers are all one group, \
+                             and these are not",
+                        ));
                     }
-                    state_cache.push(states);
+                    attention_group = Some(index);
                 }
+                CacheKind::RecurrentState => state_groups.push(index),
             }
         }
+
+        // A request that has been admitted holds one run of every recurrent group, and it cannot
+        // run without them, so that many runs are what the blocks may not break into.
+        let reserved_runs = num_state_slots * state_groups.len() as i32;
+        let (page_size_bytes, _) = CachePool::page_layout(&shapes)?;
+        let shape = BlockShape::new(page_size_bytes, groups[0].layers.len() as i32, num_blocks)?;
+        let pool = CachePool::new(shape, shapes, reserved_runs, device)?;
 
         Ok(KVCacheManager {
             spec,
             block_size,
-            num_blocks,
-            num_state_slots,
-            key_cache,
-            value_cache,
-            state_cache,
-            free_blocks: (0..num_blocks).rev().collect(),
-            free_state_slots: (0..num_state_slots).rev().collect(),
+            pool,
+            placement,
+            attention_group,
+            state_groups,
         })
     }
 
     /// The key pool of one attention layer, `<dtype>(numBlocks, blockSize, numKeyValueHeads,
     /// headDim)`.
     pub fn key_cache(&self, layer: i32) -> Result<&Tensor> {
-        self.key_cache
-            .get(layer as usize)
-            .and_then(|cache| cache.as_ref())
-            .ok_or_else(|| Error::model(format!("layer {layer} is not a full attention layer")))
+        Ok(&self.attention_layer(layer)?[0])
     }
 
     /// The value pool of one attention layer, shaped like the key pool.
     pub fn value_cache(&self, layer: i32) -> Result<&Tensor> {
-        self.value_cache
-            .get(layer as usize)
-            .and_then(|cache| cache.as_ref())
-            .ok_or_else(|| Error::model(format!("layer {layer} is not a full attention layer")))
+        Ok(&self.attention_layer(layer)?[1])
     }
 
     /// The states of one recurrent layer, each `<dtype>(numSlots, ...)` and in the order the spec
     /// gave them. A gated DeltaNet layer has the recurrence's state first and the convolution's
     /// window second.
+    ///
+    /// They are views of the pool rather than pools of their own, so they are not contiguous: a
+    /// slot is a run of the pool and the state is one region of it.
     pub fn state_cache(&self, layer: i32) -> Result<&[Tensor]> {
-        match self.state_cache.get(layer as usize) {
-            Some(states) if !states.is_empty() => Ok(states),
-            _ => Err(Error::model(format!(
-                "layer {layer} is not a recurrent layer"
-            ))),
-        }
+        let (group, slot) = self.place(layer, CacheKind::RecurrentState)?;
+        self.pool.layer(group, slot)
     }
 
     /// The states of one recurrent layer, to write into.
     pub fn state_cache_mut(&mut self, layer: i32) -> Result<&mut [Tensor]> {
-        match self.state_cache.get_mut(layer as usize) {
-            Some(states) if !states.is_empty() => Ok(states),
-            _ => Err(Error::model(format!(
-                "layer {layer} is not a recurrent layer"
-            ))),
+        let (group, slot) = self.place(layer, CacheKind::RecurrentState)?;
+        self.pool.layer_mut(group, slot)
+    }
+
+    /// Where a layer sits in the pool, and an error when it is of the other kind.
+    fn place(&self, layer: i32, kind: CacheKind) -> Result<(i32, i32)> {
+        if self.spec.layer(layer)?.kind() != kind {
+            return Err(Error::model(format!(
+                "layer {layer} is not a {} layer",
+                match kind {
+                    CacheKind::FullAttention => "full attention",
+                    CacheKind::RecurrentState => "recurrent",
+                }
+            )));
         }
+        Ok(self.placement[layer as usize])
+    }
+
+    fn attention_layer(&self, layer: i32) -> Result<&[Tensor]> {
+        let (group, slot) = self.place(layer, CacheKind::FullAttention)?;
+        self.pool.layer(group, slot)
     }
 
     /// The key and value pools of one layer, to write into.
@@ -591,20 +698,11 @@ impl KVCacheManager {
     /// Both at once, because a forward pass writes the keys and the values of a layer together and
     /// two separate borrows of the same manager would not be allowed.
     pub fn caches_mut(&mut self, layer: i32) -> Result<(&mut Tensor, &mut Tensor)> {
-        let index = layer as usize;
-        if index >= self.key_cache.len() || self.key_cache[index].is_none() {
-            return Err(Error::model(format!(
-                "layer {layer} is not a full attention layer"
-            )));
-        }
+        let (group, slot) = self.place(layer, CacheKind::FullAttention)?;
+        let tensors = self.pool.layer_mut(group, slot)?;
 
-        let (keys, values) = (&mut self.key_cache[index], &mut self.value_cache[index]);
-        match (keys.as_mut(), values.as_mut()) {
-            (Some(keys), Some(values)) => Ok((keys, values)),
-            _ => Err(Error::model(format!(
-                "layer {layer} is not a full attention layer"
-            ))),
-        }
+        let (keys, values) = tensors.split_at_mut(1);
+        Ok((&mut keys[0], &mut values[0]))
     }
 
     pub fn spec(&self) -> &ModelCacheSpec {
@@ -616,26 +714,54 @@ impl KVCacheManager {
         self.block_size
     }
 
+    /// The pool the whole model draws from.
+    pub fn pool(&self) -> &CachePool {
+        &self.pool
+    }
+
     pub fn num_blocks(&self) -> i32 {
-        self.num_blocks
+        self.pool.num_blocks()
     }
 
     pub fn num_free_blocks(&self) -> i32 {
-        self.free_blocks.len() as i32
+        self.pool.num_free_blocks()
     }
 
     /// How many requests may hold a recurrent state at once. Zero for a model without one.
     pub fn num_state_slots(&self) -> i32 {
-        self.num_state_slots
+        match self.state_groups.len() as i32 {
+            0 => 0,
+            groups => self.pool.num_runs() / groups,
+        }
     }
 
+    /// How many more requests could be handed one.
     pub fn num_free_state_slots(&self) -> i32 {
-        self.free_state_slots.len() as i32
+        match self.state_groups.len() as i32 {
+            0 => 0,
+            groups => self.pool.num_free_runs() / groups,
+        }
     }
 
     /// Whether a request has to hold a state slot to run at all.
     pub fn needs_state_slot(&self) -> bool {
-        self.num_state_slots > 0
+        !self.state_groups.is_empty()
+    }
+
+    /// Which of a request's state slots a recurrent layer reads: the layers of one group all read
+    /// the same one, and a request holds one per group.
+    pub fn state_group_of(&self, layer: i32) -> Result<i32> {
+        let (group, _) = self.place(layer, CacheKind::RecurrentState)?;
+        self.state_groups
+            .iter()
+            .position(|&candidate| candidate == group)
+            .map(|index| index as i32)
+            .ok_or_else(|| Error::model(format!("layer {layer} is not in a recurrent group")))
+    }
+
+    /// How many state slots a request holds, which is one per recurrent group.
+    pub fn num_state_groups(&self) -> i32 {
+        self.state_groups.len() as i32
     }
 
     /// The blocks `num_tokens` tokens need.
@@ -649,21 +775,26 @@ impl KVCacheManager {
         self.num_blocks_for_tokens(self.spec.max_context_length())
     }
 
-    /// Take `num_blocks` blocks, or nothing at all when there are not that many left.
+    /// Take `num_blocks` blocks, in ascending order.
     ///
     /// All or nothing: a sequence that gets half of what it asked for could not run anyway, and
     /// leaving the pool untouched keeps a scheduler from having to hand blocks back.
     pub fn allocate_blocks(&mut self, num_blocks: i32) -> Option<Vec<i32>> {
-        if num_blocks < 0 || num_blocks > self.num_free_blocks() {
-            return None;
+        let mut blocks = Vec::with_capacity(num_blocks.max(0) as usize);
+        if self.allocate_blocks_into(num_blocks, &mut blocks) {
+            Some(blocks)
+        } else {
+            None
         }
+    }
 
-        let at = self.free_blocks.len() - num_blocks as usize;
-        let mut taken = self.free_blocks.split_off(at);
-        // The free list runs high to low, so taking from its end gives the lowest ids; reversing
-        // puts them back in ascending order, which is the order the sequence fills them in.
-        taken.reverse();
-        Some(taken)
+    /// The same, appending to a buffer the caller owns. A scheduler that grows a sequence every
+    /// step can keep one buffer and allocate nothing to do it.
+    pub fn allocate_blocks_into(&mut self, num_blocks: i32, out: &mut Vec<i32>) -> bool {
+        if self.attention_group.is_none() {
+            return num_blocks == 0;
+        }
+        self.pool.allocate_blocks(num_blocks, out)
     }
 
     /// Take the blocks `num_tokens` tokens need.
@@ -671,60 +802,64 @@ impl KVCacheManager {
         self.allocate_blocks(self.num_blocks_for_tokens(num_tokens))
     }
 
+    /// The blocks a sequence may still be given, which is what is free less what is kept back for
+    /// the states of the requests that have not been admitted yet.
+    pub fn num_allocatable_blocks(&self) -> i32 {
+        self.pool.num_allocatable_blocks()
+    }
+
     /// Give blocks back.
     pub fn free_blocks(&mut self, block_ids: &[i32]) -> Result<()> {
-        for &block_id in block_ids {
-            if block_id < 0 || block_id >= self.num_blocks {
-                return Err(Error::model(format!(
-                    "block {block_id} is not one of this cache's {} blocks",
-                    self.num_blocks
-                )));
-            }
-            self.free_blocks.push(block_id);
+        if self.attention_group.is_none() && !block_ids.is_empty() {
+            return Err(Error::model(
+                "this model has no attention layer to free blocks of",
+            ));
         }
-        Ok(())
+        self.pool.free_blocks(block_ids)
     }
 
-    /// Take a state slot, or nothing when every one of them is held.
+    /// Take a state slot of every recurrent group, or nothing when they cannot all be had.
     ///
-    /// A request takes one when it is admitted and holds it until it finishes: the state is the
-    /// whole of its history folded together, so unlike a block it cannot be handed to somebody else
-    /// and read back later. The slot comes back zeroed, which is the state a sequence starts from.
-    pub fn allocate_state_slot(&mut self) -> Option<i32> {
-        let slot = self.free_state_slots.pop()?;
-        // Whatever the request before it left here is not a prefix of this one's history. Zeroing
-        // on the way out rather than on the way in keeps a slot that is never reused from being
-        // cleared twice, and there is nothing to read between the two.
-        if let Err(error) = self.clear_state_slot(slot) {
-            self.free_state_slots.push(slot);
-            let _ = error;
-            return None;
+    /// A slot belongs to one request for as long as it runs: what it holds is that request's whole
+    /// history folded together, so unlike a block it cannot be handed to somebody else and read
+    /// back later. The slots come back zeroed, which is the state a sequence starts from.
+    pub fn allocate_state_slots(&mut self) -> Option<Vec<i32>> {
+        if self.state_groups.is_empty() {
+            return Some(Vec::new());
         }
-        Some(slot)
-    }
 
-    /// Give a state slot back.
-    pub fn free_state_slot(&mut self, slot: i32) -> Result<()> {
-        if slot < 0 || slot >= self.num_state_slots {
-            return Err(Error::model(format!(
-                "state slot {slot} is not one of this cache's {} slots",
-                self.num_state_slots
-            )));
-        }
-        if self.free_state_slots.contains(&slot) {
-            return Err(Error::model(format!("state slot {slot} is already free")));
-        }
-        self.free_state_slots.push(slot);
-        Ok(())
-    }
-
-    /// Zero one slot of every recurrent layer, which is the state a sequence begins with.
-    fn clear_state_slot(&mut self, slot: i32) -> Result<()> {
-        for states in &mut self.state_cache {
-            for state in states.iter_mut() {
-                let mut view = state.subtensor(slot)?;
-                F::fill(&mut view, 0.0)?;
+        let mut slots = Vec::with_capacity(self.state_groups.len());
+        for _ in 0..self.state_groups.len() {
+            match self.pool.allocate_run() {
+                // Whatever the request before it left here is not a prefix of this one's history.
+                // Zeroing on the way out rather than on the way in keeps a slot that is never
+                // reused from being cleared twice, and there is nothing to read between the two.
+                Some(run) if self.pool.clear_run(run).is_ok() => slots.push(run),
+                Some(run) => {
+                    let _ = self.pool.free_run(run);
+                    let _ = self.free_state_slots(&slots);
+                    return None;
+                }
+                None => {
+                    // A request needs a slot in every group or none: one it cannot fill would stop
+                    // it running, and holding the others would keep them from a request that could.
+                    let _ = self.free_state_slots(&slots);
+                    return None;
+                }
             }
+        }
+        Some(slots)
+    }
+
+    /// Give a request's state slots back.
+    pub fn free_state_slots(&mut self, slots: &[i32]) -> Result<()> {
+        if self.state_groups.is_empty() && !slots.is_empty() {
+            return Err(Error::model(
+                "this model keeps no state between tokens, so it has no slots to free",
+            ));
+        }
+        for &slot in slots {
+            self.pool.free_run(slot)?;
         }
         Ok(())
     }
@@ -737,9 +872,9 @@ impl KVCacheManager {
     /// cache has to leave room for. Needs a device that reports its memory usage, which the CPU
     /// backend does not.
     ///
-    /// The recurrent pool is sized first, at one slot per request that may run at once, because
-    /// that count is what bounds the batch rather than something the cache gets to choose. The
-    /// blocks then take whatever is left.
+    /// What is left is spent on blocks, and the states come out of the same blocks: a request's
+    /// runs are kept back from the block allocator rather than held in a pool of their own, so a
+    /// model that is running fewer requests than `max_num_seqs` spends the difference on context.
     pub fn for_model<M: ModelForGeneration>(
         model: &M,
         config: &EngineConfig,
@@ -752,26 +887,27 @@ impl KVCacheManager {
             0
         };
 
+        let (bytes_per_block, blocks_per_run, num_state_groups) =
+            spec.pool_layout(block_size)?;
         let budget = Self::estimate_memory_budget(model, config, &spec, num_state_slots)?;
-        let state_bytes = spec.bytes_per_state_slot() * i64::from(num_state_slots);
-        let bytes_per_block = spec.bytes_per_block(block_size);
 
-        let num_blocks = if bytes_per_block > 0 {
-            let left = budget - state_bytes;
-            if left > 0 {
-                (left / bytes_per_block).min(i64::from(i32::MAX)) as i32
-            } else {
-                0
-            }
-        } else {
-            // A model with no attention layer at all needs no blocks, and asking for none is not
-            // an error there.
-            0
-        };
-        if bytes_per_block > 0 && num_blocks <= 0 {
+        let num_blocks = (budget / bytes_per_block).min(i64::from(i32::MAX)) as i32;
+        let num_runs = num_blocks / blocks_per_run;
+        if num_runs <= 0 {
             return Err(Error::model(
-                "not enough device memory left for even one block of the kv cache",
+                "not enough device memory left for even one run of the kv cache",
             ));
+        }
+
+        // A model with recurrent layers cannot run max_num_seqs requests without a run per group
+        // for each of them, and the ones left over are what its context is held in.
+        let reserved_runs = i64::from(num_state_slots) * i64::from(num_state_groups);
+        if i64::from(num_runs) <= reserved_runs {
+            return Err(Error::model(format!(
+                "the recurrent state of {num_state_slots} requests needs {reserved_runs} runs of \
+                 the kv cache and only {num_runs} fit; lower max_num_seqs or raise \
+                 kv_cache_memory_utilization"
+            )));
         }
 
         KVCacheManager::new(spec, block_size, num_blocks, num_state_slots, model.device())
@@ -806,37 +942,40 @@ impl KVCacheManager {
         let num_tokens = config
             .max_num_batched_tokens
             .min(spec.max_context_length());
+        let (bytes_per_block, blocks_per_run, num_state_groups) = spec.pool_layout(block_size)?;
 
         // The pass has to put its keys and its state somewhere, so it is profiled against a scratch
-        // cache just large enough for one batch. That cache's size is known exactly and comes back
-        // out of the measurement below, leaving the weights and the activation.
-        let num_scratch_blocks = (num_tokens + block_size - 1) / block_size;
-        let num_scratch_slots = if spec.has_recurrent_state() { 1 } else { 0 };
-        let scratch_bytes = spec.bytes_per_block(block_size) * i64::from(num_scratch_blocks)
-            + spec.bytes_per_state_slot() * i64::from(num_scratch_slots);
+        // cache just large enough for one batch and one request's state. That cache's size is known
+        // exactly and comes back out of the measurement below, leaving the weights and the
+        // activation.
+        let num_scratch_blocks = (num_tokens + block_size - 1) / block_size
+            + if num_state_slots > 0 {
+                blocks_per_run * num_state_groups
+            } else {
+                0
+            };
+        let scratch_bytes = bytes_per_block * i64::from(num_scratch_blocks);
         let peak = {
             let mut scratch = KVCacheManager::new(
                 spec.clone(),
                 block_size,
-                num_scratch_blocks.max(1),
-                num_scratch_slots,
+                num_scratch_blocks.max(blocks_per_run),
+                if num_state_slots > 0 { 1 } else { 0 },
                 device,
             )?;
+            let state_slots = scratch.allocate_state_slots().ok_or_else(|| {
+                Error::model("could not allocate the profiling state slots")
+            })?;
             let block_ids = scratch
                 .allocate_blocks_for_tokens(num_tokens)
                 .ok_or_else(|| Error::model("could not allocate the profiling scratch pool"))?;
-            let state_slot = if scratch.needs_state_slot() {
-                Some(scratch.allocate_state_slot().ok_or_else(|| {
-                    Error::model("could not allocate the profiling state slot")
-                })?)
-            } else {
-                None
-            };
 
             let mut batch = ForwardBatch::single(&vec![0i64; num_tokens as usize], 0)?;
             batch.set_block_ids(vec![block_ids])?;
-            if let Some(slot) = state_slot {
-                batch.set_state_slots(vec![slot])?;
+            if !state_slots.is_empty() {
+                batch.set_state_slots(
+                    state_slots.iter().map(|&slot| vec![slot]).collect::<Vec<_>>(),
+                )?;
             }
             let prepared = batch.prepare(device, block_size)?;
 
@@ -858,16 +997,10 @@ impl KVCacheManager {
         // Another process may hold memory this one never sees. The scratch cache is gone by now,
         // so its bytes are free again even though the snapshot was taken while it was held.
         let budget = budget.min(peak.free + scratch_bytes);
-
-        // A model with recurrent layers cannot run max_num_seqs requests without max_num_seqs
-        // slots, so this is worth saying plainly here rather than as "no blocks left" below.
-        let state_bytes = spec.bytes_per_state_slot() * i64::from(num_state_slots);
-        if state_bytes > 0 && budget <= state_bytes {
-            return Err(Error::model(format!(
-                "the recurrent state of {num_state_slots} requests needs {state_bytes} bytes and \
-                 only {budget} are left; lower max_num_seqs or raise \
-                 kv_cache_memory_utilization"
-            )));
+        if budget < bytes_per_block {
+            return Err(Error::model(
+                "not enough device memory left for even one block of the kv cache",
+            ));
         }
 
         Ok(budget)

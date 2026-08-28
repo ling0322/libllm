@@ -103,4 +103,34 @@ CATCH_TEST_CASE("test view infers a dimension", "[core][nn][tensor]") {
   CATCH_REQUIRE(strided.view({6, -1, 4}).getShape() == std::vector<int>{6, 5, 4});
 }
 
+CATCH_TEST_CASE("test viewAs reads the same bytes as another type", "[core][nn][tensor]") {
+  // Two floats and four halves cover the same eight bytes, so a row of one is a row of the other.
+  Tensor floats = Tensor::create<float>({2, 2}, {1.0f, 2.0f, 3.0f, 4.0f});
+  Tensor halves = floats.viewAs(DType::kFloat16);
+  CATCH_REQUIRE(halves.getDType() == DType::kFloat16);
+  CATCH_REQUIRE(halves.getShape() == std::vector<int>{2, 4});
+  CATCH_REQUIRE(halves.getInternalData()->getRawData() == floats.getInternalData()->getRawData());
+
+  // A pool of bytes is what this is for: write through the view, read through the storage.
+  Tensor bytes = floats.viewAs(DType::kUInt8);
+  CATCH_REQUIRE(bytes.getShape() == std::vector<int>{2, 8});
+  F::fill(bytes.viewAs(DType::kFloat), 0.5f);
+  CATCH_REQUIRE(F::allClose(floats, Tensor::create<float>({2, 2}, {0.5f, 0.5f, 0.5f, 0.5f})));
+
+  // A row of a larger tensor keeps its stride, in the elements of the type it is now read as, and
+  // the offset it starts at moves the same way. This is the shape a pool of blocks has: one row
+  // per block, part of it read as one type and part of it as another.
+  Tensor pool = F::rand({4, 8}, DType::kFloat);
+  Tensor tail = pool.slice(1, {4, 8}).viewAs(DType::kFloat16);
+  CATCH_REQUIRE(tail.getShape() == std::vector<int>{4, 8});
+  CATCH_REQUIRE(tail.getStride(0) == 16);
+  CATCH_REQUIRE(!tail.isContiguous());
+
+  // The bytes it names are the tail of each row and nothing else.
+  Tensor writtenBack = tail.viewAs(DType::kFloat);
+  CATCH_REQUIRE(writtenBack.getShape() == std::vector<int>{4, 4});
+  CATCH_REQUIRE(writtenBack.getStride(0) == 8);
+  CATCH_REQUIRE(F::allClose(writtenBack, pool.slice(1, {4, 8})));
+}
+
 }  // namespace fl
