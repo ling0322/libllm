@@ -148,6 +148,12 @@ FLAPI int32_t fl_tensor_view(
     int32_t ndim,
     fl_tensor_t *out);
 
+/// Read the same bytes as another element type, sharing the storage. The last dimension changes
+/// size: a <uint8>(n, 64) becomes a <float16>(n, 32). Nothing is copied or converted. The last
+/// dimension must be packed, and the bytes it spans, every other stride and the tensor's own
+/// offset must all divide by the size of `dtype`.
+FLAPI int32_t fl_tensor_view_as(fl_tensor_t tensor, fl_dtype_t dtype, fl_tensor_t *out);
+
 /// Exchange two dimensions, sharing the storage. The result is usually not contiguous.
 FLAPI int32_t fl_tensor_transpose(
     fl_tensor_t tensor,

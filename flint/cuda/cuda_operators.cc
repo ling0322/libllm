@@ -311,6 +311,7 @@ Tensor CudaOperators::pagedAttention(
 
 Tensor CudaOperators::tensor(lut::Span<const int> shape, DType dtype) {
   if (dtype == DType::kFloat16) return createCudaTensorHalf(shape);
+  if (dtype == DType::kFloat) return createCudaTensorFloat(shape);
   if (dtype == DType::kUInt8) return createCudaTensorUInt8(shape);
 
   NOT_IMPL();
@@ -399,7 +400,15 @@ DType CudaOperators::getDefaultFloatType() {
 }
 
 Tensor CudaOperators::zeros(lut::Span<const int> shape, DType dtype) {
-  Tensor tensor = createCudaTensorHalf(shape);
+  Tensor tensor;
+  if (dtype == DType::kFloat16) {
+    tensor = createCudaTensorHalf(shape);
+  } else if (dtype == DType::kFloat) {
+    tensor = createCudaTensorFloat(shape);
+  } else {
+    NOT_IMPL();
+  }
+
   op::cuda::fill(tensor, 0.0);
 
   return tensor;

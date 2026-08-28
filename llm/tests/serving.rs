@@ -28,10 +28,11 @@ use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use llm::flint::{Device, Tensor};
+use llm::flint::{DType, Device, Tensor};
 use llm::{
-    EngineConfig, FinishReason, GenerationConfig, KVCacheManager, KVCacheSpec, ModelForGeneration,
-    Prompt, Request, RequestOutput, Scheduler, Tokenizer,
+    EngineConfig, FinishReason, FullAttentionSpec, GenerationConfig, KVCacheManager, KVCacheSpec,
+    ModelCacheSpec, ModelForGeneration, Prompt, RecurrentStateSpec, Request, RequestOutput,
+    Scheduler, Tokenizer,
 };
 
 /// The vocabulary the stand-in model speaks: a handful of one-character tokens.
@@ -162,14 +163,8 @@ impl MockModel {
         }
     }
 
-    fn spec() -> KVCacheSpec {
-        KVCacheSpec {
-            num_layers: 1,
-            num_key_value_heads: 1,
-            head_dim: 8,
-            max_context_length: 64,
-            dtype: llm::flint::DType::Float,
-        }
+    fn spec() -> ModelCacheSpec {
+        ModelCacheSpec::uniform_attention(1, 1, 8, 64, llm::flint::DType::Float).unwrap()
     }
 }
 
@@ -218,7 +213,7 @@ impl ModelForGeneration for MockModel {
         VOCAB.len() as i32
     }
 
-    fn kv_cache_spec(&self) -> llm::Result<KVCacheSpec> {
+    fn kv_cache_spec(&self) -> llm::Result<ModelCacheSpec> {
         Ok(MockModel::spec())
     }
 
@@ -236,7 +231,31 @@ impl ModelForGeneration for MockModel {
 }
 
 fn cache(num_blocks: i32) -> KVCacheManager {
-    KVCacheManager::new(MockModel::spec(), 4, num_blocks, Device::Cpu).unwrap()
+    KVCacheManager::new(MockModel::spec(), 4, num_blocks, 0, Device::Cpu).unwrap()
+}
+
+/// The same mock, cached the way a model with recurrent layers is: its one layer still attends, but
+/// the cache also carries a per-request state, of which there are only `num_state_slots`.
+///
+/// The mock's forward pass does not read that state -- it does not read the keys either -- so what
+/// this exercises is the scheduler's side of it: that a request cannot be admitted without a slot,
+/// and that it gives the slot back on every path out.
+fn hybrid_cache(num_blocks: i32, num_state_slots: i32) -> KVCacheManager {
+    let recurrent = RecurrentStateSpec::gated_delta_net(1, 4, 4, 4, 3, DType::Float).unwrap();
+    let spec = ModelCacheSpec::new(
+        vec![
+            KVCacheSpec::RecurrentState(recurrent),
+            KVCacheSpec::FullAttention(FullAttentionSpec {
+                num_key_value_heads: 1,
+                head_dim: 8,
+                dtype: DType::Float,
+            }),
+        ],
+        64,
+    )
+    .unwrap();
+
+    KVCacheManager::new(spec, 4, num_blocks, num_state_slots, Device::Cpu).unwrap()
 }
 
 fn greedy(max_tokens: i32) -> GenerationConfig {
@@ -372,6 +391,53 @@ fn preempts_a_running_request_when_the_cache_runs_out() {
         assert_eq!(finals.len(), 1, "{id} did not finish exactly once");
         assert_eq!(finals[0].finish_reason, Some(FinishReason::Length));
     }
+}
+
+#[test]
+fn a_hybrid_model_runs_as_many_requests_as_it_has_state_slots() {
+    // Blocks enough for both requests at once, but one state slot, so they run one at a time.
+    let mut scheduler = Scheduler::new(MockModel::new(vec![2]), hybrid_cache(16, 1), 16).unwrap();
+    for id in ["r1", "r2"] {
+        scheduler
+            .add_request(Request::new(id, vec![2; 4], greedy(3)).unwrap())
+            .unwrap();
+    }
+
+    let outputs = run(&mut scheduler, 40);
+
+    // Both finish rather than deadlocking over the slot, which means the first gave it back.
+    for id in ["r1", "r2"] {
+        let finals: Vec<&RequestOutput> = outputs
+            .iter()
+            .filter(|o| o.request_id == id && o.finished)
+            .collect();
+        assert_eq!(finals.len(), 1, "{id} did not finish exactly once");
+        assert_eq!(finals[0].finish_reason, Some(FinishReason::Length));
+    }
+}
+
+#[test]
+fn a_hybrid_model_gives_the_slot_back_when_a_request_is_cancelled() {
+    let mut scheduler = Scheduler::new(MockModel::new(vec![2]), hybrid_cache(16, 1), 16).unwrap();
+    scheduler
+        .add_request(Request::new("r1", vec![2; 4], greedy(100)).unwrap())
+        .unwrap();
+    scheduler.step();
+    scheduler.abort_request("r1");
+    run(&mut scheduler, 5);
+
+    // The slot the cancelled request held is available again, so the next one can run at all.
+    scheduler
+        .add_request(Request::new("r2", vec![2; 4], greedy(2)).unwrap())
+        .unwrap();
+    let outputs = run(&mut scheduler, 20);
+
+    let finals: Vec<&RequestOutput> = outputs
+        .iter()
+        .filter(|o| o.request_id == "r2" && o.finished)
+        .collect();
+    assert_eq!(finals.len(), 1);
+    assert_eq!(finals[0].finish_reason, Some(FinishReason::Length));
 }
 
 #[test]

@@ -53,17 +53,18 @@ fn package_path(name: &str) -> std::path::PathBuf {
 /// Forwards every token in one pass and gives back the logits of every position, on the host.
 fn forward_all(model: &LlamaModel, input_ids: &Tensor, device: Device) -> Tensor {
     let num_tokens = input_ids.shape_at(0).unwrap();
-    let spec = llm::KVCacheSpec {
-        num_layers: model.config().num_layers,
-        num_key_value_heads: model.config().num_key_value_heads,
-        head_dim: model.config().head_dim().unwrap(),
-        max_context_length: model.config().max_context_length,
-        dtype: F::default_float_type(device).unwrap(),
-    };
+    let spec = llm::ModelCacheSpec::uniform_attention(
+        model.config().num_layers,
+        model.config().num_key_value_heads,
+        model.config().head_dim().unwrap(),
+        model.config().max_context_length,
+        F::default_float_type(device).unwrap(),
+    )
+    .unwrap();
 
     // A pool just large enough for this one sequence.
     let num_blocks = (num_tokens + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    let mut cache = KVCacheManager::new(spec, BLOCK_SIZE, num_blocks, device).unwrap();
+    let mut cache = KVCacheManager::new(spec, BLOCK_SIZE, num_blocks, 0, device).unwrap();
     let block_ids = cache.allocate_blocks_for_tokens(num_tokens).unwrap();
 
     let mut batch = ForwardBatch::single_layout(num_tokens, 0).unwrap();
@@ -249,7 +250,7 @@ fn incremental_decode_matches_one_shot_prefill() {
 
     // Feed the same tokens one at a time, reading the cache the previous steps filled.
     let spec = generation.kv_cache_spec().unwrap();
-    let mut cache = KVCacheManager::new(spec, BLOCK_SIZE, 1, device).unwrap();
+    let mut cache = KVCacheManager::new(spec, BLOCK_SIZE, 1, 0, device).unwrap();
     let block_ids = cache.allocate_blocks_for_tokens(num_tokens).unwrap();
 
     let token_ids = tokens.to_vec_i64().unwrap();

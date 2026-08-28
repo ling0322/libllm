@@ -69,6 +69,7 @@ extern "C" {
         ndim: i32,
         out: *mut FlTensor,
     ) -> i32;
+    pub fn fl_tensor_view_as(tensor: FlTensor, dtype: i32, out: *mut FlTensor) -> i32;
     pub fn fl_tensor_transpose(tensor: FlTensor, dim0: i32, dim1: i32, out: *mut FlTensor) -> i32;
     pub fn fl_tensor_slice(
         tensor: FlTensor,

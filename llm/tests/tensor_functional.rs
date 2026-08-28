@@ -5,6 +5,8 @@
 //! they accept: the operators check their arguments with the C++ library's fatal check, so a test
 //! that fed one a shape it cannot use would abort the whole test binary rather than fail.
 
+use std::sync::{Mutex, MutexGuard};
+
 use llm::flint::{functional as F, DType, Device, Tensor};
 
 fn cpu_f32(shape: &[i32], data: &[f32]) -> Tensor {
@@ -189,8 +191,25 @@ fn penalizes_repeated_tokens() {
     assert!(values[3] < 4.0, "a repeated token loses ground: {values:?}");
 }
 
+/// Held by every test that touches the device's random generator.
+///
+/// The generator is one per device, shared by everything on it, and the tests of a binary run on
+/// several threads. Two tests that both draw from it interleave into one stream, which is fine for
+/// a test that only cares that its answer is in range and fatal for the one below that seeds it
+/// twice and expects the same numbers back. Sampling draws too, which is what actually raced: a
+/// sample taken between the two draws moved the second one along by exactly one number.
+static GENERATOR: Mutex<()> = Mutex::new(());
+
+/// A test that draws waits for the others that do. Poisoning is not interesting here -- a failed
+/// test leaves the generator no more broken than it found it -- so it is stepped over.
+fn generator_lock() -> MutexGuard<'static, ()> {
+    GENERATOR.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 #[test]
 fn samples_greedily_at_temperature_zero() {
+    let _generator = generator_lock();
+
     let logits = cpu_f32(&[2, 3], &[1.0, 9.0, 1.0, 5.0, 1.0, 1.0]);
     let temperatures = cpu_f32(&[2], &[0.0, 0.0]);
     let top_ks = Tensor::from_i32(&[2], &[0, 0]).unwrap();
@@ -203,6 +222,8 @@ fn samples_greedily_at_temperature_zero() {
 
 #[test]
 fn sampling_with_top_k_of_one_ignores_the_temperature() {
+    let _generator = generator_lock();
+
     let logits = cpu_f32(&[1, 3], &[1.0, 1.0, 9.0]);
     let temperatures = cpu_f32(&[1], &[10.0]);
     let top_ks = Tensor::from_i32(&[1], &[1]).unwrap();
@@ -214,8 +235,8 @@ fn sampling_with_top_k_of_one_ignores_the_temperature() {
 
 #[test]
 fn draws_reproducible_random_numbers() {
-    // The generator is shared by everything on the device, so this has to stay the only test in
-    // the file that draws from it, or another one running alongside will move it between the draws.
+    let _generator = generator_lock();
+
     F::manual_seed(Device::Cpu, 42).unwrap();
     let first = F::rand(&[8], DType::Float, Device::Cpu).unwrap();
 

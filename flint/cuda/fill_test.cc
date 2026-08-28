@@ -49,6 +49,36 @@ CATCH_TEST_CASE("test CUDA fill", "[op][cuda]") {
   CATCH_REQUIRE(F::allClose(toCpu(zeros), F::zeros({2, 5, 10}, DType::kFloat)));
 }
 
+CATCH_TEST_CASE("test CUDA fill (float)", "[op][cuda]") {
+  if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
+
+  // A float tensor keeps its type through both of these. It used to keep neither: fill was half
+  // only, and zeros built a <half> whatever it was asked for, which the next operator to look at
+  // the result aborted on.
+  Tensor filled = F::tensor({2, 5, 10}, DType::kFloat, Device::getCuda());
+  F::fill(filled, -2.25f);
+  CATCH_REQUIRE(filled.getDType() == DType::kFloat);
+
+  Tensor filledRef = F::tensor({2, 5, 10}, DType::kFloat, Device::getCpu());
+  F::fill(filledRef, -2.25f);
+  CATCH_REQUIRE(F::allClose(toCpu(filled), filledRef));
+
+  Tensor zeros = F::zeros({2, 5, 10}, DType::kFloat, Device::getCuda());
+  CATCH_REQUIRE(zeros.getDType() == DType::kFloat);
+  CATCH_REQUIRE(F::allClose(toCpu(zeros), F::zeros({2, 5, 10}, DType::kFloat)));
+
+  // A slice of a float tensor is not contiguous, and filling one is what a recurrent state slot
+  // being handed to a new request comes down to.
+  Tensor pool = F::zeros({4, 3, 8}, DType::kFloat, Device::getCuda());
+  Tensor slot = pool.subtensor(2);
+  F::fill(slot, 1.0f);
+
+  Tensor expected = F::zeros({4, 3, 8}, DType::kFloat);
+  Tensor expectedSlot = expected.subtensor(2);
+  F::fill(expectedSlot, 1.0f);
+  CATCH_REQUIRE(F::allClose(toCpu(pool), expected));
+}
+
 CATCH_TEST_CASE("test CUDA fill (values)", "[op][cuda]") {
   if (!isOperatorsAvailable(Device::kCuda)) CATCH_SKIP("cuda device not available");
 

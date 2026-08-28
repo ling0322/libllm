@@ -24,7 +24,7 @@ use crate::flint::{Device, Tensor};
 use crate::bpe::BpeModel;
 use crate::error::Result;
 use crate::forward_batch::PreparedBatch;
-use crate::kv_cache::{KVCacheManager, KVCacheSpec};
+use crate::kv_cache::{KVCacheManager, ModelCacheSpec};
 use crate::prompt::{Message, Prompt};
 use crate::tokenizer::Tokenizer;
 
@@ -49,8 +49,8 @@ pub trait ModelForGeneration {
     /// The width of the logits, which is the vocabulary size for most models.
     fn output_dim(&self) -> i32;
 
-    /// The cache layout this model needs.
-    fn kv_cache_spec(&self) -> Result<KVCacheSpec>;
+    /// The cache layout this model needs: what every one of its layers needs, layer by layer.
+    fn kv_cache_spec(&self) -> Result<ModelCacheSpec>;
 
     /// Lay a conversation out the way this model was trained to read it.
     fn build_prompt(&self, history: &[Message]) -> Result<Prompt>;

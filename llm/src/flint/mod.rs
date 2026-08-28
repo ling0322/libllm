@@ -457,6 +457,18 @@ impl Tensor {
         })
     }
 
+    /// Read the same bytes as another element type, sharing the storage.
+    ///
+    /// The last dimension is the one that changes size: a `<u8>(n, 64)` becomes a `<f16>(n, 32)`.
+    /// Nothing is copied and nothing is converted, which is what lets one pool of bytes back the
+    /// tensors of layers that keep different types in it.
+    ///
+    /// The last dimension must be packed, and the bytes it spans, every other stride and the
+    /// tensor's own offset must all divide by the size of `dtype`.
+    pub fn view_as(&self, dtype: DType) -> Result<Tensor> {
+        Tensor::produce(|out| unsafe { ffi::fl_tensor_view_as(self.raw, dtype as i32, out) })
+    }
+
     /// Exchange two dimensions, sharing the storage. The result is usually not contiguous.
     pub fn transpose(&self, dim0: i32, dim1: i32) -> Result<Tensor> {
         Tensor::produce(|out| unsafe { ffi::fl_tensor_transpose(self.raw, dim0, dim1, out) })

@@ -39,6 +39,7 @@
 //! A [`flint::Tensor`] stays on the thread that made it, so everything built out of one does too.
 
 mod bpe;
+mod cache_pool;
 pub mod capi;
 #[cfg(feature = "cli")]
 pub mod cli;
@@ -67,11 +68,15 @@ pub use bpe::{BpeConfig, BpeEncoder, BpeModel, INVALID_TOKEN};
 pub use flint::{DType, Device};
 
 pub use engine::{Engine, RequestInput};
+pub use cache_pool::{BlockShape, CachePool, CacheUnit, GroupShape, MAX_BLOCKS_PER_RUN};
 pub use engine_config::EngineConfig;
 pub use error::{Error, Result};
 pub use forward_batch::{ForwardBatch, PreparedBatch};
 pub use ini::{IniConfig, IniSection};
-pub use kv_cache::{KVCacheManager, KVCacheSpec};
+pub use kv_cache::{
+    CacheKind, FullAttentionSpec, KVCacheGroup, KVCacheManager, KVCacheSpec, ModelCacheSpec,
+    RecurrentStateSpec,
+};
 pub use layers::{Embedding, Linear, RmsNorm};
 pub use llama::{LlamaConfig, LlamaForGeneration, LlamaModel};
 pub use model::ModelForGeneration;

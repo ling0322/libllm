@@ -250,16 +250,9 @@ void benchmarkGatedDeltaNetSeqlens(
   Tensor v = randHalf(operators, {numTokens, DeltaNetValueHeads, DeltaNetHeadDim});
   Tensor g = operators->rand({numTokens, DeltaNetValueHeads}, DType::kFloat);
   Tensor beta = operators->rand({numTokens, DeltaNetValueHeads}, DType::kFloat);
-  // CudaOperators::zeros hands back a <half> whatever dtype it is asked for, so the state starts
-  // as a host tensor and is copied over.
-  std::vector<float> stateData(
-      static_cast<size_t>(numSeq) * DeltaNetValueHeads * DeltaNetHeadDim * DeltaNetHeadDim,
-      0.0f);
-  Tensor state = F::to(
-      Device::getCuda(),
-      Tensor::create<float>(
-          {numSeq, DeltaNetValueHeads, DeltaNetHeadDim, DeltaNetHeadDim},
-          lut::makeConstSpan(stateData)));
+  Tensor state = operators->zeros(
+      {numSeq, DeltaNetValueHeads, DeltaNetHeadDim, DeltaNetHeadDim},
+      DType::kFloat);
 
   // g is a log decay, so it has to be at most zero.
   g = operators->neg(g);
